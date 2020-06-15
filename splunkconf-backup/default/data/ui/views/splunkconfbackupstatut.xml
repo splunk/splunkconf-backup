@@ -1,0 +1,67 @@
+<form>
+  <label>SplunkConf-Backup-Statut</label>
+  <description>Dashboard will only show hosts that are defined in splunkconf-backup-expected lookup. Please use lookup editor to fill it on the instance that you use to monitor Splunk (wont affect backup by itself)</description>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="field1">
+      <label>Backup Time Check (should be adjusted to backup schedule)</label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+    <input type="text" token="fieldhost">
+      <label>Filter by host</label>
+      <default>*</default>
+      <prefix>(host="</prefix>
+      <suffix>")</suffix>
+      <initialValue>cm</initialValue>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Backup Last State</title>
+      <table>
+        <search>
+          <query>|inputlookup splunkconf-backup-expected |  search $fieldhost$ | eval object=mvappend("etc","scripts","kvdump","kvstore","state"), type=mvappend("local","remote") |  mvexpand object | mvexpand type | join type=left host,type,object [search index=_internal $fieldhost$ source="*splunkconf-backup.log*" "splunkconf-backup"  NOT "splunkconf-purgebackup" action=backup NOT result="running" | bin _time span=1d | stats count as nb,latest(_raw) , latest(result) as result , values(result) as list_result by type,host,object] | fillnull result value="missing" | eval result_id= case (result=="success",0,result=="unknown",1000,result="warning",100,1==1,1000) | rangemap field=result_id low=0-100 elevated=101-1000 default=severe | fields - result_id range | eval object2=case(object=="kvdump","kv",object=="kvstore","kv",1==1,object) | eventstats dc(object) as dcobject by host,object2,type |  search NOT (dcobject=2 AND object="kvstore") | fields - dcobject,object2| rename result AS latest_result</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="list_result">
+          <colorPalette type="map">{"success":#4FA484,"failure":#DC4E41,"warning":#F8BE34,"missing":#F1813F}</colorPalette>
+        </format>
+        <format type="color" field="type">
+          <colorPalette type="map">{"local":#62B3B2,"remote":#5A4575}</colorPalette>
+        </format>
+        <format type="color" field="latest_result">
+          <colorPalette type="map">{"success":#4FA484,"failure":#DC4E41,"warning":#F8BE34,"missing":#F1813F}</colorPalette>
+        </format>
+        <format type="color" field="object">
+          <colorPalette type="map">{"etc":#3C444D,"scripts":#708794,"kvdump":#006D9C,"state":#62B3B2,"kvstore":#EC9960}</colorPalette>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <viz type="event-timeline-viz.event-timeline-viz">
+        <search>
+          <query>index=_internal ($fieldhost$) source="*splunkconf-backup.log*" "splunkconf-backup"  NOT "splunkconf-purgebackup" action=backup NOT result="running" | bin _time span=1h | stats count as nb,latest(_raw) , latest(result) as result , values(result) as list_result, latest(_time) as start by type,host,object,_time | fillnull result value="missing" | eval result_id= case (result=="success",0,result=="unknown",1000,result="warning",100,1==1,1000) | rangemap field=result_id low=0-100 elevated=101-1000 default=severe | fields - result_id range | eval object2=case(object=="kvdump","kv",object=="kvstore","kv",1==1,object) | eventstats dc(object) as dcobject by host,object2,type |  search NOT (dcobject=2 AND object="kvstore") | fields - dcobject,object2| eval label=host."_".object."_".type | eval label=type | eval range=case(result=="success","low",1==1,"severe" ) |eval group=host."_".object |rename result AS latest_result</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">534</option>
+        <option name="refresh.display">progressbar</option>
+      </viz>
+    </panel>
+  </row>
+</form>

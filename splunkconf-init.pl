@@ -1,0 +1,1 @@
+../../scripts/splunkconf-init.pl

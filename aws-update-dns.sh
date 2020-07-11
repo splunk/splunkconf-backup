@@ -1,0 +1,1 @@
+../aws-update-dns.sh

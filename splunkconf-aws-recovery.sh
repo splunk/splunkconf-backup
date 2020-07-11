@@ -1,0 +1,1 @@
+../splunkconf-aws-recovery.sh

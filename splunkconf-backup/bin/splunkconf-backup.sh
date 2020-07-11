@@ -37,6 +37,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20200502 change disk space check to not exit immediately in order to report more info for backup that are missing (to be used for reporting logic)
 # 20200502 make code more modular, improve logging for full etc case, add disabled apps dir to targeted etc, set umask explicitely, change check for kvstore remote copy  
 # 20200504 add timezone info in backup filename to ease reporting from splunk
+# 20200623 add splunk prefix logic on var got from instance tags
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -102,7 +103,7 @@ DOREMOTEBACKUP=1
 # exemple, please tune
 # PLEASE USE A SUBDIRECTORY ON THE REMOTE LOCATION SO THAT THE DIRECTORY CHECK WILL FAIL IN CASE THE REMOTE STORAGE IS NOT THERE (we don't want to write locally if not mouted for example)
 #REMOTEBACKUPDIR="/mnt/remotenas/backup"
-REMOTEBACKUPDIR="s3://pleaseconfigurenstancetagsorsetdirectlythes3bucketforbackupshere-s3splunkbackup/splunkconf-backup"
+REMOTEBACKUPDIR="s3://pleaseconfigurenstancetagsorsetdirectlythes3bucketforbackupshere-splunks3splunkbackup/splunkconf-backup"
 # type 1 = nas (use cp), 2 = S3 (use aws s3 cp), 3= remote nas via scp
 REMOTETECHNO=2
 # type : 0=auto 1 = date versioned backup (preferred for local),2 = only one backup file (dangerous, we need other feature to do versioning like filesystem (btrfs) , classic backup on top, ... 3 = only one backup, no instance name in it (they are still sorted by instance directory, may be easier for automatic reuse by install scripts)
@@ -169,7 +170,7 @@ function echo_log_ext {
 function debug_log {
   DEBUG=0   
   # uncomment for debugging
-  DEBUG=1   
+  #DEBUG=1   
   if [ "$DEBUG" == "1" ]; then 
     echo_log_ext  "DEBUG id=$ID $1"
   fi 
@@ -236,14 +237,22 @@ else
     debug_log "$FILE1 does not exist, please consider using tags and appropriate user data to get somne configuration dynamically (cloud env only, ignore otherwise)"
 fi
 
-if [ -z ${s3backupbucket+x} ]; then 
-  warn_log "name=s3backupbucket  src=instancetags result=unset "; 
-else 
-echo 
-  debug_log "name=s3backupbucket src=instancetags result=set value='$s3backupbucket' ";
+if [ -z ${splunks3backupbucket+x} ]; then 
+  if [ -z ${s3backupbucket+x} ]; then 
+    warn_log "name=splunks3backupbucket  src=instancetags result=unset "; 
+  else 
+    debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
+    REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
+    debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+  fi
+else
+  s3backupbucket=$splunks3backupbucket
+  debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=true";
   REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
   debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
 fi
+
+
 if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
   . ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "splunkconf-backup.conf system local succesfully included") 
 fi

@@ -103,8 +103,9 @@ function echo_log_ext {
 }
 
 function debug_log {
+  DEBUG="0";
   # change me here, not yet in conf file
-  DEBUG="1";
+  #DEBUG="1";
   if [ $DEBUG -ne "0" ]; then 
     echo_log_ext  "DEBUG id=$ID $1"
   fi

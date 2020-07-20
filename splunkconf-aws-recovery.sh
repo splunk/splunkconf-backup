@@ -51,6 +51,7 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20200625 add initialtlsapps to package dir to ease initial tls deployment 
 # 20200626 add aws-terminate systemd service helper to optimize indexer scale down events
 # 20200629 prioritize custom certs from s3 over ones in backup to ease upgrade scenarios
+# 20200720 add support for one disk instance (not recommended for vol management but can be useful for lab)
 
 VERSION="20200629"
 
@@ -271,15 +272,17 @@ if [ "$MODE" != "upgrade" ]; then
           echo "/data/vol1 not found in /etc/fstab, adding it" >> /var/log/splunkconf-aws-recovery-info.log
           echo "/dev/vgsplunkstorage${DEVNUM}//lvsplunkstorage${DEVNUM} /data/vol1 ext4 defaults,nofail 0 2" >> /etc/fstab
           mount /data/vol1
-          echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-aws-recovery-info.log
-          mkdir -p /data/vol1/indexes
-          chown -R splunk. /data/vol1/indexes
         else
           echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-aws-recovery-info.log
         fi
       else
         echo "no EBS partition to configure" >> /var/log/splunkconf-aws-recovery-info.log
       fi
+      # Note : in case there is just one partition , this will create the dir so that splunk will run
+      # for volume management to work in classic mode, it is better to use a distinct partition to not mix manage and unmanaged on the same partition
+      echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-aws-recovery-info.log
+      mkdir -p /data/vol1/indexes
+      chown -R splunk. /data/vol1/indexes
     else
       #OSDEVICE=$(lsblk -o NAME -n | grep -v '[[:digit:]]' | sed "s/^sd/xvd/g")
       #OSDEVICE=$(lsblk -o NAME -n --nodeps | grep nvme)

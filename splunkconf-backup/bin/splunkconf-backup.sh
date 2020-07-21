@@ -38,6 +38,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20200502 make code more modular, improve logging for full etc case, add disabled apps dir to targeted etc, set umask explicitely, change check for kvstore remote copy  
 # 20200504 add timezone info in backup filename to ease reporting from splunk
 # 20200623 add splunk prefix logic on var got from instance tags
+# 20200721 fix typo in statelist (missing space)
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -136,7 +137,7 @@ KVDBPATH="${SPLUNK_DB}/kvstore"
 # state files and dir
 #MODINPUTPATH="${SPLUNK_DB}/modinput"
 #SCHEDULERSTATEPATH="${SPLUNK_HOME}/var/run/splunk/scheduler"
-STATELIST="${SPLUNK_DB}/modinput ${SPLUNK_HOME}/var/run/splunk/scheduler${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy"
+STATELIST="${SPLUNK_DB}/modinput ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy"
 
 # configuration for scripts backups
 # script dir (what to backup)

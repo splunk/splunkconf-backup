@@ -343,7 +343,7 @@ aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldi
 
 # Splunk installation
 # note : if you update here, that could update at reinstanciation, make sure you know what you do !
-splbinary="splunk-8.0.4.1-ab7a85abaa98-linux-2.6-x86_64.rpm"
+splbinary="splunk-8.0.5-a1a6394cc5ae-linux-2.6-x86_64.rpm"
 echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-aws-recovery-info.log
 # aws s3 cp doesnt support unix globing
 aws s3 cp ${remoteinstalldir}/${splbinary} ${localinstalldir} --quiet

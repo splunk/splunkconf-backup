@@ -39,6 +39,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20200504 add timezone info in backup filename to ease reporting from splunk
 # 20200623 add splunk prefix logic on var got from instance tags
 # 20200721 fix typo in statelist (missing space)
+# 20200908 include AWS tags directly in for case where recovery script not (yet) deployed
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -223,19 +224,48 @@ APPDIR=`pwd`
 debug_log "app=splunkconf-backup result=running SPLUNK_HOME=$SPLUNK_HOME splunkconfappdir=${APPDIR} loading splukconf-backup.conf file"
 . ./default/splunkconf-backup.conf && (debug_log "splunkconf-backup.conf default succesfully included") || (debug_log "splunkconf-backup.conf default  not found or not readable. Using defaults from script ")
 . ./local/splunkconf-backup.conf && (debug_log "splunkconf-backup.conf local succesfully included") 
-# if we can get the s3 bucket from ec2 tags then that is prioritary but we still take local usr local on top to allow override as splunk admin usually expect
-# new more generic location
-FILE1="/etc/instance-tags"
-# for compat with upgrade cases
-FILE2="/etc/ec2-tags"
-if [ -f "$FILE1" ]; then
-# if exist then use it preferably
-    . /etc/instance-tags
-elif [ -f "$FILE2" ]; then
-# compat for old user data
-    . /etc/ec2-tags
+
+
+# we get most var dynamically from ec2 tags associated to instance
+
+# getting tokens and writting to /etc/instance-tags
+
+CHECK=1
+
+if ! command -v curl &> /dev/null
+then
+  echo "oops ! command curl could not be found !"
+  CHECK=0  
+fi
+
+if ! command -v aws &> /dev/null
+then
+  echo "command aws not detected, assuming we are not running inside aws"
+  CHECK=0
+fi
+
+if [ $CHECK -ne 0 ]; then
+  # setting up token (IMDSv2)
+  TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+  # lets get the s3splunkinstall from instance tags
+  INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
+  REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
+
+  # we put store tags in /etc/instance-tags -> we will use this later on
+  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > /etc/instance-tags
+  if [ -z ${splunkinstanceType+x} ]; then
+    echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-aws-recovery-info.log
+    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/'  > /etc/instance-tags
+  else
+    # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
+    echo "filtering tags with splunk prefix for instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+  fi
+  chmod 644 /etc/instance-tags
+
+  # including the tags for use in this script
+  . /etc/instance-tags
 else
-    debug_log "$FILE1 does not exist, please consider using tags and appropriate user data to get somne configuration dynamically (cloud env only, ignore otherwise)"
+  echo "aws tag detection disabled (missing commands)"
 fi
 
 if [ -z ${splunks3backupbucket+x} ]; then 

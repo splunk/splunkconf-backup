@@ -40,6 +40,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20200623 add splunk prefix logic on var got from instance tags
 # 20200721 fix typo in statelist (missing space)
 # 20200908 include AWS tags directly in for case where recovery script not (yet) deployed
+# 20200909 change path for instance tags so that it can work as splunk user with no additional permissions
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -234,17 +235,18 @@ CHECK=1
 
 if ! command -v curl &> /dev/null
 then
-  echo "oops ! command curl could not be found !"
+  warn_log "oops ! command curl could not be found !"
   CHECK=0  
 fi
 
 if ! command -v aws &> /dev/null
 then
-  echo "command aws not detected, assuming we are not running inside aws"
+  warn_log "command aws not detected, assuming we are not running inside aws"
   CHECK=0
 fi
 
 if [ $CHECK -ne 0 ]; then
+  INSTANCEFILE="${SPLUNK_HOME}/var/run/splunk/instance-tags"
   # setting up token (IMDSv2)
   TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
   # lets get the s3splunkinstall from instance tags
@@ -252,18 +254,18 @@ if [ $CHECK -ne 0 ]; then
   REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
   # we put store tags in /etc/instance-tags -> we will use this later on
-  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > /etc/instance-tags
+  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > $INSTANCEFILE
   if [ -z ${splunkinstanceType+x} ]; then
     echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-aws-recovery-info.log
-    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/'  > /etc/instance-tags
+    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/'  > $INSTANCEFILE
   else
     # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
     echo "filtering tags with splunk prefix for instance tags" >> /var/log/splunkconf-aws-recovery-info.log
   fi
-  chmod 644 /etc/instance-tags
+  chmod 640 $INSTANCEFILE
 
   # including the tags for use in this script
-  . /etc/instance-tags
+  . $INSTANCEFILE
 else
   echo "aws tag detection disabled (missing commands)"
 fi

@@ -557,7 +557,7 @@ EOF
 # init script for Splunk.
 # initially generated  by 'splunk enable boot-start'.
 
-# ******* MODIFIED FOR su - (see docs.splunk.com)  , please dont rerun enable boot-start as that would loose the tuning !!! 
+# ******* MODIFIED FOR su - (ref https://docs.splunk.com/Documentation/Splunk/latest/Admin/ConfigureSplunktostartatboottime)  , please dont rerun enable boot-start as that would loose the tuning !!! 
 #
 # chkconfig: 2345 90 60
 # description: Splunk Core service

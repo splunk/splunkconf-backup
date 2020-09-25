@@ -154,8 +154,8 @@ if ($enablesystemd==0 || $enablesystemd eq "init") {
   $enablesystemd=1 ;
   if (check_exists_command('systemctl') && check_exists_command('rpm') ) {
     print "systemd present and rpm, may be systemd\n";
-    if (system(`systemd --version`)>219) {
-       print " version ok";
+    if (system(`systemctl --version| head -1 | cut -d" " -f 2`)>218) {
+       print " systemd version ok";
     } else {
      print "systemd test version ko, lets fallback to use initd\n";
      $enablesystemd=0;

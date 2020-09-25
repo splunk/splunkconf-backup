@@ -158,7 +158,16 @@ if ($enablesystemd==0 || $enablesystemd eq "init") {
     chomp($systemdversion);
     if ($systemdversion>218) {
        print " systemd version ($systemdversion) ok\n";
-       $enablesystemd=1 ;
+       my $polkitversion=`rpm -qi polkit| grep Version |cut -d":" -f 2`;
+       chomp($polkitversion);
+       print " polkit version ($polkitversion) \n";
+       if ($polkitversion > 0) {
+         $enablesystemd=1 ;
+         print " check polkit ok\n";
+       } else {
+         $enablesystemd=0 ;
+         print " check polkit ko\n";
+      }
     } else {
      print "systemd test version ko, lets fallback to use initd\n";
      $enablesystemd=0;

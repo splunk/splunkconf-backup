@@ -49,6 +49,9 @@
 # 20200526 add user seed creation and no-prompt option for scripts, add systemd default mode
 # 20200608 fix missing stanza for user seed creation
 # 20200713 match memorylimit from splunk systemd file for v8+ as it is now dynamic 
+# 20200925 add default systemd backup (easier debugging purpose)
+# 20200925 integrate os detection to only enable systemd when matching requirements
+# 20200925 fix/improve help usage
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -120,9 +123,9 @@ GetOptions (
   );
 
 if ($help) {
-	print "initsplunk.pl [options]
+	print "splunkconf-initsplunk.pl [options]
 This script will initialize Splunk software after package installation or upgrade (tar or RPM)
-This version works with Splunk 7.1,7.2 or 7.3
+This version works with Splunk 7.1,7.2,7.3 or 8.0 (it would only work for upgrade for previous versions as the admin user creation changed)
 This version will work for full Splunk Enterprise or UF
 The behavior will change depending on type
 admin password creation (Full, required existing or via user-seed.conf, UF no account creation required (unless you provide user-seed.conf file)
@@ -142,14 +145,28 @@ admin password creation (Full, required existing or via user-seed.conf, UF no ac
 ";
 	exit 0;
 } else {
-  print "please run initsplunk.pl --help for script explanation and options\n";
+  print "please run splunkconf-initsplunk.pl --help for script explanation and options\n";
 }
 
 if ($enablesystemd==0 || $enablesystemd eq "init") {
   $enablesystemd=0;
 } else {
   $enablesystemd=1 ;
+  if (check_exists_command('systemctl') && check_exists_command('rpm') ) {
+    print "systemd present and rpm, may be systemd\n";
+    if (system(`systemd --version`)>219) {
+       print " version ok";
+    } else {
+     print "systemd test version ko, lets fallback to use initd\n";
+     $enablesystemd=0;
+    }
+  } else {
+    print "systemctl or rpm no detected, lets fallback to use initd\n";
+    $enablesystemd=0;
+  }
 }
+
+
 if ($servicename) {
   print "servicename is set to $servicename\n";
 } else {
@@ -325,6 +342,12 @@ else {
 # don't remove this command, this is needed to correctly set splunk-launch.conf
 print "configure boot start with splunk user\n";
 
+sub check_exists_command { 
+    my $check = `sh -c 'command -v $_[0]'`; 
+    return $check;
+}
+
+
 # post 7.2.2 included, deploy in init mode if we are not on this version fallback to the command without the new option
 if ($enablesystemd==1) {
   print "configuring with systemd\n";
@@ -451,6 +474,9 @@ EOF
     # default file used by splunk /etc/systemd/system/splunk.service
     # /etc/systemd/system/$servicename.service
     my $filenameservice = '/etc/systemd/system/'.$servicename.'.service';
+    my $filenameservicebck = '/etc/systemd/system/'.$servicename.'.service.orig-bck';
+    print "backup default service file  $filenameservice to $filenameservicebck \n";
+    `cp $filenameservice $filenameservicebck`;
     print "creating custom systemd service in $filenameservice\n";
     my ($name, $passwd, $uid, $gid, $quota, $comment, $gcos, $dir, $shell) = getpwnam($USERSPLUNK);
     print "Name = $name\n";

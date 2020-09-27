@@ -52,8 +52,11 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20200626 add aws-terminate systemd service helper to optimize indexer scale down events
 # 20200629 prioritize custom certs from s3 over ones in backup to ease upgrade scenarios
 # 20200720 add support for one disk instance (not recommended for vol management but can be useful for lab)
+# 20200911 change default version to 8.0.6
+# 20200925 add deployment of upgrade-local script for install mode only
+# 20200927 add logic to detect RH6 versus RH7+ and apply different tuning system dymamically (by having both packages on S3 with fallback mechanism to not break previous package name   
 
-VERSION="20200629"
+VERSION="20200927b"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -329,21 +332,14 @@ if [ "$MODE" != "upgrade" ]; then
   fi # if idx
 fi # if not upgrade
 
-# issue on aws2 , polkit and tuned not there by default
-# in that case, restart from splunk user would return
-#Failed to restart splunk.service: The name org.freedesktop.PolicyKit1 was not provided by any .service files
-#See system logs and 'systemctl status splunk.service' for details.
-# despite the proper policy kit files deployed !
 
-yum install polkit tuned curl -y
-
-# tuning system
-echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
-aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
+yum install curl -y
 
 # Splunk installation
 # note : if you update here, that could update at reinstanciation, make sure you know what you do !
-splbinary="splunk-8.0.5-a1a6394cc5ae-linux-2.6-x86_64.rpm"
+#splbinary="splunk-8.0.5-a1a6394cc5ae-linux-2.6-x86_64.rpm"
+splbinary="splunk-8.0.6-152fb4b2bb96-linux-2.6-x86_64.rpm"
+
 echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-aws-recovery-info.log
 # aws s3 cp doesnt support unix globing
 aws s3 cp ${remoteinstalldir}/${splbinary} ${localinstalldir} --quiet
@@ -358,11 +354,55 @@ mkdir -p ${SPLUNK_HOME}/etc/apps/
 mkdir -p ${SPLUNK_HOME}/etc/auth/
 chown -R splunk. ${SPLUNK_HOME}
 
-echo "deploying system tuning for Splunk" >> /var/log/splunkconf-aws-recovery-info.log
-# deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
-tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
-# enable the tuning done via rc.local and restart polkit so it takes into account new rules
-chmod u+x /etc/rc.d/rc.local;systemctl start rc-local;systemctl restart polkit
+# tuning system
+# we will use SYSVER to store version type (used for packagesystem and hostname setting for example)
+SYSVER=6
+if ! command -v hostnamectl &> /dev/null
+then
+  echo "hostnamectl command could not be found -> Assuming RH6/AWS1 like distribution" >> /var/log/splunkconf-aws-recovery-info.log
+  SYSVDER=6
+  echo "remote : ${remoteinstalldir}/package-system6-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+  aws s3 cp ${remoteinstalldir}/package-system6-for-splunk.tar.gz  ${localinstalldir} --quiet
+  if [ -f "${localinstalldir}/package-system6-for-splunk.tar.gz"  ]; then
+    echo "deploying system tuning for Splunk, version for RH6 like systems" >> /var/log/splunkconf-aws-recovery-info.log
+    # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
+    tar -C "/" -zxf ${localinstalldir}/package-system6-for-splunk.tar.gz
+  else
+    echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+    aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
+    echo "deploying system tuning for Splunk" >> /var/log/splunkconf-aws-recovery-info.log
+    # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
+    tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
+  fi
+  # enable the system tuning 
+  sysctl --system;/etc/rc.d/rc.local 
+else
+  echo "hostnamectl command detected, assuming RH7+ like distribution" >> /var/log/splunkconf-aws-recovery-info.log
+  # note we treat RH8 like RH7 for the moment as systemd stuff that works for RH7 also work for RH8 
+  SYSVDER=7
+  # issue on aws2 , polkit and tuned not there by default
+  # in that case, restart from splunk user would return
+  # Failed to restart splunk.service: The name org.freedesktop.PolicyKit1 was not provided by any .service files
+  # See system logs and 'systemctl status splunk.service' for details.
+  # despite the proper policy kit files deployed !
+  yum install polkit tuned -y
+  echo "remote : ${remoteinstalldir}/package-system7-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+  aws s3 cp ${remoteinstalldir}/package-system7-for-splunk.tar.gz  ${localinstalldir} --quiet
+  if [ -f "${localinstalldir}/package-system7-for-splunk.tar.gz"  ]; then
+    echo "deploying system tuning for Splunk, version for RH6 like systems" >> /var/log/splunkconf-aws-recovery-info.log
+    # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
+    tar -C "/" -zxf ${localinstalldir}/package-system7-for-splunk.tar.gz
+  else
+    echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+    aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
+    echo "deploying system tuning for Splunk" >> /var/log/splunkconf-aws-recovery-info.log
+    # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
+    tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
+  fi
+  # enable the tuning done via rc.local and restart polkit so it takes into account new rules
+  sysctl --system;chmod u+x /etc/rc.d/rc.local;systemctl start rc-local;systemctl restart polkit
+fi
+
 
 if [ "$MODE" != "upgrade" ]; then
   # fetching files that we will use to initialize splunk
@@ -487,13 +527,18 @@ if [ "$MODE" != "upgrade" ]; then
       chown splunk. ${SPLUNK_HOME}/etc/system/local/server.conf
     fi
     echo "changing hostname at system level"
-    # legacy ami type , rh6 like
-    sed -i "s/HOSTNAME=localhost.localdomain/HOSTNAME=${instancename}/g" /etc/sysconfig/network
-    # dynamic change on top in case correct hostname is needed further down in this script 
-    hostname ${instancename}
-    # we should call a command here to force hostname immediately as splunk commands are started after
-    # new ami , rh7+,...
-    hostnamectl set-hostname ${instancename}
+    if [ $SYSVER -eq "6" ]; then
+      echo "Using legacy method" >> /var/log/splunkconf-aws-recovery-info.log
+      # legacy ami type , rh6 like
+      sed -i "s/HOSTNAME=localhost.localdomain/HOSTNAME=${instancename}/g" /etc/sysconfig/network
+      # dynamic change on top in case correct hostname is needed further down in this script 
+      hostname ${instancename}
+      # we should call a command here to force hostname immediately as splunk commands are started after
+    else     
+      # new ami , rh7+,...
+      echo "Using new hostnamectl method" >> /var/log/splunkconf-aws-recovery-info.log
+      hostnamectl set-hostname ${instancename}
+    fi
   elif [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
     if [ -z ${splunkorg+x} ]; then 
       echo "instance tags are not correctly set (splunkorg). I dont know prefix for splunk base apps, will use org ! Please add splunkorg tag" >> /var/log/splunkconf-aws-recovery-info.log
@@ -614,7 +659,8 @@ chown -R splunk. ${SPLUNK_HOME}
 
 # splunk initialization (first time or upgrade)
 mkdir -p ${localrootscriptdir}
-aws s3 cp ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/
+aws s3 cp ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/ --quiet
+
 # just in case
 yum install perl -y >> /var/log/splunkconf-aws-recovery-info.log
 # make it executable
@@ -630,6 +676,9 @@ echo "localinstalldir ${localinstalldir}  contains" >> /var/log/splunkconf-aws-r
 ls ${localinstalldir} >> /var/log/splunkconf-aws-recovery-info.log
 
 if [ "$MODE" != "upgrade" ]; then 
+  # local upgrade script (we dont do this in upgrade mode as overwriting our own script already being run could be problematic)
+  echo "remote : ${remoteinstalldir}/splunkconf-upgrade-local.sh" >> /var/log/splunkconf-aws-recovery-info.log
+  aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local.sh  ${localrootscriptdir}/ --quiet
   # if there is a dns update to do , we have put the script and it has been redeployed as part of the restore above
   # so we can run it now
   # the content will be different depending on the instance

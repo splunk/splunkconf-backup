@@ -56,7 +56,7 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20200925 add deployment of upgrade-local script for install mode only
 # 20200927 add logic to detect RH6 versus RH7+ and apply different tuning system dymamically (by having both packages on S3 with fallback mechanism to not break previous package name   
 
-VERSION="20200927b"
+VERSION="20200927c"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -360,13 +360,13 @@ SYSVER=6
 if ! command -v hostnamectl &> /dev/null
 then
   echo "hostnamectl command could not be found -> Assuming RH6/AWS1 like distribution" >> /var/log/splunkconf-aws-recovery-info.log
-  SYSVDER=6
-  echo "remote : ${remoteinstalldir}/package-system6-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
-  aws s3 cp ${remoteinstalldir}/package-system6-for-splunk.tar.gz  ${localinstalldir} --quiet
-  if [ -f "${localinstalldir}/package-system6-for-splunk.tar.gz"  ]; then
-    echo "deploying system tuning for Splunk, version for RH6 like systems" >> /var/log/splunkconf-aws-recovery-info.log
+  SYSVER=6
+  echo "remote : ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+  aws s3 cp ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz  ${localinstalldir} --quiet
+  if [ -f "${localinstalldir}/package-systemaws1-for-splunk.tar.gz"  ]; then
+    echo "deploying system tuning for Splunk, version for AWS1 like systems" >> /var/log/splunkconf-aws-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
-    tar -C "/" -zxf ${localinstalldir}/package-system6-for-splunk.tar.gz
+    tar -C "/" -zxf ${localinstalldir}/package-systemaws1-for-splunk.tar.gz
   else
     echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
     aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
@@ -379,7 +379,7 @@ then
 else
   echo "hostnamectl command detected, assuming RH7+ like distribution" >> /var/log/splunkconf-aws-recovery-info.log
   # note we treat RH8 like RH7 for the moment as systemd stuff that works for RH7 also work for RH8 
-  SYSVDER=7
+  SYSVER=7
   # issue on aws2 , polkit and tuned not there by default
   # in that case, restart from splunk user would return
   # Failed to restart splunk.service: The name org.freedesktop.PolicyKit1 was not provided by any .service files

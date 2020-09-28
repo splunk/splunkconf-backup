@@ -55,8 +55,9 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20200911 change default version to 8.0.6
 # 20200925 add deployment of upgrade-local script for install mode only
 # 20200927 add logic to detect RH6 versus RH7+ and apply different tuning system dymamically (by having both packages on S3 with fallback mechanism to not break previous package name   
+# 20200927 fix splunk prefix tag detection, add splunktargetbinary tag usage
 
-VERSION="20200927c"
+VERSION="20200928a"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -109,12 +110,13 @@ REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://
 
 # we put store tags in /etc/instance-tags -> we will use this later on
 aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > /etc/instance-tags
-if [ -z ${splunkinstanceType+x} ]; then 
-    echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-aws-recovery-info.log
-    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/'  > /etc/instance-tags
-else 
+if grep -qi splunkinstanceType /etc/instance-tags
+then
   # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
   echo "filtering tags with splunk prefix for instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+else
+  echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-aws-recovery-info.log
+  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/'  > /etc/instance-tags
 fi
 chmod 644 /etc/instance-tags
 
@@ -339,11 +341,21 @@ yum install curl -y
 # note : if you update here, that could update at reinstanciation, make sure you know what you do !
 #splbinary="splunk-8.0.5-a1a6394cc5ae-linux-2.6-x86_64.rpm"
 splbinary="splunk-8.0.6-152fb4b2bb96-linux-2.6-x86_64.rpm"
-
+if [ -z ${splunktargetbinary+x} ]; then 
+  echo "splunktargetbinary not set in instance tags, falling back to use version ${splbinary} from aws recovery script" >> /var/log/splunkconf-aws-recovery-info.log
+else 
+  splbinary=${splunktargetbinary}
+  echo "using splunktargetbinary ${splunktargetbinary} from instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+fi
 echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-aws-recovery-info.log
 # aws s3 cp doesnt support unix globing
 aws s3 cp ${remoteinstalldir}/${splbinary} ${localinstalldir} --quiet
 ls ${localinstalldir}
+if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
+  echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install " >> /var/log/splunkconf-aws-recovery-info.log
+  # better to exit now and have the admin fix the situation
+  exit 1
+fi
 
 # manually create the splunk user so that it will exist for next step   
 #useradd --home-dir /opt/splunk --comment "Splunk Server" splunk --shell /bin/bash 

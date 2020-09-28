@@ -401,7 +401,7 @@ else
   echo "remote : ${remoteinstalldir}/package-system7-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
   aws s3 cp ${remoteinstalldir}/package-system7-for-splunk.tar.gz  ${localinstalldir} --quiet
   if [ -f "${localinstalldir}/package-system7-for-splunk.tar.gz"  ]; then
-    echo "deploying system tuning for Splunk, version for RH6 like systems" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "deploying system tuning for Splunk, version for RH7+ like systems" >> /var/log/splunkconf-aws-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
     tar -C "/" -zxf ${localinstalldir}/package-system7-for-splunk.tar.gz
   else

@@ -56,8 +56,9 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20200925 add deployment of upgrade-local script for install mode only
 # 20200927 add logic to detect RH6 versus RH7+ and apply different tuning system dymamically (by having both packages on S3 with fallback mechanism to not break previous package name   
 # 20200927 fix splunk prefix tag detection, add splunktargetbinary tag usage
+# 20200929 add tuned service start for AWS2 case
 
-VERSION="20200928a"
+VERSION="20200929a"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -398,6 +399,8 @@ else
   # See system logs and 'systemctl status splunk.service' for details.
   # despite the proper policy kit files deployed !
   yum install polkit tuned -y
+  systemctl enable tuned.service
+  systemctl start tuned.service
   echo "remote : ${remoteinstalldir}/package-system7-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
   aws s3 cp ${remoteinstalldir}/package-system7-for-splunk.tar.gz  ${localinstalldir} --quiet
   if [ -f "${localinstalldir}/package-system7-for-splunk.tar.gz"  ]; then
@@ -412,7 +415,7 @@ else
     tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
   fi
   # enable the tuning done via rc.local and restart polkit so it takes into account new rules
-  sysctl --system;chmod u+x /etc/rc.d/rc.local;systemctl start rc-local;systemctl restart polkit
+  sysctl --system;sleep 1;chmod u+x /etc/rc.d/rc.local;systemctl start rc-local;systemctl restart polkit
 fi
 
 

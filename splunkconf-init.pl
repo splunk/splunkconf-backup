@@ -548,7 +548,7 @@ LimitNPROC=262143
 LimitFSIZE=infinity
 LimitCORE=infinity
 # Have splunk if just starting after an upgrade or for the first time accept the license and answer yes to the migration
-ExecStartPre=/bin/bash -c '$SPLUNK_HOME/bin/splunk status --accept-license --answer-yes --no-prompt; true'
+ExecStartPre=/bin/bash -c '/usr/bin/su - $USERSPLUNK -s /bin/bash -c \'$SPLUNK_HOME/bin/splunk status --accept-license --answer-yes --no-prompt\';true'
 # wait to avoid restarting too fast
 RestartSec=5s
 

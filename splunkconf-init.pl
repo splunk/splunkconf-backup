@@ -52,6 +52,7 @@
 # 20200925 add default systemd backup (easier debugging purpose)
 # 20200925 integrate os detection to only enable systemd when matching requirements
 # 20200925 fix/improve help usage
+# 20200928 add group forcing to systemd service and use name instead of id to reflect product change
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -531,13 +532,16 @@ SuccessExitStatus=51 52
 RestartPreventExitStatus=51
 RestartForceExitStatus=52
 User=$USERSPLUNK
+Group=splunk
 Delegate=true
 CPUShares=1024
 MemoryLimit=$systemdmemlimit
 PermissionsStartOnly=true
 # change needed for 8.0+ ExecStartPost to ExecStartPre to change the permissions before Splunk is started (see answers 781532 )
-ExecStartPre=/bin/bash -c "chown -R $uid:$gid /sys/fs/cgroup/cpu/system.slice/%n"
-ExecStartPre=/bin/bash -c "chown -R $uid:$gid /sys/fs/cgroup/memory/system.slice/%n"
+ExecStartPre=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/cpu/system.slice/%n"
+#ExecStartPre=/bin/bash -c "chown -R $uid:$gid /sys/fs/cgroup/cpu/system.slice/%n"
+ExecStartPre=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/memory/system.slice/%n"
+#ExecStartPre=/bin/bash -c "chown -R $uid:$gid /sys/fs/cgroup/memory/system.slice/%n"
 ## Modifications to the base Splunkd.service that is created from the "enable boot-start" command ##
 # set additional ulimits:
 LimitNPROC=262143

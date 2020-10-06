@@ -57,8 +57,9 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20200927 add logic to detect RH6 versus RH7+ and apply different tuning system dymamically (by having both packages on S3 with fallback mechanism to not break previous package name   
 # 20200927 fix splunk prefix tag detection, add splunktargetbinary tag usage
 # 20200929 add tuned service start for AWS2 case
+# 20201006 deploy splunkconfbackup from s3 (needed for upgrade case) and remove old cron version if present to prevent double run + update autonatically master_uri to splunk-cm.awsdnszone 
 
-VERSION="20200929a"
+VERSION="20201006"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -195,6 +196,7 @@ localbackupdir="${SPLUNK_HOME}/var/backups"
 SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
 localkvdumpbackupdir="${SPLUNK_DB}/kvstorebackup/"
 remoteinstalldir="s3://${splunks3installbucket}/install"
+remoteinstallsplunkconfbackup="${remoteinstalldir}/apps/splunkconf-backup.tar.gz"
 localinstalldir="${SPLUNK_HOME}/var/install"
 remotepackagedir="s3://${splunks3installbucket}/packaged/${instancename}"
 localrootscriptdir="/usr/local/bin"
@@ -651,6 +653,24 @@ EOF
 
 fi # if not upgrade
 
+# updating master_uri (needed when reusing backup from one env to another)
+# this is for indexers, search heads, mc ,.... (we will detect if the conf is present)
+if [ -z ${splunkorg+x} ]; then 
+  echo "instance tags are not correctly set (splunkorg). I dont know prefix for splunk base apps, will use org ! Please add splunkorg tag" >> /var/log/splunkconf-aws-recovery-info.log
+  splunkorg="org"
+else 
+  echo "using splunkorg=${splunkorg} from instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+fi
+# splunkawsdnszone used for updating route53 when apropriate
+if [ -z ${splunkawsdnszone+x} ]; then 
+    echo "instance tags are not correctly set (splunkawsdnszone). I dont know splunkawsdnszone to use for updating master_uri in a cluster env ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-aws-recovery-info.log
+else 
+  echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+  find ${SPLUNK_HOME} -wholename "./${splunkorg}_cluster*base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e 's%^.*master_uri.*=.*$%master_uri=https://splunk-cm.${splunkawsdnszone}:8089%' {} \; && echo "make sure you have a alias (cname) splunk-cm.${splunkawsdnszone} that point to the name used by the cm instance "
+fi
+
+
+
 ## moved with complete logic to splunkconf-init
 #${SPLUNK_HOME}/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user splunk -systemd-managed 0 || ${SPLUNK_HOME}/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user splunk
 ##${SPLUNK_HOME}/bin/splunk enable boot-start -user splunk --accept-license
@@ -671,6 +691,21 @@ chown -R splunk. ${SPLUNK_HOME}
 #echo "remote : ${remoteinstalldir}/splunkenterprise-init.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
 #aws s3 cp ${remoteinstalldir}/splunkenterprise-init.tar.gz ${localinstalldir} --quiet
 #tar -C "/" -xzf ${localinstalldir}/splunkenterprise-init.tar.gz 
+
+# updating splunkconf-backup app from s3
+# important : version on s3 should be up2date
+# only if it is not a indexer 
+if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
+  aws s3 cp ${remoteinstallsplunkconfbackup} ${localinstalldir} --quiet
+  if [ -e "${localinstalldir}/splunkconfbackup.tar.gz" ]; then
+    tar -C "${SPLUNK_HOME}/etc/apps" -xzf ${localinstalldir}/splunkconfbackup.tar.gz
+    # removing old version for upgrade case 
+    rm -f /etc/crond.d/splunkbackup.cron
+    mv ${SPLUNK_HOME}/scripts/splunconf-backup ${SPLUNK_HOME}/scripts/splunconf-backup-disabled
+  else 
+    echo "splunkconfbackup not found on s3 so will not deploy it now. consider adding it at ${remoteinstallsplunkconfbackup} for autonatic deployment"
+  fi
+fi
 
 # splunk initialization (first time or upgrade)
 mkdir -p ${localrootscriptdir}

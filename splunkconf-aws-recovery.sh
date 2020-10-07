@@ -58,6 +58,7 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20200927 fix splunk prefix tag detection, add splunktargetbinary tag usage
 # 20200929 add tuned service start for AWS2 case
 # 20201006 deploy splunkconfbackup from s3 (needed for upgrade case) and remove old cron version if present to prevent double run + update autonatically master_uri to splunk-cm.awsdnszone 
+# 20201007 various fixes + add --no-prompt when calling splunkconf-init
 
 VERSION="20201007b"
 
@@ -718,7 +719,7 @@ yum install perl -y >> /var/log/splunkconf-aws-recovery-info.log
 chmod u+x ${localrootscriptdir}/splunkconf-init.pl
 echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init" >> /var/log/splunkconf-aws-recovery-info.log
 # no need to pass option, it will default to systemd + /opt/splunk + splunk user
-${localrootscriptdir}/splunkconf-init.pl 
+${localrootscriptdir}/splunkconf-init.pl --no-prompt
 
 echo "localrootscriptdir ${localrootscriptdir}  contains" >> /var/log/splunkconf-aws-recovery-info.log
 ls ${localrootscriptdir} >> /var/log/splunkconf-aws-recovery-info.log

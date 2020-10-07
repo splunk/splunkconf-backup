@@ -765,6 +765,8 @@ if [ "$MODE" != "upgrade" ]; then
     if [ -e /opt/splunk/var/run/splunkconf-kvrestore.lock ]; then 
       echo "splunkconf-restore is running at the moment, waiting before initiating reboot (step=30s, counter=$counter)" >> /var/log/splunkconf-aws-recovery-info.log
       sleep 30
+    else
+      continue
     fi
   done
   # prevent stale lock 

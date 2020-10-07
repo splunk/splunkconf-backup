@@ -59,7 +59,7 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20200929 add tuned service start for AWS2 case
 # 20201006 deploy splunkconfbackup from s3 (needed for upgrade case) and remove old cron version if present to prevent double run + update autonatically master_uri to splunk-cm.awsdnszone 
 
-VERSION="20201006"
+VERSION="20201007b"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -697,11 +697,12 @@ chown -R splunk. ${SPLUNK_HOME}
 # only if it is not a indexer 
 if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
   aws s3 cp ${remoteinstallsplunkconfbackup} ${localinstalldir} --quiet
-  if [ -e "${localinstalldir}/splunkconfbackup.tar.gz" ]; then
-    tar -C "${SPLUNK_HOME}/etc/apps" -xzf ${localinstalldir}/splunkconfbackup.tar.gz
+  if [ -e "${localinstalldir}/splunkconf-backup.tar.gz" ]; then
+    tar -C "${SPLUNK_HOME}/etc/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz
     # removing old version for upgrade case 
     rm -f /etc/crond.d/splunkbackup.cron
     mv ${SPLUNK_HOME}/scripts/splunconf-backup ${SPLUNK_HOME}/scripts/splunconf-backup-disabled
+    echo "splunkconfbackup found on s3 at ${remoteinstallsplunkconfbackup} and updated from it"
   else 
     echo "splunkconfbackup not found on s3 so will not deploy it now. consider adding it at ${remoteinstallsplunkconfbackup} for autonatic deployment"
   fi

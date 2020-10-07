@@ -666,7 +666,7 @@ if [ -z ${splunkawsdnszone+x} ]; then
     echo "instance tags are not correctly set (splunkawsdnszone). I dont know splunkawsdnszone to use for updating master_uri in a cluster env ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-aws-recovery-info.log
 else 
   echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (master_uri) " >> /var/log/splunkconf-aws-recovery-info.log
-  find ${SPLUNK_HOME} -wholename "./*cluster*base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e 's%^.*master_uri.*=.*$%master_uri=https://splunk-cm.${splunkawsdnszone}:8089%' {} \; && echo "make sure you have a alias (cname) splunk-cm.${splunkawsdnszone} that point to the name used by the cm instance "
+  find ${SPLUNK_HOME} -wholename "*cluster*base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e 's%^.*master_uri.*=.*$%master_uri=https://splunk-cm.${splunkawsdnszone}:8089%' {} \; && echo "make sure you have a alias (cname) splunk-cm.${splunkawsdnszone} that point to the name used by the cm instance "
 fi
 
 

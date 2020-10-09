@@ -53,6 +53,7 @@
 # 20200925 integrate os detection to only enable systemd when matching requirements
 # 20200925 fix/improve help usage
 # 20200928 add group forcing to systemd service and use name instead of id to reflect product change
+# 20201009 typos fix to remove warning and improve logging
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -311,8 +312,8 @@ if ($enablesystemd==1) {
 
 
 print "Installation parameters : \n SPLUNK_HOME ${SPLUNK_HOME}\n";
-print "Splunk user $(USERSPLUNK} \n";
-print "Managed Secret $(MANAGEDSECRET}\n";
+print "Splunk user ${USERSPLUNK} \n";
+print "Managed Secret ${MANAGEDSECRET}\n";
 print "SUBSYS ${SPLUNK_SUBSYS} \n";
 print "servicename set to $servicename\n";
 print "enable systemd is set to $enablesystemd (1=will enable)\n";
@@ -407,7 +408,7 @@ EOF
     close(FH);
     `chown root. ${POLKITRULE}; chmod 444 ${POLKITRULE}`;
     open(FH, '>', ${POLKITHELPER}) or die $!;
-    my $strpolhelp= <<EOF;
+    my $strpolhelp= <<'EOF';
 #!/bin/bash 
 
 # polkit_splunk

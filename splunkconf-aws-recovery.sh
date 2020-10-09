@@ -59,8 +59,9 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20200929 add tuned service start for AWS2 case
 # 20201006 deploy splunkconfbackup from s3 (needed for upgrade case) and remove old cron version if present to prevent double run + update autonatically master_uri to splunk-cm.awsdnszone 
 # 20201007 various fixes + add --no-prompt when calling splunkconf-init
+# 20201009 optimize restore detection logging 
 
-VERSION="20201007b"
+VERSION="20201009"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -768,7 +769,8 @@ if [ "$MODE" != "upgrade" ]; then
       echo "splunkconf-restore is running at the moment, waiting before initiating reboot (step=30s, counter=$counter)" >> /var/log/splunkconf-aws-recovery-info.log
       sleep 30
     else
-      continue
+      # no need to loop
+      break
     fi
   done
   # prevent stale lock 

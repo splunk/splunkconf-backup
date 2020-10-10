@@ -706,19 +706,21 @@ if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix
   aws s3 cp ${remoteinstallsplunkconfbackup} ${localinstalldir} --quiet
   if [ -e "${localinstalldir}/splunkconf-backup.tar.gz" ]; then
     # backup old version just in case
-    tar -C "${SPLUNK_HOME}/etc/apps" -zcvf ${localinstalldir}/splunkconf-backup-${TODAY}.tar.gz
+    tar -C "${SPLUNK_HOME}/etc/apps/" -zcvf ${localinstalldir}/splunkconf-backup-${TODAY}.tar.gz ./splunkconf-backup
     # remove so we dont have leftover in local that could break app
     find "${SPLUNK_HOME}/etc/apps/splunkconf-backup" -delete
-    tar -C "${SPLUNK_HOME}/etc/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz
+    tar -C "${SPLUNK_HOME}/etc/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz ./splunkconf-backup
     # removing old version for upgrade case 
-    rm -f /etc/crond.d/splunkbackup.cron
+    if [ -e "/etc/crond.d/splunkbackup.cron" ]; then
+      rm -f /etc/crond.d/splunkbackup.cron
+    fi
     mv ${SPLUNK_HOME}/scripts/splunconf-backup ${SPLUNK_HOME}/scripts/splunconf-backup-disabled
     echo "splunkconfbackup found on s3 at ${remoteinstallsplunkconfbackup} and updated from it"
     # we may be on a DS then we need to also update it
     if [ -e "${SPLUNK_HOME}/etc/deployment-apps/splunkconf-backup" ]; then
       echo "updating splunkconf-backup on a DS"
       # backup old version just in case
-      tar -C "${SPLUNK_HOME}/etc/deployment-apps" -zcvf ${localinstalldir}/splunkconf-backup-${TODAY}-fromdeploymentapps.tar.gz
+      tar -C "${SPLUNK_HOME}/etc/deployment-apps" -zcvf ${localinstalldir}/splunkconf-backup-${TODAY}-fromdeploymentapps.tar.gz ./splunkconf-backup
       # remove so we dont have leftover in local that could break app
       find "${SPLUNK_HOME}/etc/deployment-apps/splunkconf-backup" -delete
       tar -C "${SPLUNK_HOME}/etc/deployment-apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz

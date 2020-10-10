@@ -54,6 +54,7 @@
 # 20200925 fix/improve help usage
 # 20200928 add group forcing to systemd service and use name instead of id to reflect product change
 # 20201009 typos fix to remove warning and improve logging
+# 20201010 add version detection logic
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -238,6 +239,26 @@ my $SPLSPLUNKBIN=$SPLUNK_HOME."/bin/splunk";
 unless (-e $SPLSPLUNKBIN) {
   die ("cant find splunk bin. Please check path ($SPLSPLUNKBIN) and make sure you installed splunk via rpm -Uvh splunkxxxxxxx.rpm (or yum) which also created user and splunk group");
 }
+
+my $VERSIONFULL=`su - $USERSPLUNK -c "$SPLSPLUNKBIN --version"`;
+my $SPLVERSIONMAJ="0";
+my $SPLVERSIONMIN="0";
+my $SPLVERSIONMAINT="0";
+my $SPLVERSIONEXTRA="0";
+
+# examples
+# Splunk 8.0.6 (build 152fb4b2bb96)
+mu $RES= $VERSIONFULL =~ /Splunk\s+(\d+)\.(\d+)\.(\d+)/;
+if $RES {
+  $SPLVERSIONMAJ=$1;
+  $SPLVERSIONMIN=$2;
+  $SPLVERSIONMAINT=$3;
+} else {
+  print " version detection failed ! Please investigate !"
+}
+my $SPLVERSION="$SPLVERSIONMAJ.$SPLVERSIONMIN";
+
+print "version full =$VERSIONFULL, major version = $SPLVERSIONMAJ, minor version = $SPLVERSIONMIN, maintenance version = $SPLVERSIONMAINT , extra version = $SPLVERSIONEXTRA, splversion = $SPLVERSION";
 
 if (-d $INITIALSPLAPPSDIR) {
    print "$INITIALSPLAPPSDIR directory is existing. Alls the apps in this directory will be copied initially to etc/apps directory. Please make sure you only copy the necessary apps and manage as needed via a central mechanism \n";

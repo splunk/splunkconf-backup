@@ -60,9 +60,9 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20201006 deploy splunkconfbackup from s3 (needed for upgrade case) and remove old cron version if present to prevent double run + update autonatically master_uri to splunk-cm.awsdnszone 
 # 20201007 various fixes + add --no-prompt when calling splunkconf-init
 # 20201009 optimize restore detection logging 
-# 20201010 add splunksecrets depplyement via pip
+# 20201010 add splunksecrets deployment via pip, add more cases and safeguards for splunkconf-backup deployment in a existing env
 
-VERSION="20201010"
+VERSION="20201010b"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -363,8 +363,6 @@ if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
   exit 1
 fi
 
-# manually create the splunk user so that it will exist for next step   
-#useradd --home-dir /opt/splunk --comment "Splunk Server" splunk --shell /bin/bash 
 
 # creating dir as we may not have yet deployed RPM
 mkdir -p ${SPLUNK_HOME}/etc/system/local/
@@ -702,18 +700,40 @@ chown -R splunk. ${SPLUNK_HOME}
 #tar -C "/" -xzf ${localinstalldir}/splunkenterprise-init.tar.gz 
 
 # updating splunkconf-backup app from s3
-# important : version on s3 should be up2date
+# important : version on s3 should be up2date as it is prioritary over backups and other content
 # only if it is not a indexer 
 if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
   aws s3 cp ${remoteinstallsplunkconfbackup} ${localinstalldir} --quiet
   if [ -e "${localinstalldir}/splunkconf-backup.tar.gz" ]; then
+    # backup old version just in case
+    tar -C "${SPLUNK_HOME}/etc/apps" -zcvf ${localinstalldir}/splunkconf-backup-${TODAY}.tar.gz
+    # remove so we dont have leftover in local that could break app
+    find "${SPLUNK_HOME}/etc/apps/splunkconf-backup" -delete
     tar -C "${SPLUNK_HOME}/etc/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz
     # removing old version for upgrade case 
     rm -f /etc/crond.d/splunkbackup.cron
     mv ${SPLUNK_HOME}/scripts/splunconf-backup ${SPLUNK_HOME}/scripts/splunconf-backup-disabled
     echo "splunkconfbackup found on s3 at ${remoteinstallsplunkconfbackup} and updated from it"
+    # we may be on a DS then we need to also update it
+    if [ -e "${SPLUNK_HOME}/etc/deployment-apps/splunkconf-backup" ]; then
+      echo "updating splunkconf-backup on a DS"
+      # backup old version just in case
+      tar -C "${SPLUNK_HOME}/etc/deployment-apps" -zcvf ${localinstalldir}/splunkconf-backup-${TODAY}-fromdeploymentapps.tar.gz
+      # remove so we dont have leftover in local that could break app
+      find "${SPLUNK_HOME}/etc/deployment-apps/splunkconf-backup" -delete
+      tar -C "${SPLUNK_HOME}/etc/deployment-apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz
+    fi
+    # we may be on a SHC deployer then we need to also update it
+    if [ -e "${SPLUNK_HOME}/etc/shcluster/apps/splunkconf-backup" ]; then
+      echo "updating splunkconf-backup on a SHC deployer"
+      # backup old version just in case
+      tar -C "${SPLUNK_HOME}/etc/shcluster/apps" -zcvf ${localinstalldir}/splunkconf-backup-${TODAY}-fromshclusterapps.tar.gz
+      # remove so we dont have leftover in local that could break app
+      find "${SPLUNK_HOME}/etc/shcluster/apps/splunkconf-backup" -delete
+      tar -C "${SPLUNK_HOME}/etc/shcluster/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz
+    fi
   else 
-    echo "splunkconfbackup not found on s3 so will not deploy it now. consider adding it at ${remoteinstallsplunkconfbackup} for autonatic deployment"
+    echo "splunkconf-backup not found on s3 so will not deploy it now. consider adding it at ${remoteinstallsplunkconfbackup} for autonatic deployment"
   fi
 fi
 

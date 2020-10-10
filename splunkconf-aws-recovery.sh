@@ -774,7 +774,10 @@ if [ "$MODE" != "upgrade" ]; then
     fi
   done
   # prevent stale lock 
-  rm /opt/splunk/var/run/splunkconf-kvrestore.lock
+  if [ -e /opt/splunk/var/run/splunkconf-kvrestore.lock ]; then 
+    echo "Warning : Removing possible splunkconf kvstore lock" >> /var/log/splunkconf-aws-recovery-info.log 
+    rm /opt/splunk/var/run/splunkconf-kvrestore.lock
+  fi
 fi # if not upgrade
 
 

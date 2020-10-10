@@ -151,6 +151,12 @@ admin password creation (Full, required existing or via user-seed.conf, UF no ac
   print "please run splunkconf-initsplunk.pl --help for script explanation and options\n";
 }
 
+# we need to store if the command exist even if we dont deploy splunk in systemd mode
+# if on a systemd systemd, we will use this command to tell systemd when we update files for example
+
+my $systemctlexist=check_exists_command('systemctl');
+
+
 if ($enablesystemd==0 || $enablesystemd eq "init") {
   $enablesystemd=0;
 } else {
@@ -240,7 +246,7 @@ unless (-e $SPLSPLUNKBIN) {
   die ("cant find splunk bin. Please check path ($SPLSPLUNKBIN) and make sure you installed splunk via rpm -Uvh splunkxxxxxxx.rpm (or yum) which also created user and splunk group");
 }
 
-my $VERSIONFULL=`su - $USERSPLUNK -c "$SPLSPLUNKBIN --version"`;
+my $VERSIONFULL=`su - $USERSPLUNK -c "$SPLSPLUNKBIN --version --accept-license --answer-yes --no-prompt| tail -1"`;
 my $SPLVERSIONMAJ="0";
 my $SPLVERSIONMIN="0";
 my $SPLVERSIONMAINT="0";
@@ -248,17 +254,17 @@ my $SPLVERSIONEXTRA="0";
 
 # examples
 # Splunk 8.0.6 (build 152fb4b2bb96)
-mu $RES= $VERSIONFULL =~ /Splunk\s+(\d+)\.(\d+)\.(\d+)/;
-if $RES {
+my $RES= $VERSIONFULL =~ /Splunk\s+(\d+)\.(\d+)\.(\d+)/;
+if ($RES) {
   $SPLVERSIONMAJ=$1;
   $SPLVERSIONMIN=$2;
   $SPLVERSIONMAINT=$3;
 } else {
-  print " version detection failed ! Please investigate !"
+  print " version detection failed ! Please investigate !";
 }
 my $SPLVERSION="$SPLVERSIONMAJ.$SPLVERSIONMIN";
 
-print "version full =$VERSIONFULL, major version = $SPLVERSIONMAJ, minor version = $SPLVERSIONMIN, maintenance version = $SPLVERSIONMAINT , extra version = $SPLVERSIONEXTRA, splversion = $SPLVERSION";
+print "version full =$VERSIONFULL, major version = $SPLVERSIONMAJ, minor version = $SPLVERSIONMIN, maintenance version = $SPLVERSIONMAINT , extra version = $SPLVERSIONEXTRA, splversion = $SPLVERSION\n";
 
 if (-d $INITIALSPLAPPSDIR) {
    print "$INITIALSPLAPPSDIR directory is existing. Alls the apps in this directory will be copied initially to etc/apps directory. Please make sure you only copy the necessary apps and manage as needed via a central mechanism \n";
@@ -605,7 +611,13 @@ EOF
   # removing all init file if needed
   `$SPLUNK_HOME/bin/splunk disable boot-start`;
   print "configuring with traditional init\n";
-  `$SPLUNK_HOME/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user $USERSPLUNK -systemd-managed 0 || $SPLUNK_HOME/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user $USERSPLUNK `;
+  if ($SPLVERSION < "7.2") {
+    # note this is really 7.2.2+
+    print "falling back in legacy mode, splunk doesnt have yet a systemd option\n";
+    `$SPLUNK_HOME/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user $USERSPLUNK `;
+  } else {  
+    `$SPLUNK_HOME/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user $USERSPLUNK -systemd-managed 0 `;
+  }
   if ($INITTEMPLATEMODE==1) {
      print "replacing init script with the template one using su - (security+ulimit)\n";
      `chown root. $SPLINITTEMPLATE;chmod 700 $SPLINITTEMPLATE;cp -p $SPLINITTEMPLATE /etc/init.d/$SPLUNK_SUBSYS`;
@@ -686,18 +698,25 @@ EOF
     close(FH);
     # exec 
     `chmod u+x $filenameinit`;
-    print "telling systemd the unit file may have changed\n";
-    `systemctl daemon-reload`;
-    print "telling systemd the service is enabled";
-    `systemctl enable $servicename`;
-    print "telling systemd to start the service";
-    `systemctl restart $servicename`;
+    if ($systemctlexist) {
+      print "telling systemd the unit file may have changed\n";
+      `systemctl daemon-reload`;
+      print "telling systemd the service is enabled";
+      `systemctl enable $servicename`;
+      print "telling systemd to start the service";
+      `systemctl restart $servicename`;
+    } else {
+      # 
+      print "systemctl not present, please check if service is correctly set to initialize\n";
+    }
   } # inittemplatemode
   # change var inside the su as the shell script wont pass the variable when switching user
   #`sed -i '' 's/$\{SPLUNK_HOME\}/$SPLUNK_HOME/g' /etc/init.d/$SPLUNK_SUBSYS`;
   # check here -> we may need extra system command to make sure service is enabled for splunkforwarder case
-  print "telling systemd the unit file may have changed\n";
-  `systemctl daemon-reload`;
+  if ($systemctlexist) {
+    print "telling systemd the unit file may have changed\n";
+    `systemctl daemon-reload`;
+  }
   print "waiting 10s....\n";
   # time to let splunk initialize correctly
   sleep(10);
@@ -708,11 +727,16 @@ EOF
   sleep(10);
 }
 
+if ($SPLVERSION < "7.1") {
+  print "Splunk version is below 7.1, default admin account is admin changeme which will prevent working correctly in disrtributed mode, lets change the password the old way !\n";
+  print "Attention ! You may need to change password to a more secure one \n";
+  # for 7.1+, this has been moved to user-seed
+  # change password by default , required for distributed search to work
+  # legacy here
+  my $SPLUNKPWD="changed123,";
+  `$SUBIN - $USERSPLUNK -c "$SPLUNK_HOME/bin/splunk edit user admin -password '$SPLUNKPWD' -role admin --no-prompt -auth admin:changeme"`;
 
-# this has been moved to user-seed
-# change password by default , required for distributed search to work
-#`$SUBIN - $USERSPLUNK -c "$SPLUNK_HOME/bin/splunk edit user admin -password '$SPLUNKPWD' -role admin --no-prompt -auth admin:changeme"`;
-
+}
 # splunk should now have started and move user-seed to passwd. If the file doesn't exist and we are not on a splunkforwarder we have a problem...
 unless ($SPLPASSWDFILE || $SPLUNK_SUBSYS=="splunkforwarder") {
     die("problem : admin password not set after restart. user-seed.conf may have been invalid");
@@ -721,7 +745,7 @@ unless ($SPLPASSWDFILE || $SPLUNK_SUBSYS=="splunkforwarder") {
 
 #print "remove password change on UI\n";
 # remove password change request on UI
-`$SUBIN - $USERSPLUNK -c "/usr/bin/touch ${SPLUNK_HOME}/etc/.ui_login" `;
+`$SUBIN - $USERSPLUNK -c "/bin/touch ${SPLUNK_HOME}/etc/.ui_login || /usr/bin/touch ${SPLUNK_HOME}/etc/.ui_login" `;
 
 
 print "end of installation script\n";

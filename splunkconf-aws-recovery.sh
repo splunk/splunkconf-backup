@@ -60,8 +60,9 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20201006 deploy splunkconfbackup from s3 (needed for upgrade case) and remove old cron version if present to prevent double run + update autonatically master_uri to splunk-cm.awsdnszone 
 # 20201007 various fixes + add --no-prompt when calling splunkconf-init
 # 20201009 optimize restore detection logging 
+# 20201010 add splunksecrets depplyement via pip
 
-VERSION="20201009"
+VERSION="20201010"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -393,6 +394,10 @@ then
   fi
   # enable the system tuning 
   sysctl --system;/etc/rc.d/rc.local 
+  # deploying splunk secrets
+  yum install -y python36-pip
+  pip install --upgrade pip
+  pip-3.6 install splunksecrets
 else
   echo "hostnamectl command detected, assuming RH7+ like distribution" >> /var/log/splunkconf-aws-recovery-info.log
   # note we treat RH8 like RH7 for the moment as systemd stuff that works for RH7 also work for RH8 
@@ -420,6 +425,8 @@ else
   fi
   # enable the tuning done via rc.local and restart polkit so it takes into account new rules
   sysctl --system;sleep 1;chmod u+x /etc/rc.d/rc.local;systemctl start rc-local;systemctl restart polkit
+  # deploying splunk secrets
+  pip3 install splunksecrets
 fi
 
 

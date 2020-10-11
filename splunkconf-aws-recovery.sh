@@ -64,6 +64,7 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201011 extend master_uri to use tag + also ds + targetsplunkenv + optionnally run a specific env script (used for disabling stuff (mails, external ticketing,...) in a test env for example )
 # 20201011 rename error log file to debug
 # 20201011 add gdb package for making sure pstack is there (in case support ask for it)
+# 20201011 add check for root user (only useful when manually launched)
 
 VERSION="20201011b"
 
@@ -76,7 +77,11 @@ set +e
 # commented as in user data
 #yum update -y
 
-
+# check that we are launched by root
+if [[ $EUID -ne 0 ]]; then
+   echo "Exiting ! This recovery script need to be run as root !" 
+   exit 1
+fi
 
 if [ $# -eq 1 ]; then
   MODE=$1

@@ -4,7 +4,14 @@ exec > /var/log/splunkconf-upgrade.log 2>&1
 # This script is used to upgrade splunk locally without having to destroy the instance completely
 # it is getting latest aws recovery script and call it with upgrade arg
  
-# version 20200721
+# version 20201011
+# 20201011 add check for root use
+
+# check that we are launched by root
+if [[ $EUID -ne 0 ]]; then
+   echo "Exiting ! This recovery script need to be run as root !"         
+   exit 1
+fi 
 
 # disabled as we just want to upgrade splunk here 
 #yum update -y

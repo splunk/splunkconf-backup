@@ -666,15 +666,15 @@ fi # if not upgrade
 # this is for indexers, search heads, mc ,.... (we will detect if the conf is present)
 if [ -z ${splunktargetcm+x} ]; then
   echo "tag splunktargetcm not set, will use splunk-cm as the short name for master_uri"
-  $splunktargetcm="splunk-cm"
+  splunktargetcm="splunk-cm"
 else 
-  echo "tag splunktargetcm is set to $splunktargetcm and will be used as the short name for master_uri"
+  echo "tag splunktargetcm is set to $splunktargetcm and will be used as the short name for master_uri" >> /var/log/splunkconf-aws-recovery-info.log
 fi
 if [ -z ${splunktargetds+x} ]; then
-  echo "tag splunktargetds not set, will use splunk-ds as the short name for master_uri"
-  $splunktargetcm="splunk-ds"
+  echo "tag splunktargetds not set, will use splunk-ds as the short name for targertUri" >> /var/log/splunkconf-aws-recovery-info.log
+  splunktargetds="splunk-ds"
 else
-  echo "tag splunktargetds is set to $splunktargetds and will be used as the short name for deploymentclient config to ref the DS"
+  echo "tag splunktargetds is set to $splunktargetds and will be used as the short name for deploymentclient config to ref the DS" >> /var/log/splunkconf-aws-recovery-info.log
 fi
 
 if [ -z ${splunkorg+x} ]; then 
@@ -698,7 +698,7 @@ else
 fi
 
 if [ -z ${splunktargetsplunlenv+x} ]; then
-  echo "targetsplunkenv tag not set , please consider adding it if you want to automatically modify login banner for a test env using prod backups"
+  echo "targetsplunkenv tag not set , please consider adding it if you want to automatically modify login banner for a test env using prod backups" >> /var/log/splunkconf-aws-recovery-info.log
 else 
   echo "trying to replace login_content for targetsplunkenv=$targetsplunkenv"
   find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "web.conf" -exec grep -l login_content {} \; -exec sed -i -e "s%^.*login_content.*=.*$%This is a <b>$targetsplunkenv server</b>.<br>Authorized access only" {} \;  $$ echo "login_content replaced" || echo "login_content not replaced"
@@ -711,7 +711,7 @@ else
     # give back files 
     chown -R splunk. ${SPLUNK_HOME}
     echo "launching $envhelperscript as splunk, please make sure you implement logic inside if needed to restrict to some instances only"  >> /var/log/splunkconf-aws-recovery-info.log
-    su - splunk -c ""${localinstalldir}/$envhelperscript"
+    su - splunk -c "${localinstalldir}/$envhelperscript"
   else
     echo "$envhelperscript not present in ${remoteinstalldir}/${envhelperscript}, please consider creating it if you need to customize things specifically for this ${splunktargetsplunlenv} env" >> /var/log/splunkconf-aws-recovery-info.log  >> /var/log/splunkconf-aws-recovery-info.log
   fi

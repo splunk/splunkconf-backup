@@ -689,10 +689,12 @@ if [ -z ${splunkawsdnszone+x} ]; then
 else 
   echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (master_uri) master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089 (cm name or a cname alias to it)  " >> /var/log/splunkconf-aws-recovery-info.log
   # assuming PS base apps are used
-  find ${SPLUNK_HOME} -wholename "*cluster*base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \;  $$ echo "master_uri replaced" || echo "master_uri not replaced"
+  find ${SPLUNK_HOME} -wholename "*cluster*base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \; 
+  # $$ echo "master_uri replaced" || echo "master_uri not replaced"
   # this wont work in that form because master_uri could be the one for license find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \;  $$ echo "master_uri replaced" || echo "master_uri not replaced"
   echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (targetUri) targetUri=${splunktargetds}.${splunkawsdnszone}:8089 (ds name or a cname alias to it)  " >> /var/log/splunkconf-aws-recovery-info.log
-  find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "deploymentclient.conf" -exec grep -l targetUri {} \; -exec sed -i -e "s%^.*targetUri.*=.*$%targetUri=${splunktargetds}.${splunkawsdnszone}:8089%" {} \;  $$ echo "targetUri replaced" || echo "targetUri not replaced"
+  find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "deploymentclient.conf" -exec grep -l targetUri {} \; -exec sed -i -e "s%^.*targetUri.*=.*$%targetUri=${splunktargetds}.${splunkawsdnszone}:8089%" {} \; 
+  # $$ echo "targetUri replaced" || echo "targetUri not replaced"
   # fixme add lm case here
   # fixme add shc deployer case here
 fi

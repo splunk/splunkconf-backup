@@ -61,8 +61,9 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20201007 various fixes + add --no-prompt when calling splunkconf-init
 # 20201009 optimize restore detection logging 
 # 20201010 add splunksecrets deployment via pip, add more cases and safeguards for splunkconf-backup deployment in a existing env
+# 20201011 extend master_uri to use tag + also ds + targetsplunkenv + optionnally run a specific env script (used for disabling stuff (mails, external ticketing,...) in a test env for example )
 
-VERSION="20201010b"
+VERSION="20201011"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -662,6 +663,19 @@ fi # if not upgrade
 
 # updating master_uri (needed when reusing backup from one env to another)
 # this is for indexers, search heads, mc ,.... (we will detect if the conf is present)
+if [ -z ${splunktargetcm+x} ]; then
+  echo "tag splunktargetcm not set, will use splunk-cm as the short name for master_uri"
+  $splunktargetcm="splunk-cm"
+else 
+  echo "tag splunktargetcm is set to $splunktargetcm and will be used as the short name for master_uri"
+fi
+if [ -z ${splunktargetds+x} ]; then
+  echo "tag splunktargetds not set, will use splunk-ds as the short name for master_uri"
+  $splunktargetcm="splunk-ds"
+else
+  echo "tag splunktargetds is set to $splunktargetds and will be used as the short name for deploymentclient config to ref the DS"
+fi
+
 if [ -z ${splunkorg+x} ]; then 
   echo "instance tags are not correctly set (splunkorg). I dont know prefix for splunk base apps, will use org ! Please add splunkorg tag" >> /var/log/splunkconf-aws-recovery-info.log
   splunkorg="org"
@@ -672,11 +686,35 @@ fi
 if [ -z ${splunkawsdnszone+x} ]; then 
     echo "instance tags are not correctly set (splunkawsdnszone). I dont know splunkawsdnszone to use for updating master_uri in a cluster env ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-aws-recovery-info.log
 else 
-  echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (master_uri) " >> /var/log/splunkconf-aws-recovery-info.log
-  find ${SPLUNK_HOME} -wholename "*cluster*base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://splunk-cm.${splunkawsdnszone}:8089%" {} \; && echo "make sure you have a alias (cname) splunk-cm.${splunkawsdnszone} that point to the name used by the cm instance "
+  echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (master_uri) master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089 (cm name or a cname alias to it)  " >> /var/log/splunkconf-aws-recovery-info.log
+  # assuming PS base apps are used
+  find ${SPLUNK_HOME} -wholename "*cluster*base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \;  $$ echo "master_uri replaced" || echo "master_uri not replaced"
+  # this wont work in that form because master_uri could be the one for license find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \;  $$ echo "master_uri replaced" || echo "master_uri not replaced"
+  echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (targetUri) targetUri=${splunktargetds}.${splunkawsdnszone}:8089 (ds name or a cname alias to it)  " >> /var/log/splunkconf-aws-recovery-info.log
+  find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "deploymentclient.conf" -exec grep -l targetUri {} \; -exec sed -i -e "s%^.*targetUri.*=.*$%targetUri=${splunktargetds}.${splunkawsdnszone}:8089%" {} \;  $$ echo "targetUri replaced" || echo "targetUri not replaced"
+  # fixme add lm case here
+  # fixme add shc deployer case here
 fi
 
-
+if [ -z ${splunktargetsplunlenv+x} ]; then
+  echo "targetsplunkenv tag not set , please consider adding it if you want to automatically modify login banner for a test env using prod backups"
+else 
+  echo "trying to replace login_content for targetsplunkenv=$targetsplunkenv"
+  find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "web.conf" -exec grep -l login_content {} \; -exec sed -i -e "s%^.*login_content.*=.*$%This is a <b>$targetsplunkenv server</b>.<br>Authorized access only" {} \;  $$ echo "login_content replaced" || echo "login_content not replaced"
+  envhelperscript="splunktargetenv-for${splunktargetsplunlenv}.sh"
+  echo "remote : ${remoteinstalldir}/${envhelperscript}" >> /var/log/splunkconf-aws-recovery-info.log
+  aws s3 cp ${remoteinstalldir}/${envhelperscript}  ${localinstalldir} --quiet
+  if [ -e "${localinstalldir}/$envhelperscript" ]; then
+    chown splunk. ${localinstalldir}/$envhelperscript
+    chmod u+rx  ${localinstalldir}/$envhelperscript
+    # give back files 
+    chown -R splunk. ${SPLUNK_HOME}
+    echo "launching $envhelperscript as splunk, please make sure you implement logic inside if needed to restrict to some instances only"  >> /var/log/splunkconf-aws-recovery-info.log
+    su - splunk -c ""${localinstalldir}/$envhelperscript"
+  else
+    echo "$envhelperscript not present in ${remoteinstalldir}/${envhelperscript}, please consider creating it if you need to customize things specifically for this ${splunktargetsplunlenv} env" >> /var/log/splunkconf-aws-recovery-info.log  >> /var/log/splunkconf-aws-recovery-info.log
+  fi
+fi
 
 ## moved with complete logic to splunkconf-init
 #${SPLUNK_HOME}/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user splunk -systemd-managed 0 || ${SPLUNK_HOME}/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user splunk

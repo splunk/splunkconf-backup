@@ -745,7 +745,7 @@ if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix
   aws s3 cp ${remoteinstallsplunkconfbackup} ${localinstalldir} --quiet
   if [ -e "${localinstalldir}/splunkconf-backup.tar.gz" ]; then
     # backup old version just in case
-    tar -C "${SPLUNK_HOME}/etc/apps/" -zcvf ${localinstalldir}/splunkconf-backup-${TODAY}.tar.gz ./splunkconf-backup
+    tar -C "${SPLUNK_HOME}/etc/apps/" -zcf ${localinstalldir}/splunkconf-backup-${TODAY}.tar.gz ./splunkconf-backup
     # remove so we dont have leftover in local that could break app
     find "${SPLUNK_HOME}/etc/apps/splunkconf-backup" -delete
     tar -C "${SPLUNK_HOME}/etc/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz ./splunkconf-backup
@@ -759,7 +759,7 @@ if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix
     if [ -e "${SPLUNK_HOME}/etc/deployment-apps/splunkconf-backup" ]; then
       echo "updating splunkconf-backup on a DS"
       # backup old version just in case
-      tar -C "${SPLUNK_HOME}/etc/deployment-apps" -zcvf ${localinstalldir}/splunkconf-backup-${TODAY}-fromdeploymentapps.tar.gz ./splunkconf-backup
+      tar -C "${SPLUNK_HOME}/etc/deployment-apps" -zcf ${localinstalldir}/splunkconf-backup-${TODAY}-fromdeploymentapps.tar.gz ./splunkconf-backup
       # remove so we dont have leftover in local that could break app
       find "${SPLUNK_HOME}/etc/deployment-apps/splunkconf-backup" -delete
       tar -C "${SPLUNK_HOME}/etc/deployment-apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz
@@ -768,7 +768,7 @@ if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix
     if [ -e "${SPLUNK_HOME}/etc/shcluster/apps/splunkconf-backup" ]; then
       echo "updating splunkconf-backup on a SHC deployer"
       # backup old version just in case
-      tar -C "${SPLUNK_HOME}/etc/shcluster/apps" -zcvf ${localinstalldir}/splunkconf-backup-${TODAY}-fromshclusterapps.tar.gz
+      tar -C "${SPLUNK_HOME}/etc/shcluster/apps" -zcf ${localinstalldir}/splunkconf-backup-${TODAY}-fromshclusterapps.tar.gz
       # remove so we dont have leftover in local that could break app
       find "${SPLUNK_HOME}/etc/shcluster/apps/splunkconf-backup" -delete
       tar -C "${SPLUNK_HOME}/etc/shcluster/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz

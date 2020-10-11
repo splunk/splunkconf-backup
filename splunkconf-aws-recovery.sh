@@ -1,5 +1,5 @@
 #!/bin/bash -x 
-exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
+exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 
 # Matthieu Araman
 # Splunk
@@ -62,8 +62,9 @@ exec > /var/log/splunkconf-aws-recovery-error.log 2>&1
 # 20201009 optimize restore detection logging 
 # 20201010 add splunksecrets deployment via pip, add more cases and safeguards for splunkconf-backup deployment in a existing env
 # 20201011 extend master_uri to use tag + also ds + targetsplunkenv + optionnally run a specific env script (used for disabling stuff (mails, external ticketing,...) in a test env for example )
+@ 20201011 rename error log file to debug
 
-VERSION="20201011"
+VERSION="20201011b"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log

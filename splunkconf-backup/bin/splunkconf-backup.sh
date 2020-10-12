@@ -1,6 +1,9 @@
 #!/bin/bash  
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
+
+
+/bin/env > /tmp/debugenv
 # Matthieu Araman, Splunk
 # copyright splunk
 
@@ -42,7 +45,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20200908 include AWS tags directly in for case where recovery script not (yet) deployed
 # 20200909 change path for instance tags so that it can work as splunk user with no additional permissions
 # 20201011 instance tags prefix detection fix (adapted from same fix in recovery)
-# 20201012 add /bin to PATH as required for AWS1
+# 20201012 add /bin to PATH as required for AWS1, fix var name for kvstore remote s3 (7.0)
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -707,21 +710,21 @@ debug_log "starting remote backup"
     if [ ${REMOTETYPE} -eq 2 ]; then
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}.tar.gz";
         FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}.tar.gz";
-        FICKV="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.gz";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.gz";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.gz";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}.tar.gz";
         debug_log "backup type will be etc full no date";
     elif [ ${REMOTETYPE} -eq 3 ]; then
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full.tar.gz";
         FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts.tar.gz";
-        FICKV="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore.tar.gz";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore.tar.gz";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.gz";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state.tar.gz";
         debug_log "backup type will be etc full no date no instance";
     else
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}-${TODAY}.tar.gz";
         FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}-${TODAY}.tar.gz";
-        FICKV="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.gz";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.gz";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.gz";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}-${TODAY}.tar.gz";
         debug_log "backup type will be etc full (date versioned backup mode with instance name)";
@@ -730,21 +733,21 @@ debug_log "starting remote backup"
     if [ ${REMOTETYPE} -eq 2 ]; then
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}.tar.gz";
         FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}.tar.gz";
-        FICKV="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.gz";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.gz";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.gz";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}.tar.gz";
         debug_log "backup type will be etc targeted no date";
     elif [ ${REMOTETYPE} -eq 3 ]; then
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted.tar.gz";
         FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts.tar.gz";
-        FICKV="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore.tar.gz";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore.tar.gz";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.gz";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state.tar.gz";
         debug_log "backup type will be etc targeted no date no instance ";
     else
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}-${TODAY}.tar.gz";
         FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}-${TODAY}.tar.gz";
-        FICKV="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.gz";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.gz";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.gz";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}-${TODAY}.tar.gz";
         debug_log "backup type will be etc targeted (date versioned backup mode)";

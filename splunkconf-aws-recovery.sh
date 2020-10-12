@@ -65,8 +65,9 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201011 rename error log file to debug
 # 20201011 add gdb package for making sure pstack is there (in case support ask for it)
 # 20201011 add check for root user (only useful when manually launched)
+# 20201012 remove accidental whitespaces from tags at fetch time (for example prevent fail upgrade because the rpm check would fail) (copy/paste...)
 
-VERSION="20201011b"
+VERSION="20201012"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -122,7 +123,7 @@ INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" ht
 REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
 # we put store tags in /etc/instance-tags -> we will use this later on
-aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > /etc/instance-tags
+aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | grep -E "^splunk" > /etc/instance-tags
 if grep -qi splunkinstanceType /etc/instance-tags
 then
   # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts

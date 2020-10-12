@@ -55,6 +55,7 @@
 # 20200928 add group forcing to systemd service and use name instead of id to reflect product change
 # 20201009 typos fix to remove warning and improve logging
 # 20201010 add version detection logic
+# 20201011 remove extra die when no user seed for 7.0
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -277,7 +278,7 @@ if (-d $INITIALSPLAPPSDIR) {
 unless (-e $SPLUSERSEED || -e $SPLPASSWDFILE || $SPLUNK_SUBSYS eq "splunkforwarder") {
   if ($no_prompt) {
     print "this is a new installation of splunk. Please provide a user-seed.conf with the initial admin password as described in https://docs.splunk.com/Documentation/Splunk/latest/Admin/User-seedconf you should probably use splunk hash-passwd commend to generate directly the hashed version  \n";
-    die("") unless ($dry_run);
+    #die("") unless ($dry_run);
   } else {
     print "You havent provided a user-seed.conf file, that is used to initiate the admin account, let's create one\n";
     print "enter admin account name (enter to use admin)(do NOT change admin name for premium apps)\n";

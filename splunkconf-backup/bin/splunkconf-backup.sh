@@ -41,6 +41,8 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20200721 fix typo in statelist (missing space)
 # 20200908 include AWS tags directly in for case where recovery script not (yet) deployed
 # 20200909 change path for instance tags so that it can work as splunk user with no additional permissions
+# 20201011 instance tags prefix detection fix (adapted from same fix in recovery)
+# 20201012 add /bin to PATH as required for AWS1
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -66,7 +68,7 @@ SPLUNK_HOME=`cd ../../..;pwd`
 # undetting env to not depend on splunk python version 
 # this is because we may call aws command which is in python itself and can break du to this
 unset LD_LIBRARY_PATH
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin
 unset PYTHONHASHSEED
 unset NODE_PATH
 unset PYTHONPATH
@@ -253,21 +255,22 @@ if [ $CHECK -ne 0 ]; then
   INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
   REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
-  # we put store tags in /etc/instance-tags -> we will use this later on
+  # we put store tags in instance-tags file-> we will use this later on
   aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > $INSTANCEFILE
-  if [ -z ${splunkinstanceType+x} ]; then
-    echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-aws-recovery-info.log
-    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/'  > $INSTANCEFILE
-  else
+  if grep -qi splunkinstanceType $INSTANCEFILE
+  then
     # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
-    echo "filtering tags with splunk prefix for instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+    echo_log "filtering tags with splunk prefix for instance tags (file=$INSTANCEFILE)" 
+  else
+    echo_log "splunk prefixed tags not found, reverting to full tag inclusion (file=$INSTANCEFILE)" 
+    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/'  > $INSTANCEFILE
   fi
   chmod 640 $INSTANCEFILE
 
   # including the tags for use in this script
   . $INSTANCEFILE
 else
-  echo "aws tag detection disabled (missing commands)"
+  echo_log "aws tag detection disabled (missing commands)"
 fi
 
 if [ -z ${splunks3backupbucket+x} ]; then 

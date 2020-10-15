@@ -66,8 +66,9 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201011 add gdb package for making sure pstack is there (in case support ask for it)
 # 20201011 add check for root user (only useful when manually launched)
 # 20201012 remove accidental whitespaces from tags at fetch time (for example prevent fail upgrade because the rpm check would fail) (copy/paste...)
+# 20201015 add special case for giving dir to splunk for indexer creation case (when fs created in AMI)
 
-VERSION="20201012"
+VERSION="20201015"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -343,6 +344,13 @@ if [ "$MODE" != "upgrade" ]; then
       else
         echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-aws-recovery-info.log
       fi
+    fi
+    # FS created in AMI, need to give them back to splunk user
+    if [ -e "/data/hotwarm" ]; then
+       chown -R splunk. /data/hotwarm
+    fi
+    if [ -e "/data/cold" ]; then
+       chown -R splunk. /data/cold
     fi
   else
     echo "not a idx, no additional partition to configure" >> /var/log/splunkconf-aws-recovery-info.log

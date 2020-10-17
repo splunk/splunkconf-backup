@@ -67,7 +67,7 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201011 add check for root user (only useful when manually launched)
 # 20201012 remove accidental whitespaces from tags at fetch time (for example prevent fail upgrade because the rpm check would fail) (copy/paste...)
 # 20201015 add special case for giving dir to splunk for indexer creation case (when fs created in AMI)
-# 20201017 add master_uri (cm) support for idx discovery
+# 20201017 add master_uri (cm) support for idx discovery + lm support 
 
 VERSION="20201017"
 
@@ -718,7 +718,14 @@ else
     find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "deploymentclient.conf" -exec grep -l targetUri {} \; -exec sed -i -e "s%^.*targetUri.*=.*$%targetUri=${splunktargetds}.${splunkawsdnszone}:8089%" {} \; 
   # $$ echo "targetUri replaced" || echo "targetUri not replaced"
   fi
-  # fixme add lm case here
+  # lm case 
+  if [ -z ${splunktargetlm+x} ]; then
+    echo "tag splunktargetlm not set, doing nothing" >> /var/log/splunkconf-aws-recovery-info.log
+  else 
+    echo "tag splunktargetlm is set to $splunktargetlm and will be used as the short name for master_uri config under [license] in server.conf to ref the LM" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags [license] master_uri=${splunktargetlm}.${splunkawsdnszone}:8089 (lm name or a cname alias to it)  " >> /var/log/splunkconf-aws-recovery-info.log
+    ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -I FILE -L 1 sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkawsdnszone}:8089%" FILE
+  fi
   # fixme add shc deployer case here
 fi
 

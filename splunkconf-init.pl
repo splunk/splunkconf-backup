@@ -56,6 +56,7 @@
 # 20201009 typos fix to remove warning and improve logging
 # 20201010 add version detection logic
 # 20201011 remove extra die when no user seed for 7.0
+# 20201019 add support for running pre 7.3 version on systemd capable (falling back to init) 
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -266,6 +267,12 @@ if ($RES) {
 my $SPLVERSION="$SPLVERSIONMAJ.$SPLVERSIONMIN";
 
 print "version full =$VERSIONFULL, major version = $SPLVERSIONMAJ, minor version = $SPLVERSIONMIN, maintenance version = $SPLVERSIONMAINT , extra version = $SPLVERSIONEXTRA, splversion = $SPLVERSION\n";
+
+if ($enablesystemd==1 && $SPLVERSION < "7.3") {
+    # let s fallback to init mode for these versions (7.2.2+ are compatible but not tested here and we are probably just in a upgrade process so wont stay in that version for ever
+    print "system looks compatible but falling back in legacy mode for Splunk version under 7.3\n";
+    $enablesystemd=0;
+}  
 
 if (-d $INITIALSPLAPPSDIR) {
    print "$INITIALSPLAPPSDIR directory is existing. Alls the apps in this directory will be copied initially to etc/apps directory. Please make sure you only copy the necessary apps and manage as needed via a central mechanism \n";

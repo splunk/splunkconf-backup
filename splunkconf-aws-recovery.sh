@@ -68,8 +68,9 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201012 remove accidental whitespaces from tags at fetch time (for example prevent fail upgrade because the rpm check would fail) (copy/paste...)
 # 20201015 add special case for giving dir to splunk for indexer creation case (when fs created in AMI)
 # 20201017 add master_uri (cm) support for idx discovery + lm support 
+# 20201022 add support for using extra splunkconf-swapme.pl to tune swap
 
-VERSION="20201017"
+VERSION="20201022"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -228,6 +229,9 @@ chown splunk. ${localbackupdir}
 mkdir -p ${localinstalldir}
 chown splunk. ${localinstalldir}
 
+# perl needed for swap (regex) and splunkconf-init.pl
+yum install perl -y >> /var/log/splunkconf-aws-recovery-info.log
+
 if [ "$MODE" != "upgrade" ]; then 
 
 
@@ -346,16 +350,29 @@ if [ "$MODE" != "upgrade" ]; then
         echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-aws-recovery-info.log
       fi
     fi
+    PARTITIONFAST="/data/vol1"
     # FS created in AMI, need to give them back to splunk user
     if [ -e "/data/hotwarm" ]; then
        chown -R splunk. /data/hotwarm
+       PARTITIONFAST="/data/hotwarm"
     fi
     if [ -e "/data/cold" ]; then
        chown -R splunk. /data/cold
     fi
   else
     echo "not a idx, no additional partition to configure" >> /var/log/splunkconf-aws-recovery-info.log
+    PARTITIONFAST="/"
   fi # if idx
+  # swap management
+  swapme="splunkconf-swapme.pl"
+  aws s3 cp ${remoteinstalldir}/${swapme} ${localrootscriptdir} --quiet
+  if [ ! -f "${localrootscriptdir}/${swapme}"  ]; then
+    echo "WARNING  : ${swapme} is not present in s3, unable to tune swap  -> please verify the version specified is present in s3 installi at ${remoteinstalldir}/${swapme} " >> /var/log/splunkconf-aws-recovery-info.log
+  else
+    chmod u+x ${localrootscriptdir}/${swapme}
+    # launching script and providing it info about the main paritition that should be SSD like and have some room
+    `${localrootscriptdir}/${swapme}` $PARTITIONFAST
+  fi
 fi # if not upgrade
 
 
@@ -814,8 +831,6 @@ fi
 mkdir -p ${localrootscriptdir}
 aws s3 cp ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/ --quiet
 
-# just in case
-yum install perl -y >> /var/log/splunkconf-aws-recovery-info.log
 # make it executable
 chmod u+x ${localrootscriptdir}/splunkconf-init.pl
 echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init" >> /var/log/splunkconf-aws-recovery-info.log

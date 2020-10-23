@@ -370,8 +370,8 @@ if [ "$MODE" != "upgrade" ]; then
     echo "WARNING  : ${swapme} is not present in s3, unable to tune swap  -> please verify the version specified is present in s3 installi at ${remoteinstalldir}/${swapme} " >> /var/log/splunkconf-aws-recovery-info.log
   else
     chmod u+x ${localrootscriptdir}/${swapme}
-    # launching script and providing it info about the main paritition that should be SSD like and have some room
-    `${localrootscriptdir}/${swapme}` $PARTITIONFAST
+    # launching script and providing it info about the main partition that should be SSD like and have some room
+    `${localrootscriptdir}/${swapme} $PARTITIONFAST`
   fi
 fi # if not upgrade
 

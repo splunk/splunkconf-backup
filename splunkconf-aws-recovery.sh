@@ -857,6 +857,9 @@ if [ "$MODE" != "upgrade" ]; then
   aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local-precheck.sh  ${localrootscriptdir}/ --quiet
   chown root. ${localrootscriptdir}/splunkconf-upgrade-local-precheck.sh  
   chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local-precheck.sh  
+  aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local-setsplunktargetbinary.sh  ${localrootscriptdir}/ --quiet
+  chown root. ${localrootscriptdir}/splunkconf-upgrade-local-setsplunktargetbinary.sh
+  chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local-setsplunktargetbinary.sh
   # if there is a dns update to do , we have put the script and it has been redeployed as part of the restore above
   # so we can run it now
   # the content will be different depending on the instance

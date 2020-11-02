@@ -71,7 +71,7 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201022 add support for using extra splunkconf-swapme.pl to tune swap
 # 20201102 set permission for local upgrde script
 
-VERSION="20201102a
+VERSION="20201102a"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log

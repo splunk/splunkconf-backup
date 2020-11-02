@@ -4,7 +4,7 @@ exec > /var/log/splunkconf-upgrade.log 2>&1
 # This script is used to upgrade splunk locally without having to destroy the instance completely
 # it is getting latest aws recovery script and call it with upgrade arg
  
-# version 20201011
+VERSION="20201102"
 # 20201011 add check for root use
 
 # check that we are launched by root
@@ -33,7 +33,11 @@ localinstalldir="/usr/local/bin"
 mkdir -p $localinstalldir
 # get latest version 
 aws s3 cp $remoteinstalldir/splunkconf-aws-recovery.sh  $localinstalldir --quiet
-chmod +x $localinstalldir/splunkconf-aws-recovery.sh
-# need to pass upgrade argument,  for the rest we will use contextual data from tags
-. $localinstalldir/splunkconf-aws-recovery.sh upgrade 
+if [ -e "$localinstalldir/splunkconf-aws-recovery.sh" ]; then
+  chmod +x $localinstalldir/splunkconf-aws-recovery.sh
+  # need to pass upgrade argument,  for the rest we will use contextual data from tags
+  . $localinstalldir/splunkconf-aws-recovery.sh upgrade 
+else
+  echo "splunkconf-aws-recovery.sh could not be downloaded, please check that it is on s3 install , that iam are set to autorize and tags for splunks3installbucket is set" 
+fi
 echo "end of splunkconf upgrade script"

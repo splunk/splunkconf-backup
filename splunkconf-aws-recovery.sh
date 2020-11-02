@@ -387,7 +387,7 @@ yum install curl gdb -y
 # Splunk installation
 # note : if you update here, that could update at reinstanciation, make sure you know what you do !
 #splbinary="splunk-8.0.5-a1a6394cc5ae-linux-2.6-x86_64.rpm"
-splbinary="splunk-8.0.6-152fb4b2bb96-linux-2.6-x86_64.rpm"
+splbinary="xxxsplunk-8.0.6-152fb4b2bb96-linux-2.6-x86_64.rpm"
 if [ -z ${splunktargetbinary+x} ]; then 
   echo "splunktargetbinary not set in instance tags, falling back to use version ${splbinary} from aws recovery script" >> /var/log/splunkconf-aws-recovery-info.log
 else 
@@ -854,6 +854,9 @@ if [ "$MODE" != "upgrade" ]; then
   aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local.sh  ${localrootscriptdir}/ --quiet
   chown root. ${localrootscriptdir}/splunkconf-upgrade-local.sh  
   chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local.sh  
+  aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local-precheck.sh  ${localrootscriptdir}/ --quiet
+  chown root. ${localrootscriptdir}/splunkconf-upgrade-local-precheck.sh  
+  chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local-precheck.sh  
   # if there is a dns update to do , we have put the script and it has been redeployed as part of the restore above
   # so we can run it now
   # the content will be different depending on the instance

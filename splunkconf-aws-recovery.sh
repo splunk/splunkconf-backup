@@ -69,7 +69,7 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201015 add special case for giving dir to splunk for indexer creation case (when fs created in AMI)
 # 20201017 add master_uri (cm) support for idx discovery + lm support 
 # 20201022 add support for using extra splunkconf-swapme.pl to tune swap
-# 20201102 set permission for local upgrde script
+# 20201102 set permission for local upgrade scrip, add copy for extra check and set tags, update to 8.0.7 by defaultt
 
 VERSION="20201102a"
 
@@ -387,7 +387,8 @@ yum install curl gdb -y
 # Splunk installation
 # note : if you update here, that could update at reinstanciation, make sure you know what you do !
 #splbinary="splunk-8.0.5-a1a6394cc5ae-linux-2.6-x86_64.rpm"
-splbinary="xxxsplunk-8.0.6-152fb4b2bb96-linux-2.6-x86_64.rpm"
+#splbinary="xxxsplunk-8.0.6-152fb4b2bb96-linux-2.6-x86_64.rpm"
+splbinary="splunk-8.0.7-cbe73339abca-linux-2.6-x86_64.rpm"
 if [ -z ${splunktargetbinary+x} ]; then 
   echo "splunktargetbinary not set in instance tags, falling back to use version ${splbinary} from aws recovery script" >> /var/log/splunkconf-aws-recovery-info.log
 else 

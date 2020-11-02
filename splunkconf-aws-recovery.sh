@@ -69,8 +69,9 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201015 add special case for giving dir to splunk for indexer creation case (when fs created in AMI)
 # 20201017 add master_uri (cm) support for idx discovery + lm support 
 # 20201022 add support for using extra splunkconf-swapme.pl to tune swap
+# 20201102 set permission for local upgrde script
 
-VERSION="20201022"
+VERSION="20201102a
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -355,6 +356,9 @@ if [ "$MODE" != "upgrade" ]; then
     if [ -e "/data/hotwarm" ]; then
        chown -R splunk. /data/hotwarm
        PARTITIONFAST="/data/hotwarm"
+       # resize when size in AMI not the right one
+       resize2fs /dev/xvda1
+       resize2fs /dev/xvdb
     fi
     if [ -e "/data/cold" ]; then
        chown -R splunk. /data/cold
@@ -718,6 +722,7 @@ if [ -z ${splunkawsdnszone+x} ]; then
 else 
   echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (master_uri) master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089 (cm name or a cname alias to it)  " >> /var/log/splunkconf-aws-recovery-info.log
   # assuming PS base apps are used   (indexer and search)
+  # we dont want to update master_uri=clustermaster:indexer1
   find ${SPLUNK_HOME} -wholename "*cluster*base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \; 
   # it is also used fo rindexer discovery in outputs.conf
   find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/deployment-apps ${SPLUNK_HOME}/etc/shcluster/apps ${SPLUNK_HOME}/etc/ystem/local  -name "outputs.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \; 
@@ -847,6 +852,8 @@ if [ "$MODE" != "upgrade" ]; then
   # local upgrade script (we dont do this in upgrade mode as overwriting our own script already being run could be problematic)
   echo "remote : ${remoteinstalldir}/splunkconf-upgrade-local.sh" >> /var/log/splunkconf-aws-recovery-info.log
   aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local.sh  ${localrootscriptdir}/ --quiet
+  chown root. ${localrootscriptdir}/splunkconf-upgrade-local.sh  
+  chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local.sh  
   # if there is a dns update to do , we have put the script and it has been redeployed as part of the restore above
   # so we can run it now
   # the content will be different depending on the instance

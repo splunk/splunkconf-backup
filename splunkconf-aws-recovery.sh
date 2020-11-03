@@ -70,8 +70,9 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201017 add master_uri (cm) support for idx discovery + lm support 
 # 20201022 add support for using extra splunkconf-swapme.pl to tune swap
 # 20201102 set permission for local upgrade scrip, add copy for extra check and set tags, update to 8.0.7 by defaultt
+# 20201103 add download ES from s3 pre install script
 
-VERSION="20201102a"
+VERSION="20201103"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -214,7 +215,10 @@ localkvdumpbackupdir="${SPLUNK_DB}/kvstorebackup/"
 remoteinstalldir="s3://${splunks3installbucket}/install"
 remoteinstallsplunkconfbackup="${remoteinstalldir}/apps/splunkconf-backup.tar.gz"
 localinstalldir="${SPLUNK_HOME}/var/install"
+# this path expected by ES install script
+localappsinstalldir="${SPLUNK_HOME}/splunkapps"
 remotepackagedir="s3://${splunks3installbucket}/packaged/${instancename}"
+localscriptdir="${SPLUNK_HOME}/scripts"
 localrootscriptdir="/usr/local/bin"
 # by default try to restore backups
 # we will disable if indexer detected as not needed
@@ -861,6 +865,10 @@ if [ "$MODE" != "upgrade" ]; then
   aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local-setsplunktargetbinary.sh  ${localrootscriptdir}/ --quiet
   chown root. ${localrootscriptdir}/splunkconf-upgrade-local-setsplunktargetbinary.sh
   chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local-setsplunktargetbinary.sh
+  # script run as splunk
+  aws s3 cp ${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh  ${localscriptdir}/ --quiet
+  chown splunk. ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
+  chmod 700 ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
   # if there is a dns update to do , we have put the script and it has been redeployed as part of the restore above
   # so we can run it now
   # the content will be different depending on the instance

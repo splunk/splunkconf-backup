@@ -22,7 +22,7 @@ use strict;
 use List::Util qw[min max];
 
 my $VERSION;
-$VERSION="20201103";
+$VERSION="20201103b";
 
 my $MEM=`free | grep ^Mem: | perl -pe 's/Mem:\\s*\\t*(\\d+).*\$/\$1/' `;
 my $SWAP=`free | grep ^Swap: | perl -pe 's/Swap:\\s*\\t*(\\d+).*\$/\$1/'`;
@@ -58,11 +58,11 @@ my $WANTED2=4*$MEM-$SWAP;
 my $MINFREE=10000000;
 my $AVAIL2=$AVAIL-$MINFREE;
 # percentage max of disk space to allocate
-my $TAILLEPERC=0.4*$TAILLE
+my $TAILLEPERC=int(0.4*$TAILLE);
 my $WANTED3=min($WANTED,$WANTED2);
 my $WANTED4=min($WANTED3,$AVAIL2);
 my $WANTED14=min($WANTED4,$TAILLEPERC);
-print("MEM=$MEM, SWAP=$SWAP, TOTAL=$TOTALMEM, TAILLE=$TAILLE, AVAIL=$AVAIL, WANTED=$WANTED, WANTED2=$WANTED2, WANTED3=$WANTED3, WANTED4=$WANTED4, AVAIL2=$AVAIL2\n");
+print("MEM=$MEM, SWAP=$SWAP, TOTAL=$TOTALMEM, TAILLE=$TAILLE, TAILLEPERC=$TAILLEPERC, AVAIL=$AVAIL, WANTED=$WANTED, WANTED2=$WANTED2, WANTED3=$WANTED3, WANTED4=$WANTED4, WANTED14=$WANTED14, AVAIL2=$AVAIL2\n");
 # logic is to be able to burst with a reduced oom risk 
 # max size for prod env
 if ($WANTED<=0){

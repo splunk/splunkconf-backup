@@ -58,6 +58,7 @@
 # 20201011 remove extra die when no user seed for 7.0
 # 20201019 add support for running pre 7.3 version on systemd capable (falling back to init) 
 # 20201020 slight change to systemd service file for cgroups WLM support (as 8.1 changed again to execstartpost, we try to do both
+# 20201103 remove the post statement from systemd for now as 8.0.7 now complain about it...
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -576,9 +577,6 @@ MemoryLimit=$systemdmemlimit
 PermissionsStartOnly=true
 # change needed for 8.0+ ExecStartPost to ExecStartPre to change the permissions before Splunk is started (see answers 781532 )
 ExecStartPre=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/cpu/system.slice/%n"
-#ExecStartPre=/bin/bash -c "chown -R $uid:$gid /sys/fs/cgroup/cpu/system.slice/%n"
-# for 8.1, that is now back to ExecStartPost -> as this is just a permission change, we can put it in both stanzas
-ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/memory/system.slice/%n"
 ## Modifications to the base Splunkd.service that is created from the "enable boot-start" command ##
 # set additional ulimits:
 LimitNPROC=262143
@@ -596,6 +594,11 @@ WantedBy=multi-user.target
 EOF
     print FH $str;
     close(FH);
+
+# removed as break with 8.0.7
+#ExecStartPre=/bin/bash -c "chown -R $uid:$gid /sys/fs/cgroup/cpu/system.slice/%n"
+# for 8.1, that is now back to ExecStartPost -> as this is just a permission change, we can put it in both stanzas
+#ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/memory/system.slice/%n"
     # remove exec as not needed and may create warning by ststemd
     `chmod a-x $filenameservice`;
     print "telling systemd the unit files may have changed via systemctl daemon-reload\n";

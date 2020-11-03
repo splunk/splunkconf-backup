@@ -14,9 +14,15 @@
 # - Scheduling tuning
 # - Search slots tuning
 
+# 202010 initial version 
+# 20201103 add total disk space percent limit  
+
+
 use strict;
 use List::Util qw[min max];
 
+my $VERSION;
+$VERSION="20201103";
 
 my $MEM=`free | grep ^Mem: | perl -pe 's/Mem:\\s*\\t*(\\d+).*\$/\$1/' `;
 my $SWAP=`free | grep ^Swap: | perl -pe 's/Swap:\\s*\\t*(\\d+).*\$/\$1/'`;
@@ -51,8 +57,11 @@ my $WANTED=100000000-$SWAP;
 my $WANTED2=4*$MEM-$SWAP;
 my $MINFREE=10000000;
 my $AVAIL2=$AVAIL-$MINFREE;
+# percentage max of disk space to allocate
+my $TAILLEPERC=0.4*$TAILLE
 my $WANTED3=min($WANTED,$WANTED2);
 my $WANTED4=min($WANTED3,$AVAIL2);
+my $WANTED14=min($WANTED4,$TAILLEPERC);
 print("MEM=$MEM, SWAP=$SWAP, TOTAL=$TOTALMEM, TAILLE=$TAILLE, AVAIL=$AVAIL, WANTED=$WANTED, WANTED2=$WANTED2, WANTED3=$WANTED3, WANTED4=$WANTED4, AVAIL2=$AVAIL2\n");
 # logic is to be able to burst with a reduced oom risk 
 # max size for prod env
@@ -75,18 +84,27 @@ if ($AVAIL2<=0) {
   exit 1;
 }
 
-
-
-print "trying to create a swapfile at $PARTITIONFAST/swapfile with size $WANTED4\n";
+print "trying to create a swapfile at $PARTITIONFAST/swapfile with size $WANTED14\n";
 if (-e "$PARTITIONFAST/swapfile") {
   print "swapfile already exist , doing nothing\n";
 } else {
-  my $WANTED5=1024*$WANTED4;
+  my $WANTED5=1024*$WANTED14;
   `fallocate -l $WANTED5 $PARTITIONFAST/swapfile`;
   `chmod 600 $PARTITIONFAST/swapfile`;
   `mkswap $PARTITIONFAST/swapfile`;
-  `swapon $PARTITIONFAST/swapfile`;
-   $SWAP=`free | grep ^Swap: | perl -pe 's/Swap:\\s*\\t*(\\d+).*\$/\$1/'`;
-   $TOTALMEM=`free -t | grep ^Total: | perl -pe 's/Total:\\s*\\t*(\\d+).*\$/\$1/'`;
-   print("after swapfile creation MEM=$MEM, SWAP=$SWAP, TOTAL=$TOTALMEM");
+  my $RES=`grep $PARTITIONFAST/swapfile /etc/fstab `;
+  if ($RES) {
+    print "swapfile already present in /etc/fstab, doing nothing\n";
+  } elsif (-e "$PARTITIONFAST/swapfile") {
+    print "swapfile exist but not present in /etc/fstab, adding it\n";
+    `echo "$PARTITIONFAST/swapfile none swap sw 0 0">>/etc/fstab `;
+  } else {
+    print "swapfile not present and not existing in /etc/fstab, that is unexpected, doing nothing !\n";
+  }
+  #`swapon $PARTITIONFAST/swapfile`;
+  `swapon -a`;
+  $SWAP=`free | grep ^Swap: | perl -pe 's/Swap:\\s*\\t*(\\d+).*\$/\$1/'`;
+  $TOTALMEM=`free -t | grep ^Total: | perl -pe 's/Total:\\s*\\t*(\\d+).*\$/\$1/'`;
+  print("after swapfile creation MEM=$MEM, SWAP=$SWAP, TOTAL=$TOTALMEM");
 }
+

@@ -4,7 +4,7 @@
 # This script is used to prepare upgrade splunk locally
 # it is getting latest aws recovery and upgrade scripts and check tags BUT wont launch upgrade
 
-VERSION="20201103"
+VERSION="20201103b"
 # 20201011 add check for root use
 # 20201102 version that does tags and script prechecks
 # 20201103 initial es version
@@ -23,7 +23,7 @@ REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://
 splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunks3installbucket | cut -f 5`
 remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/opt/splunk/scripts"
-localappsinstalldir="/opt/splunk/isplunkapps"
+localappsinstalldir="/opt/splunk/splunkapps"
 mkdir -p $localinstalldir
 mkdir -p $localappsinstalldir
 
@@ -46,14 +46,14 @@ else
 fi
 
 
-aws s3 cp $remoteinstalldir/splunk-enterprise-security_620.spl  $localappsinstalldir --quiet
+aws s3 cp $remoteinstalldir/apps/splunk-enterprise-security_620.spl  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/splunk-enterprise-security_620.spl" ]; then
   echo "ES install file present : OK"
 else
   echo "ES install file is NOT present in s3 install at $remoteinstalldir: KO Please upload apps to s3 install"
 fi
 
-aws s3 cp $remoteinstalldir/splunk-es-content-update_308.tgz  $localappsinstalldir --quiet
+aws s3 cp $remoteinstalldir/apps/splunk-es-content-update_308.tgz  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/splunk-es-content-update_308.tgz" ]; then
   echo "ES Content update install file present : OK"
 else

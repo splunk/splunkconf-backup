@@ -60,6 +60,7 @@
 # 20201020 slight change to systemd service file for cgroups WLM support (as 8.1 changed again to execstartpost, we try to do both
 # 20201103 remove the post statement from systemd for now as 8.0.7 now complain about it...
 # 20201104 add logic to push different systemd file for 8.1 as 8.0.7 refuse to see execstartpost during a upgrade but 8.1 need it
+# 20201104 add both cpu and memory to execstart pre and post
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -68,6 +69,8 @@
 use strict;
 use Getopt::Long;
 
+my $VERSION;
+$VERSION="20201104b";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -579,10 +582,8 @@ Delegate=true
 CPUShares=1024
 MemoryLimit=$systemdmemlimit
 PermissionsStartOnly=true
-# change needed for 8.0+ ExecStartPost to ExecStartPre to change the permissions before Splunk is started (see answers 781532 )
-ExecStartPre=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/cpu/system.slice/%n"
-# for 8.1, that is now back to ExecStartPost -> as this is just a permission change, we can put it in both stanzas
-#ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/memory/system.slice/%n"
+# change needed for 8.0+ to change the permissions before Splunk is started (see answers 781532 )
+ExecStartPre=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/cpu/system.slice/%n;chown -R $USERSPLUNK:splunk /sys/fs/cgroup/memory/system.slice/%n"
 ## Modifications to the base Splunkd.service that is created from the "enable boot-start" command ##
 # set additional ulimits:
 LimitNPROC=262143
@@ -632,7 +633,7 @@ CPUShares=1024
 MemoryLimit=$systemdmemlimit
 PermissionsStartOnly=true
 # for 8.1, that is now back to ExecStartPost 
-ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/memory/system.slice/%n"
+ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/cpu/system.slice/%n;chown -R $USERSPLUNK:splunk /sys/fs/cgroup/memory/system.slice/%n"
 ## Modifications to the base Splunkd.service that is created from the "enable boot-start" command ##
 # set additional ulimits:
 LimitNPROC=262143

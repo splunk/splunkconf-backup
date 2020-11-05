@@ -34,6 +34,7 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20200413 small change to how we build file and path var to handle more cases + add checkpoint file to be used by splunkconf-aws-recovery script in order to prevent breaking during a huge kvdump restore, increase allowed time for big kvdump and/or slow env
 # 20200413 add timer at start to allow kvstore some time to finish initializing and to avoid trying a restore is splunk is just being restarted as part of a installation script (prevent race condition)
 # 20200414 add comments about possible error/solution when restore fail in some conditions
+# 20201105 add /bin to PATH as required for AWS1
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -56,10 +57,10 @@ SPLUNK_HOME=`cd ../../..;pwd`
 
 # debug -> verify the env that splunk set (python version may affect aws command for example,...)
 #env
-# undetting env to not depend on splunk python version 
+# unsetting env to not depend on splunk python version 
 # this is because we may call aws command which is in python itself and can break du to this
 unset LD_LIBRARY_PATH
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin
 unset PYTHONHASHSEED
 unset NODE_PATH
 unset PYTHONPATH

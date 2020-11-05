@@ -21,6 +21,7 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20200318 add logic to avoid erasing the last backup of each type either because no new backup or no size (if something else use space or parameter too low, we will try our best until the admin figure out why
 # 20200419 change size default
 # 20200421 improve logging
+# 20201105 add test for default and local conf file to prevent error appearing in logs
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -142,8 +143,19 @@ SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
 
 # include VARs
 debug_log "loading splunkconf-backup.conf file"
-. ./default/splunkconf-backup.conf && (debug_log "splunkconf-backup.conf default succesfully included") || (debug_log "splunkconf-backup.conf default  not found or not readable. Using defaults from script ")
-. ./local/splunkconf-backup.conf && (debug_log "splunkconf-backup.conf local succesfully included") || (debug_log "splunkconf-backup.conf local not found or not readable. Using defaults ")
+if [[ -f "./default/splunkconf-backup.conf" ]]; then
+  . ./default/splunkconf-backup.conf
+  debug_log "splunkconf-backup.conf default succesfully included"
+else 
+  debug_log "splunkconf-backup.conf default  not found or not readable. Using defaults from script"
+fi
+
+if [[ -f "./local/splunkconf-backup.conf" ]]; then
+  . ./local/splunkconf-backup.conf 
+  debug_log "splunkconf-backup.conf local succesfully included"    
+else
+  debug_log "splunkconf-backup.conf local not present, using only default"
+fi
 if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
   . ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (debug_log "splunkconf-backup.conf system local succesfully included")
 fi

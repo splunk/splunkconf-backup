@@ -46,6 +46,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20200909 change path for instance tags so that it can work as splunk user with no additional permissions
 # 20201011 instance tags prefix detection fix (adapted from same fix in recovery)
 # 20201012 add /bin to PATH as required for AWS1, fix var name for kvstore remote s3 (7.0)
+# 20201105 add test for default and local conf file to prevent error appearing in logs
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -228,8 +229,19 @@ ERROR_MESS=""
 # include VARs
 APPDIR=`pwd`
 debug_log "app=splunkconf-backup result=running SPLUNK_HOME=$SPLUNK_HOME splunkconfappdir=${APPDIR} loading splukconf-backup.conf file"
-. ./default/splunkconf-backup.conf && (debug_log "splunkconf-backup.conf default succesfully included") || (debug_log "splunkconf-backup.conf default  not found or not readable. Using defaults from script ")
-. ./local/splunkconf-backup.conf && (debug_log "splunkconf-backup.conf local succesfully included") 
+if [[ -f "./default/splunkconf-backup.conf" ]]; then
+  . ./default/splunkconf-backup.conf
+  debug_log "splunkconf-backup.conf default succesfully included"
+else
+  debug_log "splunkconf-backup.conf default  not found or not readable. Using defaults from script "
+fi
+
+if [[ -f "./local/splunkconf-backup.conf" ]]; then
+  . ./local/splunkconf-backup.conf
+  debug_log "splunkconf-backup.conf local succesfully included"
+else
+  debug_log "splunkconf-backup.conf local not present, using only default"   
+fi 
 
 
 # we get most var dynamically from ec2 tags associated to instance

@@ -71,8 +71,9 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201022 add support for using extra splunkconf-swapme.pl to tune swap
 # 20201102 set permission for local upgrade scrip, add copy for extra check and set tags, update to 8.0.7 by defaultt
 # 20201103 add download ES from s3 pre install script
+# 20101106 remove any extra spaces in tags around the = sign
 
-VERSION="20201103"
+VERSION="20201106"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -128,14 +129,14 @@ INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" ht
 REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
 # we put store tags in /etc/instance-tags -> we will use this later on
-aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | grep -E "^splunk" > /etc/instance-tags
+aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > /etc/instance-tags
 if grep -qi splunkinstanceType /etc/instance-tags
 then
   # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
   echo "filtering tags with splunk prefix for instance tags" >> /var/log/splunkconf-aws-recovery-info.log
 else
   echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-aws-recovery-info.log
-  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/'  > /etc/instance-tags
+  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  > /etc/instance-tags
 fi
 chmod 644 /etc/instance-tags
 

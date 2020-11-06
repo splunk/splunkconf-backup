@@ -47,6 +47,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20201011 instance tags prefix detection fix (adapted from same fix in recovery)
 # 20201012 add /bin to PATH as required for AWS1, fix var name for kvstore remote s3 (7.0)
 # 20201105 add test for default and local conf file to prevent error appearing in logs
+# 20201106 remove any extra spaces in tags around the = sign
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -271,14 +272,14 @@ if [ $CHECK -ne 0 ]; then
   REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
   # we put store tags in instance-tags file-> we will use this later on
-  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > $INSTANCEFILE
+  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > $INSTANCEFILE/
   if grep -qi splunkinstanceType $INSTANCEFILE
   then
     # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
     echo_log "filtering tags with splunk prefix for instance tags (file=$INSTANCEFILE)" 
   else
     echo_log "splunk prefixed tags not found, reverting to full tag inclusion (file=$INSTANCEFILE)" 
-    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/'  > $INSTANCEFILE
+    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  > $INSTANCEFILE
   fi
   chmod 640 $INSTANCEFILE
 

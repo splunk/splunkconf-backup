@@ -74,8 +74,9 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201106 remove any extra spaces in tags around the = sign
 # 20201106 make master_uri form more restrictive in server.conf
 # 20201109 yet another fix for master_uri regex
+# 20201110 remove sessions.py test , move es prep script outside test to have it downloaded in all cases
 
-VERSION="20201109"
+VERSION="20201110"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -869,32 +870,37 @@ if [ "$MODE" != "upgrade" ]; then
   aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local-setsplunktargetbinary.sh  ${localrootscriptdir}/ --quiet
   chown root. ${localrootscriptdir}/splunkconf-upgrade-local-setsplunktargetbinary.sh
   chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local-setsplunktargetbinary.sh
-  # script run as splunk
-  aws s3 cp ${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh  ${localscriptdir}/ --quiet
-  chown splunk. ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
-  chmod 700 ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
   # if there is a dns update to do , we have put the script and it has been redeployed as part of the restore above
   # so we can run it now
   # the content will be different depending on the instance
   #if [ -e /opt/splunk/scripts/aws_dns_update/dns_update.sh ]; then
   #  /opt/splunk/scripts/aws_dns_update/dns_update.sh
   #fi
-  # this is restored by backup scriptsa (initial one) but only present if the admin decided it is necessary (ie for example to update dns for some instances)
+  # this is restored by backup scripts (initial one) but only present if the admin decided it is necessary (ie for example to update dns for some instances)
   # if needed this is calling other scripts
   if [ -e ${localrootscriptdir}/aws-postinstall.sh ]; then
     echo "lauching aws-postinstall in ${localrootscriptdir}/aws-postinstall.sh" >> /var/log/splunkconf-aws-recovery-info.log
     chown root. ${localrootscriptdir}/aws-postinstall.sh
     chmod u+x ${localrootscriptdir}/aws-postinstall.sh
     ${localrootscriptdir}/aws-postinstall.sh
-    # note if needed , this will transparently call other scripts deployed in the initial backup so that recevoery script can stay generic
+    # note if needed , this will transparently call other scripts deployed in the initial backup so that recovery script can stay generic
   fi
 fi # if not upgrade
 
+# always download even in upgrade mode
+
+# script run as splunk
+# this script is to be used on es sh , it will download ES installation files and script
+aws s3 cp ${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh  ${localscriptdir}/ --quiet
+chown splunk. ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
+chmod 700 ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
+
 # apply sessions workaround for 8.0 if needed
-if [ -e "/opt/splunk/etc/apps/sessions.py" ]; then
-  cp -p /opt/splunk/lib/python3.7/site-packages/splunk/appserver/mrsparkle/lib/sessions.py /opt/splunk/etc/apps/sessions.py.orig
-  cp -p /opt/splunk/etc/apps/sessions.py /opt/splunk/lib/python3.7/site-packages/splunk/appserver/mrsparkle/lib/sessions.py 
-fi
+# commenting as no longer needed, please comment tools.session timeout in web.conf if you have the issue with sessions and error 500 
+#if [ -e "/opt/splunk/etc/apps/sessions.py" ]; then
+#  cp -p /opt/splunk/lib/python3.7/site-packages/splunk/appserver/mrsparkle/lib/sessions.py /opt/splunk/etc/apps/sessions.py.orig
+#  cp -p /opt/splunk/etc/apps/sessions.py /opt/splunk/lib/python3.7/site-packages/splunk/appserver/mrsparkle/lib/sessions.py 
+#fi
 sleep 1
 
 if [ "$MODE" != "upgrade" ]; then 

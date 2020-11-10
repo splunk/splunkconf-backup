@@ -75,8 +75,9 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201106 make master_uri form more restrictive in server.conf
 # 20201109 yet another fix for master_uri regex
 # 20201110 remove sessions.py test , move es prep script outside test to have it downloaded in all cases
+# 20201110 fix typo in splunktargetenv support 
 
-VERSION="20201110"
+VERSION="20201110b"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -765,7 +766,7 @@ if [ -z ${splunktargetenv+x} ]; then
   echo "splunktargetenv tag not set , please consider adding it if you want to automatically modify login banner for a test env using prod backups" >> /var/log/splunkconf-aws-recovery-info.log
 else 
   echo "trying to replace login_content for splunktargetenv=$splunktargetenv"
-  find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "web.conf" -exec grep -l login_content {} \; -exec sed -i -e "s%^.*login_content.*=.*$%This is a <b>$splunktargetenv server</b>.<br>Authorized access only" {} \;  $$ echo "login_content replaced" || echo "login_content not replaced"
+  find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "web.conf" -exec grep -l login_content {} \; -exec sed -i -e "s%^.*login_content.*=.*$%This is a <b>$splunktargetenv server</b>.<br>Authorized access only" {} \;  && echo "login_content replaced" || echo "login_content not replaced"
   envhelperscript="splunktargetenv-for${splunktargetenv}.sh"
   echo "remote : ${remoteinstalldir}/${envhelperscript}" >> /var/log/splunkconf-aws-recovery-info.log
   aws s3 cp ${remoteinstalldir}/${envhelperscript}  ${localinstalldir} --quiet

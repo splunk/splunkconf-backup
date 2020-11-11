@@ -76,8 +76,9 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201109 yet another fix for master_uri regex
 # 20201110 remove sessions.py test , move es prep script outside test to have it downloaded in all cases
 # 20201110 fix typo in splunktargetenv support 
+# 20201111 add java openjdk 1.8 installation (needed for dbconnect for example)
 
-VERSION="20201110b"
+VERSION="20201111"
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
@@ -241,6 +242,8 @@ chown splunk. ${localinstalldir}
 
 # perl needed for swap (regex) and splunkconf-init.pl
 yum install perl -y >> /var/log/splunkconf-aws-recovery-info.log
+# not needed by recovery itself but for app that use jsva sucha as dbconnect , itsi...
+yum install java-1.8.0-openjdk -y >> /var/log/splunkconf-aws-recovery-info.log
 
 if [ "$MODE" != "upgrade" ]; then 
 

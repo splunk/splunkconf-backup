@@ -4,9 +4,10 @@
 # This script is used to prepare upgrade splunk locally
 # it is getting latest aws recovery and upgrade scripts and check tags BUT wont launch upgrade
 
-VERSION="20201102"
+VERSION="20201102b"
 # 20201011 add check for root use
 # 20201102 version that does tags and script prechecks
+# 20201116 extend to more files and make it more generic
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -50,10 +51,24 @@ fi
 
 
 # get latest versions
-aws s3 cp $remoteinstalldir/splunkconf-upgrade-local.sh  $localinstalldir --quiet
-chmod +x $localinstalldir/splunkconf-upgrade-local.sh
-aws s3 cp $remoteinstalldir/splunkconf-aws-recovery.sh  $localinstalldir --quiet
-chmod +x $localinstalldir/splunkconf-aws-recovery.sh
+for i in splunkconf-aws-recovery.sh splunkconf-swapme.pl splunkconf-upgrade-local.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-init.pl 
+do
+  aws s3 cp $remoteinstalldir/$i  $localinstalldir --quiet
+  chmod +x $localinstalldir/$i
+done
+
+# scripts that run as splunk and deployed in the scripts dir
+localinstalldir="/opt/splunk/scripts"
+mkdir -p $localinstalldir
+for i in splunkconf-prepare-es-from-s3.sh
+do
+  aws s3 cp $remoteinstalldir/$i  $localinstalldir --quiet
+  chown splunk. $localinstalldir/$i
+  chmod +x $localinstalldir/$i
+done
+
+# set back to original dir
+localinstalldir="/usr/local/bin"
 
 if [ -e "$localinstalldir/splunkconf-upgrade-local.sh" ]; then
   echo "splunkconf-upgrade-local present : OK"

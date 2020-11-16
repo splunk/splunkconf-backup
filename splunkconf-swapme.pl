@@ -16,13 +16,56 @@
 
 # 202010 initial version 
 # 20201103 add total disk space percent limit  
+# 20201116 add getlong options support, add help , when no arg, run in dry mode with / partition , add dry-mode, improve logging
 
 
 use strict;
+use Getopt::Long;
 use List::Util qw[min max];
 
 my $VERSION;
-$VERSION="20201103b";
+$VERSION="20201116";
+
+my $help;
+my $dry_run="";
+
+GetOptions (
+     'help|h'=> \$help,
+     'dry_run|dry-run' => \$dry_run,
+  );
+
+
+if ($help) {
+  print "splunkconf-swapme.pl directoryforswapfile [--help|--dry-run] 
+This script will try to create additional swap space on the partition it was given as argument
+See https://serverfault.com/questions/25653/swap-partition-vs-file-for-performance
+and https://itsfoss.com/create-swap-file-linux/
+
+Algorithm for deciding whether to create or not a swap file and which size is :
+- Total RAM available
+- Total existing swap (swap partition(s) + swap file(s))
+- Absolute swap size 
+- Relative size of swap versus RAM
+- Available space on partition
+
+In case there is not enough space for ideal swap, size is automatically reduced 
+If that is not enough, please add more disk 
+
+To remove swapfile in use :
+make sure you understand what you do and NEVER remove swapfile in use !
+- use swapoff command (man swapoff) to remove the file from being used
+- comment out or remove the entry in /etc/fstab (warning any mistake here could make the system unbootable)
+- remove the file after checking swap space was reduced
+
+Options are :
+
+  --help : print this help
+  --dry-run : Tell you what would be done but dont do it
+
+";
+  exit 0;
+}
+
 
 my $MEM=`free | grep ^Mem: | perl -pe 's/Mem:\\s*\\t*(\\d+).*\$/\$1/' `;
 my $SWAP=`free | grep ^Swap: | perl -pe 's/Swap:\\s*\\t*(\\d+).*\$/\$1/'`;
@@ -41,7 +84,12 @@ if (@ARGV>=1) {
     exit 1;
   }
 } else {
-  print "no arg, using / partition\n";
+  print "no arg, defaulting partition to / and forcing ---dry-run , please specify partition if you really want to do it\n";
+  $dry_run=1;
+}
+
+if ($dry_run) {
+  print "*** running in dry run mode, will not change anything \n";
 }
 
 my $TAILLE=`df -k ${PARTITIONFAST}| tail -1| perl -pe 's/^[^\\s]+\\s+(\\d+).*\$/\$1/'`;
@@ -86,25 +134,30 @@ if ($AVAIL2<=0) {
 
 print "trying to create a swapfile at $PARTITIONFAST/swapfile with size $WANTED14\n";
 if (-e "$PARTITIONFAST/swapfile") {
-  print "swapfile already exist , doing nothing\n";
+  print "swapfile $PARTITIONFAST/swapfile already exist , doing nothing\n";
 } else {
   my $WANTED5=1024*$WANTED14;
-  `fallocate -l $WANTED5 $PARTITIONFAST/swapfile`;
-  `chmod 600 $PARTITIONFAST/swapfile`;
-  `mkswap $PARTITIONFAST/swapfile`;
-  my $RES=`grep $PARTITIONFAST/swapfile /etc/fstab `;
-  if ($RES) {
-    print "swapfile already present in /etc/fstab, doing nothing\n";
-  } elsif (-e "$PARTITIONFAST/swapfile") {
-    print "swapfile exist but not present in /etc/fstab, adding it\n";
-    `echo "$PARTITIONFAST/swapfile none swap sw 0 0">>/etc/fstab `;
+  print "Going to create swapfile at $PARTITIONFAST/swapfile with size $WANTED5, adding \"$PARTITIONFAST/swapfile none swap sw 0 0\" to /etc/fstab and activating with swapon -a";
+  if ($dry_run) {
+    print "dry run, not really doing it\n";
   } else {
-    print "swapfile not present and not existing in /etc/fstab, that is unexpected, doing nothing !\n";
+    `fallocate -l $WANTED5 $PARTITIONFAST/swapfile`;
+    `chmod 600 $PARTITIONFAST/swapfile`;
+    `mkswap $PARTITIONFAST/swapfile`;
+    my $RES=`grep $PARTITIONFAST/swapfile /etc/fstab `;
+    if ($RES) {
+      print "swapfile already present in /etc/fstab, doing nothing\n";
+    } elsif (-e "$PARTITIONFAST/swapfile") {
+      print "swapfile exist but not present in /etc/fstab, adding it\n";
+      `echo "$PARTITIONFAST/swapfile none swap sw 0 0">>/etc/fstab `;
+    } else {
+      print "swapfile not present and not existing in /etc/fstab, that is unexpected, doing nothing !\n";
+    }
+    #`swapon $PARTITIONFAST/swapfile`;
+    `swapon -a`;
+    $SWAP=`free | grep ^Swap: | perl -pe 's/Swap:\\s*\\t*(\\d+).*\$/\$1/'`;
+    $TOTALMEM=`free -t | grep ^Total: | perl -pe 's/Total:\\s*\\t*(\\d+).*\$/\$1/'`;
+    print("after swapfile creation MEM=$MEM, SWAP=$SWAP, TOTAL=$TOTALMEM");
   }
-  #`swapon $PARTITIONFAST/swapfile`;
-  `swapon -a`;
-  $SWAP=`free | grep ^Swap: | perl -pe 's/Swap:\\s*\\t*(\\d+).*\$/\$1/'`;
-  $TOTALMEM=`free -t | grep ^Total: | perl -pe 's/Total:\\s*\\t*(\\d+).*\$/\$1/'`;
-  print("after swapfile creation MEM=$MEM, SWAP=$SWAP, TOTAL=$TOTALMEM");
 }
 

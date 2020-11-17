@@ -4,11 +4,12 @@
 # This script is used to prepare upgrade splunk locally
 # it is getting latest aws recovery and upgrade scripts and check tags BUT wont launch upgrade
 
-VERSION="20201102b"
 # 20201011 add check for root use
 # 20201102 version that does tags and script prechecks
 # 20201116 extend to more files and make it more generic
 # 20201117 extend version check to be more generic
+
+VERSION="20201117"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -40,19 +41,11 @@ FILELIST="splunkconf-aws-recovery.sh splunkconf-swapme.pl splunkconf-upgrade-loc
 echo "splunkconf-upgrade-local-precheck  VERSION=$VERSION"
 
 if [ -z "$splunks3installbucket" ]; then
-  echo "ATTENTION TAGS NOT SET in instance tags, please correct an relaunch"
+  echo "ATTENTION TAGS NOT SET in instance tags, please correct and relaunch"
   exit 1
 else
   echo "Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
 fi
-
-echo "doing version inventory before download"
-
-VER=`grep ^VERSION $localinstalldir/splunkconf-upgrade-local.sh`
-echo "splunkconf-upgrade-local $VER"
-
-VER=`grep ^VERSION $localinstalldir/splunkconf-aws-recovery.sh`
-echo "splunkconf-aws-recovery $VER"
 
 
 # get latest versions
@@ -61,8 +54,8 @@ do
   if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl 
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
-    if [ -z "$VER" ] then
-       echo "predownload : undefined version : KO"
+    if [ -z "$VER" ]; then
+      echo "predownload $i : undefined version : KO"
     else
       echo "predownload $i $VER"
     fi
@@ -74,8 +67,8 @@ do
     chmod +x $localinstalldir/$i
     # 2 versions of grep, 1 for bash, 1 for perl
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
-    if [ -z "$VER" ] then
-       echo "after download : undefined version : KO"
+    if [ -z "$VER" ]; then
+       echo "after download $i : undefined version : KO"
     else
       echo "after download OK script $i present. $VER"
     fi
@@ -93,8 +86,8 @@ do
     if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
-    if [ -z "$VER" ] then
-       echo "predownload : undefined version : KO"
+    if [ -z "$VER" ]; then
+      echo "predownload : $i undefined version : KO"
     else
       echo "predownload $i $VER"
     fi
@@ -108,8 +101,8 @@ do
     chmod +x $localinstalldir/$i
     # 2 versions of grep, 1 for bash, 1 for perl
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
-    if [ -z "$VER" ] then
-       echo "after download : undefined version : KO"
+    if [ -z "$VER" ]; then
+       echo "after download : $i undefined version : KO"
     else
       echo "after download OK script $i present. $VER"
     fi

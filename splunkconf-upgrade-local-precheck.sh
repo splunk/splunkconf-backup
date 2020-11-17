@@ -54,10 +54,11 @@ do
   if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl 
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
+    echo "VER=$VER"
     if [ -z "$VER" ]; then
-      echo "predownload $i : undefined version : KO"
+      echo "predownload             $i : undefined version : KO"
     else
-      echo "predownload $i $VER"
+      echo "predownload             $i $VER"
     fi
   else
     echo "script $localinstalldir/$i missing before download\n" 
@@ -87,9 +88,9 @@ do
     # 2 versions of grep, 1 for bash, 1 for perl
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
     if [ -z "$VER" ]; then
-      echo "predownload : $i undefined version : KO"
+      echo "predownload             $i : undefined version : KO"
     else
-      echo "predownload $i $VER"
+      echo "predownload             $i $VER"
     fi
   else
     echo "script $localinstalldir/$i missing before download\n"  

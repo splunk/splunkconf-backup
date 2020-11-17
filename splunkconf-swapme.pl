@@ -17,6 +17,7 @@
 # 202010 initial version 
 # 20201103 add total disk space percent limit  
 # 20201116 add getlong options support, add help , when no arg, run in dry mode with / partition , add dry-mode, improve logging
+# 20201117 improve logging
 
 
 use strict;
@@ -84,7 +85,7 @@ if (@ARGV>=1) {
     exit 1;
   }
 } else {
-  print "no arg, defaulting partition to / and forcing ---dry-run , please specify partition if you really want to do it\n";
+  print "no arg, defaulting partition to / and forcing ---dry-run , please specify partition if you really want to do it, run with --help for full help\n";
   $dry_run=1;
 }
 
@@ -110,25 +111,25 @@ my $TAILLEPERC=int(0.4*$TAILLE);
 my $WANTED3=min($WANTED,$WANTED2);
 my $WANTED4=min($WANTED3,$AVAIL2);
 my $WANTED14=min($WANTED4,$TAILLEPERC);
-print("MEM=$MEM, SWAP=$SWAP, TOTAL=$TOTALMEM, TAILLE=$TAILLE, TAILLEPERC=$TAILLEPERC, AVAIL=$AVAIL, WANTED=$WANTED, WANTED2=$WANTED2, WANTED3=$WANTED3, WANTED4=$WANTED4, WANTED14=$WANTED14, AVAIL2=$AVAIL2\n");
+print("MEM=$MEM, SWAP=$SWAP, TOTAL=$TOTALMEM, SIZE(k)=$TAILLE, maximum size that we want to use versus whole size SIZEPERC=$TAILLEPERC, AVAIL(k)=$AVAIL, MINFREE=$MINFREE, remaining available after minfree AVAIL2(k)=$AVAIL2 , absolute ideal swap space needed WANTED=$WANTED, swap space wanted versus the current real mem  WANTED2=$WANTED2,which result (min wanted , wanted2) in WANTED3=$WANTED3, corrected wanted3 after taking into account AVAIL2 WANTED4=$WANTED4, corrected value to not be over SIZEPERC  WANTED14=$WANTED14\n");
 # logic is to be able to burst with a reduced oom risk 
 # max size for prod env
 if ($WANTED<=0){
-   print ("swap space looks fine (check on size)! all good \n");
+   print ("swap space looks fine (check on size)! all good (WANTED=$WANTED)\n");
    exit 0;
 }
 # max size relative to allocated mem (will de facto reduce for test env or management component while still having enough size
 if ($WANTED2<=0){
-   print ("swap space looks fine (check on relative mem size)! all good \n");
+   print ("swap space looks fine (check on relative mem size)! all good (WANTED2=$WANTED2)\n");
    exit 0;
 }
 if ($WANTED4<=10000) {
-  print (" about enough swap space, doing nothing \n");
+  print (" about enough swap space, doing nothing (WANTED4=$WANTED4 <=10000)\n");
   exit 0;
 }
 # try not to fill disk , inform admin that we are blocked
 if ($AVAIL2<=0) {
-  print (" not enough free space to add swap, please consider adding more disk space to reduce oom risk \n");
+  print (" not enough free space to add swap (AVAIL2=$AVAIL2), please consider adding more disk space to reduce oom risk \n");
   exit 1;
 }
 
@@ -148,12 +149,12 @@ if (-e "$PARTITIONFAST/swapfile") {
     if ($RES) {
       print "swapfile already present in /etc/fstab, doing nothing\n";
     } elsif (-e "$PARTITIONFAST/swapfile") {
-      print "swapfile exist but not present in /etc/fstab, adding it\n";
+      print "swapfile exist but not present in /etc/fstab, adding the line \"$PARTITIONFAST/swapfile none swap sw 0 0\"\n";
       `echo "$PARTITIONFAST/swapfile none swap sw 0 0">>/etc/fstab `;
     } else {
       print "swapfile not present and not existing in /etc/fstab, that is unexpected, doing nothing !\n";
     }
-    #`swapon $PARTITIONFAST/swapfile`;
+    #i dont do that, better use the fstab entry `swapon $PARTITIONFAST/swapfile`;
     `swapon -a`;
     $SWAP=`free | grep ^Swap: | perl -pe 's/Swap:\\s*\\t*(\\d+).*\$/\$1/'`;
     $TOTALMEM=`free -t | grep ^Total: | perl -pe 's/Total:\\s*\\t*(\\d+).*\$/\$1/'`;

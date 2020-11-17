@@ -8,6 +8,7 @@ VERSION="20201102b"
 # 20201011 add check for root use
 # 20201102 version that does tags and script prechecks
 # 20201116 extend to more files and make it more generic
+# 20201117 extend version check to be more generic
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -34,13 +35,9 @@ remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"
 mkdir -p $localinstalldir
 
-echo "splunkconf-upgrade-local-precheck  VERSION=$VERSION"
-echo "version check before download"
-VER=`grep ^VERSION $localinstalldir/splunkconf-upgrade-local.sh`
-echo "splunkconf-upgrade-local $VER"
+FILELIST="splunkconf-aws-recovery.sh splunkconf-swapme.pl splunkconf-upgrade-local.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-init.pl"
 
-VER=`grep ^VERSION $localinstalldir/splunkconf-aws-recovery.sh`
-echo "splunkconf-upgrade-local $VER"
+echo "splunkconf-upgrade-local-precheck  VERSION=$VERSION"
 
 if [ -z "$splunks3installbucket" ]; then
   echo "ATTENTION TAGS NOT SET in instance tags, please correct an relaunch"
@@ -49,12 +46,43 @@ else
   echo "Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
 fi
 
+echo "doing version inventory before download"
+
+VER=`grep ^VERSION $localinstalldir/splunkconf-upgrade-local.sh`
+echo "splunkconf-upgrade-local $VER"
+
+VER=`grep ^VERSION $localinstalldir/splunkconf-aws-recovery.sh`
+echo "splunkconf-aws-recovery $VER"
+
 
 # get latest versions
-for i in splunkconf-aws-recovery.sh splunkconf-swapme.pl splunkconf-upgrade-local.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-init.pl 
+for i in $FILELIST
 do
+  if [ -e "$localinstalldir/$i" ]; then
+    # 2 versions of grep, 1 for bash, 1 for perl 
+    VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
+    if [ -z "$VER" ] then
+       echo "predownload : undefined version : KO"
+    else
+      echo "predownload $i $VER"
+    fi
+  else
+    echo "script $localinstalldir/$i missing before download\n" 
+  fi
   aws s3 cp $remoteinstalldir/$i  $localinstalldir --quiet
-  chmod +x $localinstalldir/$i
+  if [ -e "$localinstalldir/$i" ]; then
+    chmod +x $localinstalldir/$i
+    # 2 versions of grep, 1 for bash, 1 for perl
+    VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
+    if [ -z "$VER" ] then
+       echo "after download : undefined version : KO"
+    else
+      echo "after download OK script $i present. $VER"
+    fi
+  else
+    echo "script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"  
+  fi
+  
 done
 
 # scripts that run as splunk and deployed in the scripts dir
@@ -62,32 +90,37 @@ localinstalldir="/opt/splunk/scripts"
 mkdir -p $localinstalldir
 for i in splunkconf-prepare-es-from-s3.sh
 do
+    if [ -e "$localinstalldir/$i" ]; then
+    # 2 versions of grep, 1 for bash, 1 for perl
+    VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
+    if [ -z "$VER" ] then
+       echo "predownload : undefined version : KO"
+    else
+      echo "predownload $i $VER"
+    fi
+  else
+    echo "script $localinstalldir/$i missing before download\n"  
+  fi
   aws s3 cp $remoteinstalldir/$i  $localinstalldir --quiet
-  chown splunk. $localinstalldir/$i
-  chmod +x $localinstalldir/$i
+  if [ -e "$localinstalldir/$i" ]; then
+    # chown specific here
+    chown splunk. $localinstalldir/$i
+    chmod +x $localinstalldir/$i
+    # 2 versions of grep, 1 for bash, 1 for perl
+    VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
+    if [ -z "$VER" ] then
+       echo "after download : undefined version : KO"
+    else
+      echo "after download OK script $i present. $VER"
+    fi
+  else
+    echo "script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"
+  fi
+
 done
 
 # set back to original dir
 localinstalldir="/usr/local/bin"
-
-if [ -e "$localinstalldir/splunkconf-upgrade-local.sh" ]; then
-  echo "splunkconf-upgrade-local present : OK"
-else
-  echo "splunkconf-upgrade-local is NOT present in s3 install : KO Please upload scripts to s3 install"
-fi
-
-if [ -e "$localinstalldir/splunkconf-aws-recovery.sh" ]; then
-  echo "splunkconf-aws-recovery.sh present : OK"
-else
-  echo "splunkconf-aws-recovery.sh is NOT present in s3 install : KO Please upload scripts to s3 install"
-fi
-
-echo "version check after download"
-VER=`grep ^VERSION $localinstalldir/splunkconf-upgrade-local.sh`
-echo "splunkconf-upgrade-local $VER"
-
-VER=`grep ^VERSION $localinstalldir/splunkconf-aws-recovery.sh`
-echo "splunkconf-upgrade-local $VER"
 
 if [ -z "$splunktargetbinary" ]; then
   splunktargetbinary=`grep ^splbinary $localinstalldir/splunkconf-aws-recovery.sh | cut -d"\"" -f2`

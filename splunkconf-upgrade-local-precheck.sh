@@ -53,7 +53,7 @@ for i in $FILELIST
 do
   if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl 
-    VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
+    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
     echo "VER=$VER"
     if [ -z "$VER" ]; then
       echo "predownload             $i : undefined version : KO"
@@ -67,7 +67,7 @@ do
   if [ -e "$localinstalldir/$i" ]; then
     chmod +x $localinstalldir/$i
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
+    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
     if [ -z "$VER" ]; then
        echo "after download $i : undefined version : KO"
     else
@@ -86,7 +86,7 @@ for i in splunkconf-prepare-es-from-s3.sh
 do
     if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
+    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
     if [ -z "$VER" ]; then
       echo "predownload             $i : undefined version : KO"
     else
@@ -101,7 +101,7 @@ do
     chown splunk. $localinstalldir/$i
     chmod +x $localinstalldir/$i
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i || grep ^\$VERSION $localinstalldir/$i`
+    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
     if [ -z "$VER" ]; then
        echo "after download : $i undefined version : KO"
     else

@@ -8,6 +8,7 @@ VERSION="20201103b"
 # 20201011 add check for root use
 # 20201102 version that does tags and script prechecks
 # 20201103 initial es version
+# 20201123 update for es6.4
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
@@ -46,8 +47,8 @@ else
 fi
 
 
-aws s3 cp $remoteinstalldir/apps/splunk-enterprise-security_620.spl  $localappsinstalldir --quiet
-if [ -e "$localappsinstalldir/splunk-enterprise-security_620.spl" ]; then
+aws s3 cp $remoteinstalldir/apps/splunk-enterprise-security_640.spl  $localappsinstalldir --quiet
+if [ -e "$localappsinstalldir/splunk-enterprise-security_640.spl" ]; then
   echo "ES install file present : OK"
 else
   echo "ES install file is NOT present in s3 install at $remoteinstalldir: KO Please upload apps to s3 install"

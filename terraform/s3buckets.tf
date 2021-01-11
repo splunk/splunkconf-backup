@@ -1,7 +1,7 @@
 
 resource "aws_s3_bucket" "s3_install" {
   provider      = aws.region-master
-  bucket_prefix = "${var.profile}-${var.splunktargetenv}-install"
+  bucket_prefix = "splunkconf-${var.profile}-${var.splunktargetenv}-install"
   acl           = "private"
   versioning {
     enabled = true
@@ -39,7 +39,7 @@ resource "aws_s3_bucket" "s3_install" {
 
 resource "aws_s3_bucket" "s3_backup" {
   provider      = aws.region-master
-  bucket_prefix = "${var.profile}-${var.splunktargetenv}-backup"
+  bucket_prefix = "splunkconf-${var.profile}-${var.splunktargetenv}-backup"
   acl           = "private"
   versioning {
     enabled = true
@@ -65,7 +65,7 @@ resource "aws_s3_bucket" "s3_backup" {
 
 resource "aws_s3_bucket" "s3_data" {
   provider      = aws.region-master
-  bucket_prefix = "${var.profile}-${var.splunktargetenv}-data"
+  bucket_prefix = "splunkconf-${var.profile}-${var.splunktargetenv}-data"
   acl           = "private"
   versioning {
     enabled = true

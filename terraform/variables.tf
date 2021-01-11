@@ -1,27 +1,43 @@
 
 variable "profile" {
+  description = "profile name"
   type    = string
   default = "default"
 }
 
 variable "region-master" {
+  description = "AWS region to use (us-east-1,eu-west-3,...)"
   type    = string
   default = "eu-west-3"
 }
 
-variable "instance-type" {
-  type    = string
-  default = "t3.micro"
-}
-
 variable "splunktargetenv" {
+  description = "environnement (min,dev,prod,...) Some other default depend on theses"
   type    = string
   default = "test"
 }
 
 variable "splunkorg" {
+  description = "prefix for apps (organization prefix)"
   type    = string
   default = "org"
+}
+
+variable "instance-type-indexer-min" {
+  type    = string
+  default = "t3a.medium"
+}
+
+variable "instance-type-indexer-default" {
+  type    = string
+  default = "t3a.nano"
+}
+
+
+locals {
+  env=var.splunktargetenv
+  instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default )
+
 }
 
 variable "cm" {
@@ -29,9 +45,24 @@ variable "cm" {
   default = "cm3"
 }
 
+variable "instance-type-cm" {
+  type    = string
+  default = "t3a.nano"
+}
+
 variable "ds" {
   type    = string
   default = "ds3"
+}
+
+variable "instance-type-ds" {
+  type    = string
+  default = "t3a.nano"
+}
+
+variable "dsnb" {
+  type = number
+  default = 1
 }
 
 variable "lm" {
@@ -39,9 +70,19 @@ variable "lm" {
   default = "lm3"
 }
 
+variable "instance-type-lm" {
+  type    = string
+  default = "t3a.nano"
+}
+
 variable "sh" {
   type    = string
   default = "sh3"
+}
+
+variable "instance-type-sh" {
+  type    = string
+  default = "t3a.nano"
 }
 
 variable "mc" {
@@ -49,14 +90,29 @@ variable "mc" {
   default = "mc3"
 }
 
+variable "instance-type-mc" {
+  type    = string
+  default = "t3a.nano"
+}
+
 variable "hf" {
   type    = string
   default = "hf3"
 }
 
+variable "instance-type-hf" {
+  type    = string
+  default = "t3a.nano"
+}
+
 variable "iuf" {
   type    = string
   default = "iuf3"
+}
+
+variable "instance-type-iuf" {
+  type    = string
+  default = "t3a.nano"
 }
 
 #DNS Configuration

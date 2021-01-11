@@ -397,11 +397,13 @@ resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
         version = "$Latest"
       }
       override {
-        instance_type     = "t3a.nano"
-        weighted_capacity = "2"
+        instance_type     = local.instance-type-indexer
       }
     }
   }
+#  provisioner "local-exec" {
+#    command = "./build-idx-scripts.sh ${local.instance-type-indexer}"
+#  }
   depends_on = [null_resource.bucket_sync]
 }
 
@@ -654,7 +656,6 @@ resource "aws_autoscaling_group" "autoscaling-splunk-cm" {
       }
       override {
         instance_type     = "t3a.nano"
-        weighted_capacity = "2"
       }
     }
   }
@@ -899,7 +900,6 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
       }
       override {
         instance_type     = "t3a.nano"
-        weighted_capacity = "2"
       }
     }
   }
@@ -941,6 +941,7 @@ resource aws_launch_template splunk-ds {
       splunktargetcm = var.cm
       splunktargetlm = var.lm
       splunktargetds = var.ds
+      splunkdsnb = var.dsnb
     }
   }
   user_data = filebase64("install/user-data.txt")
@@ -1077,7 +1078,6 @@ resource "aws_autoscaling_group" "autoscaling-splunk-mc" {
       }
       override {
         instance_type     = "t3a.nano"
-        weighted_capacity = "2"
       }
     }
   }
@@ -1304,7 +1304,6 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh" {
       }
       override {
         instance_type     = "t3a.nano"
-        weighted_capacity = "2"
       }
     }
   }
@@ -1668,7 +1667,6 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
       }
       override {
         instance_type     = "t3a.nano"
-        weighted_capacity = "2"
       }
     }
   }
@@ -1823,7 +1821,6 @@ resource "aws_autoscaling_group" "autoscaling-splunk-iuf" {
       }
       override {
         instance_type     = "t3a.nano"
-        weighted_capacity = "2"
       }
     }
   }

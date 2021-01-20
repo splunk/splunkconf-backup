@@ -451,7 +451,7 @@ resource aws_launch_template splunk-idx {
       splunktargetds = var.ds
     }
   }
-  user_data = filebase64("install/user-data.txt")
+  user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
 } 
 
 
@@ -698,7 +698,7 @@ resource aws_launch_template splunk-cm {
       splunktargetds = var.ds
     }
   }
-  user_data = filebase64("install/user-data.txt")
+  user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
 } 
 
 # ********************* DS *******************
@@ -944,7 +944,7 @@ resource aws_launch_template splunk-ds {
       splunkdsnb = var.dsnb
     }
   }
-  user_data = filebase64("install/user-data.txt")
+  user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
 }
 
 
@@ -1121,7 +1121,7 @@ resource aws_launch_template splunk-mc {
       splunktargetds = var.ds
     }
   }
-  user_data = filebase64("install/user-data.txt")
+  user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
 }
 
 
@@ -1347,7 +1347,7 @@ resource aws_launch_template splunk-sh {
       splunktargetds = var.ds
     }
   }
-  user_data = filebase64("install/user-data.txt")
+  user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
 }
 
 
@@ -1709,7 +1709,7 @@ resource aws_launch_template splunk-hf {
       splunktargetds = var.ds
     }
   }
-  user_data = filebase64("install/user-data.txt")
+  user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
 }
 
 # ****************** IUF *******************
@@ -1864,7 +1864,7 @@ resource aws_launch_template splunk-iuf {
       splunktargetds = var.ds
     }
   }
-  user_data = filebase64("install/user-data.txt")
+  user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
 }
 
 # ***************** LB HEC **********************

@@ -32,8 +32,9 @@
 # 20200629 fix shc test for ES content update, add ESINSTALLERNFORCENOTA and remove TA options fron essinstall for 6.2. change default to 6.2
 # 20201103 add version var + fix typo in message
 # 20201123 add sha for es6.4
+# 20201215 update sha for 6.4 as the build was updated 
 
-VERSION="20201123"
+VERSION="20201215"
 
 SCRIPTNAME="installes"
 
@@ -239,10 +240,9 @@ fi
 # SHA256 checksum (splunk-enterprise-security_611.spl) 0dc6dc6e275c958cd336ac962dd0fe223d18e4f95b03d636728e417b406c5979
 # SHA256 checksum (splunk-enterprise-security_620.spl) dff6806efdbe41141ae8a6b91c1f991d718ce10d8528640b173ea918b8233cd9
 # SHA256 checksum (splunk-enterprise-security_640.spl) cbed83ced2af436ded61f000fe87b820c9329148ed612cf2e4374a033eb854a1
+# SHA256 checksum (splunk-enterprise-security_640.spl) 940d83e15d4059b09f6a5518bbdc62ce32b6680f4c076a1d46e64cd0c54723c8
 
-#EXPECTEDSHA="2ed1ec05066b7c6492c701de93955a94bae88b793d5ededca27310082083fd24"
-# 6.2 EXPECTEDSHA="dff6806efdbe41141ae8a6b91c1f991d718ce10d8528640b173ea918b8233cd9"
-EXPECTEDSHA="cbed83ced2af436ded61f000fe87b820c9329148ed612cf2e4374a033eb854a1"
+EXPECTEDSHA="940d83e15d4059b09f6a5518bbdc62ce32b6680f4c076a1d46e64cd0c54723c8"
 
 echo_log "please verify sha256 to check for integrity (corruption , truncation during file download....)"
 echo "expected sha256=${EXPECTEDSHA}"

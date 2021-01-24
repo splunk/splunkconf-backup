@@ -1,0 +1,15 @@
+#!/bin/bash -x
+exec > /var/log/user-data.log 2>&1
+ 
+# version 20210124 (for GCP)
+
+yum update -y
+splunks3installbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
+remoteinstalldir="gcs://$splunks3installbucket/install"
+localinstalldir="/usr/local/bin"
+mkdir -p $localinstalldir
+gsutil cp $remoteinstalldir/splunkconf-recovery.sh  $localinstalldir --quiet
+chmod +x $localinstalldir/splunkconf-recovery.sh
+# no need to pass arguments,  we will use contextual data from instance metadata
+. $localinstalldir/splunkconf-recovery.sh  
+echo "end of user data script"

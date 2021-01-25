@@ -81,6 +81,7 @@ exec > /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210125 change aws to cloud + initial gcp detection
 # 20200125 add GPG key check for RPM + direct download option in case RPM not in install bucket
 # 20200125 move aws s3 cp to a function and add GCP support
+# 20200125 add first boot check (needed for GCP which launch the script at every boot)
 
 VERSION="20210125c"
 
@@ -131,17 +132,30 @@ get_object () {
     orig=$1
     dest=$2
     if [ $cloud_type == 2 ]; then 
+      echo "using GCP version with orig=$orig and dest=$dest\n"
       gsutil -q cp $orig $dest
     else
       aws s3 cp $orig $dest --quiet
     fi
   else
-    echo "number of arguments passed to get_object is incorrect ($# instead of 2)"
+    echo "number of arguments passed to get_object is incorrect ($# instead of 2)\n"
+  fi
 }
 
 check_cloud
 
 echo "cloud_type=$cloud_type"
+
+if [ $cloud_type == 2 ]; then
+  if [ $# -eq 0 ]; then
+    # not in upgrade mode
+    if [ -e "/root/first_boot.check" ]; then 
+      echo "First boot already ran, exiting to prevent loop"
+      exit 0
+    fi
+  touch "/root/first_boot.check"
+  fi
+fi
 
 # commented as in user data
 #yum update -y
@@ -210,25 +224,25 @@ elif [[ "cloud_type" -eq 2 ]]; then
     echo "GCP : Missing splunkinstanceType in instance metadata"
   else 
     # > to overwrite any old file here (upgrade case)
-    echo -n "splunkinstanceType=${splunkinstanceType}" > /etc/instance-tags
+    echo -e "splunkinstanceType=${splunkinstanceType}\n" > /etc/instance-tags
   fi
   splunks3installbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
   if [ -z ${splunks3installbucket+x} ]; then
     echo "GCP : Missing splunks3installbucket in instance metadata"
   else 
-    echo -n "splunks3installbucket=${splunks3installbucket}" >> /etc/instance-tags
+    echo -e "splunks3installbucket=${splunks3installbucket}\n" >> /etc/instance-tags
   fi
   splunks3backupbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
   if [ -z ${splunks3backupbucket+x} ]; then
     echo "GCP : Missing splunks3backupbucket in instance metadata"
   else 
-    echo -n "splunks3backupbucket=${splunks3backupbucket}" >> /etc/instance-tags
+    echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> /etc/instance-tags
   fi
   splunks3databucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
   if [ -z ${splunks3databucket+x} ]; then
     echo "GCP : Missing splunks3databucket in instance metadata"
   else 
-    echo -n "splunks3databucket=${splunks3databucket}" >> /etc/instance-tags
+    echo -e "splunks3databucket=${splunks3databucket}\n" >> /etc/instance-tags
   fi
   splunkorg=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkorg`
   splunkclouddnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkclouddnszone`
@@ -309,16 +323,22 @@ else
 fi
 echo "splunkawsdnszone is ${splunkawsdnszone}" >> /var/log/splunkconf-cloud-recovery-info.log
 
-remotebackupdir="s3://${splunks3backupbucket}/splunkconf-backup/${instancename}"
 localbackupdir="${SPLUNK_HOME}/var/backups"
 SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
 localkvdumpbackupdir="${SPLUNK_DB}/kvstorebackup/"
-remoteinstalldir="s3://${splunks3installbucket}/install"
+if [ $cloud_type == 2 ]; then
+  remotebackupdir="${splunks3backupbucket}/splunkconf-backup/${instancename}"
+  remoteinstalldir="${splunks3installbucket}/install"
+  remotepackagedir="${splunks3installbucket}/packaged/${instancename}"
+else
+  remotebackupdir="s3://${splunks3backupbucket}/splunkconf-backup/${instancename}"
+  remoteinstalldir="s3://${splunks3installbucket}/install"
+  remotepackagedir="s3://${splunks3installbucket}/packaged/${instancename}"
+fi
 remoteinstallsplunkconfbackup="${remoteinstalldir}/apps/splunkconf-backup.tar.gz"
 localinstalldir="${SPLUNK_HOME}/var/install"
 # this path expected by ES install script
 localappsinstalldir="${SPLUNK_HOME}/splunkapps"
-remotepackagedir="s3://${splunks3installbucket}/packaged/${instancename}"
 localscriptdir="${SPLUNK_HOME}/scripts"
 localrootscriptdir="/usr/local/bin"
 # by default try to restore backups
@@ -511,19 +531,18 @@ get_object ${remoteinstalldir}/${splbinary} ${localinstalldir}
 #aws s3 cp ${remoteinstalldir}/${splbinary} ${localinstalldir} --quiet
 ls ${localinstalldir}
 if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
-  echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install " >> /var/log/splunkconf-cloud-recovery-info.log
-  # better to exit now and have the admin fix the situation
-  exit 1
-else
   echo "RPM not present in install, trying to download directly" 
-  `wget -O ${localinstalldir}/splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.1&product=splunk&filename=splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm&wget=true'
+  `wget -O ${localinstalldir}/splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.1&product=splunk&filename=splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm&wget=true'`
   if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install " >> /var/log/splunkconf-cloud-recovery-info.log
     # better to exit now and have the admin fix the situation
     exit 1
   fi
+else
+  echo "succesfully downloaded splbinary ${splbinary} from ${remoteinstalldir}/${splbinary}"
 fi
 
+echo "importing GPG key"
 cat <<EOF >/root/splunk-gpg-key.pub
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 
@@ -577,7 +596,9 @@ VDxHuk8oMqBQIUdE7Z+WDfyagMMhJWbeMNnnhTZdoPmpXEGkjUKwPDYl+GmF50c1
 =ivRW
 -----END PGP PUBLIC KEY BLOCK-----
 EOF
+echo "importing GPG key (2)"
 rpm --import /root/splunk-gpg-key.pub
+echo "checking GPG key (rpm)"
 rpm -K "${localinstalldir}/${splbinary}" || (echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n";exit 1)
 
 
@@ -596,7 +617,7 @@ then
   echo "hostnamectl command could not be found -> Assuming RH6/AWS1 like distribution" >> /var/log/splunkconf-cloud-recovery-info.log
   SYSVER=6
   echo "remote : ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-  get_object cp ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz  ${localinstalldir} 
+  get_object ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz  ${localinstalldir} 
   #aws s3 cp ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz  ${localinstalldir} --quiet
   if [ -f "${localinstalldir}/package-systemaws1-for-splunk.tar.gz"  ]; then
     echo "deploying system tuning for Splunk, version for AWS1 like systems" >> /var/log/splunkconf-cloud-recovery-info.log

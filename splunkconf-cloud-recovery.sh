@@ -164,30 +164,67 @@ echo "running with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
 # setting variables
 
 SPLUNK_HOME="/opt/splunk"
-# we get most var dynamically from ec2 tags associated to instance
 
-# getting tokens and writting to /etc/instance-tags
+if [[ "cloud_type" -eq 1 ]]; then
+  # aws
+  # we get most var dynamically from ec2 tags associated to instance
 
-# setting up token (IMDSv2)
-TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
-# lets get the s3splunkinstall from instance tags
-INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
-REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
+  # getting tokens and writting to /etc/instance-tags
 
-# we put store tags in /etc/instance-tags -> we will use this later on
-aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > /etc/instance-tags
-if grep -qi splunkinstanceType /etc/instance-tags
-then
-  # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
-  echo "filtering tags with splunk prefix for instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
-else
-  echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-cloud-recovery-info.log
-  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  > /etc/instance-tags
+  # setting up token (IMDSv2)
+  TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+  # lets get the s3splunkinstall from instance tags
+  INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
+  REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
+
+  # we put store tags in /etc/instance-tags -> we will use this later on
+  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > /etc/instance-tags
+  if grep -qi splunkinstanceType /etc/instance-tags
+  then
+    # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
+    echo "filtering tags with splunk prefix for instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
+  else
+    echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-cloud-recovery-info.log
+    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  > /etc/instance-tags
+  fi
+elif [[ "cloud_type" -eq 2 ]]; then
+  # GCP
+  splunkinstanceType=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
+  if [ -z ${splunkinstanceType+x} ]; then
+    echo "GCP : Missing splunkinstanceType in instance metadata"
+  else 
+    echo -n "splunkinstanceType=${splunkinstanceType}" >> /etc/instance-tags
+  fi
+  splunks3installbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
+  if [ -z ${splunkinstallbucket+x} ]; then
+    echo "GCP : Missing splunkinstallbucket in instance metadata"
+  else 
+    echo -n "splunkinstallbucket=${splunkinstallbucket}" >> /etc/instance-tags
+  fi
+  splunks3backupbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
+  if [ -z ${splunkbackupbucket+x} ]; then
+    echo "GCP : Missing splunkbackupbucket in instance metadata"
+  else 
+    echo -n "splunkbackupbucket=${splunkbackupbucket}" >> /etc/instance-tags
+  fi
+  splunks3databucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
+  if [ -z ${splunkdatabucket+x} ]; then
+    echo "GCP : Missing splunkdatabucket in instance metadata"
+  else 
+    echo -n "splunkdatabucket=${splunkdatabucket}" >> /etc/instance-tags
+  fi
+  splunkorg=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkorg`
+  splunkclouddnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkclouddnszone`
+  splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
 fi
-chmod 644 /etc/instance-tags
 
-# including the tags for use in this script
-. /etc/instance-tags
+if [ -e "/etc/instance-tags" ]; then
+  chmod 644 /etc/instance-tags
+  # including the tags for use in this script
+  . /etc/instance-tags
+else
+  echo "WARNING : no instance tags file"
+fi
 
 # instance type
 if [ -z ${splunkinstanceType+x} ]; then 

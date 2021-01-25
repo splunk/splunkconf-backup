@@ -79,8 +79,9 @@ exec > /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20201111 add java openjdk 1.8 installation (needed for dbconnect for example)
 # 20210120 disable default master_uri replacement without tags
 # 20210125 change aws to cloud + initial gcp detection
+# 20200125 add GPG key check for RPM + direct download option in case RPM not in install bucket
 
-VERSION="20210125"
+VERSION="20210125b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -193,25 +194,26 @@ elif [[ "cloud_type" -eq 2 ]]; then
   if [ -z ${splunkinstanceType+x} ]; then
     echo "GCP : Missing splunkinstanceType in instance metadata"
   else 
-    echo -n "splunkinstanceType=${splunkinstanceType}" >> /etc/instance-tags
+    # > to overwrite any old file here (upgrade case)
+    echo -n "splunkinstanceType=${splunkinstanceType}" > /etc/instance-tags
   fi
   splunks3installbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
-  if [ -z ${splunkinstallbucket+x} ]; then
-    echo "GCP : Missing splunkinstallbucket in instance metadata"
+  if [ -z ${splunks3installbucket+x} ]; then
+    echo "GCP : Missing splunks3installbucket in instance metadata"
   else 
-    echo -n "splunkinstallbucket=${splunkinstallbucket}" >> /etc/instance-tags
+    echo -n "splunks3installbucket=${splunks3installbucket}" >> /etc/instance-tags
   fi
   splunks3backupbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
-  if [ -z ${splunkbackupbucket+x} ]; then
-    echo "GCP : Missing splunkbackupbucket in instance metadata"
+  if [ -z ${splunks3backupbucket+x} ]; then
+    echo "GCP : Missing splunks3backupbucket in instance metadata"
   else 
-    echo -n "splunkbackupbucket=${splunkbackupbucket}" >> /etc/instance-tags
+    echo -n "splunks3backupbucket=${splunks3backupbucket}" >> /etc/instance-tags
   fi
   splunks3databucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
-  if [ -z ${splunkdatabucket+x} ]; then
-    echo "GCP : Missing splunkdatabucket in instance metadata"
+  if [ -z ${splunks3databucket+x} ]; then
+    echo "GCP : Missing splunks3databucket in instance metadata"
   else 
-    echo -n "splunkdatabucket=${splunkdatabucket}" >> /etc/instance-tags
+    echo -n "splunks3databucket=${splunks3databucket}" >> /etc/instance-tags
   fi
   splunkorg=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkorg`
   splunkclouddnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkclouddnszone`
@@ -319,7 +321,7 @@ mkdir -p ${localinstalldir}
 chown splunk. ${localinstalldir}
 
 # perl needed for swap (regex) and splunkconf-init.pl
-yum install perl -y >> /var/log/splunkconf-cloud-recovery-info.log
+yum install wget perl -y >> /var/log/splunkconf-cloud-recovery-info.log
 # not needed by recovery itself but for app that use jsva sucha as dbconnect , itsi...
 yum install java-1.8.0-openjdk -y >> /var/log/splunkconf-cloud-recovery-info.log
 
@@ -480,8 +482,9 @@ yum install curl gdb -y
 #splbinary="xxxsplunk-8.0.6-152fb4b2bb96-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.0.7-cbe73339abca-linux-2.6-x86_64.rpm"
 splbinary="splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm"
+
 if [ -z ${splunktargetbinary+x} ]; then 
-  echo "splunktargetbinary not set in instance tags, falling back to use version ${splbinary} from aws recovery script" >> /var/log/splunkconf-cloud-recovery-info.log
+  echo "splunktargetbinary not set in instance tags, falling back to use version ${splbinary} from cloud recovery script" >> /var/log/splunkconf-cloud-recovery-info.log
 else 
   splbinary=${splunktargetbinary}
   echo "using splunktargetbinary ${splunktargetbinary} from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -494,7 +497,72 @@ if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
   echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install " >> /var/log/splunkconf-cloud-recovery-info.log
   # better to exit now and have the admin fix the situation
   exit 1
+else
+  echo "RPM not present in install, trying to download directly" 
+  `wget -O ${localinstalldir}/splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.1&product=splunk&filename=splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm&wget=true'
+  if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
+    echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install " >> /var/log/splunkconf-cloud-recovery-info.log
+    # better to exit now and have the admin fix the situation
+    exit 1
+  fi
 fi
+
+cat <<EOF >/root/splunk-gpg-key.pub
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+=ivRW
+-----END PGP PUBLIC KEY BLOCK-----
+EOF
+rpm --import /root/splunk-gpg-key.pub
+rpm -K "${localinstalldir}/${splbinary}" || (echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n";exit 1)
+
 
 
 # creating dir as we may not have yet deployed RPM
@@ -551,7 +619,7 @@ else
     echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
     echo "deploying system tuning for Splunk" >> /var/log/splunkconf-cloud-recovery-info.log
-    # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
+    # deploy system tuning (after Splunk rpm to be sure directory structure exist and splunk user also)
     tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
   fi
   # enable the tuning done via rc.local and restart polkit so it takes into account new rules

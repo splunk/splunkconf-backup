@@ -1,7 +1,7 @@
 #!/bin/bash -x
 exec > /var/log/user-data.log 2>&1
  
-# version 20200721
+# version 20210125
 
 yum update -y
 # just in case the AMI doesn't have it (it is preinstalled on aws ami)
@@ -20,8 +20,17 @@ splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=res
 remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"
 mkdir -p $localinstalldir
-aws s3 cp $remoteinstalldir/splunkconf-aws-recovery.sh  $localinstalldir --quiet
-chmod +x $localinstalldir/splunkconf-aws-recovery.sh
+aws s3 cp $remoteinstalldir/splunkconf-cloud-recovery.sh  $localinstalldir --quiet
+if [ -e "$localinstalldir/splunkconf-cloud-recovery.sh" ] then
+  # newer case, script named cloud
+  chmod +x $localinstalldir/splunkconf-cloud-recovery.sh
+  ln -s $localinstalldir/splunkconf-cloud-recovery.sh $localinstalldir/splunkconf-aws-recovery.sh
+else
+  # missing cloud script, fallback to aws and still use ln
+  aws s3 cp $remoteinstalldir/splunkconf-aws-recovery.sh  $localinstalldir/splunkconf-cloud-recovery.sh --quiet
+  ln -s $localinstalldir/splunkconf-cloud-recovery.sh $localinstalldir/splunkconf-aws-recovery.sh
+  chmod +x $localinstalldir/splunkconf-cloud-recovery.sh
+fi
 # no need to pass arguments,  we will use contextual data from tags
-. $localinstalldir/splunkconf-aws-recovery.sh  
+. $localinstalldir/splunkconf-cloud-recovery.sh  
 echo "end of user data script"

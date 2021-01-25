@@ -80,8 +80,9 @@ exec > /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210120 disable default master_uri replacement without tags
 # 20210125 change aws to cloud + initial gcp detection
 # 20200125 add GPG key check for RPM + direct download option in case RPM not in install bucket
+# 20200125 move aws s3 cp to a function and add GCP support
 
-VERSION="20210125b"
+VERSION="20210125c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -122,6 +123,20 @@ function check_cloud() {
       cloud_type=1
     fi
   fi
+}
+
+get_object () {
+  if [ $# == 2 ]; then
+    # correct
+    orig=$1
+    dest=$2
+    if [ $cloud_type == 2 ]; then 
+      gsutil -q cp $orig $dest
+    else
+      aws s3 cp $orig $dest --quiet
+    fi
+  else
+    echo "number of arguments passed to get_object is incorrect ($# instead of 2)"
 }
 
 check_cloud
@@ -461,7 +476,8 @@ if [ "$MODE" != "upgrade" ]; then
   fi # if idx
   # swap management
   swapme="splunkconf-swapme.pl"
-  aws s3 cp ${remoteinstalldir}/${swapme} ${localrootscriptdir} --quiet
+  get_object ${remoteinstalldir}/${swapme} ${localrootscriptdir}
+  #aws s3 cp ${remoteinstalldir}/${swapme} ${localrootscriptdir} --quiet
   if [ ! -f "${localrootscriptdir}/${swapme}"  ]; then
     echo "WARNING  : ${swapme} is not present in s3, unable to tune swap  -> please verify the version specified is present in s3 installi at ${remoteinstalldir}/${swapme} " >> /var/log/splunkconf-cloud-recovery-info.log
   else
@@ -491,7 +507,8 @@ else
 fi
 echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
 # aws s3 cp doesnt support unix globing
-aws s3 cp ${remoteinstalldir}/${splbinary} ${localinstalldir} --quiet
+get_object ${remoteinstalldir}/${splbinary} ${localinstalldir} 
+#aws s3 cp ${remoteinstalldir}/${splbinary} ${localinstalldir} --quiet
 ls ${localinstalldir}
 if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
   echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install " >> /var/log/splunkconf-cloud-recovery-info.log
@@ -579,14 +596,16 @@ then
   echo "hostnamectl command could not be found -> Assuming RH6/AWS1 like distribution" >> /var/log/splunkconf-cloud-recovery-info.log
   SYSVER=6
   echo "remote : ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-  aws s3 cp ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz  ${localinstalldir} --quiet
+  get_object cp ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz  ${localinstalldir} 
+  #aws s3 cp ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz  ${localinstalldir} --quiet
   if [ -f "${localinstalldir}/package-systemaws1-for-splunk.tar.gz"  ]; then
     echo "deploying system tuning for Splunk, version for AWS1 like systems" >> /var/log/splunkconf-cloud-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
     tar -C "/" -zxf ${localinstalldir}/package-systemaws1-for-splunk.tar.gz
   else
     echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-    aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
+    get_object ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} 
+    #aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
     echo "deploying system tuning for Splunk" >> /var/log/splunkconf-cloud-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
     tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
@@ -610,14 +629,16 @@ else
   systemctl enable tuned.service
   systemctl start tuned.service
   echo "remote : ${remoteinstalldir}/package-system7-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-  aws s3 cp ${remoteinstalldir}/package-system7-for-splunk.tar.gz  ${localinstalldir} --quiet
+  get_object ${remoteinstalldir}/package-system7-for-splunk.tar.gz  ${localinstalldir} 
+  #aws s3 cp ${remoteinstalldir}/package-system7-for-splunk.tar.gz  ${localinstalldir} --quiet
   if [ -f "${localinstalldir}/package-system7-for-splunk.tar.gz"  ]; then
     echo "deploying system tuning for Splunk, version for RH7+ like systems" >> /var/log/splunkconf-cloud-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
     tar -C "/" -zxf ${localinstalldir}/package-system7-for-splunk.tar.gz
   else
     echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-    aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
+    get_object ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} 
+    #aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
     echo "deploying system tuning for Splunk" >> /var/log/splunkconf-cloud-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure directory structure exist and splunk user also)
     tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
@@ -634,20 +655,24 @@ if [ "$MODE" != "upgrade" ]; then
   # splunk.secret just in case we are on a new install (ie won't be in the backup)
   echo "remote : ${remoteinstalldir}/splunk.secret" >> /var/log/splunkconf-cloud-recovery-info.log
   # FIXME : temp , logic is in splunkconf-init
-  aws s3 cp ${remoteinstalldir}/splunk.secret ${SPLUNK_HOME}/etc/auth --quiet
+  get_object ${remoteinstalldir}/splunk.secret ${SPLUNK_HOME}/etc/auth 
+  #aws s3 cp ${remoteinstalldir}/splunk.secret ${SPLUNK_HOME}/etc/auth --quiet
 
   echo "remote : ${remotepackagedir} : copying initial apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/apps " >> /var/log/splunkconf-cloud-recovery-info.log
   # copy to local
-  aws s3 cp  ${remotepackagedir}/initialapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-cloud-recovery-info.log
+  get_object ${remotepackagedir}/initialapps.tar.gz ${localinstalldir} 
+  #aws s3 cp  ${remotepackagedir}/initialapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-cloud-recovery-info.log
   tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
 
   echo "remote : ${remotepackagedir} : copying initial TLS apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/apps " >> /var/log/splunkconf-cloud-recovery-info.log
   # to ease initial deployment, tls app is pushed separately (warning : once the backups run, backup would restore this also of course)
-  aws s3 cp  ${remotepackagedir}/initialtlsapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-cloud-recovery-info.log
+  get_object  ${remotepackagedir}/initialtlsapps.tar.gz ${localinstalldir} 
+  #aws s3 cp  ${remotepackagedir}/initialtlsapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-cloud-recovery-info.log
   tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialtlsapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
   echo "remote : ${remotepackagedir} : copying certs " >> /var/log/splunkconf-cloud-recovery-info.log
   # copy to local
-  aws s3 cp  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir} --quiet
+  get_object  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir}
+  #aws s3 cp  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir} --quiet
   tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
 
   ## 7.0 no user seed with hashed passwd, first time we have no backup lets put directly passwd 
@@ -663,7 +688,8 @@ if [ "$MODE" != "upgrade" ]; then
 
   # deploy including for indexers
   echo "remote : ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-  aws s3 cp ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz ${localbackupdir} --quiet
+  get_object ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz ${localbackupdir}
+  #aws s3 cp ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz ${localbackupdir} --quiet
   # setting up permissions for backup
   chown splunk ${localbackupdir}/*.tar.gz
   chmod 500 ${localbackupdir}/*.tar.gz
@@ -674,23 +700,28 @@ if [ "$MODE" != "upgrade" ]; then
     # getting configuration backups if exist 
     # change here for kvstore 
     echo "remote : ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-    aws s3 cp ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz ${localbackupdir} --quiet
+    get_object ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz ${localbackupdir}
+    #aws s3 cp ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz ${localbackupdir} --quiet
     # at first splunk install, need to recreate the dir and give it to splunk
     mkdir -p ${localkvdumpbackupdir};chown splunk. ${localkvdumpbackupdir}
     echo "remote : ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
-    aws s3 cp ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz --quiet
+    get_object ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
+    #aws s3 cp ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz --quiet
     # making sure splunk user can access the backup 
     chown splunk. ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
     # and only
     chmod 500 ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
     echo "remote : ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
-    aws s3 cp ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz ${localbackupdir} --quiet
+    get_object ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz ${localbackupdir}
+    #aws s3 cp ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz ${localbackupdir} --quiet
 
     echo "remote : ${remotebackupdir}/backupconfsplunk-state.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-    aws s3 cp ${remotebackupdir}/backupconfsplunk-state.tar.gz ${localbackupdir} --quiet
+    get_object ${remotebackupdir}/backupconfsplunk-state.tar.gz ${localbackupdir}
+    #aws s3 cp ${remotebackupdir}/backupconfsplunk-state.tar.gz ${localbackupdir} --quiet
 
     echo "remote : ${remotebackupdir}/backupconfsplunk-scripts.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-    aws s3 cp ${remotebackupdir}/backupconfsplunk-scripts.tar.gz ${localbackupdir} --quiet
+    get_object ${remotebackupdir}/backupconfsplunk-scripts.tar.gz ${localbackupdir}
+    #aws s3 cp ${remotebackupdir}/backupconfsplunk-scripts.tar.gz ${localbackupdir} --quiet
 
     # setting up permissions for backup
     chown splunk ${localbackupdir}/*.tar.gz
@@ -853,7 +884,8 @@ EOF
 
   # user-seed.config
   echo "remote : ${remoteinstalldir}/user-seed.conf" >> /var/log/splunkconf-cloud-recovery-info.log
-  aws s3 cp ${remoteinstalldir}/user-seed.conf ${localinstalldir} --quiet
+  get_object ${remoteinstalldir}/user-seed.conf ${localinstalldir}
+  #aws s3 cp ${remoteinstalldir}/user-seed.conf ${localinstalldir} --quiet
   # copying to right place
   # FIXME : more  logic here
   cp ${localinstalldir}/user-seed.conf ${SPLUNK_HOME}/etc/system/local/
@@ -922,7 +954,8 @@ else
   find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "web.conf" -exec grep -l login_content {} \; -exec sed -i -e "s%^.*login_content.*=.*$%This is a <b>$splunktargetenv server</b>.<br>Authorized access only" {} \;  && echo "login_content replaced" || echo "login_content not replaced"
   envhelperscript="splunktargetenv-for${splunktargetenv}.sh"
   echo "remote : ${remoteinstalldir}/${envhelperscript}" >> /var/log/splunkconf-cloud-recovery-info.log
-  aws s3 cp ${remoteinstalldir}/${envhelperscript}  ${localinstalldir} --quiet
+  get_object ${remoteinstalldir}/${envhelperscript}  ${localinstalldir}
+  #aws s3 cp ${remoteinstalldir}/${envhelperscript}  ${localinstalldir} --quiet
   if [ -e "${localinstalldir}/$envhelperscript" ]; then
     chown splunk. ${localinstalldir}/$envhelperscript
     chmod u+rx  ${localinstalldir}/$envhelperscript
@@ -960,7 +993,8 @@ chown -R splunk. ${SPLUNK_HOME}
 # important : version on s3 should be up2date as it is prioritary over backups and other content
 # only if it is not a indexer 
 if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
-  aws s3 cp ${remoteinstallsplunkconfbackup} ${localinstalldir} --quiet
+  get_object ${remoteinstallsplunkconfbackup} ${localinstalldir}
+  #aws s3 cp ${remoteinstallsplunkconfbackup} ${localinstalldir} --quiet
   if [ -e "${localinstalldir}/splunkconf-backup.tar.gz" ]; then
     # backup old version just in case
     tar -C "${SPLUNK_HOME}/etc/apps/" -zcf ${localinstalldir}/splunkconf-backup-${TODAY}.tar.gz ./splunkconf-backup
@@ -998,7 +1032,8 @@ fi
 
 # splunk initialization (first time or upgrade)
 mkdir -p ${localrootscriptdir}
-aws s3 cp ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/ --quiet
+get_object ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/
+#aws s3 cp ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/ --quiet
 
 # make it executable
 chmod u+x ${localrootscriptdir}/splunkconf-init.pl
@@ -1015,13 +1050,16 @@ ls ${localinstalldir} >> /var/log/splunkconf-cloud-recovery-info.log
 if [ "$MODE" != "upgrade" ]; then 
   # local upgrade script (we dont do this in upgrade mode as overwriting our own script already being run could be problematic)
   echo "remote : ${remoteinstalldir}/splunkconf-upgrade-local.sh" >> /var/log/splunkconf-cloud-recovery-info.log
-  aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local.sh  ${localrootscriptdir}/ --quiet
+  get_object ${remoteinstalldir}/splunkconf-upgrade-local.sh  ${localrootscriptdir}/
+  #aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local.sh  ${localrootscriptdir}/ --quiet
   chown root. ${localrootscriptdir}/splunkconf-upgrade-local.sh  
   chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local.sh  
-  aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local-precheck.sh  ${localrootscriptdir}/ --quiet
+  get_object ${remoteinstalldir}/splunkconf-upgrade-local-precheck.sh  ${localrootscriptdir}/
+  #aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local-precheck.sh  ${localrootscriptdir}/ --quiet
   chown root. ${localrootscriptdir}/splunkconf-upgrade-local-precheck.sh  
   chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local-precheck.sh  
-  aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local-setsplunktargetbinary.sh  ${localrootscriptdir}/ --quiet
+  get_object ${remoteinstalldir}/splunkconf-upgrade-local-setsplunktargetbinary.sh  ${localrootscriptdir}/
+  #aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local-setsplunktargetbinary.sh  ${localrootscriptdir}/ --quiet
   chown root. ${localrootscriptdir}/splunkconf-upgrade-local-setsplunktargetbinary.sh
   chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local-setsplunktargetbinary.sh
   # if there is a dns update to do , we have put the script and it has been redeployed as part of the restore above
@@ -1045,7 +1083,8 @@ fi # if not upgrade
 
 # script run as splunk
 # this script is to be used on es sh , it will download ES installation files and script
-aws s3 cp ${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh  ${localscriptdir}/ --quiet
+get_object ${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh  ${localscriptdir}/
+#aws s3 cp ${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh  ${localscriptdir}/ --quiet
 chown splunk. ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
 chmod 700 ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
 

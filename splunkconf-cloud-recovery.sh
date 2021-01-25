@@ -1,5 +1,5 @@
 #!/bin/bash -x 
-exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
+exec > /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 
 # Matthieu Araman
 # Splunk
@@ -78,14 +78,54 @@ exec > /var/log/splunkconf-aws-recovery-debug.log 2>&1
 # 20201110 fix typo in splunktargetenv support 
 # 20201111 add java openjdk 1.8 installation (needed for dbconnect for example)
 # 20210120 disable default master_uri replacement without tags
+# 20210125 change aws to cloud + initial gcp detection
 
-VERSION="20210120"
-
-TODAY=`date '+%Y%m%d-%H%M_%u'`;
-echo "${TODAY} running splunkconf-aws-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-aws-recovery-info.log
+VERSION="20210125"
 
 # dont break script on error as we rely on tests for this
 set +e
+
+TODAY=`date '+%Y%m%d-%H%M_%u'`;
+echo "${TODAY} running splunkconf-cloud-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-cloud-recovery-info.log
+
+METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
+function check_cloud() {
+  cloud_type=0
+  response=$(curl -fs -m 5 -H "Metadata-Flavor: Google" ${METADATA_URL})
+  if [ $? -eq 0 ]; then
+    echo 'GCP instance detected'
+    cloud_type=2
+  # old aws hypervisor
+  elif [ -f /sys/hypervisor/uuid ]; then
+    if [ `head -c 3 /sys/hypervisor/uuid` == "ec2" ]; then
+      echo 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+  # newer aws hypervisor (test require root)
+  if [ -r /sys/devices/virtual/dmi/id/product_uuid ]; then
+    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "EC2" ]; then
+      echo 'AWS instance detected'
+      cloud_type=1
+    fi
+  else
+  # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
+  # authoritative, we could follow Amazon's suggestions for cryptographically
+  # verifying their signature, see here:
+  #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
+  # but this is almost certainly overkill for this purpose (and the above
+  # checks of "EC2" prefixes have a higher false positive potential, anyway).
+  # FIXME add imsv2 support here
+    if $(curl -s -m 5 http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
+      echo 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+}
+
+check_cloud
+
+echo "cloud_type=$cloud_type"
 
 # commented as in user data
 #yum update -y
@@ -98,28 +138,28 @@ fi
 
 if [ $# -eq 1 ]; then
   MODE=$1
-  echo "Your command line contains 1 argument $MODE" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "Your command line contains 1 argument $MODE" >> /var/log/splunkconf-cloud-recovery-info.log
   if [ "$MODE" == "upgrade" ]; then 
-    echo "upgrade mode" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
   else
-    echo "unknown parameter, ignoring" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "unknown parameter, ignoring" >> /var/log/splunkconf-cloud-recovery-info.log
     MODE="0"
   fi
 elif [ $# -gt 1 ]; then
-  echo "Your command line contains too many ($#) arguments. Ignoring the extra data" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "Your command line contains too many ($#) arguments. Ignoring the extra data" >> /var/log/splunkconf-cloud-recovery-info.log
   MODE=$1
   if [ "$MODE" == "upgrade" ]; then 
-    echo "upgrade mode" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
   else
-    echo "unknown parameter, ignoring" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "unknown parameter, ignoring" >> /var/log/splunkconf-cloud-recovery-info.log
     MODE="0"
   fi
 else
-  echo "No arguments given, assuming launched by user data" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "No arguments given, assuming launched by user data" >> /var/log/splunkconf-cloud-recovery-info.log
   MODE="0"
 fi
 
-echo "running with MODE=${MODE}" >> /var/log/splunkconf-aws-recovery-info.log
+echo "running with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 # setting variables
 
@@ -139,9 +179,9 @@ aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTAN
 if grep -qi splunkinstanceType /etc/instance-tags
 then
   # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
-  echo "filtering tags with splunk prefix for instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "filtering tags with splunk prefix for instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
 else
-  echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-cloud-recovery-info.log
   aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  > /etc/instance-tags
 fi
 chmod 644 /etc/instance-tags
@@ -152,68 +192,68 @@ chmod 644 /etc/instance-tags
 # instance type
 if [ -z ${splunkinstanceType+x} ]; then 
   if [ -z ${instanceType+x} ]; then
-    echo "instance tags are not correctly set (splunkinstanceType). I dont know what kind of instance I am ! Please correct and relaunch. Exiting" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "instance tags are not correctly set (splunkinstanceType). I dont know what kind of instance I am ! Please correct and relaunch. Exiting" >> /var/log/splunkconf-cloud-recovery-info.log
     exit 1
   else
-    echo "legacy tags used, please update instance tags to use splunk prefix (splunkinstanceType)" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "legacy tags used, please update instance tags to use splunk prefix (splunkinstanceType)" >> /var/log/splunkconf-cloud-recovery-info.log
     splunkinstanceType=$instanceType
   fi
 else 
-  echo "using splunkinstanceType from instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "using splunkinstanceType from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
 fi
 # will become the name when not a indexer, see below
 instancename=$splunkinstanceType 
-echo "instance type is ${instancename}" >> /var/log/splunkconf-aws-recovery-info.log
+echo "instance type is ${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
 
-echo "SPLUNK_HOME is ${SPLUNK_HOME}" >> /var/log/splunkconf-aws-recovery-info.log
+echo "SPLUNK_HOME is ${SPLUNK_HOME}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 # splunk s3 install bucket
 if [ -z ${splunks3installbucket+x} ]; then 
   if [ -z ${s3installbucket+x} ]; then
-    echo "instance tags are not correctly set (splunks3installbucket). I dont know where to get the installation files ! Please correct and relaunch. Exiting" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "instance tags are not correctly set (splunks3installbucket). I dont know where to get the installation files ! Please correct and relaunch. Exiting" >> /var/log/splunkconf-cloud-recovery-info.log
     exit 1
   else
-    echo "legacy tags used, please update instance tags to use splunk prefix (splunks3installbucket)" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "legacy tags used, please update instance tags to use splunk prefix (splunks3installbucket)" >> /var/log/splunkconf-cloud-recovery-info.log
     splunks3installbucket=$s3installbucket
   fi
 else 
-  echo "using splunks3installbucket from instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "using splunks3installbucket from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
 fi
-echo "splunks3installbucket is ${splunks3installbucket}" >> /var/log/splunkconf-aws-recovery-info.log
+echo "splunks3installbucket is ${splunks3installbucket}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 # splunk s3 backup bucket
 if [ -z ${splunks3backupbucket+x} ]; then 
   if [ -z ${s3backupbucket+x} ]; then
-    echo "instance tags are not correctly set (splunks3backupbucket). I dont know where to get the backup files ! Please correct and relaunch. Exiting" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "instance tags are not correctly set (splunks3backupbucket). I dont know where to get the backup files ! Please correct and relaunch. Exiting" >> /var/log/splunkconf-cloud-recovery-info.log
     exit 1
   else
-    echo "legacy tags used, please update instance tags to use splunk prefix (splunks3backupbucket)" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "legacy tags used, please update instance tags to use splunk prefix (splunks3backupbucket)" >> /var/log/splunkconf-cloud-recovery-info.log
     splunks3backupbucket=$s3backupbucket
   fi
 else 
-  echo "using splunks3backupbucket from instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "using splunks3backupbucket from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
 fi
-echo "splunks3backupbucket is ${splunks3backupbucket}" >> /var/log/splunkconf-aws-recovery-info.log
+echo "splunks3backupbucket is ${splunks3backupbucket}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 # splunk org prefix for base apps
 if [ -z ${splunkorg+x} ]; then 
-    echo "instance tags are not correctly set (splunkorg). I dont know prefix for splunk base apps ! Please add splunkorg tag" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "instance tags are not correctly set (splunkorg). I dont know prefix for splunk base apps ! Please add splunkorg tag" >> /var/log/splunkconf-cloud-recovery-info.log
     #we can continue as we will just do nothing, ok for legacy mode  
     #exit 1
 else 
-  echo "using splunkorg from instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "using splunkorg from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
 fi
-echo "splunkorg is ${splunkorg}" >> /var/log/splunkconf-aws-recovery-info.log
+echo "splunkorg is ${splunkorg}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 # splunkawsdnszone used for updating route53 when apropriate
 if [ -z ${splunkawsdnszone+x} ]; then 
-    echo "instance tags are not correctly set (splunkawsdnszone). I dont know splunkawsdnszone to use for route53 ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "instance tags are not correctly set (splunkawsdnszone). I dont know splunkawsdnszone to use for route53 ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-cloud-recovery-info.log
     #we can continue as we will just do nothing but obviously route53 update will fail if this is needed for this instance
     #exit 1
 else 
-  echo "using splunkawsdnszone from instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "using splunkawsdnszone from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
 fi
-echo "splunkawsdnszone is ${splunkawsdnszone}" >> /var/log/splunkconf-aws-recovery-info.log
+echo "splunkawsdnszone is ${splunkawsdnszone}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 remotebackupdir="s3://${splunks3backupbucket}/splunkconf-backup/${instancename}"
 localbackupdir="${SPLUNK_HOME}/var/backups"
@@ -242,9 +282,9 @@ mkdir -p ${localinstalldir}
 chown splunk. ${localinstalldir}
 
 # perl needed for swap (regex) and splunkconf-init.pl
-yum install perl -y >> /var/log/splunkconf-aws-recovery-info.log
+yum install perl -y >> /var/log/splunkconf-cloud-recovery-info.log
 # not needed by recovery itself but for app that use jsva sucha as dbconnect , itsi...
-yum install java-1.8.0-openjdk -y >> /var/log/splunkconf-aws-recovery-info.log
+yum install java-1.8.0-openjdk -y >> /var/log/splunkconf-cloud-recovery-info.log
 
 if [ "$MODE" != "upgrade" ]; then 
 
@@ -262,65 +302,65 @@ if [ "$MODE" != "upgrade" ]; then
   # if idx
   if [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
     #****************************FIXME : REPLACE HERE OR CALL THE NEW PARTITION CODE*********************
-    echo "indexer -> configuring additional partition(s)" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "indexer -> configuring additional partition(s)" >> /var/log/splunkconf-cloud-recovery-info.log
     RESTORECONFBACKUP=0
     DEVNUM=1
 
-    yum install -y nvme-cli lvm2 >> /var/log/splunkconf-aws-recovery-info.log
+    yum install -y nvme-cli lvm2 >> /var/log/splunkconf-cloud-recovery-info.log
 
     # let try to find if we have ephemeral storage
     INSTANCELIST=`nvme list | grep "Instance Storage" | cut -f 1 -d" "`
-    echo "instance storage=$INSTANCELIST" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "instance storage=$INSTANCELIST" >> /var/log/splunkconf-cloud-recovery-info.log
 
     if [ ${#INSTANCELIST} -lt 5 ]; then
-      echo "instance storage not detected" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "instance storage not detected" >> /var/log/splunkconf-cloud-recovery-info.log
       INSTANCELIST=`nvme list | grep "Amazon Elastic Block Store" | cut -f 1 -d" "`
       OSDEVICE=$INSTANCELIST
-      echo "OSDEVICE=${OSDEVICE}" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "OSDEVICE=${OSDEVICE}" >> /var/log/splunkconf-cloud-recovery-info.log
       NBDISK=0
       for e in ${OSDEVICE}; do
-        echo "checking EBS volume $e" >> /var/log/splunkconf-aws-recovery-info.log
+        echo "checking EBS volume $e" >> /var/log/splunkconf-cloud-recovery-info.log
         RES=`mount | grep $e `
         if [ -z "${RES}" ]; then
-          echo "$e not found in mounted devices" >> /var/log/splunkconf-aws-recovery-info.log
+          echo "$e not found in mounted devices" >> /var/log/splunkconf-cloud-recovery-info.log
 
-          pvcreate $e >> /var/log/splunkconf-aws-recovery-info.log
+          pvcreate $e >> /var/log/splunkconf-cloud-recovery-info.log
           # extend or create vg
-          echo "adding $e to vgsplunkstorage${DEVNUM} " >> /var/log/splunkconf-aws-recovery-info.log
-          vgextend vgsplunkstorage${DEVNUM} $e || vgcreate vgsplunkstorage${DEVNUM} $e >> /var/log/splunkconf-aws-recovery-info.log
+          echo "adding $e to vgsplunkstorage${DEVNUM} " >> /var/log/splunkconf-cloud-recovery-info.log
+          vgextend vgsplunkstorage${DEVNUM} $e || vgcreate vgsplunkstorage${DEVNUM} $e >> /var/log/splunkconf-cloud-recovery-info.log
           LIST="$LIST $e"
           #pvdisplay
           ((NBDISK=NBDISK+1))
         else
-          echo "$e is already mounted, doing nothing" >> /var/log/splunkconf-aws-recovery-info.log
+          echo "$e is already mounted, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
         fi
       done
-      echo "LIST=$LIST NBDISK=$NBDISK" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "LIST=$LIST NBDISK=$NBDISK" >> /var/log/splunkconf-cloud-recovery-info.log
       if [ $NBDISK -gt 0 ]; then
-        echo "we have $NBDISK disk(s) to configure" >> /var/log/splunkconf-aws-recovery-info.log
-        lvcreate --name lvsplunkstorage${DEVNUM} -l100%FREE vgsplunkstorage${DEVNUM} >> /var/log/splunkconf-aws-recovery-info.log
-        pvdisplay >> /var/log/splunkconf-aws-recovery-info.log
-        vgdisplay >> /var/log/splunkconf-aws-recovery-info.log
-        lvdisplay >> /var/log/splunkconf-aws-recovery-info.log
+        echo "we have $NBDISK disk(s) to configure" >> /var/log/splunkconf-cloud-recovery-info.log
+        lvcreate --name lvsplunkstorage${DEVNUM} -l100%FREE vgsplunkstorage${DEVNUM} >> /var/log/splunkconf-cloud-recovery-info.log
+        pvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
+        vgdisplay >> /var/log/splunkconf-cloud-recovery-info.log
+        lvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
         # note mkfs wont format if the FS is already mounted -> no need to check here
-        mkfs.ext4 -L storage1 /dev/vgsplunkstorage1/lvsplunkstorage1 >> /var/log/splunkconf-aws-recovery-info.log
+        mkfs.ext4 -L storage1 /dev/vgsplunkstorage1/lvsplunkstorage1 >> /var/log/splunkconf-cloud-recovery-info.log
         mkdir -p /data/vol1
         RES=`grep /data/vol1 /etc/fstab`
         #echo " debug F=$RES."
         if [ -z "${RES}" ]; then
           #mount /dev/vgsplunkephemeral1/lvsplunkephemeral1 /data/vol1 && mkdir -p /data/vol1/indexes
-          echo "/data/vol1 not found in /etc/fstab, adding it" >> /var/log/splunkconf-aws-recovery-info.log
+          echo "/data/vol1 not found in /etc/fstab, adding it" >> /var/log/splunkconf-cloud-recovery-info.log
           echo "/dev/vgsplunkstorage${DEVNUM}//lvsplunkstorage${DEVNUM} /data/vol1 ext4 defaults,nofail 0 2" >> /etc/fstab
           mount /data/vol1
         else
-          echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-aws-recovery-info.log
+          echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
         fi
       else
-        echo "no EBS partition to configure" >> /var/log/splunkconf-aws-recovery-info.log
+        echo "no EBS partition to configure" >> /var/log/splunkconf-cloud-recovery-info.log
       fi
       # Note : in case there is just one partition , this will create the dir so that splunk will run
       # for volume management to work in classic mode, it is better to use a distinct partition to not mix manage and unmanaged on the same partition
-      echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-cloud-recovery-info.log
       mkdir -p /data/vol1/indexes
       chown -R splunk. /data/vol1/indexes
     else
@@ -328,40 +368,40 @@ if [ "$MODE" != "upgrade" ]; then
       #OSDEVICE=$(lsblk -o NAME -n --nodeps | grep nvme)
       #pvdisplay
       OSDEVICE=$INSTANCELIST
-      echo "OSDEVICE=${OSDEVICE}" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "OSDEVICE=${OSDEVICE}" >> /var/log/splunkconf-cloud-recovery-info.log
       for e in ${OSDEVICE}; do
-        echo "creating physical volume $e" >> /var/log/splunkconf-aws-recovery-info.log
-        pvcreate $e >> /var/log/splunkconf-aws-recovery-info.log
+        echo "creating physical volume $e" >> /var/log/splunkconf-cloud-recovery-info.log
+        pvcreate $e >> /var/log/splunkconf-cloud-recovery-info.log
         # extend or create vg
-        echo "adding $e to vgsplunkephemeral${DEVNUM}" >> /var/log/splunkconf-aws-recovery-info.log
-        vgextend vgsplunkephemeral${DEVNUM} $e || vgcreate vgsplunkephemeral${DEVNUM} $e >> /var/log/splunkconf-aws-recovery-info.log
+        echo "adding $e to vgsplunkephemeral${DEVNUM}" >> /var/log/splunkconf-cloud-recovery-info.log
+        vgextend vgsplunkephemeral${DEVNUM} $e || vgcreate vgsplunkephemeral${DEVNUM} $e >> /var/log/splunkconf-cloud-recovery-info.log
         LIST="$LIST $e"
         #pvdisplay
       done
-      echo "LIST=$LIST" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "LIST=$LIST" >> /var/log/splunkconf-cloud-recovery-info.log
       #vgcreate vgephemeral1 $LIST
-      lvcreate --name lvsplunkephemeral${DEVNUM} -l100%FREE vgsplunkephemeral${DEVNUM} >> /var/log/splunkconf-aws-recovery-info.log
-      pvdisplay >> /var/log/splunkconf-aws-recovery-info.log
-      vgdisplay >> /var/log/splunkconf-aws-recovery-info.log
-      lvdisplay >> /var/log/splunkconf-aws-recovery-info.log
+      lvcreate --name lvsplunkephemeral${DEVNUM} -l100%FREE vgsplunkephemeral${DEVNUM} >> /var/log/splunkconf-cloud-recovery-info.log
+      pvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
+      vgdisplay >> /var/log/splunkconf-cloud-recovery-info.log
+      lvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
       # note mkfs wont format if the FS is already mounted -> no need to check here
-      mkfs.ext4 -L ephemeral1 /dev/vgsplunkephemeral1/lvsplunkephemeral1  >> /var/log/splunkconf-aws-recovery-info.log
+      mkfs.ext4 -L ephemeral1 /dev/vgsplunkephemeral1/lvsplunkephemeral1  >> /var/log/splunkconf-cloud-recovery-info.log
       mkdir -p /data/vol1
       RES=`grep /data/vol1 /etc/fstab`
       #echo " debug F=$RES."
       if [ -z "${RES}" ]; then
         #mount /dev/vgsplunkephemeral1/lvsplunkephemeral1 /data/vol1 && mkdir -p /data/vol1/indexes
-        echo "/data/vol1 not found in /etc/fstab, adding it" >> /var/log/splunkconf-aws-recovery-info.log
+        echo "/data/vol1 not found in /etc/fstab, adding it" >> /var/log/splunkconf-cloud-recovery-info.log
         echo "/dev/vgsplunkephemeral${DEVNUM}/lvsplunkephemeral${DEVNUM} /data/vol1 ext4 defaults,nofail 0 2" >> /etc/fstab
         mount /data/vol1
-        echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-aws-recovery-info.log
+        echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-cloud-recovery-info.log
         mkdir -p /data/vol1/indexes
         chown -R splunk. /data/vol1/indexes
-        echo "moving splunk home to ephemeral devices in data/vol1/splunk (smartstore scenario)" >> /var/log/splunkconf-aws-recovery-info.log
+        echo "moving splunk home to ephemeral devices in data/vol1/splunk (smartstore scenario)" >> /var/log/splunkconf-cloud-recovery-info.log
         (mv /opt/splunk /data/vol1/splunk;ln -s /data/vol1/splunk /opt/splunk;chown -R splunk. /opt/splunk) || mkdir -p /data/vol1/splunk
         SPLUNK_HOME="/data/vol1/splunk"
       else
-        echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-aws-recovery-info.log
+        echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
       fi
     fi
     PARTITIONFAST="/data/vol1"
@@ -377,14 +417,14 @@ if [ "$MODE" != "upgrade" ]; then
        chown -R splunk. /data/cold
     fi
   else
-    echo "not a idx, no additional partition to configure" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "not a idx, no additional partition to configure" >> /var/log/splunkconf-cloud-recovery-info.log
     PARTITIONFAST="/"
   fi # if idx
   # swap management
   swapme="splunkconf-swapme.pl"
   aws s3 cp ${remoteinstalldir}/${swapme} ${localrootscriptdir} --quiet
   if [ ! -f "${localrootscriptdir}/${swapme}"  ]; then
-    echo "WARNING  : ${swapme} is not present in s3, unable to tune swap  -> please verify the version specified is present in s3 installi at ${remoteinstalldir}/${swapme} " >> /var/log/splunkconf-aws-recovery-info.log
+    echo "WARNING  : ${swapme} is not present in s3, unable to tune swap  -> please verify the version specified is present in s3 installi at ${remoteinstalldir}/${swapme} " >> /var/log/splunkconf-cloud-recovery-info.log
   else
     chmod u+x ${localrootscriptdir}/${swapme}
     # launching script and providing it info about the main partition that should be SSD like and have some room
@@ -401,19 +441,20 @@ yum install curl gdb -y
 # note : if you update here, that could update at reinstanciation, make sure you know what you do !
 #splbinary="splunk-8.0.5-a1a6394cc5ae-linux-2.6-x86_64.rpm"
 #splbinary="xxxsplunk-8.0.6-152fb4b2bb96-linux-2.6-x86_64.rpm"
-splbinary="splunk-8.0.7-cbe73339abca-linux-2.6-x86_64.rpm"
+#splbinary="splunk-8.0.7-cbe73339abca-linux-2.6-x86_64.rpm"
+splbinary="splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm"
 if [ -z ${splunktargetbinary+x} ]; then 
-  echo "splunktargetbinary not set in instance tags, falling back to use version ${splbinary} from aws recovery script" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "splunktargetbinary not set in instance tags, falling back to use version ${splbinary} from aws recovery script" >> /var/log/splunkconf-cloud-recovery-info.log
 else 
   splbinary=${splunktargetbinary}
-  echo "using splunktargetbinary ${splunktargetbinary} from instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "using splunktargetbinary ${splunktargetbinary} from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
 fi
-echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-aws-recovery-info.log
+echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
 # aws s3 cp doesnt support unix globing
 aws s3 cp ${remoteinstalldir}/${splbinary} ${localinstalldir} --quiet
 ls ${localinstalldir}
 if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
-  echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install " >> /var/log/splunkconf-aws-recovery-info.log
+  echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install " >> /var/log/splunkconf-cloud-recovery-info.log
   # better to exit now and have the admin fix the situation
   exit 1
 fi
@@ -430,18 +471,18 @@ chown -R splunk. ${SPLUNK_HOME}
 SYSVER=6
 if ! command -v hostnamectl &> /dev/null
 then
-  echo "hostnamectl command could not be found -> Assuming RH6/AWS1 like distribution" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "hostnamectl command could not be found -> Assuming RH6/AWS1 like distribution" >> /var/log/splunkconf-cloud-recovery-info.log
   SYSVER=6
-  echo "remote : ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "remote : ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
   aws s3 cp ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz  ${localinstalldir} --quiet
   if [ -f "${localinstalldir}/package-systemaws1-for-splunk.tar.gz"  ]; then
-    echo "deploying system tuning for Splunk, version for AWS1 like systems" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "deploying system tuning for Splunk, version for AWS1 like systems" >> /var/log/splunkconf-cloud-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
     tar -C "/" -zxf ${localinstalldir}/package-systemaws1-for-splunk.tar.gz
   else
-    echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
-    echo "deploying system tuning for Splunk" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "deploying system tuning for Splunk" >> /var/log/splunkconf-cloud-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
     tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
   fi
@@ -452,7 +493,7 @@ then
   pip install --upgrade pip
   pip-3.6 install splunksecrets
 else
-  echo "hostnamectl command detected, assuming RH7+ like distribution" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "hostnamectl command detected, assuming RH7+ like distribution" >> /var/log/splunkconf-cloud-recovery-info.log
   # note we treat RH8 like RH7 for the moment as systemd stuff that works for RH7 also work for RH8 
   SYSVER=7
   # issue on aws2 , polkit and tuned not there by default
@@ -463,16 +504,16 @@ else
   yum install polkit tuned -y
   systemctl enable tuned.service
   systemctl start tuned.service
-  echo "remote : ${remoteinstalldir}/package-system7-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "remote : ${remoteinstalldir}/package-system7-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
   aws s3 cp ${remoteinstalldir}/package-system7-for-splunk.tar.gz  ${localinstalldir} --quiet
   if [ -f "${localinstalldir}/package-system7-for-splunk.tar.gz"  ]; then
-    echo "deploying system tuning for Splunk, version for RH7+ like systems" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "deploying system tuning for Splunk, version for RH7+ like systems" >> /var/log/splunkconf-cloud-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
     tar -C "/" -zxf ${localinstalldir}/package-system7-for-splunk.tar.gz
   else
-    echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
-    echo "deploying system tuning for Splunk" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "deploying system tuning for Splunk" >> /var/log/splunkconf-cloud-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
     tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
   fi
@@ -486,26 +527,26 @@ fi
 if [ "$MODE" != "upgrade" ]; then
   # fetching files that we will use to initialize splunk
   # splunk.secret just in case we are on a new install (ie won't be in the backup)
-  echo "remote : ${remoteinstalldir}/splunk.secret" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "remote : ${remoteinstalldir}/splunk.secret" >> /var/log/splunkconf-cloud-recovery-info.log
   # FIXME : temp , logic is in splunkconf-init
   aws s3 cp ${remoteinstalldir}/splunk.secret ${SPLUNK_HOME}/etc/auth --quiet
 
-  echo "remote : ${remotepackagedir} : copying initial apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/apps " >> /var/log/splunkconf-aws-recovery-info.log
+  echo "remote : ${remotepackagedir} : copying initial apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/apps " >> /var/log/splunkconf-cloud-recovery-info.log
   # copy to local
-  aws s3 cp  ${remotepackagedir}/initialapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-aws-recovery-info.log
-  tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialapps.tar.gz >> /var/log/splunkconf-aws-recovery-info.log
+  aws s3 cp  ${remotepackagedir}/initialapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-cloud-recovery-info.log
+  tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
 
-  echo "remote : ${remotepackagedir} : copying initial TLS apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/apps " >> /var/log/splunkconf-aws-recovery-info.log
+  echo "remote : ${remotepackagedir} : copying initial TLS apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/apps " >> /var/log/splunkconf-cloud-recovery-info.log
   # to ease initial deployment, tls app is pushed separately (warning : once the backups run, backup would restore this also of course)
-  aws s3 cp  ${remotepackagedir}/initialtlsapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-aws-recovery-info.log
-  tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialtlsapps.tar.gz >> /var/log/splunkconf-aws-recovery-info.log
-  echo "remote : ${remotepackagedir} : copying certs " >> /var/log/splunkconf-aws-recovery-info.log
+  aws s3 cp  ${remotepackagedir}/initialtlsapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-cloud-recovery-info.log
+  tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialtlsapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
+  echo "remote : ${remotepackagedir} : copying certs " >> /var/log/splunkconf-cloud-recovery-info.log
   # copy to local
   aws s3 cp  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir} --quiet
   tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
 
   ## 7.0 no user seed with hashed passwd, first time we have no backup lets put directly passwd 
-  #echo "remote : ${remoteinstalldir}/passwd" >> /var/log/splunkconf-aws-recovery-info.log
+  #echo "remote : ${remoteinstalldir}/passwd" >> /var/log/splunkconf-cloud-recovery-info.log
   #aws s3 cp ${remoteinstalldir}/passwd ${localinstalldir} --quiet
   ## copying to right place
   #cp ${localinstalldir}/passwd /opt/splunk/etc/
@@ -516,45 +557,45 @@ if [ "$MODE" != "upgrade" ]; then
   chown -R splunk. /data/vol2/indexes
 
   # deploy including for indexers
-  echo "remote : ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "remote : ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
   aws s3 cp ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz ${localbackupdir} --quiet
   # setting up permissions for backup
   chown splunk ${localbackupdir}/*.tar.gz
   chmod 500 ${localbackupdir}/*.tar.gz
-  tar -C "/" --exclude opt/splunk/scripts/splunkconf-aws-recovery.sh --exclude usr/local/bin/splunkconf-aws-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz
+  tar -C "/" --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz
 
 
   if [ "$RESTORECONFBACKUP" -eq 1 ]; then
     # getting configuration backups if exist 
     # change here for kvstore 
-    echo "remote : ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "remote : ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     aws s3 cp ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz ${localbackupdir} --quiet
     # at first splunk install, need to recreate the dir and give it to splunk
     mkdir -p ${localkvdumpbackupdir};chown splunk. ${localkvdumpbackupdir}
-    echo "remote : ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz " >> /var/log/splunkconf-aws-recovery-info.log
+    echo "remote : ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
     aws s3 cp ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz --quiet
     # making sure splunk user can access the backup 
     chown splunk. ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
     # and only
     chmod 500 ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
-    echo "remote : ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz " >> /var/log/splunkconf-aws-recovery-info.log
+    echo "remote : ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
     aws s3 cp ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz ${localbackupdir} --quiet
 
-    echo "remote : ${remotebackupdir}/backupconfsplunk-state.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "remote : ${remotebackupdir}/backupconfsplunk-state.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     aws s3 cp ${remotebackupdir}/backupconfsplunk-state.tar.gz ${localbackupdir} --quiet
 
-    echo "remote : ${remotebackupdir}/backupconfsplunk-scripts.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "remote : ${remotebackupdir}/backupconfsplunk-scripts.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     aws s3 cp ${remotebackupdir}/backupconfsplunk-scripts.tar.gz ${localbackupdir} --quiet
 
     # setting up permissions for backup
     chown splunk ${localbackupdir}/*.tar.gz
     chmod 500 ${localbackupdir}/*.tar.gz
 
-    echo "localbackupdir ${localbackupdir}  contains" >> /var/log/splunkconf-aws-recovery-info.log
-    ls -l ${localbackupdir} >> /var/log/splunkconf-aws-recovery-info.log
+    echo "localbackupdir ${localbackupdir}  contains" >> /var/log/splunkconf-cloud-recovery-info.log
+    ls -l ${localbackupdir} >> /var/log/splunkconf-cloud-recovery-info.log
 
-    echo "localkvdumpbackupdir ${localkvdumpbackupdir}  contains" >> /var/log/splunkconf-aws-recovery-info.log
-    ls -l ${localkvdumpbackupdir} >> /var/log/splunkconf-aws-recovery-info.log
+    echo "localkvdumpbackupdir ${localkvdumpbackupdir}  contains" >> /var/log/splunkconf-cloud-recovery-info.log
+    ls -l ${localkvdumpbackupdir} >> /var/log/splunkconf-cloud-recovery-info.log
 
     # untarring backups  
     # configuration (will redefine collections as needed)
@@ -564,22 +605,22 @@ if [ "$MODE" != "upgrade" ]; then
     # restore kvstore ONLY if kvdump not present
     file="${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz"
     if [ -e "$file" ]; then
-      echo "kvdump exist" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "kvdump exist" >> /var/log/splunkconf-cloud-recovery-info.log
     else 
-      echo "kvdump backup does not exist" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "kvdump backup does not exist" >> /var/log/splunkconf-cloud-recovery-info.log
       file="${localbackupdir}/backupconfsplunk-kvstore.tar.gz"
       if [ -e "$file" ]; then
-         echo "kvstore backup exist and is restored" >> /var/log/splunkconf-aws-recovery-info.log
+         echo "kvstore backup exist and is restored" >> /var/log/splunkconf-cloud-recovery-info.log
          tar -C "/" -xf ${localbackupdir}/backupconfsplunk-kvstore.tar.gz
       else
-         echo "Neither kvdump or kvstore backup exist, doing nothing" >> /var/log/splunkconf-aws-recovery-info.log
+         echo "Neither kvdump or kvstore backup exist, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
       fi
     fi 
     # when needed kvdump will be restored later as it need to be done online
     tar -C "/" -xf ${localbackupdir}/backupconfsplunk-state.tar.gz
     # need to be done after others restore as the cron entry could fire another backup (if using system version)
-    tar -C "/" --exclude opt/splunk/scripts/splunkconf-aws-recovery.sh --exclude usr/local/bin/splunkconf-aws-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz
-    tar -C "/" --exclude opt/splunk/scripts/splunkconf-aws-recovery.sh --exclude usr/local/bin/splunkconf-aws-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts.tar.gz
+    tar -C "/" --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz
+    tar -C "/" --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts.tar.gz
   # if restore
   fi
 
@@ -607,7 +648,7 @@ if [ "$MODE" != "upgrade" ]; then
     fi
     echo "changing hostname at system level"
     if [ $SYSVER -eq "6" ]; then
-      echo "Using legacy method" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "Using legacy method" >> /var/log/splunkconf-cloud-recovery-info.log
       # legacy ami type , rh6 like
       sed -i "s/HOSTNAME=localhost.localdomain/HOSTNAME=${instancename}/g" /etc/sysconfig/network
       # dynamic change on top in case correct hostname is needed further down in this script 
@@ -615,15 +656,15 @@ if [ "$MODE" != "upgrade" ]; then
       # we should call a command here to force hostname immediately as splunk commands are started after
     else     
       # new ami , rh7+,...
-      echo "Using new hostnamectl method" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "Using new hostnamectl method" >> /var/log/splunkconf-cloud-recovery-info.log
       hostnamectl set-hostname ${instancename}
     fi
   elif [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
     if [ -z ${splunkorg+x} ]; then 
-      echo "instance tags are not correctly set (splunkorg). I dont know prefix for splunk base apps, will use org ! Please add splunkorg tag" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "instance tags are not correctly set (splunkorg). I dont know prefix for splunk base apps, will use org ! Please add splunkorg tag" >> /var/log/splunkconf-cloud-recovery-info.log
       splunkorg="org"
     else 
-      echo "using splunkorg=${splunkorg} from instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "using splunkorg=${splunkorg} from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
     fi
     AZONE=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone  `
     ZONELETTER=${AZONE: -1}
@@ -650,19 +691,19 @@ if [ "$MODE" != "upgrade" ]; then
         sitenum="8" ;;
     esac
     site="site${sitenum}"
-    echo "Indexer detected setting site for availability zone $AZONE (letter=$ZONELETTER,sitenum=$sitenum, site=$site) " >> /var/log/splunkconf-aws-recovery-info.log
+    echo "Indexer detected setting site for availability zone $AZONE (letter=$ZONELETTER,sitenum=$sitenum, site=$site) " >> /var/log/splunkconf-cloud-recovery-info.log
     # removing any conflicting app that could define site
     # giving back files to splunk user (this is required here as if the permissions are incorrect from tar file du to packaging issues, the delete from splunk below will fail here)
     chown -R splunk. $SPLUNK_HOME
     FORME="*site*base"
     # find app that match forn and deleting the app folder
     su - splunk -c "/usr/bin/find $SPLUNK_HOME/etc/apps/ -name \"${FORME}\" -exec rm -r {} \; "
-    find $SPLUNK_HOME/etc/apps/ -name \"\*site\*base\" -delete -print >> /var/log/splunkconf-aws-recovery-info.log
+    find $SPLUNK_HOME/etc/apps/ -name \"\*site\*base\" -delete -print >> /var/log/splunkconf-cloud-recovery-info.log
     mkdir -p "$SPLUNK_HOME/etc/apps/${splunkorg}_site${sitenum}_base/local"
     echo -e "#This configuration was automatically generated based on indexer location\n#This site should be defined on the CM\n[general] \nsite=$site" > $SPLUNK_HOME/etc/apps/${splunkorg}_site${sitenum}_base/local/server.conf
     # giving back files to splunk user
     chown -R splunk. $SPLUNK_HOME/etc/apps/${splunkorg}_site${sitenum}_base
-    echo "Setting Indexer on site: $site" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "Setting Indexer on site: $site" >> /var/log/splunkconf-cloud-recovery-info.log
     # this service is ran at stop when a instance is terminated cleanly (scaledown event)
     # if will run before the normal splunk service and run a script that use the splunk offline procedure 
     # in order to tell the CM to replicate before the instance is completely terminated
@@ -706,7 +747,7 @@ EOF
   # need user seed when 7.1
 
   # user-seed.config
-  echo "remote : ${remoteinstalldir}/user-seed.conf" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "remote : ${remoteinstalldir}/user-seed.conf" >> /var/log/splunkconf-cloud-recovery-info.log
   aws s3 cp ${remoteinstalldir}/user-seed.conf ${localinstalldir} --quiet
   # copying to right place
   # FIXME : more  logic here
@@ -722,22 +763,22 @@ if [ -z ${splunktargetcm+x} ]; then
   #disabled by default to require tags or do nothing 
   #  splunktargetcm="splunk-cm"
 else 
-  echo "tag splunktargetcm is set to $splunktargetcm and will be used as the short name for master_uri" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "tag splunktargetcm is set to $splunktargetcm and will be used as the short name for master_uri" >> /var/log/splunkconf-cloud-recovery-info.log
 fi
 
 if [ -z ${splunkorg+x} ]; then 
-  echo "instance tags are not correctly set (splunkorg). I dont know prefix for splunk base apps, will use org ! Please add splunkorg tag" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "instance tags are not correctly set (splunkorg). I dont know prefix for splunk base apps, will use org ! Please add splunkorg tag" >> /var/log/splunkconf-cloud-recovery-info.log
   splunkorg="org"
 else 
-  echo "using splunkorg=${splunkorg} from instance tags" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "using splunkorg=${splunkorg} from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
 fi
 # splunkawsdnszone used for updating route53 when apropriate
 if [ -z ${splunkawsdnszone+x} ]; then 
-    echo "instance tags are not correctly set (splunkawsdnszone). I dont know splunkawsdnszone to use for updating master_uri in a cluster env ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "instance tags are not correctly set (splunkawsdnszone). I dont know splunkawsdnszone to use for updating master_uri in a cluster env ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-cloud-recovery-info.log
 elif [ -z ${splunktargetcm+x} ]; then
-    echo "instance tags are not correctly set (splunktargetcm). I dont know splunktargetcm to use for updating master_uri in a cluster env ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "instance tags are not correctly set (splunktargetcm). I dont know splunktargetcm to use for updating master_uri in a cluster env ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-cloud-recovery-info.log
 else 
-  echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (master_uri) master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089 (cm name or a cname alias to it)  " >> /var/log/splunkconf-aws-recovery-info.log
+  echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (master_uri) master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089 (cm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
   # assuming PS base apps are used   (indexer and search)
   # we dont want to update master_uri=clustermaster:indexer1 in cluster_search_bae
   find ${SPLUNK_HOME} -wholename "*cluster_search_base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*https.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \; 
@@ -749,43 +790,43 @@ else
 
   # DS case (targetUri)
   if [ -z ${splunktargetds+x} ]; then
-    #echo "tag splunktargetds not set, will use splunk-ds as the short name for targertUri" >> /var/log/splunkconf-aws-recovery-info.log
-    echo "tag splunktargetds not set, doing nothing" >> /var/log/splunkconf-aws-recovery-info.log
+    #echo "tag splunktargetds not set, will use splunk-ds as the short name for targertUri" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "tag splunktargetds not set, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
     #splunktargetds="splunk-ds"
   else
-    echo "tag splunktargetds is set to $splunktargetds and will be used as the short name for deploymentclient config to ref the DS" >> /var/log/splunkconf-aws-recovery-info.log
-    echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (targetUri) targetUri=${splunktargetds}.${splunkawsdnszone}:8089 (ds name or a cname alias to it)  " >> /var/log/splunkconf-aws-recovery-info.log
+    echo "tag splunktargetds is set to $splunktargetds and will be used as the short name for deploymentclient config to ref the DS" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (targetUri) targetUri=${splunktargetds}.${splunkawsdnszone}:8089 (ds name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
     find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "deploymentclient.conf" -exec grep -l targetUri {} \; -exec sed -i -e "s%^.*targetUri.*=.*$%targetUri=${splunktargetds}.${splunkawsdnszone}:8089%" {} \; 
   # $$ echo "targetUri replaced" || echo "targetUri not replaced"
   fi
   # lm case 
   if [ -z ${splunktargetlm+x} ]; then
-    echo "tag splunktargetlm not set, doing nothing" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "tag splunktargetlm not set, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
   else 
-    echo "tag splunktargetlm is set to $splunktargetlm and will be used as the short name for master_uri config under [license] in server.conf to ref the LM" >> /var/log/splunkconf-aws-recovery-info.log
-    echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags [license] master_uri=${splunktargetlm}.${splunkawsdnszone}:8089 (lm name or a cname alias to it)  " >> /var/log/splunkconf-aws-recovery-info.log
+    echo "tag splunktargetlm is set to $splunktargetlm and will be used as the short name for master_uri config under [license] in server.conf to ref the LM" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags [license] master_uri=${splunktargetlm}.${splunkawsdnszone}:8089 (lm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
     ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -I FILE -L 1 sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkawsdnszone}:8089%" FILE
   fi
   # fixme add shc deployer case here
 fi
 
 if [ -z ${splunktargetenv+x} ]; then
-  echo "splunktargetenv tag not set , please consider adding it if you want to automatically modify login banner for a test env using prod backups" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "splunktargetenv tag not set , please consider adding it if you want to automatically modify login banner for a test env using prod backups" >> /var/log/splunkconf-cloud-recovery-info.log
 else 
   echo "trying to replace login_content for splunktargetenv=$splunktargetenv"
   find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "web.conf" -exec grep -l login_content {} \; -exec sed -i -e "s%^.*login_content.*=.*$%This is a <b>$splunktargetenv server</b>.<br>Authorized access only" {} \;  && echo "login_content replaced" || echo "login_content not replaced"
   envhelperscript="splunktargetenv-for${splunktargetenv}.sh"
-  echo "remote : ${remoteinstalldir}/${envhelperscript}" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "remote : ${remoteinstalldir}/${envhelperscript}" >> /var/log/splunkconf-cloud-recovery-info.log
   aws s3 cp ${remoteinstalldir}/${envhelperscript}  ${localinstalldir} --quiet
   if [ -e "${localinstalldir}/$envhelperscript" ]; then
     chown splunk. ${localinstalldir}/$envhelperscript
     chmod u+rx  ${localinstalldir}/$envhelperscript
     # give back files 
     chown -R splunk. ${SPLUNK_HOME}
-    echo "launching $envhelperscript as splunk, please make sure you implement logic inside if needed to restrict to some instances only"  >> /var/log/splunkconf-aws-recovery-info.log
+    echo "launching $envhelperscript as splunk, please make sure you implement logic inside if needed to restrict to some instances only"  >> /var/log/splunkconf-cloud-recovery-info.log
     su - splunk -c "${localinstalldir}/$envhelperscript"
   else
-    echo "$envhelperscript not present in ${remoteinstalldir}/${envhelperscript}, please consider creating it if you need to customize things specifically for this ${splunktargetenv} env" >> /var/log/splunkconf-aws-recovery-info.log  >> /var/log/splunkconf-aws-recovery-info.log
+    echo "$envhelperscript not present in ${remoteinstalldir}/${envhelperscript}, please consider creating it if you need to customize things specifically for this ${splunktargetenv} env" >> /var/log/splunkconf-cloud-recovery-info.log  >> /var/log/splunkconf-cloud-recovery-info.log
   fi
 fi
 
@@ -798,7 +839,7 @@ fi
 ## redeploy system tuning as enable boot start may have overwritten files
 ##tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
 
-echo "installing/upgrading splunk via RPM using ${splbinary}" >> /var/log/splunkconf-aws-recovery-info.log
+echo "installing/upgrading splunk via RPM using ${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
 # install or upgrade
 rpm -Uvh ${localinstalldir}/${splbinary}
 
@@ -806,7 +847,7 @@ rpm -Uvh ${localinstalldir}/${splbinary}
 chown -R splunk. ${SPLUNK_HOME}
 
 ## using updated init script with su - splunk
-#echo "remote : ${remoteinstalldir}/splunkenterprise-init.tar.gz" >> /var/log/splunkconf-aws-recovery-info.log
+#echo "remote : ${remoteinstalldir}/splunkenterprise-init.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
 #aws s3 cp ${remoteinstalldir}/splunkenterprise-init.tar.gz ${localinstalldir} --quiet
 #tar -C "/" -xzf ${localinstalldir}/splunkenterprise-init.tar.gz 
 
@@ -856,19 +897,19 @@ aws s3 cp ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/ --quiet
 
 # make it executable
 chmod u+x ${localrootscriptdir}/splunkconf-init.pl
-echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init" >> /var/log/splunkconf-aws-recovery-info.log
+echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init" >> /var/log/splunkconf-cloud-recovery-info.log
 # no need to pass option, it will default to systemd + /opt/splunk + splunk user
 ${localrootscriptdir}/splunkconf-init.pl --no-prompt
 
-echo "localrootscriptdir ${localrootscriptdir}  contains" >> /var/log/splunkconf-aws-recovery-info.log
-ls ${localrootscriptdir} >> /var/log/splunkconf-aws-recovery-info.log
+echo "localrootscriptdir ${localrootscriptdir}  contains" >> /var/log/splunkconf-cloud-recovery-info.log
+ls ${localrootscriptdir} >> /var/log/splunkconf-cloud-recovery-info.log
 
-echo "localinstalldir ${localinstalldir}  contains" >> /var/log/splunkconf-aws-recovery-info.log
-ls ${localinstalldir} >> /var/log/splunkconf-aws-recovery-info.log
+echo "localinstalldir ${localinstalldir}  contains" >> /var/log/splunkconf-cloud-recovery-info.log
+ls ${localinstalldir} >> /var/log/splunkconf-cloud-recovery-info.log
 
 if [ "$MODE" != "upgrade" ]; then 
   # local upgrade script (we dont do this in upgrade mode as overwriting our own script already being run could be problematic)
-  echo "remote : ${remoteinstalldir}/splunkconf-upgrade-local.sh" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "remote : ${remoteinstalldir}/splunkconf-upgrade-local.sh" >> /var/log/splunkconf-cloud-recovery-info.log
   aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local.sh  ${localrootscriptdir}/ --quiet
   chown root. ${localrootscriptdir}/splunkconf-upgrade-local.sh  
   chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local.sh  
@@ -887,7 +928,7 @@ if [ "$MODE" != "upgrade" ]; then
   # this is restored by backup scripts (initial one) but only present if the admin decided it is necessary (ie for example to update dns for some instances)
   # if needed this is calling other scripts
   if [ -e ${localrootscriptdir}/aws-postinstall.sh ]; then
-    echo "lauching aws-postinstall in ${localrootscriptdir}/aws-postinstall.sh" >> /var/log/splunkconf-aws-recovery-info.log
+    echo "lauching aws-postinstall in ${localrootscriptdir}/aws-postinstall.sh" >> /var/log/splunkconf-cloud-recovery-info.log
     chown root. ${localrootscriptdir}/aws-postinstall.sh
     chmod u+x ${localrootscriptdir}/aws-postinstall.sh
     ${localrootscriptdir}/aws-postinstall.sh
@@ -913,7 +954,7 @@ sleep 1
 
 if [ "$MODE" != "upgrade" ]; then 
   TODAY=`date '+%Y%m%d-%H%M_%u'`;
-  echo "${TODAY}  splunkconf-aws-recovery.sh checking if kvdump recovery running" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "${TODAY}  splunkconf-cloud-recovery.sh checking if kvdump recovery running" >> /var/log/splunkconf-cloud-recovery-info.log
   # prevent reboot in the middle of a kvdump restore
   counter=100
   # (30 min max should be enough for restoring a big kvdump)
@@ -921,7 +962,7 @@ if [ "$MODE" != "upgrade" ]; then
   do
     counter=$(($counter-1))
     if [ -e /opt/splunk/var/run/splunkconf-kvrestore.lock ]; then 
-      echo "splunkconf-restore is running at the moment, waiting before initiating reboot (step=30s, counter=$counter)" >> /var/log/splunkconf-aws-recovery-info.log
+      echo "splunkconf-restore is running at the moment, waiting before initiating reboot (step=30s, counter=$counter)" >> /var/log/splunkconf-cloud-recovery-info.log
       sleep 30
     else
       # no need to loop
@@ -930,7 +971,7 @@ if [ "$MODE" != "upgrade" ]; then
   done
   # prevent stale lock 
   if [ -e /opt/splunk/var/run/splunkconf-kvrestore.lock ]; then 
-    echo "Warning : Removing possible splunkconf kvstore lock" >> /var/log/splunkconf-aws-recovery-info.log 
+    echo "Warning : Removing possible splunkconf kvstore lock" >> /var/log/splunkconf-cloud-recovery-info.log 
     rm /opt/splunk/var/run/splunkconf-kvrestore.lock
   fi
 fi # if not upgrade
@@ -939,9 +980,9 @@ fi # if not upgrade
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 #NOW=`(date "+%Y/%m/%d %H:%M:%S")`
 if [ "$MODE" != "upgrade" ]; then 
-  echo "${TODAY} splunkconf-aws-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
   # reboot
   init 6
 else
-  echo "${TODAY} splunkconf-aws-recovery.sh end of script run in upgrade mode" >> /var/log/splunkconf-aws-recovery-info.log
+  echo "${TODAY} splunkconf-cloud-recovery.sh end of script run in upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
 fi # if not upgrade

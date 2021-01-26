@@ -1,5 +1,5 @@
 #!/bin/bash -x 
-exec > /var/log/splunkconf-cloud-recovery-debug.log 2>&1
+exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 
 # Matthieu Araman
 # Splunk
@@ -81,9 +81,10 @@ exec > /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210125 change aws to cloud + initial gcp detection
 # 20200125 add GPG key check for RPM + direct download option in case RPM not in install bucket
 # 20200125 move aws s3 cp to a function and add GCP support
-# 20200125 add first boot check (needed for GCP which launch the script at every boot)
+# 20200125 change logging to not clean file at launch + add first boot check (needed for GCP which launch the script at every boot)
+# 20200126 add support for setting hostname at boot for gcp, add tests and more meaningfull messages when missing backups or initial files 
 
-VERSION="20210125c"
+VERSION="20210126"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -150,6 +151,13 @@ if [ $cloud_type == 2 ]; then
   if [ $# -eq 0 ]; then
     # not in upgrade mode
     if [ -e "/root/first_boot.check" ]; then 
+      . /etc/instance-tags
+      instancename=$splunkinstanceType 
+      echo "splunkinstanceType : instancename=${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
+      if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
+        echo "Setting hostname to ${instancename} via hostnamectl method" >> /var/log/splunkconf-cloud-recovery-info.log
+        hostnamectl set-hostname ${instancename}
+      fi
       echo "First boot already ran, exiting to prevent loop"
       exit 0
     fi
@@ -271,7 +279,7 @@ else
 fi
 # will become the name when not a indexer, see below
 instancename=$splunkinstanceType 
-echo "instance type is ${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
+echo "splunkinstanceType : instancename=${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 echo "SPLUNK_HOME is ${SPLUNK_HOME}" >> /var/log/splunkconf-cloud-recovery-info.log
 
@@ -532,7 +540,7 @@ get_object ${remoteinstalldir}/${splbinary} ${localinstalldir}
 ls ${localinstalldir}
 if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
   echo "RPM not present in install, trying to download directly" 
-  `wget -O ${localinstalldir}/splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.1&product=splunk&filename=splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm&wget=true'`
+  `wget -q -O ${localinstalldir}/splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.1&product=splunk&filename=splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm&wget=true'`
   if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install " >> /var/log/splunkconf-cloud-recovery-info.log
     # better to exit now and have the admin fix the situation
@@ -660,9 +668,13 @@ else
     echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     get_object ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} 
     #aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
-    echo "deploying system tuning for Splunk" >> /var/log/splunkconf-cloud-recovery-info.log
-    # deploy system tuning (after Splunk rpm to be sure directory structure exist and splunk user also)
-    tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
+    if [ -f "${localinstalldir}/package-system-for-splunk.tar.gz"  ]; then
+      echo "deploying system tuning for Splunk" >> /var/log/splunkconf-cloud-recovery-info.log
+      # deploy system tuning (after Splunk rpm to be sure directory structure exist and splunk user also)
+      tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
+    else
+      echo "ATTENTION ERROR system tuning is missing and could not be deployed, check it is on install bucket and instance has access"
+    fi
   fi
   # enable the tuning done via rc.local and restart polkit so it takes into account new rules
   sysctl --system;sleep 1;chmod u+x /etc/rc.d/rc.local;systemctl start rc-local;systemctl restart polkit
@@ -683,18 +695,29 @@ if [ "$MODE" != "upgrade" ]; then
   # copy to local
   get_object ${remotepackagedir}/initialapps.tar.gz ${localinstalldir} 
   #aws s3 cp  ${remotepackagedir}/initialapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-cloud-recovery-info.log
-  tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
-
+  if [ -f "${localinstalldir}/initialapps.tar.gz"  ]; then
+    tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
+  else
+    echo "${remotepackagedir}/initialapps.tar.gz not found, trying without but this may lead to a non functional splunk. This should contain the minimal apps to attach to the rest of infrastructure"
+  fi
   echo "remote : ${remotepackagedir} : copying initial TLS apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/apps " >> /var/log/splunkconf-cloud-recovery-info.log
   # to ease initial deployment, tls app is pushed separately (warning : once the backups run, backup would restore this also of course)
   get_object  ${remotepackagedir}/initialtlsapps.tar.gz ${localinstalldir} 
   #aws s3 cp  ${remotepackagedir}/initialtlsapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-cloud-recovery-info.log
-  tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialtlsapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
+  if [ -f "${localinstalldir}/initialtlsapps.tar.gz"  ]; then
+    tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialtlsapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
+  else
+    echo "${remotepackagedir}/initialtlsapps.tar.gz not found, trying without but this may lead to a non functional splunk if you enabled custom certificates. This should contain the minimal apps to configure TLS in order to attach to the rest of infrastructure"
+  fi
   echo "remote : ${remotepackagedir} : copying certs " >> /var/log/splunkconf-cloud-recovery-info.log
   # copy to local
   get_object  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir}
   #aws s3 cp  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir} --quiet
-  tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
+  if [ -f "${localinstalldir}/mycerts.tar.gz"  ]; then
+    tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
+  else
+    echo "${remotepackagedir}/mycerts.tar.gz not found, trying without but this may lead to a non functional splunk if you enabled custom certificates. This should contain the custom certs to configure TLS in order to attach to the rest of infrastructure"
+  fi
 
   ## 7.0 no user seed with hashed passwd, first time we have no backup lets put directly passwd 
   #echo "remote : ${remoteinstalldir}/passwd" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -714,9 +737,12 @@ if [ "$MODE" != "upgrade" ]; then
   # setting up permissions for backup
   chown splunk ${localbackupdir}/*.tar.gz
   chmod 500 ${localbackupdir}/*.tar.gz
-  tar -C "/" --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz
-
-
+  if [ -f "${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz"  ]; then
+    # excluding this script to avoid restoring a older version from backup
+    tar -C "/" --exclude opt/splunk/scripts/splunkconf-aws-recovery.sh --exclude usr/local/bin/splunkconf-aws-recovery.sh --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz
+  else
+    echo "${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz not found, trying without. You can use this to package custom scripts to be deployed at installation time" 
+  fi
   if [ "$RESTORECONFBACKUP" -eq 1 ]; then
     # getting configuration backups if exist 
     # change here for kvstore 
@@ -755,29 +781,43 @@ if [ "$MODE" != "upgrade" ]; then
     ls -l ${localkvdumpbackupdir} >> /var/log/splunkconf-cloud-recovery-info.log
 
     # untarring backups  
-    # configuration (will redefine collections as needed)
-    tar -C "/" -xf ${localbackupdir}/backupconfsplunk-etc-targeted.tar.gz
-    # if we updated certs, we want them to optionally replace the ones in backup
-    tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
+    if [ -f "${localbackupdir}/backupconfsplunk-etc-targeted.tar.gz"  ]; then
+      # configuration (will redefine collections as needed)
+      tar -C "/" -xf ${localbackupdir}/backupconfsplunk-etc-targeted.tar.gz
+    else
+      echo "${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz not found, trying without. This is normal if this is the first time this instance start or for instances without backup such as indexers" 
+    fi
+    if [ -f "${localinstalldir}/mycerts.tar.gz"  ]; then
+      # if we updated certs, we want them to optionally replace the ones in backup
+      tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
+    fi
     # restore kvstore ONLY if kvdump not present
     file="${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz"
     if [ -e "$file" ]; then
-      echo "kvdump exist" >> /var/log/splunkconf-cloud-recovery-info.log
+      echo "kvdump exist ($file), it will be automatically restored by splunkconf-backup app at one of next Splunk launch " >> /var/log/splunkconf-cloud-recovery-info.log
+      # when needed kvdump will be restored later as it need to be done online
     else 
-      echo "kvdump backup does not exist" >> /var/log/splunkconf-cloud-recovery-info.log
+      echo "kvdump backup does not exist. This is normal for indexers, for first time instance creation or for pre 7.1 Splunk. Otherwise please investigate " >> /var/log/splunkconf-cloud-recovery-info.log
       file="${localbackupdir}/backupconfsplunk-kvstore.tar.gz"
       if [ -e "$file" ]; then
          echo "kvstore backup exist and is restored" >> /var/log/splunkconf-cloud-recovery-info.log
          tar -C "/" -xf ${localbackupdir}/backupconfsplunk-kvstore.tar.gz
       else
-         echo "Neither kvdump or kvstore backup exist, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
+         echo "Neither kvdump or kvstore backup exist, doing nothing. This is normal for indexers and first time instance creation, investigate otherwise" >> /var/log/splunkconf-cloud-recovery-info.log
       fi
     fi 
-    # when needed kvdump will be restored later as it need to be done online
-    tar -C "/" -xf ${localbackupdir}/backupconfsplunk-state.tar.gz
+    if [ -f "${localbackupdir}/backupconfsplunk-state.tar.gz"  ]; then
+      tar -C "/" -xf ${localbackupdir}/backupconfsplunk-state.tar.gz
+    else 
+      echo "${remotebackupdir}/backupconfsplunk-state.tar.gz not found, trying without"
+    fi 
     # need to be done after others restore as the cron entry could fire another backup (if using system version)
-    tar -C "/" --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz
-    tar -C "/" --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts.tar.gz
+    if [ -f "${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz"  ]; then
+      tar -C "/" --exclude opt/splunk/scripts/splunkconf-aws-recovery.sh --exclude usr/local/bin/splunkconf-aws-recovery.sh --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz
+    fi
+    if [ -f "${localbackupdir}/backupconfsplunk-scripts.tar.gz"  ]; then
+      tar -C "/" --exclude opt/splunk/scripts/splunkconf-aws-recovery.sh --exclude usr/local/bin/splunkconf-aws-recovery.sh --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts.tar.gz
+    fi
   # if restore
   fi
 

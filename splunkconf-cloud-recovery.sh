@@ -957,7 +957,7 @@ fi # if not upgrade
 # updating master_uri (needed when reusing backup from one env to another)
 # this is for indexers, search heads, mc ,.... (we will detect if the conf is present)
 if [ -z ${splunktargetcm+x} ]; then
-  echo "tag splunktargetcm not set, please consider setting it up (for example to splunk-cm) to be used as master_uri for cm"
+  echo "tag splunktargetcm not set, please consider setting it up (for example to splunk-cm) to be used as master_uri for cm (by default the current config will be kept as is"
   #disabled by default to require tags or do nothing 
   #  splunktargetcm="splunk-cm"
 else 
@@ -972,9 +972,9 @@ else
 fi
 # splunkawsdnszone used for updating route53 when apropriate
 if [ -z ${splunkawsdnszone+x} ]; then 
-    echo "instance tags are not correctly set (splunkawsdnszone). I dont know splunkawsdnszone to use for updating master_uri in a cluster env ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "instance tags is not defining splunkawsdnszone. Some features will be disabled such as updating master_uri in a cluster env ! Please consider adding splunkawsdnszone tag" >> /var/log/splunkconf-cloud-recovery-info.log
 elif [ -z ${splunktargetcm+x} ]; then
-    echo "instance tags are not correctly set (splunktargetcm). I dont know splunktargetcm to use for updating master_uri in a cluster env ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "instance tags is not defining splunktargetcm. Some features will be disabled such as updating master_uri in a cluster env ! Please consider adding splunktargetcm tag" >> /var/log/splunkconf-cloud-recovery-info.log
 else 
   echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (master_uri) master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089 (cm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
   # assuming PS base apps are used   (indexer and search)

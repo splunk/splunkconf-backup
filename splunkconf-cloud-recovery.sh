@@ -507,7 +507,7 @@ if [ "$MODE" != "upgrade" ]; then
   get_object ${remoteinstalldir}/${swapme} ${localrootscriptdir}
   #aws s3 cp ${remoteinstalldir}/${swapme} ${localrootscriptdir} --quiet
   if [ ! -f "${localrootscriptdir}/${swapme}"  ]; then
-    echo "WARNING  : ${swapme} is not present in s3, unable to tune swap  -> please verify the version specified is present in s3 installi at ${remoteinstalldir}/${swapme} " >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "WARNING  : ${swapme} is not present in ${remoteinstalldir}/${swapme}, unable to tune swap  -> please verify the version specified is present" >> /var/log/splunkconf-cloud-recovery-info.log
   else
     chmod u+x ${localrootscriptdir}/${swapme}
     # launching script and providing it info about the main partition that should be SSD like and have some room
@@ -1146,8 +1146,12 @@ fi # if not upgrade
 # this script is to be used on es sh , it will download ES installation files and script
 get_object ${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh  ${localscriptdir}/
 #aws s3 cp ${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh  ${localscriptdir}/ --quiet
-chown splunk. ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
-chmod 700 ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
+if [ -e ${localscriptdir}/splunkconf-prepare-es-from-s3.sh ]; then
+  chown splunk. ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
+  chmod 700 ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
+else
+  echo "${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh not existing, please consider add it if willing to deploy ES" 
+fi
 
 # apply sessions workaround for 8.0 if needed
 # commenting as no longer needed, please comment tools.session timeout in web.conf if you have the issue with sessions and error 500 

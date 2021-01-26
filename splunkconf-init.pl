@@ -61,6 +61,7 @@
 # 20201103 remove the post statement from systemd for now as 8.0.7 now complain about it...
 # 20201104 add logic to push different systemd file for 8.1 as 8.0.7 refuse to see execstartpost during a upgrade but 8.1 need it
 # 20201104 add both cpu and memory to execstart pre and post
+# 20210126 fix quotes in execstartpre to make systemd happy
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -70,7 +71,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20201104b";
+$VERSION="20210126";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -590,7 +591,8 @@ LimitNPROC=262143
 LimitFSIZE=infinity
 LimitCORE=infinity
 # Have splunk if just starting after an upgrade or for the first time accept the license and answer yes to the migration
-ExecStartPre=/bin/bash -c '/usr/bin/su - $USERSPLUNK -s /bin/bash -c \'$SPLUNK_HOME/bin/splunk status --accept-license --answer-yes --no-prompt\';true'
+#ExecStartPre=/bin/bash -c '/usr/bin/su - $USERSPLUNK -s /bin/bash -c \'$SPLUNK_HOME/bin/splunk status --accept-license --answer-yes --no-prompt\';true'
+ExecStartPre=/bin/bash -c "/usr/bin/su - $USERSPLUNK -s /bin/bash -c \'$SPLUNK_HOME/bin/splunk status --accept-license --answer-yes --no-prompt\'";true
 # wait to avoid restarting too fast
 RestartSec=5s
 
@@ -640,7 +642,8 @@ LimitNPROC=262143
 LimitFSIZE=infinity
 LimitCORE=infinity
 # Have splunk if just starting after an upgrade or for the first time accept the license and answer yes to the migration
-ExecStartPre=/bin/bash -c '/usr/bin/su - $USERSPLUNK -s /bin/bash -c \'$SPLUNK_HOME/bin/splunk status --accept-license --answer-yes --no-prompt\';true'
+#ExecStartPre=/bin/bash -c '/usr/bin/su - $USERSPLUNK -s /bin/bash -c \'$SPLUNK_HOME/bin/splunk status --accept-license --answer-yes --no-prompt\';true'
+ExecStartPre=/bin/bash -c "/usr/bin/su - $USERSPLUNK -s /bin/bash -c \'$SPLUNK_HOME/bin/splunk status --accept-license --answer-yes --no-prompt\'";true
 # wait to avoid restarting too fast
 RestartSec=5s
 

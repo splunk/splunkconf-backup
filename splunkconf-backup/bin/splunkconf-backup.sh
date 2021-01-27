@@ -374,15 +374,29 @@ if [ -z ${splunks3backupbucket+x} ]; then
   if [ -z ${s3backupbucket+x} ]; then 
     warn_log "name=splunks3backupbucket  src=instancetags result=unset "; 
   else 
-    debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
-    REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
-    debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+    if [[ "cloud_type" -eq 2 ]]; then
+      debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
+      # we already have the scheme in var for gcp
+      REMOTEBACKUPDIR="${s3backupbucket}/splunkconf-backup"
+      debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+    else
+      debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
+      REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
+      debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+    fi
   fi
 else
   s3backupbucket=$splunks3backupbucket
-  debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=true";
-  REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
-  debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+  if [[ "cloud_type" -eq 2 ]]; then
+    debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=true";
+      # we already have the scheme in var for gcp
+    REMOTEBACKUPDIR="${s3backupbucket}/splunkconf-backup"
+    debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+  else
+    debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=true";
+    REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
+    debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+  fi
 fi
 
 
@@ -788,7 +802,7 @@ debug_log "starting remote backup"
     fi
   elif [ ${REMOTETECHNO} -eq 2 ]; then
     # s3
-    debug_log "s3"
+    debug_log "s3 or gcp"
   elif [ ${REMOTETECHNO} -eq 3 ]; then
     # remote via scp
     debug_log "backup via scp"

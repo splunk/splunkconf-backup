@@ -204,6 +204,7 @@ echo "running with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
 # setting variables
 
 SPLUNK_HOME="/opt/splunk"
+INSTANCEFILE="/etc/instance-tags"
 
 if [[ "cloud_type" -eq 1 ]]; then
   # aws
@@ -218,14 +219,14 @@ if [[ "cloud_type" -eq 1 ]]; then
   REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
   # we put store tags in /etc/instance-tags -> we will use this later on
-  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > /etc/instance-tags
-  if grep -qi splunkinstanceType /etc/instance-tags
+  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > $INSTANCEFILE
+  if grep -qi splunkinstanceType $INSTANCEFILE
   then
     # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
     echo "filtering tags with splunk prefix for instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
   else
     echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-cloud-recovery-info.log
-    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  > /etc/instance-tags
+    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  > $INSTANCEFILE
   fi
 elif [[ "cloud_type" -eq 2 ]]; then
   # GCP
@@ -234,40 +235,40 @@ elif [[ "cloud_type" -eq 2 ]]; then
     echo "GCP : Missing splunkinstanceType in instance metadata"
   else 
     # > to overwrite any old file here (upgrade case)
-    echo -e "splunkinstanceType=${splunkinstanceType}\n" > /etc/instance-tags
+    echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
   fi
   splunks3installbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
   if [ -z ${splunks3installbucket+x} ]; then
     echo "GCP : Missing splunks3installbucket in instance metadata"
   else 
-    echo -e "splunks3installbucket=${splunks3installbucket}\n" >> /etc/instance-tags
+    echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
   fi
   splunks3backupbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
   if [ -z ${splunks3backupbucket+x} ]; then
     echo "GCP : Missing splunks3backupbucket in instance metadata"
   else 
-    echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> /etc/instance-tags
+    echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
   fi
   splunks3databucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
   if [ -z ${splunks3databucket+x} ]; then
     echo "GCP : Missing splunks3databucket in instance metadata"
   else 
-    echo -e "splunks3databucket=${splunks3databucket}\n" >> /etc/instance-tags
+    echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
   fi
   splunkorg=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkorg`
   splunkdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszone`
   splunkdnszoneid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszoneid`
-  numericprojectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/numeric-project-id`
-  projectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/project-id`
+  numericprojectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/numeric-project-id`
+  projectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/project-id`
   splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
 fi
 
-if [ -e "/etc/instance-tags" ]; then
-  chmod 644 /etc/instance-tags
+if [ -e "$INSTANCEFILE" ]; then
+  chmod 644 $INSTANCEFILE
   # including the tags for use in this script
-  . /etc/instance-tags
+  . $INSTANCEFILE
 else
-  echo "WARNING : no instance tags file"
+  echo "WARNING : no instance tags file at $INSTANCEFILE"
 fi
 
 # instance type
@@ -334,16 +335,20 @@ if [ -z ${splunkdnszone+x} ]; then
     #exit 1
   else 
     echo "using splunkawsdnszone from instance tags (please consider renaming to just splunkdnszone) " >> /var/log/splunkconf-cloud-recovery-info.log
+  fi
 else 
   echo "using splunkdnszone from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
   if [ $cloud_type == 2 ]; then
     # GCP doing direct dns update in recovery
     if [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
       echo " indexer , no dns update here"
-    elif [ -z ${splunkawsdnszoneid+x} ]; then
+    elif [ -z ${splunkdnszoneid+x} ]; then
       echo "ERROR ATTENTION splunkdnszoneid is not defined, please add it as we cant update dns"
     else
-      `gcloud dns --project=${projectid} record-sets transaction start --zone=${splunkawsdnszone};gcloud dns --project=${projectid} record-sets transaction add --name=${instancename}.${splunkawsdnszone}. --ttl=180 --type=A --zone=${splunkawsdnszoneid};gcloud dns --project=${projectid} record-sets transaction execute --zone=${splunkawsdnszone}`
+      MYIP=`ifconfig |  grep -v 127.0.0.1 | grep inet | grep -v inet6 | grep -Eo 'inet\s[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+' | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+'`
+      OLDIP=`gcloud dns --project=${projectid} record-sets list --zone=${splunkdnszoneid} --name=${instancename}.${splunkdnszone} --type A | tail -1 |grep -Eo '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+'`
+      # the api ask to remove the record with current value before being able to add again ...
+      RES=`gcloud dns --project=${projectid} record-sets transaction start --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction remove ${OLDIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction add ${MYIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction execute --zone=${splunkdnszoneid}`
     fi
   fi 
 fi
@@ -387,9 +392,13 @@ mkdir -p ${localinstalldir}
 chown splunk. ${localinstalldir}
 
 # perl needed for swap (regex) and splunkconf-init.pl
-yum install wget perl -y >> /var/log/splunkconf-cloud-recovery-info.log
-# not needed by recovery itself but for app that use jsva sucha as dbconnect , itsi...
-yum install java-1.8.0-openjdk -y >> /var/log/splunkconf-cloud-recovery-info.log
+# openjdk not needed by recovery itself but for app that use java such as dbconnect , itsi...
+# wget used by recovery
+# curl to fetch files
+# gdb provide pstack which may be needed to collect things for Splunk support
+
+# one yum command so yum can try to download and install in // which will improve recovery time
+yum install --setopt=skip_missing_names_on_install=False wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned -y 
 
 if [ "$MODE" != "upgrade" ]; then 
 
@@ -411,7 +420,6 @@ if [ "$MODE" != "upgrade" ]; then
     RESTORECONFBACKUP=0
     DEVNUM=1
 
-    yum install -y nvme-cli lvm2 >> /var/log/splunkconf-cloud-recovery-info.log
 
     # let try to find if we have ephemeral storage
     INSTANCELIST=`nvme list | grep "Instance Storage" | cut -f 1 -d" "`
@@ -539,9 +547,6 @@ if [ "$MODE" != "upgrade" ]; then
 fi # if not upgrade
 
 
-# curl to fetch files
-# gdb provide pstack which may be needed to collect things for Splunk support
-yum install curl gdb -y
 
 # Splunk installation
 # note : if you update here, that could update at reinstanciation, make sure you know what you do !
@@ -677,7 +682,8 @@ else
   # Failed to restart splunk.service: The name org.freedesktop.PolicyKit1 was not provided by any .service files
   # See system logs and 'systemctl status splunk.service' for details.
   # despite the proper policy kit files deployed !
-  yum install polkit tuned -y
+  # moved up for perf
+  #yum install polkit tuned -y
   systemctl enable tuned.service
   systemctl start tuned.service
   echo "remote : ${remoteinstalldir}/package-system7-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log

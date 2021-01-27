@@ -34,7 +34,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20190928 legerage new user data that create /etc/ec2-tags containing s3 bucket names and instance type
 # 20190929 add explicit polkit deployment for aws2 ami case
 # 20191001 move partition for indx after ec2 tags + cleanuo 
-# 20191001 add tuned isntallation for aws2 case (to be more rh like)
+# 20191001 add tuned installation for aws2 case (to be more rh like)
 # 20200203 change order to better work by default when upgrading at same time (minor version for example) (better to use backup then upgrade so that will update a file if in conflict between backup and product as it is owned by product) (that avoid having to list all the product files and maintain the exclusion list) + prefer to use the kvdump as there are more chance that this is valid (and take less space !) 
 # 20200413 add curl package installation just in case (should be present in most os installation), move logs to usual system dir, add protection mechanism to avoid breaking big kvdump restore that would start in //
 # 20200414 fix typo and add extra dir creation for user seed copy 
@@ -69,7 +69,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20201015 add special case for giving dir to splunk for indexer creation case (when fs created in AMI)
 # 20201017 add master_uri (cm) support for idx discovery + lm support 
 # 20201022 add support for using extra splunkconf-swapme.pl to tune swap
-# 20201102 set permission for local upgrade scrip, add copy for extra check and set tags, update to 8.0.7 by defaultt
+# 20201102 set permission for local upgrade script, add copy for extra check and set tags, update to 8.0.7 by default
 # 20201103 add download ES from s3 pre install script
 # 20201106 remove any extra spaces in tags around the = sign
 # 20201106 make master_uri form more restrictive in server.conf
@@ -83,8 +83,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20200125 move aws s3 cp to a function and add GCP support
 # 20200125 change logging to not clean file at launch + add first boot check (needed for GCP which launch the script at every boot)
 # 20200126 add support for setting hostname at boot for gcp, add tests and more meaningfull messages when missing backups or initial files 
+# 20200127 add zone detection support for GCP
 
-VERSION="20210126"
+VERSION="20210127"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -863,7 +864,12 @@ if [ "$MODE" != "upgrade" ]; then
     else 
       echo "using splunkorg=${splunkorg} from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
     fi
-    AZONE=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone  `
+    if [[ "cloud_type" -eq 2 ]]; then
+      # gcp
+      AZONE=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/zone`
+    else # 1= AWS    
+      AZONE=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone  `
+    fi
     ZONELETTER=${AZONE: -1}
     sitenum=0
     # depending on region and what the user enabled there could be more than the first 3 AZ (example virginia)
@@ -907,7 +913,7 @@ if [ "$MODE" != "upgrade" ]; then
     # we dont want to run this each time the service stop for cases such as rolling restart or system reboot
     read -d '' SYSAWSTERMINATE << EOF
 [Unit]
-Description=AWS terminate helper Service
+Description=Splunk idx terminate helper Service
 Before=poweroff.target shutdown.target halt.target
 # so that it will stop before splunk systemd unit stop
 Wants=splunk.target

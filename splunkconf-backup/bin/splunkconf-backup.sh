@@ -48,6 +48,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20201012 add /bin to PATH as required for AWS1, fix var name for kvstore remote s3 (7.0)
 # 20201105 add test for default and local conf file to prevent error appearing in logs
 # 20201106 remove any extra spaces in tags around the = sign
+# 20210127 add GCP support
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -87,6 +88,7 @@ umask 027
 
 # FIXME , get it automatically from splunk-launch.conf 
 SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
+
 
 # backup type selection 
 # 1 = targeted etc -> use a list of directories and files to backup
@@ -213,6 +215,41 @@ function splunkconf_checkspace {
   fi
 }
 
+METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
+function check_cloud() {
+  cloud_type=0
+  response=$(curl -fs -m 5 -H "Metadata-Flavor: Google" ${METADATA_URL})
+  if [ $? -eq 0 ]; then
+    echo_log 'GCP instance detected'
+    cloud_type=2
+  # old aws hypervisor
+  elif [ -f /sys/hypervisor/uuid ]; then
+    if [ `head -c 3 /sys/hypervisor/uuid` == "ec2" ]; then
+      echo_log 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+  # newer aws hypervisor (test require root)
+  if [ -r /sys/devices/virtual/dmi/id/product_uuid ]; then
+    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "EC2" ]; then
+      echo_log 'AWS instance detected'
+      cloud_type=1
+    fi
+  else
+  # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
+  # authoritative, we could follow Amazon's suggestions for cryptographically
+  # verifying their signature, see here:
+  #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
+  # but this is almost certainly overkill for this purpose (and the above
+  # checks of "EC2" prefixes have a higher false positive potential, anyway).
+  # FIXME add imsv2 support here
+    if $(curl -s -m 5 http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
+      echo_log 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+}
+
 ###### start
 
 # addin a random sleep to reduce backup concurrency + a potential conflict when we run at the limit in term of size (one backup type could eat the space before purge run)
@@ -244,6 +281,9 @@ else
   debug_log "splunkconf-backup.conf local not present, using only default"   
 fi 
 
+check_cloud
+
+echo_log "cloud_type=$cloud_type"
 
 # we get most var dynamically from ec2 tags associated to instance
 
@@ -263,30 +303,71 @@ then
   CHECK=0
 fi
 
+INSTANCEFILE="${SPLUNK_HOME}/var/run/splunk/instance-tags"
 if [ $CHECK -ne 0 ]; then
-  INSTANCEFILE="${SPLUNK_HOME}/var/run/splunk/instance-tags"
-  # setting up token (IMDSv2)
-  TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
-  # lets get the s3splunkinstall from instance tags
-  INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
-  REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
+  if [[ "cloud_type" -eq 1 ]]; then
+    # aws
+    # setting up token (IMDSv2)
+    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    # lets get the s3splunkinstall from instance tags
+    INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
+    REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
-  # we put store tags in instance-tags file-> we will use this later on
-  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > $INSTANCEFILE/
-  if grep -qi splunkinstanceType $INSTANCEFILE
-  then
-    # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
-    echo_log "filtering tags with splunk prefix for instance tags (file=$INSTANCEFILE)" 
-  else
-    echo_log "splunk prefixed tags not found, reverting to full tag inclusion (file=$INSTANCEFILE)" 
-    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  > $INSTANCEFILE
+    # we put store tags in instance-tags file-> we will use this later on
+    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > $INSTANCEFILE/
+    if grep -qi splunkinstanceType $INSTANCEFILE
+    then
+      # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
+      echo_log "filtering tags with splunk prefix for instance tags (file=$INSTANCEFILE)" 
+    else
+      echo_log "splunk prefixed tags not found, reverting to full tag inclusion (file=$INSTANCEFILE)" 
+      aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  > $INSTANCEFILE
+    fi
   fi
-  chmod 640 $INSTANCEFILE
+elif [[ "cloud_type" -eq 2 ]]; then
+  # GCP
+  splunkinstanceType=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
+  if [ -z ${splunkinstanceType+x} ]; then
+    debug_log "GCP : Missing splunkinstanceType in instance metadata"
+  else
+    # > to overwrite any old file here (upgrade case)
+    echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
+  fi
+  splunks3installbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
+  if [ -z ${splunks3installbucket+x} ]; then
+    debug_log "GCP : Missing splunks3installbucket in instance metadata"
+  else
+    echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
+  fi
+  splunks3backupbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
+  if [ -z ${splunks3backupbucket+x} ]; then
+    debug_log "GCP : Missing splunks3backupbucket in instance metadata"
+  else 
+    echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
+  fi
+  splunks3databucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
+  if [ -z ${splunks3databucket+x} ]; then
+    debug_log "GCP : Missing splunks3databucket in instance metadata"
+  else 
+    echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
+  fi
+  splunkorg=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkorg`
+  splunkdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszone`
+  splunkdnszoneid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszoneid`
+  numericprojectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/numeric-project-id`
+  projectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/project-id`
+  splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
+  
+else
+  echo_log "aws cloud tag detection disabled (missing commands)"
+fi
 
+if [ -e "$INSTANCEFILE" ]; then
+  chmod 644 $INSTANCEFILE
   # including the tags for use in this script
   . $INSTANCEFILE
 else
-  echo_log "aws tag detection disabled (missing commands)"
+  warn_log "WARNING : no instance tags file at $INSTANCEFILE"
 fi
 
 if [ -z ${splunks3backupbucket+x} ]; then 
@@ -774,8 +855,15 @@ debug_log "starting remote backup"
     OPTION="";
   elif [ ${REMOTETECHNO} -eq 2 ]; then
     # azure, see https://docs.microsoft.com/en-us/cli/azure/storage?view=azure-cli-latest#az-storage-copy
-    CPCMD="aws s3 cp";
-    OPTION=" --quiet --storage-class STANDARD_IA";
+    if [[ "cloud_type" -eq 2 ]]; then
+     # gcp
+      CPCMD="gsutil -q cp";
+      OPTION="";
+    else 
+      # aws
+      CPCMD="aws s3 cp";
+      OPTION=" --quiet --storage-class STANDARD_IA";
+    fi
 # --storage-class STANDARD_IA reduce cost for infrequent access objects such as backups while not decreasing availability/redundancy
   elif [ ${REMOTETECHNO} -eq 3 ]; then
     CPCMD="scp";

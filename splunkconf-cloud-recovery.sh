@@ -84,6 +84,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20200125 change logging to not clean file at launch + add first boot check (needed for GCP which launch the script at every boot)
 # 20200126 add support for setting hostname at boot for gcp, add tests and more meaningfull messages when missing backups or initial files 
 # 20200127 add zone detection support for GCP
+# 20200127 add dns update support for GCP dns zones (need a splunkdnszoneid tag)
 
 VERSION="20210127"
 
@@ -254,7 +255,10 @@ elif [[ "cloud_type" -eq 2 ]]; then
     echo -e "splunks3databucket=${splunks3databucket}\n" >> /etc/instance-tags
   fi
   splunkorg=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkorg`
-  splunkclouddnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkclouddnszone`
+  splunkdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszone`
+  splunkdnszoneid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszoneid`
+  numericprojectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/numeric-project-id`
+  projectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/project-id`
   splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
 fi
 
@@ -323,14 +327,32 @@ fi
 echo "splunkorg is ${splunkorg}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 # splunkawsdnszone used for updating route53 when apropriate
-if [ -z ${splunkawsdnszone+x} ]; then 
-    echo "instance tags are not correctly set (splunkawsdnszone). I dont know splunkawsdnszone to use for route53 ! Please add splunkawsdnszone tag" >> /var/log/splunkconf-cloud-recovery-info.log
+if [ -z ${splunkdnszone+x} ]; then 
+  if [ -z ${splunkawsdnszone+x} ]; then 
+    echo "instance tags are not correctly set (splunkdnszone or splunkawsdnszone). I dont know splunkdnszone to use for updating dns ! Please add splunkdnszone tag" >> /var/log/splunkconf-cloud-recovery-info.log
     #we can continue as we will just do nothing but obviously route53 update will fail if this is needed for this instance
     #exit 1
+  else 
+    echo "using splunkawsdnszone from instance tags (please consider renaming to just splunkdnszone) " >> /var/log/splunkconf-cloud-recovery-info.log
 else 
-  echo "using splunkawsdnszone from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
+  echo "using splunkdnszone from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
+  if [ $cloud_type == 2 ]; then
+    # GCP doing direct dns update in recovery
+    if [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
+      echo " indexer , no dns update here"
+    elif [ -z ${splunkawsdnszoneid+x} ]; then
+      echo "ERROR ATTENTION splunkdnszoneid is not defined, please add it as we cant update dns"
+    else
+      `gcloud dns --project=${projectid} record-sets transaction start --zone=${splunkawsdnszone};gcloud dns --project=${projectid} record-sets transaction add --name=${instancename}.${splunkawsdnszone}. --ttl=180 --type=A --zone=${splunkawsdnszoneid};gcloud dns --project=${projectid} record-sets transaction execute --zone=${splunkawsdnszone}`
+    fi
+  fi 
 fi
+echo "splunkdnszone is ${splunkdnszone}" >> /var/log/splunkconf-cloud-recovery-info.log
+echo "splunkdnszoneid is ${splunkdnszoneid}" >> /var/log/splunkconf-cloud-recovery-info.log
 echo "splunkawsdnszone is ${splunkawsdnszone}" >> /var/log/splunkconf-cloud-recovery-info.log
+
+
+
 
 localbackupdir="${SPLUNK_HOME}/var/backups"
 SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"

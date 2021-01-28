@@ -347,8 +347,14 @@ else
     else
       MYIP=`ifconfig |  grep -v 127.0.0.1 | grep inet | grep -v inet6 | grep -Eo 'inet\s[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+' | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+'`
       OLDIP=`gcloud dns --project=${projectid} record-sets list --zone=${splunkdnszoneid} --name=${instancename}.${splunkdnszone} --type A | tail -1 |grep -Eo '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+'`
-      # the api ask to remove the record with current value before being able to add again ...
-      RES=`gcloud dns --project=${projectid} record-sets transaction start --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction remove ${OLDIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction add ${MYIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction execute --zone=${splunkdnszoneid}`
+      # the api ask to remove the record with current value before being able to add again ... pretty complex 
+      if [ -z "${OLDIP}" ]; then
+        echo "MYIP=$MYIP OLDIP=N/A"
+        RES=`gcloud dns --project=${projectid} record-sets transaction start --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction add ${MYIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction execute --zone=${splunkdnszoneid}`
+      else
+        echo "MYIP=$MYIP OLDIP=$OLDIP"
+        RES=`gcloud dns --project=${projectid} record-sets transaction start --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction remove ${OLDIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction add ${MYIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction execute --zone=${splunkdnszoneid}`
+      fi
     fi
   fi 
 fi

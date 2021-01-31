@@ -88,9 +88,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210128 extend ephemeral support to GCP local ssd
 # 20210131 inline splunk aws terminate to ease packaging
 # 20210131 fix yum option that allow installing on missing rpm (to allow // install in general but still work when the rpm doesnt exist on sone os)
-@ 20210131 add test to only deploy terminate on systemd os 
+# 20210131 add test to only deploy terminate on systemd os 
 
-VERSION="20210131c"
+VERSION="20210131d"
 
 # dont break script on error as we rely on tests for this
 set +e

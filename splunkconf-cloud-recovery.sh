@@ -87,8 +87,10 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210127 add dns update support for GCP dns zones (need a splunkdnszoneid tag)
 # 20210128 extend ephemeral support to GCP local ssd
 # 20210131 inline splunk aws terminate to ease packaging
+# 20210131 fix yum option that allow installing on missing rpm (to allow // install in general but still work when the rpm doesnt exist on sone os)
+@ 20210131 add test to only deploy terminate on systemd os 
 
-VERSION="20210131"
+VERSION="20210131c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -406,7 +408,7 @@ chown splunk. ${localinstalldir}
 # gdb provide pstack which may be needed to collect things for Splunk support
 
 # one yum command so yum can try to download and install in // which will improve recovery time
-yum install --setopt=skip_missing_names_on_install=False wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned -y 
+yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned -y 
 
 if [ "$MODE" != "upgrade" ]; then 
 
@@ -950,11 +952,15 @@ if [ "$MODE" != "upgrade" ]; then
     # giving back files to splunk user
     chown -R splunk. $SPLUNK_HOME/etc/apps/${splunkorg}_site${sitenum}_base
     echo "Setting Indexer on site: $site" >> /var/log/splunkconf-cloud-recovery-info.log
-    # this service is ran at stop when a instance is terminated cleanly (scaledown event)
-    # if will run before the normal splunk service and run a script that use the splunk offline procedure 
-    # in order to tell the CM to replicate before the instance is completely terminated
-    # we dont want to run this each time the service stop for cases such as rolling restart or system reboot
-    read -d '' SYSAWSTERMINATE << EOF
+    if [ $SYSVER -eq "6" ]; then
+      echo "running non systemd os , we wont add a custom service to terminate"
+    else
+      echo "running systemd os , adding Splunk idx terminate service"
+      # this service is ran at stop when a instance is terminated cleanly (scaledown event)
+      # if will run before the normal splunk service and run a script that use the splunk offline procedure 
+      # in order to tell the CM to replicate before the instance is completely terminated
+      # we dont want to run this each time the service stop for cases such as rolling restart or system reboot
+      read -d '' SYSAWSTERMINATE << EOF
 [Unit]
 Description=Splunk idx terminate helper Service
 Before=poweroff.target shutdown.target halt.target
@@ -977,8 +983,8 @@ WantedBy=multi-user.target
 
 EOF
 
-    echo "$SYSAWSTERMINATE" > /etc/systemd/system/aws-terminate-helper.service
-read -d'' SPLUNKOFFLINE << EOF
+      echo "$SYSAWSTERMINATE" > /etc/systemd/system/aws-terminate-helper.service
+      read -d '' SPLUNKOFFLINE << EOF
 #!/bin/bash
 
 # Matthieu Araman, Splunk
@@ -1035,11 +1041,12 @@ sleep 10
 ${SPLUNK_HOME}/bin/splunk offline --enforce-counts  --decommission_node_force_timeout ${DECOMISSION_NODE_TIMEOUT}
 
 EOF
-    echo "$SPLUNKOFFLINE" > /usr/local/bin/splunkconf-aws-terminate-idx.sh
-    systemctl daemon-reload
-    systemctl enable aws-terminate-helper.service
-    chown root.splunk ${localrootscriptdir}/splunkconf-aws-terminate-idx.sh
-    chmod 550 ${localrootscriptdir}/splunkconf-aws-terminate-idx.sh
+      echo "$SPLUNKOFFLINE" > /usr/local/bin/splunkconf-aws-terminate-idx.sh
+      systemctl daemon-reload
+      systemctl enable aws-terminate-helper.service
+      chown root.splunk ${localrootscriptdir}/splunkconf-aws-terminate-idx.sh
+      chmod 550 ${localrootscriptdir}/splunkconf-aws-terminate-idx.sh
+    fi   
   else
     echo "other generic instance type( uf,...) , we wont change anything to avoid duplicate entries, using the name provided by aws"
   fi

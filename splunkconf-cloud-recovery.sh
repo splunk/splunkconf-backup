@@ -79,14 +79,16 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20201111 add java openjdk 1.8 installation (needed for dbconnect for example)
 # 20210120 disable default master_uri replacement without tags
 # 20210125 change aws to cloud + initial gcp detection
-# 20200125 add GPG key check for RPM + direct download option in case RPM not in install bucket
-# 20200125 move aws s3 cp to a function and add GCP support
-# 20200125 change logging to not clean file at launch + add first boot check (needed for GCP which launch the script at every boot)
-# 20200126 add support for setting hostname at boot for gcp, add tests and more meaningfull messages when missing backups or initial files 
-# 20200127 add zone detection support for GCP
-# 20200127 add dns update support for GCP dns zones (need a splunkdnszoneid tag)
+# 20210125 add GPG key check for RPM + direct download option in case RPM not in install bucket
+# 20210125 move aws s3 cp to a function and add GCP support
+# 20210125 change logging to not clean file at launch + add first boot check (needed for GCP which launch the script at every boot)
+# 20210126 add support for setting hostname at boot for gcp, add tests and more meaningfull messages when missing backups or initial files 
+# 20210127 add zone detection support for GCP
+# 20210127 add dns update support for GCP dns zones (need a splunkdnszoneid tag)
+# 20210128 extend ephemeral support to GCP local ssd
+# 20210131 inline splunk aws terminate to ease packaging
 
-VERSION="20210127"
+VERSION="20210131"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -428,7 +430,13 @@ if [ "$MODE" != "upgrade" ]; then
 
 
     # let try to find if we have ephemeral storage
-    INSTANCELIST=`nvme list | grep "Instance Storage" | cut -f 1 -d" "`
+    if [[ "cloud_type" -eq 2 ]]; then
+      # gcp
+      INSTANCELIST=`nvme list | grep "nvme_card" | cut -f 1 -d" "`
+    else
+      # aws
+      INSTANCELIST=`nvme list | grep "Instance Storage" | cut -f 1 -d" "`
+    fi
     echo "instance storage=$INSTANCELIST" >> /var/log/splunkconf-cloud-recovery-info.log
 
     if [ ${#INSTANCELIST} -lt 5 ]; then
@@ -483,6 +491,7 @@ if [ "$MODE" != "upgrade" ]; then
       mkdir -p /data/vol1/indexes
       chown -R splunk. /data/vol1/indexes
     else
+      echo "instance storage detected"
       #OSDEVICE=$(lsblk -o NAME -n | grep -v '[[:digit:]]' | sed "s/^sd/xvd/g")
       #OSDEVICE=$(lsblk -o NAME -n --nodeps | grep nvme)
       #pvdisplay
@@ -969,6 +978,64 @@ WantedBy=multi-user.target
 EOF
 
     echo "$SYSAWSTERMINATE" > /etc/systemd/system/aws-terminate-helper.service
+read -d'' SPLUNKOFFLINE << EOF
+#!/bin/bash
+
+# Matthieu Araman, Splunk
+# 20200625 initial version
+# 20200626 typos fix in log
+# 20210131 typos fix and deployment inlined
+
+SPLUNK_HOME="/opt/splunk"
+LOGFILE="${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log"
+
+SCRIPTNAME="splunkconf-aws-terminate-idx"
+
+# value need to be under the timeout in service (600s)
+DECOMISSION_NODE_TIMEOUT=530
+
+###### function definition
+
+function echo_log_ext {
+    LANG=C
+    #NOW=(date "+%Y/%m/%d %H:%M:%S")
+    NOW=(date)
+    echo `$NOW`" ${SCRIPTNAME} $1 " >> $LOGFILE
+}
+
+
+function echo_log {
+    echo_log_ext  "INFO id=$ID $1"
+}
+
+function warn_log {
+    echo_log_ext  "WARN id=$ID $1"
+}
+
+function fail_log {
+    echo_log_ext  "FAIL id=$ID $1"
+}
+
+
+# this script should run as splunk
+echo_log "checking that we were not launched by root for security reasons"
+# check that we are not launched by root
+if [[ $EUID -eq 0 ]]; then
+   fail_log "Exiting ! This script must be run as splunk user, not root !"
+   exit 1
+fi
+
+echo_log "$SCRIPTNAME launched, this instance is  being shutdown or terminated, so we will call splunk offline command in a few seconds so that the cluster reassign primaries, replicate the remaining buckets hopefully before splunk stop (and searches may have somne time to complete)"
+# let some time for splunk to index and replicate before kill
+sleep 10
+
+# note with smartstore, numrber of buckets to resync is reduced, decreasing impact and time
+# this command rely on proper systemd + policykit configuration to be in place
+
+${SPLUNK_HOME}/bin/splunk offline --enforce-counts  --decommission_node_force_timeout ${DECOMISSION_NODE_TIMEOUT}
+
+EOF
+    echo "$SPLUNKOFFLINE" > /usr/local/bin/splunkconf-aws-terminate-idx.sh
     systemctl daemon-reload
     systemctl enable aws-terminate-helper.service
     chown root.splunk ${localrootscriptdir}/splunkconf-aws-terminate-idx.sh

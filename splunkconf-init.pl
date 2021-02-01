@@ -62,6 +62,7 @@
 # 20201104 add logic to push different systemd file for 8.1 as 8.0.7 refuse to see execstartpost during a upgrade but 8.1 need it
 # 20201104 add both cpu and memory to execstart pre and post
 # 20210126 fix quotes in execstartpre to make systemd happy
+# 20210201 include default workload pool in systemd mode
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -508,6 +509,63 @@ EOF
   # depending on polkit version, it is necessary to restart the service to have it reread config files so let's do it
   print "restarting polkit\n";
   `sleep 1;systemctl restart polkit`;
+  #we are in systemd mode with polkit -> we are enabling WLM 
+  # for the moment , we deployed consistently in system local
+  # if you want to deploy it via a app, remove the system local (see doc, dont mix files here)
+  my $WLMCONF="${SPLUNK_HOME}/etc/system/local/workload_pools.conf";
+  open(FH, '>', ${WLMCONF}) or die $!;
+  my $wlmconf= <<'EOF';
+[general]
+enabled = true
+default_pool = Standard
+ingest_pool = ingest
+workload_pool_base_dir_name = splunk
+
+[workload_category:search]
+cpu_weight = 70
+mem_weight = 70
+
+[workload_category:ingest]
+cpu_weight = 20
+mem_weight = 20
+
+[workload_category:misc]
+cpu_weight = 10
+mem_weight = 10
+
+[workload_pool:Standard]
+cpu_weight = 35
+mem_weight = 100
+category = search
+default_category_pool = 1
+
+[workload_pool:ingest]
+cpu_weight = 100
+mem_weight = 100
+category = ingest
+default_category_pool = 1
+
+[workload_pool:misc]
+cpu_weight = 100
+mem_weight = 100
+category = misc
+default_category_pool = 1
+
+[workload_pool:HighPriority]
+cpu_weight = 60
+mem_weight = 90
+category = search
+default_category_pool = 0
+
+[workload_pool:LowPriority]
+cpu_weight = 5
+mem_weight = 90
+category = search
+default_category_pool = 0
+
+EOF
+  print FH $wlmconf;
+  close(FH);
   # stopping splunk just in case for upgrade case as enable boot start will refuse to configure if service is running
   #print "stopping splunk via systemctl stop $servicename\n";
   #`systemctl stop $servicename`;

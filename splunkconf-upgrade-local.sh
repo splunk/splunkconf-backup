@@ -3,9 +3,10 @@ exec > /var/log/splunkconf-upgrade.log 2>&1
 
 # This script is used to upgrade splunk locally without having to destroy the instance completely
 # it is getting latest aws recovery script and call it with upgrade arg
- 
-VERSION="20201102"
 # 20201011 add check for root use
+# 20210202 add fallback to /etc/instance-tags
+ 
+VERSION="20210202"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -28,6 +29,20 @@ TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/toke
 INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
 REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunks3installbucket | cut -f 5`
+if [ -z "$splunks3installbucket" ]; then
+  echo "ATTENTION TAGS NOT SET in instance tags, please correct and relaunch"
+  INSTANCEFILE="/etc/instance-tags"
+  if [ -e "$INSTANCEFILE" ]; then
+    chmod 644 $INSTANCEFILE
+    # including the tags for use in this script
+    . $INSTANCEFILE
+  else
+    echo "ERROR : no instance tags file at $INSTANCEFILE"
+    exit 1
+  fi
+else
+  echo "Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
+fi
 remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"
 mkdir -p $localinstalldir

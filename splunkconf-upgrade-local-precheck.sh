@@ -8,8 +8,9 @@
 # 20201102 version that does tags and script prechecks
 # 20201116 extend to more files and make it more generic
 # 20201117 extend version check to be more generic
+# 20210202 add fallback to /etc/instance-tags
 
-VERSION="20201117"
+VERSION="20210202"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -32,6 +33,20 @@ INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" ht
 REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunks3installbucket | cut -f 5`
 splunktargetbinary=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunktargetbinary | cut -f 5`
+if [ -z "$splunks3installbucket" ]; then
+  echo "ATTENTION TAGS NOT SET in instance tags, please correct and relaunch"
+  INSTANCEFILE="/etc/instance-tags"
+  if [ -e "$INSTANCEFILE" ]; then
+    chmod 644 $INSTANCEFILE
+    # including the tags for use in this script
+    . $INSTANCEFILE
+  else
+    echo "ERROR : no instance tags file at $INSTANCEFILE"
+    exit 1
+  fi
+else
+  echo "Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
+fi
 remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"
 mkdir -p $localinstalldir
@@ -40,12 +55,6 @@ FILELIST="splunkconf-aws-recovery.sh splunkconf-swapme.pl splunkconf-upgrade-loc
 
 echo "splunkconf-upgrade-local-precheck  VERSION=$VERSION"
 
-if [ -z "$splunks3installbucket" ]; then
-  echo "ATTENTION TAGS NOT SET in instance tags, please correct and relaunch"
-  exit 1
-else
-  echo "Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
-fi
 
 
 # get latest versions

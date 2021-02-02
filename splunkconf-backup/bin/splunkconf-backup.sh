@@ -49,6 +49,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20201105 add test for default and local conf file to prevent error appearing in logs
 # 20201106 remove any extra spaces in tags around the = sign
 # 20210127 add GCP support
+# 20210202 add fallback to /etc/instance-tags for case where dynamic tags are not working but the files has been set by another way
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -367,7 +368,15 @@ if [ -e "$INSTANCEFILE" ]; then
   # including the tags for use in this script
   . $INSTANCEFILE
 else
-  warn_log "WARNING : no instance tags file at $INSTANCEFILE"
+  warn_log "WARNING : no instance tags file at $INSTANCEFILE, trying fallback to /etc version"
+  INSTANCEFILE="/etc/instance-tags"
+  if [ -e "$INSTANCEFILE" ]; then
+    # impossible we are not root chmod 644 $INSTANCEFILE
+    # including the tags for use in this script
+    . $INSTANCEFILE
+  else
+    warn_log "WARNING : no instance tags file at $INSTANCEFILE"
+  fi
 fi
 
 if [ -z ${splunks3backupbucket+x} ]; then 

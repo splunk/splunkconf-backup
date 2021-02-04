@@ -63,6 +63,7 @@
 # 20201104 add both cpu and memory to execstart pre and post
 # 20210126 fix quotes in execstartpre to make systemd happy
 # 20210201 include default workload pool in systemd mode
+# 20210204 improve splunk version detection to remove extra message in case of upgrade + add fallback method via rpm version  + fallback to 8.1.0 by default 
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -72,7 +73,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20210126";
+$VERSION="20210204";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -256,7 +257,7 @@ unless (-e $SPLSPLUNKBIN) {
   die ("cant find splunk bin. Please check path ($SPLSPLUNKBIN) and make sure you installed splunk via rpm -Uvh splunkxxxxxxx.rpm (or yum) which also created user and splunk group");
 }
 
-my $VERSIONFULL=`su - $USERSPLUNK -c "$SPLSPLUNKBIN --version --accept-license --answer-yes --no-prompt| tail -1"`;
+my $VERSIONFULL=`su - $USERSPLUNK -c "$SPLSPLUNKBIN --version --accept-license --answer-yes --no-prompt| grep build | tail -1"`;
 my $SPLVERSIONMAJ="0";
 my $SPLVERSIONMIN="0";
 my $SPLVERSIONMAINT="0";
@@ -270,7 +271,23 @@ if ($RES) {
   $SPLVERSIONMIN=$2;
   $SPLVERSIONMAINT=$3;
 } else {
-  print " version detection failed ! Please investigate !";
+  print " version detection via splunk command failed , may be because extra message during a upgrade, trying fallback methos via rpm version\n";
+  $VERSIONFULL=`rpm -qi splunk | grep ^Version| tail -1"`;
+# example
+# Version     : 8.1.2
+  $RES= $VERSIONFULL =~ /Version\s+:\s+(\d+)\.(\d+)\.(\d+)/;
+  # note we force the regex to take the left part do if a extra number is present, it should mach the regex (exemple 8.1.1.1)
+  if ($RES) {
+    $SPLVERSIONMAJ=$1;
+    $SPLVERSIONMIN=$2;
+    $SPLVERSIONMAINT=$3;
+  } else {
+    print " version detection failed ! Please investigate, assuming 8.1.0 !\n";
+    $SPLVERSIONMAJ=8;
+    $SPLVERSIONMIN=1;
+    $SPLVERSIONMAINT=0;
+    $SPLVERSIONEXTRA="0";
+  }
 }
 my $SPLVERSION="$SPLVERSIONMAJ.$SPLVERSIONMIN";
 

@@ -64,6 +64,7 @@
 # 20210126 fix quotes in execstartpre to make systemd happy
 # 20210201 include default workload pool in systemd mode
 # 20210204 improve splunk version detection to remove extra message in case of upgrade + add fallback method via rpm version  + fallback to 8.1.0 by default 
+# 20210208 increase max mem for ingest pool
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -73,7 +74,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20210204";
+$VERSION="20210208";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -544,7 +545,7 @@ mem_weight = 70
 
 [workload_category:ingest]
 cpu_weight = 20
-mem_weight = 20
+mem_weight = 100
 
 [workload_category:misc]
 cpu_weight = 10

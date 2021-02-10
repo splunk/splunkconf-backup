@@ -33,8 +33,9 @@
 # 20201103 add version var + fix typo in message
 # 20201123 add sha for es6.4
 # 20201215 update sha for 6.4 as the build was updated 
+# 20210210 add sha for 6.4.1
 
-VERSION="20201215"
+VERSION="20210210"
 
 SCRIPTNAME="installes"
 
@@ -211,7 +212,8 @@ fi
 #ESAPP="splunk-enterprise-security_61.spl";
 #ESAPP="splunk-enterprise-security_611.spl";
 #ESAPP="splunk-enterprise-security_620.spl";
-ESAPP="splunk-enterprise-security_640.spl";
+#ESAPP="splunk-enterprise-security_640.spl";
+ESAPP="splunk-enterprise-security_641.spl";
 # 6.x , There were potential perd issues with assets and identities in some conditions. please prefer 6.02+ (over 60 and 601) or 6.1.1+(over 610) , please check by your usual source about ES versions and core field status as this comment may be outdated at the time you read it
 # (look at least on splservices ES status page for PS + ES RN,...)
 
@@ -241,8 +243,9 @@ fi
 # SHA256 checksum (splunk-enterprise-security_620.spl) dff6806efdbe41141ae8a6b91c1f991d718ce10d8528640b173ea918b8233cd9
 # SHA256 checksum (splunk-enterprise-security_640.spl) cbed83ced2af436ded61f000fe87b820c9329148ed612cf2e4374a033eb854a1
 # SHA256 checksum (splunk-enterprise-security_640.spl) 940d83e15d4059b09f6a5518bbdc62ce32b6680f4c076a1d46e64cd0c54723c8
+# SHA256 checksum (splunk-enterprise-security_641.spl) f44dbc248cb85e8100f7afefe70d7949efab873269657d77e6488ba95c0df077
 
-EXPECTEDSHA="940d83e15d4059b09f6a5518bbdc62ce32b6680f4c076a1d46e64cd0c54723c8"
+EXPECTEDSHA="f44dbc248cb85e8100f7afefe70d7949efab873269657d77e6488ba95c0df077"
 
 echo_log "please verify sha256 to check for integrity (corruption , truncation during file download....)"
 echo "expected sha256=${EXPECTEDSHA}"

@@ -90,8 +90,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210131 fix yum option that allow installing on missing rpm (to allow // install in general but still work when the rpm doesnt exist on sone os)
 # 20210131 add test to only deploy terminate on systemd os 
 # 20210202 splunk 8.1.2
+# 20210216 add group + restore permissions on /usr/local/bin for indexer systemd terminate service 
 
-VERSION="20210202b"
+VERSION="20210216"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -969,17 +970,19 @@ Description=Splunk idx terminate helper Service
 Before=poweroff.target shutdown.target halt.target
 # so that it will stop before splunk systemd unit stop
 Wants=splunk.target
-Requires=network-online.target network.target
+Requires=network-online.target network.target sshd.service
 
 [Service]
 KillMode=none
 ExecStart=/bin/true
+#ExecStop=/bin/bash -c "/usr/bin/su - splunk -s /bin/bash -c \'/usr/local/bin/splunkconf-aws-terminate-idx\'";true
 ExecStop=/usr/local/bin/splunkconf-aws-terminate-idx.sh
 RemainAfterExit=yes
 Type=oneshot
-# stop after 15 min anyway as a safeguard, the shell script should use a tineout below that value
+# stop after 15 min anyway as a safeguard, the shell script should use a timeout below that value
 TimeoutStopSec=15min
 User=splunk
+Group=splunk
 
 [Install]
 WantedBy=multi-user.target
@@ -1045,6 +1048,9 @@ ${SPLUNK_HOME}/bin/splunk offline --enforce-counts  --decommission_node_force_ti
 
 EOF
       echo "$SPLUNKOFFLINE" > /usr/local/bin/splunkconf-aws-terminate-idx.sh
+      # restore permissions in case tar broke them (systemd would complain)
+      chown root. /usr/local/bin
+      chmod 755 /usr/local/bin
       systemctl daemon-reload
       systemctl enable aws-terminate-helper.service
       chown root.splunk ${localrootscriptdir}/splunkconf-aws-terminate-idx.sh

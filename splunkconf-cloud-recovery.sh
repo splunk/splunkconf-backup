@@ -976,7 +976,7 @@ Requires=network-online.target network.target sshd.service
 KillMode=none
 ExecStart=/bin/true
 #ExecStop=/bin/bash -c "/usr/bin/su - splunk -s /bin/bash -c \'/usr/local/bin/splunkconf-aws-terminate-idx\'";true
-ExecStop=/usr/local/bin/splunkconf-aws-terminate-idx.sh
+ExecStop=/bin/bash /usr/local/bin/splunkconf-aws-terminate-idx.sh
 RemainAfterExit=yes
 Type=oneshot
 # stop after 15 min anyway as a safeguard, the shell script should use a timeout below that value

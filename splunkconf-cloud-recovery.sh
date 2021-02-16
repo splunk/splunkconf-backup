@@ -997,9 +997,10 @@ EOF
 # 20200625 initial version
 # 20200626 typos fix in log
 # 20210131 typos fix and deployment inlined
+# 20210216 fix escaping variable when inlined
 
 SPLUNK_HOME="/opt/splunk"
-LOGFILE="${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log"
+LOGFILE="\${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log"
 
 SCRIPTNAME="splunkconf-aws-terminate-idx"
 
@@ -1012,39 +1013,39 @@ function echo_log_ext {
     LANG=C
     #NOW=(date "+%Y/%m/%d %H:%M:%S")
     NOW=(date)
-    echo `$NOW`" ${SCRIPTNAME} $1 " >> $LOGFILE
+    echo `$NOW`" \${SCRIPTNAME} \$1 " >> \$LOGFILE
 }
 
 
 function echo_log {
-    echo_log_ext  "INFO id=$ID $1"
+    echo_log_ext  "INFO id=\$ID \$1"
 }
 
 function warn_log {
-    echo_log_ext  "WARN id=$ID $1"
+    echo_log_ext  "WARN id=\$ID \$1"
 }
 
 function fail_log {
-    echo_log_ext  "FAIL id=$ID $1"
+    echo_log_ext  "FAIL id=\$ID \$1"
 }
 
 
 # this script should run as splunk
 echo_log "checking that we were not launched by root for security reasons"
 # check that we are not launched by root
-if [[ $EUID -eq 0 ]]; then
+if [[ \$EUID -eq 0 ]]; then
    fail_log "Exiting ! This script must be run as splunk user, not root !"
    exit 1
 fi
 
-echo_log "$SCRIPTNAME launched, this instance is  being shutdown or terminated, so we will call splunk offline command in a few seconds so that the cluster reassign primaries, replicate the remaining buckets hopefully before splunk stop (and searches may have somne time to complete)"
+echo_log "\$SCRIPTNAME launched, this instance is  being shutdown or terminated, so we will call splunk offline command in a few seconds so that the cluster reassign primaries, replicate the remaining buckets hopefully before splunk stop (and searches may have somne time to complete)"
 # let some time for splunk to index and replicate before kill
 sleep 10
 
 # note with smartstore, numrber of buckets to resync is reduced, decreasing impact and time
 # this command rely on proper systemd + policykit configuration to be in place
 
-${SPLUNK_HOME}/bin/splunk offline --enforce-counts  --decommission_node_force_timeout ${DECOMISSION_NODE_TIMEOUT}
+\${SPLUNK_HOME}/bin/splunk offline --enforce-counts  --decommission_node_force_timeout \${DECOMISSION_NODE_TIMEOUT}
 
 EOF
       echo "$SPLUNKOFFLINE" > /usr/local/bin/splunkconf-aws-terminate-idx.sh

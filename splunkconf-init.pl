@@ -65,6 +65,7 @@
 # 20210201 include default workload pool in systemd mode
 # 20210204 improve splunk version detection to remove extra message in case of upgrade + add fallback method via rpm version  + fallback to 8.1.0 by default 
 # 20210208 increase max mem for ingest pool
+# 20210406 add debian fallback to policykit instead of polkit (see https://wiki.debian.org/PolicyKit ) (this is less granular than the polkit version but the less evil way of doing under debian at the moment...) 
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -168,13 +169,14 @@ admin password creation (Full, required existing or via user-seed.conf, UF no ac
 
 my $systemctlexist=check_exists_command('systemctl');
 
+my $distritype="rh";
 
 if ($enablesystemd==0 || $enablesystemd eq "init") {
   $enablesystemd=0;
 } else {
   $enablesystemd=1 ;
   if (check_exists_command('systemctl') && check_exists_command('rpm') ) {
-    print "systemd present and rpm, may be systemd\n";
+    print "systemd present and rpm, may be systemd with newer polkit \n";
     my $systemdversion=`systemctl --version| head -1 | cut -d" " -f 2`;
     chomp($systemdversion);
     if ($systemdversion>218) {
@@ -188,6 +190,19 @@ if ($enablesystemd==0 || $enablesystemd eq "init") {
        } else {
          $enablesystemd=0 ;
          print " check polkit ko\n";
+      }
+    } elsif (check_exists_command('systemctl') && check_exists_command('apt-get') ) {
+      $distritype = "debian";
+      # debian / ubuntu
+      my $systemdversion=`systemctl --version| head -1 | cut -d" " -f 2`;
+      chomp($systemdversion);
+      if ($systemdversion>218) {
+        print " systemd version ($systemdversion) ok\n";
+        $enablesystemd=1 ;
+        print " check systemd version ok\n";
+      } else {
+         $enablesystemd=0 ;
+         print " check systemd version  ko\n";
       }
     } else {
      print "systemd test version ko, lets fallback to use initd\n";
@@ -423,7 +438,7 @@ sub check_exists_command {
 
 
 # post 7.2.2 included, deploy in init mode if we are not on this version fallback to the command without the new option
-if ($enablesystemd==1) {
+if ($enablesystemd==1  && $distritype=="rh") {
   print "configuring with systemd\n";
   $servicename="splunk" unless ($servicename);
   # install and restart as may be needed
@@ -527,6 +542,22 @@ EOF
   # depending on polkit version, it is necessary to restart the service to have it reread config files so let's do it
   print "restarting polkit\n";
   `sleep 1;systemctl restart polkit`;
+} elsif ($enablesystemd==1  && $distritype=="debian") {
+# Attention , when / if debian change its mind and update to newer package the same version than rh case should be used as more granular
+# there doesnt seem to be a way to be more granular with policykit on debian at the moment (or please report it back)
+# at least this will allow splunk restart from splunk to work which is assumed later in the script and other such as esinstall script
+
+  my $strpol= <<EOF;
+[Allow users to manage services]
+Identity=unix-group:splunk
+Action=org.freedesktop.systemd1.manage-units
+ResultActive=yes
+EOF
+
+} else {
+  die "logic error or unsupported distribution, please investigate\n";  
+}
+if ($enablesystemd==1 ) {
   #we are in systemd mode with polkit -> we are enabling WLM 
   # for the moment , we deployed consistently in system local
   # if you want to deploy it via a app, remove the system local (see doc, dont mix files here)

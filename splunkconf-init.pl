@@ -66,8 +66,9 @@
 # 20210204 improve splunk version detection to remove extra message in case of upgrade + add fallback method via rpm version  + fallback to 8.1.0 by default 
 # 20210208 increase max mem for ingest pool
 # 20210406 add debian fallback to policykit instead of polkit (see https://wiki.debian.org/PolicyKit ) (this is less granular than the polkit version but the less evil way of doing under debian at the moment...) 
-# 20200413 add disable-wlm option 
-# 20200413 add options for multids 
+# 20210413 add disable-wlm option 
+# 20220413 add options for multids 
+# 20220414 more debian support
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -77,7 +78,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20210208";
+$VERSION="20210415";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -201,8 +202,12 @@ if ($enablesystemd==0 || $enablesystemd eq "init") {
        } else {
          $enablesystemd=0 ;
          print " check polkit ko\n";
-      }
-    } elsif (check_exists_command('systemctl') && check_exists_command('apt-get') ) {
+       }
+    } else {
+        print " checka systemd version ko, fallback to init d\n";
+         $enablesystemd=0 ;
+    }
+  } elsif (check_exists_command('systemctl') && check_exists_command('apt-get') ) {
       $distritype = "debian";
       # debian / ubuntu
       my $systemdversion=`systemctl --version| head -1 | cut -d" " -f 2`;
@@ -215,12 +220,8 @@ if ($enablesystemd==0 || $enablesystemd eq "init") {
          $enablesystemd=0 ;
          print " check systemd version  ko\n";
       }
-    } else {
-     print "systemd test version ko, lets fallback to use initd\n";
-     $enablesystemd=0;
-    }
   } else {
-    print "systemctl or rpm no detected, lets fallback to use initd\n";
+    print "systemctl not detected or unknown distrib, lets fallback to use initd\n";
     $enablesystemd=0;
   }
 }
@@ -449,8 +450,8 @@ sub check_exists_command {
 
 
 # post 7.2.2 included, deploy in init mode if we are not on this version fallback to the command without the new option
-if ($enablesystemd==1  && $distritype=="rh") {
-  print "configuring with systemd\n";
+if ($enablesystemd==1  && $distritype eq "rh") {
+  print "configuring with systemd for rh like distribution\n";
   $servicename="splunk" unless ($servicename);
   # install and restart as may be needed
   print "installing polkit if necessary\n";
@@ -553,17 +554,29 @@ EOF
   # depending on polkit version, it is necessary to restart the service to have it reread config files so let's do it
   print "restarting polkit\n";
   `sleep 1;systemctl restart polkit`;
-} elsif ($enablesystemd==1  && $distritype=="debian") {
+} elsif ($enablesystemd==1  && $distritype eq "debian") {
 # Attention , when / if debian change its mind and update to newer package the same version than rh case should be used as more granular
 # there doesnt seem to be a way to be more granular with policykit on debian at the moment (or please report it back)
 # at least this will allow splunk restart from splunk to work which is assumed later in the script and other such as esinstall script
-
-  my $strpol= <<EOF;
+  print "configuring with systemd for debian like distribution\n";
+  ##### ATTENTION : this is the official package but sometimes apt-get install cant find it -> not sure why , please verify (also we may have to restart the service to avoid rebooting)
+  `apt-get install policykit-1`; 
+  `mkdir -p /etc/polkit-1/localauthority/50-local.d`;
+  my $POLKITRULE="/etc/polkit-1/localauthority/50-local.d/splunk-manage-units.pkla";
+  unless (-e ${POLKITRULE} ) {
+    print ("debian polkit file file hasn't been copied by you before starting splunk first time. Trying to fix with inline version \n");
+    open(FH, '>', ${POLKITRULE}) or die $!;
+    my $strpol= <<EOF;
 [Allow users to manage services]
 Identity=unix-group:splunk
 Action=org.freedesktop.systemd1.manage-units
 ResultActive=yes
 EOF
+    print FH $strpol;
+    close(FH);
+    `chown root. ${POLKITRULE}; chmod 444 ${POLKITRULE}`;
+
+  } # exist polkit
 
 } else {
   die "logic error or unsupported distribution, please investigate\n";  

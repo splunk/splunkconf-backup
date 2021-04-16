@@ -69,6 +69,7 @@
 # 20210413 add disable-wlm option 
 # 20220413 add options for multids 
 # 20220414 more debian support
+# 20220415 more debian support
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -78,7 +79,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20210415";
+$VERSION="20210415b";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -556,6 +557,7 @@ EOF
   `sleep 1;systemctl restart polkit`;
 } elsif ($enablesystemd==1  && $distritype eq "debian") {
 # Attention , when / if debian change its mind and update to newer package the same version than rh case should be used as more granular
+# this may come in debian 11 ? see https://salsa.debian.org/utopia-team/polkit/-/blob/master/debian/changelog 
 # there doesnt seem to be a way to be more granular with policykit on debian at the moment (or please report it back)
 # at least this will allow splunk restart from splunk to work which is assumed later in the script and other such as esinstall script
   print "configuring with systemd for debian like distribution\n";

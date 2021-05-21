@@ -70,6 +70,8 @@
 # 20220413 add options for multids 
 # 20220414 more debian support
 # 20220415 more debian support
+# 20220521 autoadapt splunkhome for forwarder subsys
+# 20220521 more multids stuff
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -79,7 +81,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20210415b";
+$VERSION="20210521a";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -105,8 +107,6 @@ my $USERSPLUNK='splunk';
 my $SPLUNK_SUBSYS="splunk";
 my $SPLUNK_HOME="/opt/splunk";
 
-#$SPLUNK_SUBSYS="splunkforwarder";
-#$SPLUNK_HOME="/opt/splunkforwarder";
 
 
 # set to 1 if use of separate index partition, set to 0 otherwise
@@ -129,6 +129,8 @@ my $no_prompt="";
 my $disablewlm="";
 my $splunkrole="";
 my $instancenumber="";
+# only for multids, otherwise it has been deployed before (usually via rpm)
+my $splunktar="";
 my $usedefaultunitfile="";
 
 GetOptions (
@@ -143,6 +145,7 @@ GetOptions (
      'disable-wlm' => \$disablewlm,
      'splunkrole=s' => \$splunkrole,
      'instancenumber=i' => \$instancenumber,
+     'splunktar=s' => \$splunktar,
      'with-default-service-file' => \$usedefaultunitfile,
      'service-name=s' => \$servicename
 
@@ -169,12 +172,34 @@ admin password creation (Full, required existing or via user-seed.conf, UF no ac
         --disable-wlm do not create wlm configuration (systemd only)
         --splunkrole=xxx run specific code for a specific role (currently implemented : ds) 
         --instancenumber=number to be used for multids only , will use this for suffix and will also change ports and register the instance in lvs vip (created before outside this script)
+        --splunktar=splunkxxxx.tar.gz required for multids 
         --dry-run  dont really do it (but run the checks)
         --no-prompt   disable prompting (for scripts) (will disable ask for user seed creation for example)
 ";
 	exit 0;
 } else {
   print "please run splunkconf-initsplunk.pl --help for script explanation and options\n";
+}
+
+if ($SPLUNK_SUBSYS =~/forwarder/) {
+  #$SPLUNK_SUBSYS="splunkforwarder";
+  $SPLUNK_HOME="/opt/splunkforwarder";
+  print "forwarder -> changing default splunk_hone to $SPLUNK_HOME\n";
+}
+
+if ($splunkrole =~/ds|deployment/ ) {
+  print "switching to deployment server install mode\n";
+  $splunkrole="ds";
+  if ($instancenumber>0) {
+    $SPLUNK_HOME="$SPLUNK_HOME/splunk_ds$instancenumber";
+    print "deployment server with multiple instances (ds in a box) mode (SPLUNK_HOME=$SPLUNK_HOME)\n";
+    if (-e $splunktar) {
+      #  `cd $SPLUNK_HOME; tar -zxvf $splunktar`; + stripe option here 
+    } else { 
+      print "ERROR : you need to specify a valid splunk_tar option (current splunktar=$splunktar) that point to splunk tar gz file as we need it to deploy DS\n";
+      die ("please fix and relaunch") unless ($dry_run);
+    }
+  }
 }
 
 # we need to store if the command exist even if we dont deploy splunk in systemd mode

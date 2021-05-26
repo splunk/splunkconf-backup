@@ -428,14 +428,14 @@ resource aws_launch_template splunk-idx {
     device_name = "/dev/xvda"
     ebs {
       volume_size = 35
-      volume_type = "gp2"
+      volume_type = "gp3"
     }
   }
   block_device_mappings {
     device_name = "/dev/sdb"
     ebs {
       volume_size = 35
-      volume_type = "gp2"
+      volume_type = "gp3"
     }
   }
 #  ebs_optimized = true
@@ -683,7 +683,7 @@ resource aws_launch_template splunk-cm {
     device_name = "/dev/xvda"
     ebs {
       volume_size = 35
-      volume_type = "gp2"
+      volume_type = "gp3"
     }
   }
 #  ebs_optimized = true
@@ -927,7 +927,7 @@ resource aws_launch_template splunk-ds {
     device_name = "/dev/xvda"
     ebs {
       volume_size = 35
-      volume_type = "gp2"
+      volume_type = "gp3"
     }
   }
 #  ebs_optimized = true
@@ -1105,7 +1105,7 @@ resource aws_launch_template splunk-mc {
     device_name = "/dev/xvda"
     ebs {
       volume_size = 35
-      volume_type = "gp2"
+      volume_type = "gp3"
     }
   }
 #  ebs_optimized = true
@@ -1331,7 +1331,7 @@ resource aws_launch_template splunk-sh {
     device_name = "/dev/xvda"
     ebs {
       volume_size = 35
-      volume_type = "gp2"
+      volume_type = "gp3"
     }
   }
 #  ebs_optimized = true
@@ -1694,7 +1694,7 @@ resource aws_launch_template splunk-hf {
     device_name = "/dev/xvda"
     ebs {
       volume_size = 35
-      volume_type = "gp2"
+      volume_type = "gp3"
     }
   }
 #  ebs_optimized = true
@@ -1848,7 +1848,7 @@ resource aws_launch_template splunk-iuf {
     device_name = "/dev/xvda"
     ebs {
       volume_size = 35
-      volume_type = "gp2"
+      volume_type = "gp3"
     }
   }
 #  ebs_optimized = true

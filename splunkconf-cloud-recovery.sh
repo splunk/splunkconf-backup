@@ -93,8 +93,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210216 add group + restore permissions on /usr/local/bin for indexer systemd terminate service 
 # 20210409 splunk 8.1.3
 # 20210526 splunk 8.1.4 as default + add 8.2.0 (not yet default)
+# 20210526 add tar mode splbinary detection with logic to setup multiple instances in ds mode via splunkconf-init
 
-VERSION="20210526"
+VERSION="20210526b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -663,16 +664,32 @@ VDxHuk8oMqBQIUdE7Z+WDfyagMMhJWbeMNnnhTZdoPmpXEGkjUKwPDYl+GmF50c1
 EOF
 echo "importing GPG key (2)"
 rpm --import /root/splunk-gpg-key.pub
-echo "checking GPG key (rpm)"
-rpm -K "${localinstalldir}/${splbinary}" || (echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n";exit 1)
+
+INSTALLMODE="rpm"
+if [[ ${splbinary} == *.tar.gz ]] # * is used for pattern matching
+then
+  echo "non rpm installation, disabling rpm install"; 
+  INSTALLMODE="tar"
+else
+  echo "RPM installation";
+  echo "checking GPG key (rpm)"
+  rpm -K "${localinstalldir}/${splbinary}" || (echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n";exit 1)
+  INSTALLMODE="rpm"
+fi
 
 
+# no need to do this for multids (in tar mode)
+# may need to fine tune the condition later here
+#if [ "$INSTALLMODE" -eq "rpm" ]; then
+# commented for the moment as we still need the dir structure
 
-# creating dir as we may not have yet deployed RPM
-mkdir -p ${SPLUNK_HOME}/etc/system/local/
-mkdir -p ${SPLUNK_HOME}/etc/apps/
-mkdir -p ${SPLUNK_HOME}/etc/auth/
-chown -R splunk. ${SPLUNK_HOME}
+
+  # creating dir as we may not have yet deployed RPM
+  mkdir -p ${SPLUNK_HOME}/etc/system/local/
+  mkdir -p ${SPLUNK_HOME}/etc/apps/
+  mkdir -p ${SPLUNK_HOME}/etc/auth/
+  chown -R splunk. ${SPLUNK_HOME}
+#fi
 
 # tuning system
 # we will use SYSVER to store version type (used for packagesystem and hostname setting for example)
@@ -1229,10 +1246,23 @@ get_object ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/
 #aws s3 cp ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/ --quiet
 
 # make it executable
-chmod u+x ${localrootscriptdir}/splunkconf-init.pl
-echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init" >> /var/log/splunkconf-cloud-recovery-info.log
-# no need to pass option, it will default to systemd + /opt/splunk + splunk user
-${localrootscriptdir}/splunkconf-init.pl --no-prompt
+chmod u+x ${localrootscriptdir}/splunkconf-init.pl 
+if [ "$INSTALLMODE" = "tar" ]; then
+  NBINSTANCES=4
+  echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-initi for dsinabox with $NBINSTANCES " >> /var/log/splunkconf-cloud-recovery-info.log
+  # no need to pass option, it will default to systemd + /opt/splunk + splunk user
+  for ((i=1;i<=$NBINSTANCES;i++)); 
+  do 
+    SERVICENAME="${instancename}_$i"
+    echo "setting up instance $i/$NBINSTANCES with SERVICENAME=$SERVICENAME"
+    ${localrootscriptdir}/splunkconf-init.pl --no-prompt --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary}
+  done
+else
+  echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init" >> /var/log/splunkconf-cloud-recovery-info.log
+  # no need to pass option, it will default to systemd + /opt/splunk + splunk user
+  ${localrootscriptdir}/splunkconf-init.pl --no-prompt
+fi
+
 
 echo "localrootscriptdir ${localrootscriptdir}  contains" >> /var/log/splunkconf-cloud-recovery-info.log
 ls ${localrootscriptdir} >> /var/log/splunkconf-cloud-recovery-info.log

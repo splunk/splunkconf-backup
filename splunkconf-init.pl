@@ -67,11 +67,12 @@
 # 20210208 increase max mem for ingest pool
 # 20210406 add debian fallback to policykit instead of polkit (see https://wiki.debian.org/PolicyKit ) (this is less granular than the polkit version but the less evil way of doing under debian at the moment...) 
 # 20210413 add disable-wlm option 
-# 20220413 add options for multids 
-# 20220414 more debian support
-# 20220415 more debian support
-# 20220521 autoadapt splunkhome for forwarder subsys
-# 20220521 more multids stuff
+# 20210413 add options for multids 
+# 20210414 more debian support
+# 20210415 more debian support
+# 20210521 autoadapt splunkhome for forwarder subsys
+# 20210521 more multids stuff
+# 20210526 tar for multids
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -194,7 +195,7 @@ if ($splunkrole =~/ds|deployment/ ) {
     $SPLUNK_HOME="$SPLUNK_HOME/splunk_ds$instancenumber";
     print "deployment server with multiple instances (ds in a box) mode (SPLUNK_HOME=$SPLUNK_HOME)\n";
     if (-e $splunktar) {
-      #  `cd $SPLUNK_HOME; tar -zxvf $splunktar`; + stripe option here 
+      `cd $SPLUNK_HOME;tar --strip-components=1 -zxvf $splunktar` unless ($dry_run); 
     } else { 
       print "ERROR : you need to specify a valid splunk_tar option (current splunktar=$splunktar) that point to splunk tar gz file as we need it to deploy DS\n";
       die ("please fix and relaunch") unless ($dry_run);

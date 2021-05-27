@@ -73,6 +73,8 @@
 # 20210521 autoadapt splunkhome for forwarder subsys
 # 20210521 more multids stuff
 # 20210526 tar for multids
+# 20210527 add auto port support for multids, register to lb, option to specify splunk group
+# 20210527 more tuning for ds splunk-launch, deployment apps hard link support 
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -82,7 +84,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20210521a";
+$VERSION="20210527c";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -102,13 +104,14 @@ print "managed secret $MANAGEDSECRET \n" if ($DEBUG);
 
 # user for splunk
 my $USERSPLUNK='splunk';
+my $GROUPSPLUNK='splunk';
 
 # setup directories for splunk :
 
 my $SPLUNK_SUBSYS="splunk";
 my $SPLUNK_HOME="/opt/splunk";
 
-
+my $str="";
 
 # set to 1 if use of separate index partition, set to 0 otherwise
 # note : on sh , hf, .... you need the directory like on idx to be able to deploy thge indexes app correctly (used for autocompletion, configurations in add )
@@ -138,6 +141,7 @@ GetOptions (
      'help|h'=> \$help,
      'SPLUNK_HOME|s=s'=> \$SPLUNK_HOME,
      'user_splunk|u=s' => \$USERSPLUNK,
+     'group_splunk|g=s' => \$GROUPSPLUNK,
      'use_managed_secret|m=i'=> \$MANAGEDSECRET,
      'splunk_subsys|sub=s' => \$SPLUNK_SUBSYS,
      'dry_run|dry-run' => \$dry_run,
@@ -164,7 +168,8 @@ admin password creation (Full, required existing or via user-seed.conf, UF no ac
        where options are 
 	--help|-h this help
         --SPLUNK_HOME|-s=   SPLUNK_HOME custom path (default /opt/splunk)
-        --user_splunk|u= splunk_user to use (must exist, default = splunk)
+        --user_splunk|u= splunk_user to use (user must exist, default = splunk)
+        --group_splunk|g= group_user to use (group must exist, default = splunk)
         --use_managed_secret=|-m= Managed Secret mode (0=each instance generate a custom splunk.secret (prevent centralized obfuscated passwords)(use this first time to generate one), 1=managed secret provided, refuse to install if not present)(defautl, recommended)
 	--splunk_subsys=|sub= name of Splunk service (splunk or splunkforwarder or the instance name) ?(default=splunk)
         --systemd-managed|systemd=s  auto|systemd|init auto=let splunk decide, systemd ask for systemd
@@ -188,6 +193,9 @@ if ($SPLUNK_SUBSYS =~/forwarder/) {
   print "forwarder -> changing default splunk_hone to $SPLUNK_HOME\n";
 }
 
+# for multids, we keep the original path as it contain global stuff
+my $SPLUNK_HOME_ORIG=$SPLUNK_HOME;
+
 if ($splunkrole =~/ds|deployment/ ) {
   print "switching to deployment server install mode\n";
   $splunkrole="ds";
@@ -195,8 +203,8 @@ if ($splunkrole =~/ds|deployment/ ) {
     $SPLUNK_HOME="$SPLUNK_HOME/splunk_ds$instancenumber";
     print "deployment server with multiple instances (ds in a box) mode (SPLUNK_HOME=$SPLUNK_HOME)\n";
     if (-e $splunktar) {
-      `cd $SPLUNK_HOME;tar --strip-components=1 -zxvf $splunktar` unless ($dry_run); 
-    } else { 
+      `mkdir -p $SPLUNK_HOME;cd $SPLUNK_HOME;tar --strip-components=1 -zxvf $splunktar; chown -R $USERSPLUNK. $SPLUNK_HOME` unless ($dry_run);
+    } else {
       print "ERROR : you need to specify a valid splunk_tar option (current splunktar=$splunktar) that point to splunk tar gz file as we need it to deploy DS\n";
       die ("please fix and relaunch") unless ($dry_run);
     }
@@ -300,6 +308,7 @@ if (-e "/bin/su") {
 # for uf, that could be a good thing but for central component, we should probably ask for the admin to correct before running the installation
 
 my $SPLUSERSEED=$SPLUNK_HOME."/etc/system/local/user-seed.conf";
+my $SPLUSERSEED_ORIG=$SPLUNK_HOME_ORIG."/etc/system/local/user-seed.conf";
 
 my $SPLPASSWDFILE=$SPLUNK_HOME."/etc/passwd";
 
@@ -307,10 +316,81 @@ my $INITIALSPLAPPSDIR=$SPLUNK_HOME."/splunkapps/initialapps";
 
 my $SPLAPPSDIR=$SPLUNK_HOME."/etc/apps";
 
+my $SPLETCDIR=$SPLUNK_HOME."/etc";
+
+my $SPLDEPLAPPSDIR=$SPLUNK_HOME."/etc/deployment-apps";
+my $SPLDEPLAPPSDIROLD=$SPLUNK_HOME."/etc/deployment-apps-old";
+my $SPLDEPLAPPSDIR_ORIG=$SPLUNK_HOME_ORIG."/etc/deployment-apps";
+
+my $SPLSECRET=$SPLUNK_HOME."/etc/auth/splunk.secret";
+my $SPLSECRET_ORIG=$SPLUNK_HOME_ORIG."/etc/auth/splunk.secret";
+
+my $SPLCERTS=$SPLUNK_HOME."/etc/auth/mycerts";
+my $SPLCERTS_ORIG=$SPLUNK_HOME_ORIG."/etc/auth/mycerts";
+
 my $SPLSPLUNKBIN=$SPLUNK_HOME."/bin/splunk";
 unless (-e $SPLSPLUNKBIN) {
   die ("cant find splunk bin. Please check path ($SPLSPLUNKBIN) and make sure you installed splunk via rpm -Uvh splunkxxxxxxx.rpm (or yum) which also created user and splunk group");
 }
+
+if ($splunkrole =~/ds|deployment/ ) {
+  if ( -d $SPLDEPLAPPSDIR_ORIG ) {
+     print "$SPLDEPLAPPSDIR_ORIG exist, reusing as reference for $SPLDEPLAPPSDIR\n";
+     # unlink if we already had created hard link, otherwise we rename to backup dir then create a hard link (so there is only one real directory that can be accesssed through different paths
+     `unlink $SPLDEPLAPPSDIR; mv $SPLDEPLAPPSDIR $SPLDEPLAPPSDIROLD;ln $SPLDEPLAPPSDIR_ORIG $SPLDEPLAPPSDIR`; 
+  } else {
+    `mkdir -p $SPLETCDIR`;
+    # creating the link from the content of this instance
+    `ln $SPLDEPLAPPSDIR $SPLDEPLAPPSDIR_ORIG`;
+  }
+  print "multids -> copy template files for splunk.secret, user-seed.conf and certificates from ${SPLUNK_HOME_ORIG} to ${SPLUNK_HOME}\n";
+  # splunk.secret, user-seed.conf and certificates
+  `cp -p $SPLUSERSEED_ORIG $SPLUSERSEED; cp -p $SPLSECRET_ORIG $SPLSECRET; mkdir -p $SPLCERTS_ORIG;cp -rp $SPLCERTS_ORIG $SPLCERTS`;
+# add here test + deployment apps link
+  my $splunk_web_port=8000+$instancenumber;
+  my $splunk_mgmt_port=18089+$instancenumber;
+  my $splunk_app_port=28065+$instancenumber;
+  my $splunk_kvstore_port=8191+$instancenumber;
+  print "multids -> changing port for instance $instancenumber to splunk_web_port=$splunk_web_port,splunk_mgmt_port=$splunk_mgmt_port,splunk_app_port=$splunk_app_port\n";
+  `mkdir -p ${SPLUNK_HOME}/etc/apps/${servicename}/local`;
+  my $WEBCONF="${SPLUNK_HOME}/etc/apps/${servicename}/local/web.conf";
+  open(FH, '>', ${WEBCONF}) or die $!;
+  $str= <<EOF;
+[settings]
+httpport = $splunk_web_port
+mgmtHostPort = $splunk_mgmt_port
+appServerPorts = $splunk_app_port
+
+EOF
+  print FH $str;
+  close(FH);
+  my $SERVERCONF="${SPLUNK_HOME}/etc/apps/${servicename}/local/server.conf";
+  open(FH, '>', ${SERVERCONF}) or die $!;
+  $str= <<EOF;
+[kvstore]
+port = $splunk_kvstore_port
+
+EOF
+  print FH $str;
+  close(FH);
+  # Note this tuning require that the system tuning was deployed as the kernel tcp/ip limits needs to be over !
+  my $SPLUNKLAUNCHCONF="${SPLUNK_HOME}/etc/splunk-launch.conf";
+  # removing stanza if exist then readding
+  ` grep -v SPLUNK_LISTEN_BACKLOG $SPLUNKLAUNCHCONF > /tmp/SPLUNKLAUNCHCONF;cp /tmp/SPLUNKLAUNCHCONF $SPLUNKLAUNCHCONF; echo "SPLUNK_LISTEN_BACKLOG = 2048" >> $SPLUNKLAUNCHCONF`;
+  print ("initializing server.conf with ${servicename}\n");
+  `echo "[general]" > ${SPLUNK_HOME}/etc/system/local/server.conf; echo "serverName = ${servicename}" >> ${SPLUNK_HOME}/etc/system/local/server.conf`;
+  `chown -R $USERSPLUNK. $SPLUNK_HOME`;
+# register to lb $splunk_mgmt_port here
+
+my $VIPPORT=8089;
+my $IP=`ip route get 8.8.8.8 | head -1 | cut -d' ' -f7`;
+chomp($IP);
+`ipvsadm --add-server -t $IP:$VIPPORT -r $IP:$splunk_mgmt_port -m; ipvsadm --save > /etc/sysconfig/ipvsadm`;
+
+
+}
+
+
 
 my $VERSIONFULL=`su - $USERSPLUNK -c "$SPLSPLUNKBIN --version --accept-license --answer-yes --no-prompt| grep build | tail -1"`;
 my $SPLVERSIONMAJ="0";
@@ -382,7 +462,7 @@ unless (-e $SPLUSERSEED || -e $SPLPASSWDFILE || $SPLUNK_SUBSYS eq "splunkforward
     }
     my $hash=`su - $USERSPLUNK -c "$SPLSPLUNKBIN hash-passwd $password"`;
     open(FF,'>',$SPLUSERSEED) or die $!;
-    my $str = <<ENDING;
+    $str = <<ENDING;
 # this file generated by splunkconf-init
 [user_info]
 USERNAME = $name
@@ -398,7 +478,6 @@ ENDING
 # to be able to reread password obfuscated with splunk.secret,
 #  we need to save and restore this file before splunk restart (or a new one would be created and all the password saved would not be readable by Splunk
 
-my $SPLSECRET=$SPLUNK_HOME."/etc/auth/splunk.secret";
 unless (-e $SPLSECRET || $MANAGEDSECRET==0) {
  # copy here -> fixme, env specific
   print ("splunk.secret file hasn't been copied by you before starting splunk first time. Fix this BEFORE starting splunk or unset managedsecret \n");
@@ -743,13 +822,13 @@ SuccessExitStatus=51 52
 RestartPreventExitStatus=51
 RestartForceExitStatus=52
 User=$USERSPLUNK
-Group=splunk
+Group=$GROUPSPLUNK
 Delegate=true
 CPUShares=1024
 MemoryLimit=$systemdmemlimit
 PermissionsStartOnly=true
 # change needed for 8.0+ to change the permissions before Splunk is started (see answers 781532 )
-ExecStartPre=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/cpu/system.slice/%n;chown -R $USERSPLUNK:splunk /sys/fs/cgroup/memory/system.slice/%n"
+ExecStartPre=/bin/bash -c "chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/cpu/system.slice/%n;chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/memory/system.slice/%n"
 ## Modifications to the base Splunkd.service that is created from the "enable boot-start" command ##
 # set additional ulimits:
 LimitNPROC=262143
@@ -800,7 +879,7 @@ CPUShares=1024
 MemoryLimit=$systemdmemlimit
 PermissionsStartOnly=true
 # for 8.1, that is now back to ExecStartPost 
-ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:splunk /sys/fs/cgroup/cpu/system.slice/%n;chown -R $USERSPLUNK:splunk /sys/fs/cgroup/memory/system.slice/%n"
+ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/cpu/system.slice/%n;chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/memory/system.slice/%n"
 ## Modifications to the base Splunkd.service that is created from the "enable boot-start" command ##
 # set additional ulimits:
 LimitNPROC=262143

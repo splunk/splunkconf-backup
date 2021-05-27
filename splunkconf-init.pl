@@ -336,12 +336,12 @@ unless (-e $SPLSPLUNKBIN) {
 if ($splunkrole =~/ds|deployment/ ) {
   if ( -d $SPLDEPLAPPSDIR_ORIG ) {
      print "$SPLDEPLAPPSDIR_ORIG exist, reusing as reference for $SPLDEPLAPPSDIR\n";
-     # unlink if we already had created hard link, otherwise we rename to backup dir then create a hard link (so there is only one real directory that can be accesssed through different paths
-     `unlink $SPLDEPLAPPSDIR; mv $SPLDEPLAPPSDIR $SPLDEPLAPPSDIROLD;ln $SPLDEPLAPPSDIR_ORIG $SPLDEPLAPPSDIR`; 
+     # unlink if we already had created symlimk link, otherwise we rename to backup dir then create a symlink (so there is only one real directory that can be accesssed through different paths
+     `unlink $SPLDEPLAPPSDIR; mv $SPLDEPLAPPSDIR $SPLDEPLAPPSDIROLD;ln -s $SPLDEPLAPPSDIR_ORIG $SPLDEPLAPPSDIR`; 
   } else {
     `mkdir -p $SPLETCDIR`;
-    # creating the link from the content of this instance
-    `ln $SPLDEPLAPPSDIR $SPLDEPLAPPSDIR_ORIG`;
+    # moving to reuse defaulkt content then creating symlink
+    `mv $SPLDEPLAPPSDIR $SPLDEPLAPPSDIR_ORIG;ln -s $SPLDEPLAPPSDIR_ORIG $SPLDEPLAPPSDIR`;
   }
   print "multids -> copy template files for splunk.secret, user-seed.conf and certificates from ${SPLUNK_HOME_ORIG} to ${SPLUNK_HOME}\n";
   # splunk.secret, user-seed.conf and certificates
@@ -373,10 +373,6 @@ port = $splunk_kvstore_port
 EOF
   print FH $str;
   close(FH);
-  # Note this tuning require that the system tuning was deployed as the kernel tcp/ip limits needs to be over !
-  my $SPLUNKLAUNCHCONF="${SPLUNK_HOME}/etc/splunk-launch.conf";
-  # removing stanza if exist then readding
-  ` grep -v SPLUNK_LISTEN_BACKLOG $SPLUNKLAUNCHCONF > /tmp/SPLUNKLAUNCHCONF;cp /tmp/SPLUNKLAUNCHCONF $SPLUNKLAUNCHCONF; echo "SPLUNK_LISTEN_BACKLOG = 2048" >> $SPLUNKLAUNCHCONF`;
   print ("initializing server.conf with ${servicename}\n");
   `echo "[general]" > ${SPLUNK_HOME}/etc/system/local/server.conf; echo "serverName = ${servicename}" >> ${SPLUNK_HOME}/etc/system/local/server.conf`;
   `chown -R $USERSPLUNK. $SPLUNK_HOME`;
@@ -1054,6 +1050,13 @@ unless ($SPLPASSWDFILE || $SPLUNK_SUBSYS=="splunkforwarder") {
     die("problem : admin password not set after restart. user-seed.conf may have been invalid");
 }
 
+
+if ($splunkrole =~/ds|deployment/ ) {
+  # Note this tuning require that the system tuning was deployed as the kernel tcp/ip limits needs to be over !
+  my $SPLUNKLAUNCHCONF="${SPLUNK_HOME}/etc/splunk-launch.conf";
+  # removing stanza if exist then readding
+  ` grep -v SPLUNK_LISTEN_BACKLOG $SPLUNKLAUNCHCONF > /tmp/SPLUNKLAUNCHCONF;cp /tmp/SPLUNKLAUNCHCONF $SPLUNKLAUNCHCONF; echo "SPLUNK_LISTEN_BACKLOG = 2048" >> $SPLUNKLAUNCHCONF`;
+}
 
 #print "remove password change on UI\n";
 # remove password change request on UI

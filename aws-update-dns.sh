@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # 20200413 fix typo + improve logging
-# 20200510  update to metadata v2
+# 20200510 update to metadata v2
+# 20210531 support splunkdnszone tag
 
 
 if [ -z "$1" ]; then
@@ -34,14 +35,19 @@ echo "IP to update: $IP"
 DOMAIN="cloud.plouic.com"
 # but better get it from instance tags
 . /etc/instance-tags
-if [ -z ${splunkawsdnszone+x} ]; then
-  echo "splunkawsdnszone is unset, consider provide it via instance tags will try to use static domain from script : ${DOMAIN} ";
+if [ -z ${splunkdnszone+x} ]; then
+  echo "splunkdnszone is unset, consider provide it via instance tags will try fallback method ";
+  if [ -z ${splunkawsdnszone+x} ]; then
+    echo "neither splunkdnszone or splunkawsdnszone is unset, consider provide splunkdnszone via instance tags will try to use static domain from script : ${DOMAIN} ";
+  else
+    echo "splunkawsdnszone is set to '$splunkawsdnszone' from instance tags";
+    DOMAIN="${splunkawsdnszone}"
+  fi
 else
-echo
-  echo "splunkawsdnszone is set to '$splunkawsdnszone' from instance tags";
-  DOMAIN="${splunkawsdnszone}"
-  echo "DOMAIN  now '$splunkawsdnszone'";
+    echo "splunkdnszone is set to '$splunkdnszone' from instance tags (tag ok)";
+    DOMAIN="${splunkdnszone}"
 fi
+echo "DOMAIN  now '$DOMAIN'";
 NAME=`hostname --short`
 FULLNAME=$NAME"."$DOMAIN
 

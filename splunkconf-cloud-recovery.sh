@@ -94,8 +94,10 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210409 splunk 8.1.3
 # 20210526 splunk 8.1.4 as default + add 8.2.0 (not yet default)
 # 20210526 add tar mode splbinary detection with logic to setup multiple instances in ds mode via splunkconf-init
+# 20210527 add ds lb script deployment
+# 20210531 move os detection + change system hostname to functions called at beginning then include route53 update for aws case to be inlined at beginning to avoid having to push extra script and speed up update (+remove some commented line fromn get_object conversion)
 
-VERSION="20210526b"
+VERSION="20210531a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -130,11 +132,46 @@ function check_cloud() {
   #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
   # but this is almost certainly overkill for this purpose (and the above
   # checks of "EC2" prefixes have a higher false positive potential, anyway).
-  # FIXME add imsv2 support here
+  # FIXME add imsv2 support here 
     if $(curl -s -m 5 http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
       echo 'AWS instance detected'
       cloud_type=1
     fi
+  fi
+}
+
+# we will use SYSVER to store version type (used for packagesystem and hostname setting for example)
+function check_sysver() {
+  SYSVER=6
+  if ! command -v hostnamectl &> /dev/null
+  then
+    echo "hostnamectl command could not be found -> Assuming RH6/AWS1 like distribution" >> /var/log/splunkconf-cloud-recovery-info.log
+    SYSVER=6
+  else
+    echo "hostnamectl command detected, assuming RH7+ like distribution" >> /var/log/splunkconf-cloud-recovery-info.log
+    # note we treat RH8 like RH7 for the moment as systemd stuff that works for RH7 also work for RH8 
+    SYSVER=7
+  fi
+}
+
+function set_hostname() {
+  # set the hostname except if this is auto or contain idx or generic name
+  if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
+    echo "specific instance name : changing hostname to ${instancename} at system level"
+    if [ $SYSVER -eq "6" ]; then
+      echo "Using legacy method" >> /var/log/splunkconf-cloud-recovery-info.log
+      # legacy ami type , rh6 like
+      sed -i "s/HOSTNAME=localhost.localdomain/HOSTNAME=${instancename}/g" /etc/sysconfig/network
+      # dynamic change on top in case correct hostname is needed further down in this script 
+      hostname ${instancename}
+      # we should call a command here to force hostname immediately as splunk commands are started after
+    else     
+      # new ami , rh7+,...
+      echo "Using new hostnamectl method" >> /var/log/splunkconf-cloud-recovery-info.log
+      hostnamectl set-hostname ${instancename}
+    fi
+  else
+    echo "indexer -> not changing hostname"
   fi
 }
 
@@ -155,10 +192,12 @@ get_object () {
 }
 
 check_cloud
+check_sysver
 
-echo "cloud_type=$cloud_type"
+echo "cloud_type=$cloud_type, sysver=$SYSVER"
 
 if [ $cloud_type == 2 ]; then
+  # GCP
   if [ $# -eq 0 ]; then
     # not in upgrade mode
     if [ -e "/root/first_boot.check" ]; then 
@@ -298,6 +337,8 @@ echo "splunkinstanceType : instancename=${instancename}" >> /var/log/splunkconf-
 
 echo "SPLUNK_HOME is ${SPLUNK_HOME}" >> /var/log/splunkconf-cloud-recovery-info.log
 
+set_hostname
+
 # splunk s3 install bucket
 if [ -z ${splunks3installbucket+x} ]; then 
   if [ -z ${s3installbucket+x} ]; then
@@ -344,27 +385,80 @@ if [ -z ${splunkdnszone+x} ]; then
     #exit 1
   else 
     echo "using splunkawsdnszone from instance tags (please consider renaming to just splunkdnszone) " >> /var/log/splunkconf-cloud-recovery-info.log
+    splunkdnszone=$splunkawsdnszone
   fi
 else 
   echo "using splunkdnszone from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
-  if [ $cloud_type == 2 ]; then
+  if [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
+    echo " indexer , no dns update here"
+  elif [ -z ${splunkdnszoneid+x} ]; then
+    echo "ERROR ATTENTION splunkdnszoneid is not defined, please add it as we cant update dns"
+  elif [ $cloud_type == 1 ]; then
+    # AWS doing direct dns update in recovery
+    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    IP=$( curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4 )
+    # need iam ->  policy  permissions of
+    #
+    #{
+    #    "Version": "2012-10-17",
+    #    "Statement": [
+    #        {
+    #            "Sid": "VisualEditor0",
+    #            "Effect": "Allow",
+    #            "Action": [
+    #                "route53:ChangeResourceRecordSets",
+    #                "route53:ListHostedZonesByName"
+    #            ],
+    #            "Resource": "*"
+    #        }
+    #    ]
+    #}
+
+    NAME=`hostname --short`
+    DOMAIN=$splunkdnszone
+    FULLNAME=$NAME"."$DOMAIN
+
+    HOSTED_ZONE_ID=$( aws route53 list-hosted-zones-by-name | grep -i ${DOMAIN} -B5 | grep hostedzone | sed 's/.*hostedzone\/\([A-Za-z0-9]*\)\".*/\1/')
+    echo "Hosted zone being modified: $HOSTED_ZONE_ID"
+
+    INPUT_JSON=$(cat <<EOF
+{ "ChangeBatch":
+ {
+  "Comment": "Update the record set of ${FULLNAME}",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "${FULLNAME}",
+        "Type": "A",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "${IP}"
+          }
+        ]
+      }
+    }
+  ]
+ }
+}
+EOF
+    echo "updating dns via route53 API for ${FULLNAME} to ${IP}"
+    aws route53 change-resource-record-sets --hosted-zone-id "$HOSTED_ZONE_ID" --cli-input-json "$INPUT_JSON" || echo "ERROR updating dns record for ${FULLNAME}"
+  elif [ $cloud_type == 2 ]; then
     # GCP doing direct dns update in recovery
-    if [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
-      echo " indexer , no dns update here"
-    elif [ -z ${splunkdnszoneid+x} ]; then
-      echo "ERROR ATTENTION splunkdnszoneid is not defined, please add it as we cant update dns"
+    MYIP=`ifconfig |  grep -v 127.0.0.1 | grep inet | grep -v inet6 | grep -Eo 'inet\s[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+' | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+'`
+    OLDIP=`gcloud dns --project=${projectid} record-sets list --zone=${splunkdnszoneid} --name=${instancename}.${splunkdnszone} --type A | tail -1 |grep -Eo '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+'`
+    # the api ask to remove the record with current value before being able to add again ... pretty complex 
+    if [ -z "${OLDIP}" ]; then
+      echo "MYIP=$MYIP OLDIP=N/A"
+      RES=`gcloud dns --project=${projectid} record-sets transaction start --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction add ${MYIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction execute --zone=${splunkdnszoneid}`
     else
-      MYIP=`ifconfig |  grep -v 127.0.0.1 | grep inet | grep -v inet6 | grep -Eo 'inet\s[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+' | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+'`
-      OLDIP=`gcloud dns --project=${projectid} record-sets list --zone=${splunkdnszoneid} --name=${instancename}.${splunkdnszone} --type A | tail -1 |grep -Eo '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+'`
-      # the api ask to remove the record with current value before being able to add again ... pretty complex 
-      if [ -z "${OLDIP}" ]; then
-        echo "MYIP=$MYIP OLDIP=N/A"
-        RES=`gcloud dns --project=${projectid} record-sets transaction start --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction add ${MYIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction execute --zone=${splunkdnszoneid}`
-      else
-        echo "MYIP=$MYIP OLDIP=$OLDIP"
-        RES=`gcloud dns --project=${projectid} record-sets transaction start --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction remove ${OLDIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction add ${MYIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction execute --zone=${splunkdnszoneid}`
-      fi
+      echo "MYIP=$MYIP OLDIP=$OLDIP"
+      RES=`gcloud dns --project=${projectid} record-sets transaction start --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction remove ${OLDIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction add ${MYIP} --name=${instancename}.${splunkdnszone} --ttl=180 --type=A --zone=${splunkdnszoneid};gcloud dns --project=${projectid} record-sets transaction execute --zone=${splunkdnszoneid}`
     fi
+  else
+    echo "unknown cloud type, not doing any dns update"
   fi 
 fi
 echo "splunkdnszone is ${splunkdnszone}" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -387,7 +481,6 @@ else
   remotepackagedir="s3://${splunks3installbucket}/packaged/${instancename}"
 fi
 remoteinstallsplunkconfbackup="${remoteinstalldir}/apps/splunkconf-backup.tar.gz"
-localinstalldir="${SPLUNK_HOME}/var/install"
 # this path expected by ES install script
 localappsinstalldir="${SPLUNK_HOME}/splunkapps"
 localscriptdir="${SPLUNK_HOME}/scripts"
@@ -666,10 +759,10 @@ echo "importing GPG key (2)"
 rpm --import /root/splunk-gpg-key.pub
 
 INSTALLMODE="rpm"
-if [[ ${splbinary} == *.tar.gz ]] # * is used for pattern matching
+if [[ ${splbinary} == *.tgz ]] # * is used for pattern matching
 then
   echo "non rpm installation, disabling rpm install"; 
-  INSTALLMODE="tar"
+  INSTALLMODE="tgz"
 else
   echo "RPM installation";
   echo "checking GPG key (rpm)"
@@ -692,15 +785,11 @@ fi
 #fi
 
 # tuning system
-# we will use SYSVER to store version type (used for packagesystem and hostname setting for example)
-SYSVER=6
-if ! command -v hostnamectl &> /dev/null
-then
-  echo "hostnamectl command could not be found -> Assuming RH6/AWS1 like distribution" >> /var/log/splunkconf-cloud-recovery-info.log
-  SYSVER=6
+echo "Tuning system"
+if [ "$SYSVER" -eq 6 ]; then
+  # RH6/AWS1 like (deprecated)
   echo "remote : ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
   get_object ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz  ${localinstalldir} 
-  #aws s3 cp ${remoteinstalldir}/package-systemaws1-for-splunk.tar.gz  ${localinstalldir} --quiet
   if [ -f "${localinstalldir}/package-systemaws1-for-splunk.tar.gz"  ]; then
     echo "deploying system tuning for Splunk, version for AWS1 like systems" >> /var/log/splunkconf-cloud-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
@@ -708,7 +797,6 @@ then
   else
     echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     get_object ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} 
-    #aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
     echo "deploying system tuning for Splunk" >> /var/log/splunkconf-cloud-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
     tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
@@ -720,9 +808,7 @@ then
   pip install --upgrade pip
   pip-3.6 install splunksecrets
 else
-  echo "hostnamectl command detected, assuming RH7+ like distribution" >> /var/log/splunkconf-cloud-recovery-info.log
-  # note we treat RH8 like RH7 for the moment as systemd stuff that works for RH7 also work for RH8 
-  SYSVER=7
+  # RH7/8 AWS2 like
   # issue on aws2 , polkit and tuned not there by default
   # in that case, restart from splunk user would return
   # Failed to restart splunk.service: The name org.freedesktop.PolicyKit1 was not provided by any .service files
@@ -734,7 +820,6 @@ else
   systemctl start tuned.service
   echo "remote : ${remoteinstalldir}/package-system7-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
   get_object ${remoteinstalldir}/package-system7-for-splunk.tar.gz  ${localinstalldir} 
-  #aws s3 cp ${remoteinstalldir}/package-system7-for-splunk.tar.gz  ${localinstalldir} --quiet
   if [ -f "${localinstalldir}/package-system7-for-splunk.tar.gz"  ]; then
     echo "deploying system tuning for Splunk, version for RH7+ like systems" >> /var/log/splunkconf-cloud-recovery-info.log
     # deploy system tuning (after Splunk rpm to be sure direcoty structure exist and splunk user also)
@@ -742,7 +827,6 @@ else
   else
     echo "remote : ${remoteinstalldir}/package-system-for-splunk.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     get_object ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} 
-    #aws s3 cp ${remoteinstalldir}/package-system-for-splunk.tar.gz  ${localinstalldir} --quiet
     if [ -f "${localinstalldir}/package-system-for-splunk.tar.gz"  ]; then
       echo "deploying system tuning for Splunk" >> /var/log/splunkconf-cloud-recovery-info.log
       # deploy system tuning (after Splunk rpm to be sure directory structure exist and splunk user also)
@@ -764,12 +848,10 @@ if [ "$MODE" != "upgrade" ]; then
   echo "remote : ${remoteinstalldir}/splunk.secret" >> /var/log/splunkconf-cloud-recovery-info.log
   # FIXME : temp , logic is in splunkconf-init
   get_object ${remoteinstalldir}/splunk.secret ${SPLUNK_HOME}/etc/auth 
-  #aws s3 cp ${remoteinstalldir}/splunk.secret ${SPLUNK_HOME}/etc/auth --quiet
 
   echo "remote : ${remotepackagedir} : copying initial apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/apps " >> /var/log/splunkconf-cloud-recovery-info.log
   # copy to local
   get_object ${remotepackagedir}/initialapps.tar.gz ${localinstalldir} 
-  #aws s3 cp  ${remotepackagedir}/initialapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-cloud-recovery-info.log
   if [ -f "${localinstalldir}/initialapps.tar.gz"  ]; then
     tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
   else
@@ -778,7 +860,6 @@ if [ "$MODE" != "upgrade" ]; then
   echo "remote : ${remotepackagedir} : copying initial TLS apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/apps " >> /var/log/splunkconf-cloud-recovery-info.log
   # to ease initial deployment, tls app is pushed separately (warning : once the backups run, backup would restore this also of course)
   get_object  ${remotepackagedir}/initialtlsapps.tar.gz ${localinstalldir} 
-  #aws s3 cp  ${remotepackagedir}/initialtlsapps.tar.gz ${localinstalldir} --quiet >> /var/log/splunkconf-cloud-recovery-info.log
   if [ -f "${localinstalldir}/initialtlsapps.tar.gz"  ]; then
     tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialtlsapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
   else
@@ -787,7 +868,6 @@ if [ "$MODE" != "upgrade" ]; then
   echo "remote : ${remotepackagedir} : copying certs " >> /var/log/splunkconf-cloud-recovery-info.log
   # copy to local
   get_object  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir}
-  #aws s3 cp  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir} --quiet
   if [ -f "${localinstalldir}/mycerts.tar.gz"  ]; then
     tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
   else
@@ -808,7 +888,6 @@ if [ "$MODE" != "upgrade" ]; then
   # deploy including for indexers
   echo "remote : ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
   get_object ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz ${localbackupdir}
-  #aws s3 cp ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz ${localbackupdir} --quiet
   # setting up permissions for backup
   chown splunk ${localbackupdir}/*.tar.gz
   chmod 500 ${localbackupdir}/*.tar.gz
@@ -823,27 +902,22 @@ if [ "$MODE" != "upgrade" ]; then
     # change here for kvstore 
     echo "remote : ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     get_object ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz ${localbackupdir}
-    #aws s3 cp ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz ${localbackupdir} --quiet
     # at first splunk install, need to recreate the dir and give it to splunk
     mkdir -p ${localkvdumpbackupdir};chown splunk. ${localkvdumpbackupdir}
     echo "remote : ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
     get_object ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
-    #aws s3 cp ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz --quiet
     # making sure splunk user can access the backup 
     chown splunk. ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
     # and only
     chmod 500 ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
     echo "remote : ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
     get_object ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz ${localbackupdir}
-    #aws s3 cp ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz ${localbackupdir} --quiet
 
     echo "remote : ${remotebackupdir}/backupconfsplunk-state.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     get_object ${remotebackupdir}/backupconfsplunk-state.tar.gz ${localbackupdir}
-    #aws s3 cp ${remotebackupdir}/backupconfsplunk-state.tar.gz ${localbackupdir} --quiet
 
     echo "remote : ${remotebackupdir}/backupconfsplunk-scripts.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     get_object ${remotebackupdir}/backupconfsplunk-scripts.tar.gz ${localbackupdir}
-    #aws s3 cp ${remotebackupdir}/backupconfsplunk-scripts.tar.gz ${localbackupdir} --quiet
 
     # setting up permissions for backup
     chown splunk ${localbackupdir}/*.tar.gz
@@ -917,19 +991,6 @@ if [ "$MODE" != "upgrade" ]; then
       echo "[general]" > ${SPLUNK_HOME}/etc/system/local/server.conf
       echo "serverName = ${instancename}" >> ${SPLUNK_HOME}/etc/system/local/server.conf
       chown splunk. ${SPLUNK_HOME}/etc/system/local/server.conf
-    fi
-    echo "changing hostname at system level"
-    if [ $SYSVER -eq "6" ]; then
-      echo "Using legacy method" >> /var/log/splunkconf-cloud-recovery-info.log
-      # legacy ami type , rh6 like
-      sed -i "s/HOSTNAME=localhost.localdomain/HOSTNAME=${instancename}/g" /etc/sysconfig/network
-      # dynamic change on top in case correct hostname is needed further down in this script 
-      hostname ${instancename}
-      # we should call a command here to force hostname immediately as splunk commands are started after
-    else     
-      # new ami , rh7+,...
-      echo "Using new hostnamectl method" >> /var/log/splunkconf-cloud-recovery-info.log
-      hostnamectl set-hostname ${instancename}
     fi
   elif [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
     if [ -z ${splunkorg+x} ]; then 
@@ -1187,9 +1248,13 @@ fi
 ## redeploy system tuning as enable boot start may have overwritten files
 ##tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
 
-echo "installing/upgrading splunk via RPM using ${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
-# install or upgrade
-rpm -Uvh ${localinstalldir}/${splbinary}
+if [ "$INSTALLMODE" = "tgz" ]; then
+  echo "disabling rpm install as ds in a box install via tar"
+else
+  echo "installing/upgrading splunk via RPM using ${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
+  # install or upgrade
+  rpm -Uvh ${localinstalldir}/${splbinary}
+fi
 
 # give back files (see RN)
 chown -R splunk. ${SPLUNK_HOME}
@@ -1247,12 +1312,19 @@ get_object ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/
 
 # make it executable
 chmod u+x ${localrootscriptdir}/splunkconf-init.pl 
-if [ "$INSTALLMODE" = "tar" ]; then
+if [ "$INSTALLMODE" = "tgz" ]; then
+  get_object ${remoteinstalldir}/splunkconf-ds-lb.sh ${localrootscriptdir}
+  echo "creating DS LB via LVS"
+  chown root. ${localrootscriptdir}/splunkconf-ds-lb.sh 
+  chmod 750 ${localrootscriptdir}/splunkconf-ds-lb.sh 
+  ${localrootscriptdir}/splunkconf-ds-lb.sh 
   NBINSTANCES=4
+  #NBINSTANCES=1
   echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-initi for dsinabox with $NBINSTANCES " >> /var/log/splunkconf-cloud-recovery-info.log
   # no need to pass option, it will default to systemd + /opt/splunk + splunk user
   for ((i=1;i<=$NBINSTANCES;i++)); 
   do 
+#    i=1
     SERVICENAME="${instancename}_$i"
     echo "setting up instance $i/$NBINSTANCES with SERVICENAME=$SERVICENAME"
     ${localrootscriptdir}/splunkconf-init.pl --no-prompt --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary}

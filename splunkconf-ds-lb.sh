@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Matthieu Araman, Splunk
+
+# 20210527 comment out real server as done via splunkconf-init
+
+VERSION="20210527"
 
 yum install ipvsadm -y
 
@@ -40,7 +45,8 @@ ipvsadm --add-service -t $IP:$VIPPORT -s sh
 
 echo "adding backend"
 
-ipvsadm --add-server -t $IP:$VIPPORT -r $IP:18089 -m
+# this is done by splunkconf-init for each instance at creation time
+#ipvsadm --add-server -t $IP:$VIPPORT -r $IP:18089 -m
 
 
 ipvsadm --save > /etc/sysconfig/ipvsadm

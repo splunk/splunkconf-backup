@@ -96,8 +96,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210526 add tar mode splbinary detection with logic to setup multiple instances in ds mode via splunkconf-init
 # 20210527 add ds lb script deployment
 # 20210531 move os detection + change system hostname to functions called at beginning then include route53 update for aws case to be inlined at beginning to avoid having to push extra script and speed up update (+remove some commented line fromn get_object conversion)
+# 20210531 more get_object comment clean up and fixes for route53 inline
 
-VERSION="20210531a"
+VERSION="20210531c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -126,14 +127,14 @@ function check_cloud() {
       cloud_type=1
     fi
   else
-  # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
-  # authoritative, we could follow Amazon's suggestions for cryptographically
-  # verifying their signature, see here:
-  #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
-  # but this is almost certainly overkill for this purpose (and the above
-  # checks of "EC2" prefixes have a higher false positive potential, anyway).
-  # FIXME add imsv2 support here 
-    if $(curl -s -m 5 http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
+    # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
+    # authoritative, we could follow Amazon's suggestions for cryptographically
+    # verifying their signature, see here:
+    #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
+    # but this is almost certainly overkill for this purpose (and the above
+    # checks of "EC2" prefixes have a higher false positive potential, anyway).
+    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    if $(curl -s -m 5 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
       echo 'AWS instance detected'
       cloud_type=1
     fi
@@ -215,8 +216,6 @@ if [ $cloud_type == 2 ]; then
   fi
 fi
 
-# commented as in user data
-#yum update -y
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -387,13 +386,15 @@ if [ -z ${splunkdnszone+x} ]; then
     echo "using splunkawsdnszone from instance tags (please consider renaming to just splunkdnszone) " >> /var/log/splunkconf-cloud-recovery-info.log
     splunkdnszone=$splunkawsdnszone
   fi
-else 
-  echo "using splunkdnszone from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
+fi
+if [ -z ${splunkdnszone+x} ]; then 
+  echo "splunkdnszone not set, disabling dns update" >> /var/log/splunkconf-cloud-recovery-info.log
+else
+  echo "using splunkdnszone $splunkdnszone from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
   if [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
-    echo " indexer , no dns update here"
-  elif [ -z ${splunkdnszoneid+x} ]; then
-    echo "ERROR ATTENTION splunkdnszoneid is not defined, please add it as we cant update dns"
+    echo " indexer , no dns update on this kind of host"
   elif [ $cloud_type == 1 ]; then
+    echo "updating dns via route53 api"
     # AWS doing direct dns update in recovery
     TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
     IP=$( curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4 )
@@ -443,8 +444,12 @@ else
  }
 }
 EOF
+)
+
     echo "updating dns via route53 API for ${FULLNAME} to ${IP}"
     aws route53 change-resource-record-sets --hosted-zone-id "$HOSTED_ZONE_ID" --cli-input-json "$INPUT_JSON" || echo "ERROR updating dns record for ${FULLNAME}"
+  elif [ -z ${splunkdnszoneid+x} ]; then
+    echo "ERROR ATTENTION splunkdnszoneid is not defined, please add it as we cant update dns in GCP without this"
   elif [ $cloud_type == 2 ]; then
     # GCP doing direct dns update in recovery
     MYIP=`ifconfig |  grep -v 127.0.0.1 | grep inet | grep -v inet6 | grep -Eo 'inet\s[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+' | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+'`
@@ -510,6 +515,7 @@ yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-ope
 
 if [ "$MODE" != "upgrade" ]; then 
 
+  yum update -y
 
   # swap partition creation
   # IMPORTAMT : please emake sure we have really swap available so we can resist peak and reduce OOM risk
@@ -651,7 +657,6 @@ if [ "$MODE" != "upgrade" ]; then
   # swap management
   swapme="splunkconf-swapme.pl"
   get_object ${remoteinstalldir}/${swapme} ${localrootscriptdir}
-  #aws s3 cp ${remoteinstalldir}/${swapme} ${localrootscriptdir} --quiet
   if [ ! -f "${localrootscriptdir}/${swapme}"  ]; then
     echo "WARNING  : ${swapme} is not present in ${remoteinstalldir}/${swapme}, unable to tune swap  -> please verify the version specified is present" >> /var/log/splunkconf-cloud-recovery-info.log
   else
@@ -683,7 +688,6 @@ fi
 echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
 # aws s3 cp doesnt support unix globing
 get_object ${remoteinstalldir}/${splbinary} ${localinstalldir} 
-#aws s3 cp ${remoteinstalldir}/${splbinary} ${localinstalldir} --quiet
 ls ${localinstalldir}
 if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
   echo "RPM not present in install, trying to download directly" 
@@ -1156,7 +1160,6 @@ EOF
   # user-seed.config
   echo "remote : ${remoteinstalldir}/user-seed.conf" >> /var/log/splunkconf-cloud-recovery-info.log
   get_object ${remoteinstalldir}/user-seed.conf ${localinstalldir}
-  #aws s3 cp ${remoteinstalldir}/user-seed.conf ${localinstalldir} --quiet
   # copying to right place
   # FIXME : more  logic here
   cp ${localinstalldir}/user-seed.conf ${SPLUNK_HOME}/etc/system/local/
@@ -1226,7 +1229,6 @@ else
   envhelperscript="splunktargetenv-for${splunktargetenv}.sh"
   echo "remote : ${remoteinstalldir}/${envhelperscript}" >> /var/log/splunkconf-cloud-recovery-info.log
   get_object ${remoteinstalldir}/${envhelperscript}  ${localinstalldir}
-  #aws s3 cp ${remoteinstalldir}/${envhelperscript}  ${localinstalldir} --quiet
   if [ -e "${localinstalldir}/$envhelperscript" ]; then
     chown splunk. ${localinstalldir}/$envhelperscript
     chmod u+rx  ${localinstalldir}/$envhelperscript
@@ -1269,7 +1271,6 @@ chown -R splunk. ${SPLUNK_HOME}
 # only if it is not a indexer 
 if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
   get_object ${remoteinstallsplunkconfbackup} ${localinstalldir}
-  #aws s3 cp ${remoteinstallsplunkconfbackup} ${localinstalldir} --quiet
   if [ -e "${localinstalldir}/splunkconf-backup.tar.gz" ]; then
     # backup old version just in case
     tar -C "${SPLUNK_HOME}/etc/apps/" -zcf ${localinstalldir}/splunkconf-backup-${TODAY}.tar.gz ./splunkconf-backup
@@ -1308,7 +1309,6 @@ fi
 # splunk initialization (first time or upgrade)
 mkdir -p ${localrootscriptdir}
 get_object ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/
-#aws s3 cp ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/ --quiet
 
 # make it executable
 chmod u+x ${localrootscriptdir}/splunkconf-init.pl 
@@ -1346,15 +1346,12 @@ if [ "$MODE" != "upgrade" ]; then
   # local upgrade script (we dont do this in upgrade mode as overwriting our own script already being run could be problematic)
   echo "remote : ${remoteinstalldir}/splunkconf-upgrade-local.sh" >> /var/log/splunkconf-cloud-recovery-info.log
   get_object ${remoteinstalldir}/splunkconf-upgrade-local.sh  ${localrootscriptdir}/
-  #aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local.sh  ${localrootscriptdir}/ --quiet
   chown root. ${localrootscriptdir}/splunkconf-upgrade-local.sh  
   chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local.sh  
   get_object ${remoteinstalldir}/splunkconf-upgrade-local-precheck.sh  ${localrootscriptdir}/
-  #aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local-precheck.sh  ${localrootscriptdir}/ --quiet
   chown root. ${localrootscriptdir}/splunkconf-upgrade-local-precheck.sh  
   chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local-precheck.sh  
   get_object ${remoteinstalldir}/splunkconf-upgrade-local-setsplunktargetbinary.sh  ${localrootscriptdir}/
-  #aws s3 cp ${remoteinstalldir}/splunkconf-upgrade-local-setsplunktargetbinary.sh  ${localrootscriptdir}/ --quiet
   chown root. ${localrootscriptdir}/splunkconf-upgrade-local-setsplunktargetbinary.sh
   chmod 700 ${localrootscriptdir}/splunkconf-upgrade-local-setsplunktargetbinary.sh
   # if there is a dns update to do , we have put the script and it has been redeployed as part of the restore above
@@ -1379,7 +1376,6 @@ fi # if not upgrade
 # script run as splunk
 # this script is to be used on es sh , it will download ES installation files and script
 get_object ${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh  ${localscriptdir}/
-#aws s3 cp ${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh  ${localscriptdir}/ --quiet
 if [ -e ${localscriptdir}/splunkconf-prepare-es-from-s3.sh ]; then
   chown splunk. ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
   chmod 700 ${localscriptdir}/splunkconf-prepare-es-from-s3.sh

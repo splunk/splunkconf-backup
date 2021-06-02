@@ -19,6 +19,7 @@ do
     echo "ERROR : missing file ./install/apps/$j, please add it and relaunch"
   fi
 done
+SOURCE="src"
 # copying files for bucket install in install
 # splunk.secret -> you need to provide it from a splunk deployment (unique to that env)
 # user-seed.conf -> to initiate splunk password, you can use splunkconf-init.pl to create it or follow splunk doc 
@@ -26,10 +27,10 @@ done
 # splunktargetenv are optional script to have custom actions on a specific env when moving between prod and test env (like disabling sending emails or alerts)
 for j in splunk.secret user-seed.conf splunkconf-cloud-recovery.sh splunkconf-aws-recovery.sh splunkconf-upgrade-local.sh splunkconf-swapme.pl splunkconf-upgrade-local-precheck.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-prepare-es-from-s3.sh user-data.txt user-data-gcp.txt splunkconf-init.pl installes.sh package-systemaws1-for-splunk.tar.gz package-system7-for-splunk.tar.gz package-systemdebian-for-splunk.tar.gz splunktargetenv-for*.sh splunkconf-ds-lb.sh
 do
-  if [ -e ./install/$j ]; then 
-    \cp -p ./install/$j  "$i/bucket-install/install/"
+  if [ -e ./$SOURCE/$j ]; then 
+    \cp -p ./$SOURCE/$j  "$i/bucket-install/install/"
    else
-    echo "ERROR : missing file ./install/$j, please read comment in script and evaluate if you need it then relaunch if necessary"
+    echo "ERROR : missing file ./$SOURCE/$j, please read comment in script and evaluate if you need it then relaunch if necessary"
   fi
 done
 # creating structure for backup bucket
@@ -48,8 +49,8 @@ chmod a+x terraform/*.sh
 chmod a+x terraform-gcp/*.sh
 \cp -p ./terraform/*.tf terraform/build-idx-scripts.sh terraform/build-nonidx-scripts.sh terraform/debugtf.sh  "$i/terraform/"
 \cp -p ./terraform-gcp/*.tf terraform-gcp/build-idx-scripts.sh terraform-gcp/build-nonidx-scripts.sh terraform-gcp/debugtf.sh  "$i/terraform-gcp/"
-rm "$i/terraform/gitlabsplunk.tf"
-rm "$i/terraform-gcp/gitlabsplunk.tf"
+#rm "$i/terraform/gitlabsplunk.tf"
+#rm "$i/terraform-gcp/gitlabsplunk.tf"
 # policy templates
 \cp -rp ./terraform/policy-aws  "$i/terraform/"
 

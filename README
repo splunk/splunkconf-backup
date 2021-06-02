@@ -1,0 +1,88 @@
+DISCLAIMER
+
+use this content at your own risk 
+make sure your understand, evaluate and test things
+expect possible customization effort to adapt terraforms to your cloud environnement
+ 
+
+This git repo contains :
+
+- splunkconf-backup app
+this app contains backup and purge scripts that by default do configuration, state and kvdump backups locally
+In a cloud environnement properly configured (as in the terraforms), the app will fetch metadata from cloud and automatically push backup to remote object store so it can be used in case the instance has to be restored
+this app is usually deployed on the non indexers components (as recreating a indexer doesnt need a backup)
+You should plan some disk space appropriate for storing the last backups, extra copy + some space left to not block Splunk
+Should the space be reduced for any reason, the app will always try not to purge the latest backup of each type and will wait for space to be recovered to produce newer backups
+
+You can tune the settings in the app configuration file (creating a local file)
+
+Note the app is automatically pushed and updated by the terraform recovery logic.
+
+- src
+collection or install/check/upgrade and recovery scripts
+
+the logic is user-data -> cloud recovery -> splunkconf-init
+the cloud recovery will use backups when available
+
+- terraform 
+
+
+you can choose what to launch from a single instance to test, a deployment server (for example if the indexer/search layer is splunkcloud) , hf(s), and cluster/search head(s
+
+terraform for AWS that create cloud setup :
+- VPC
+- buckets for conf backups, install and smartstore 
+- autoscaling groups
+- IAM
+- security group
+- ELB
+
+AMI can be :
+AWS1 (deprecated)
+AWS2 , RH/Centos 7/8
+Note that RH/Centos7 is working but the initial yum update is much slower than on more recent distributions
+
+Do NOT Try on Ubuntu/Debian, there is only partial support for debian at the moment in splunkconf-init
+
+- terraform-gcp
+
+version for GCP 
+(functional but less complete than AWS version at the moment , see README in directory)
+
+OS should be RH/Centos 7/8
+
+- system
+package files for system (tar.gz deployed by the recovery, do not untar/retar outside of Linux , breaking permissions here may make your system unhappy (especially openssh))
+
+
+installation mode
+
+- systemd + WLM is automatically used when possible (ie all cases except AWS1)
+- partitionning for i3 ephemeral disks or gcp local ssd is automatically done
+- automatic additional swap adjustement depending on memory and disk space
+
+
+Move between prod and preprod 
+- you can use tags to automatically take a backup from a prod env and inject it with dynamic conf update in a test env (depends on base apps usage)
+additionally you need to make sure the test env is isolated (so for example there is no email alerts sent from test env to outside)
+This functionality allow testing upgrades or other changes in a non prod env
+
+
+
+
+Note on requirements :
+
+the terraform expects :
+- mapping between cloud zone and site id in Splunk (they are changed automatically depending where the indexer is started)
+- your Splunk configuration was made with base apps (at least for clustering and site)
+
+
+At the moment, the terraform are provisioning the cloud infrastructure NOT the splunk configuration itself in general
+
+The Splunk deployment in normal conditions (ie outside of failures events) is just behaving like a normal Splunk deployment (the cloud automation will recover from host or zone failures)
+The usual requirements from Splunk on versions, upgrade requirements, configuration, apps and so are still applicable.
+
+
+
+
+

@@ -418,7 +418,7 @@ EOF
     print "app_serverclass link already present in $SPLUNK_HOME/etc/apps, doing nothing\n";
   } else {
     print "creating app_serverclass link in $SPLUNK_HOME/etc/apps to point on deployment-apps\n";
-    `cd $SPLUNK_HOME_ORIG/etc/apps;ln -sv ../deployment-apps/app_serverclass`;
+    `cd $SPLUNK_HOME/etc/apps;ln -sv ../deployment-apps/app_serverclass`;
   }
   # potentially add link here for deploymentserver_base , output and license app instead of relying on initial apps but we dont known the app names upfront (need another option ?) 
 }

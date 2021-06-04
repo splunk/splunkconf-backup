@@ -75,6 +75,8 @@
 # 20210526 tar for multids
 # 20210527 add auto port support for multids, register to lb, option to specify splunk group
 # 20210527 more tuning for ds splunk-launch, deployment apps hard link support 
+# 20210604 add mgmt port list to file for reload script
+# 20210604 add auto link for serverclass app (need to be named app_serverclass and contain local/serverclass.conf), app inputs.conf specific ds name support
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -84,7 +86,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20210527c";
+$VERSION="20210604b";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -373,17 +375,52 @@ port = $splunk_kvstore_port
 EOF
   print FH $str;
   close(FH);
-  print ("initializing server.conf with ${servicename}\n");
+  print ("initializing server.conf with ${servicename}\nDo NOT modify server.conf in system/local as reinstalling would wipe it, please use apps\n");
   `echo "[general]" > ${SPLUNK_HOME}/etc/system/local/server.conf; echo "serverName = ${servicename}" >> ${SPLUNK_HOME}/etc/system/local/server.conf`;
+  #  inputs.conf (so internal logs easier to find out which instance is doing what)
+   if ( ! -e "${SPLUNK_HOME}/etc/system/local/inputs.conf" ) { 
+      # Splunk was never started  
+      print ("initializing inputs.conf with ${servicename}\n");
+      `echo "[default]" > ${SPLUNK_HOME}/etc/system/local/inputs.conf`;
+      `echo "host = ${servicename}" >> ${SPLUNK_HOME}/etc/system/local/inputs.conf`;
+      `chown $USERSPLUNK. ${SPLUNK_HOME}/etc/system/local/inputs.conf`;
+   } else {
+      print "inputs already there, not recreating\n";
+   }
   `chown -R $USERSPLUNK. $SPLUNK_HOME`;
-# register to lb $splunk_mgmt_port here
+  # register to lb $splunk_mgmt_port here
 
-my $VIPPORT=8089;
-my $IP=`ip route get 8.8.8.8 | head -1 | cut -d' ' -f7`;
-chomp($IP);
-`ipvsadm --add-server -t $IP:$VIPPORT -r $IP:$splunk_mgmt_port -m; ipvsadm --save > /etc/sysconfig/ipvsadm`;
-
-
+  my $VIPPORT=8089;
+  my $IP=`ip route get 8.8.8.8 | head -1 | cut -d' ' -f7`;
+  chomp($IP);
+  print "adding to lvs for VIP $IP:$VIPPORT instance DS with IP=$IP and port=$splunk_mgmt_port\n";
+  `ipvsadm --add-server -t $IP:$VIPPORT -r $IP:$splunk_mgmt_port -m; ipvsadm --save > /etc/sysconfig/ipvsadm`;
+  my $SCRIPTS_DIR_ORIG=$SPLUNK_HOME_ORIG."/scripts";
+  my $FIM=$SPLUNK_HOME_ORIG."/scripts/mgtport.txt";
+  my $FIM2=$SPLUNK_HOME_ORIG."/scripts/mgtport.txt.old";
+  print "adding mgmt port $splunk_mgmt_port to list in $FIM to be used for reloading config\n";
+  if ( -e "$FIM" ) {
+    print "renaming\n";
+    `mv $FIM $FIM2`;
+  }
+  `mkdir -p $SCRIPTS_DIR_ORIG;chown $USERSPLUNK. $SCRIPTS_DIR_ORIG;cat $FIM2 | grep -v $splunk_mgmt_port > $FIM; echo $splunk_mgmt_port >> $FIM;chown $USERSPLUNK. $FIM`;
+  # serverclass deployment app link
+  # auto link for serverclass app (need to be named app_serverclass and contain local/serverclass.conf)
+  if ( -e "$SPLUNK_HOME_ORIG/etc/deployment-apps/app_serverclass/local/serverclass.conf" ) {
+    print "app app_serverclass already exist\n";
+  } else {
+    print "creating app_serverclassi, dummy , make sure to sync it in git repo if git used\n";
+    `mkdir -p $SPLUNK_HOME_ORIG/etc/deployment-apps/app_serverclass/local`;
+    `touch $SPLUNK_HOME_ORIG/etc/deployment-apps/app_serverclass/local/serverclass.conf`;
+    `chown -R $USERSPLUNK. $SPLUNK_HOME`;
+  }
+  if ( -e "$SPLUNK_HOME/etc/apps/app_serverclass/local/serverclass.conf" ) {
+    print "app_serverclass link already present in $SPLUNK_HOME/etc/apps, doing nothing\n";
+  } else {
+    print "creating app_serverclass link in $SPLUNK_HOME/etc/apps to point on deployment-apps\n";
+    `cd $SPLUNK_HOME_ORIG/etc/apps;ln -sv ../deployment-apps/app_serverclass`;
+  }
+  # potentially add link here for deploymentserver_base , output and license app instead of relying on initial apps but we dont known the app names upfront (need another option ?) 
 }
 
 
@@ -869,7 +906,7 @@ SuccessExitStatus=51 52
 RestartPreventExitStatus=51
 RestartForceExitStatus=52
 User=$USERSPLUNK
-Group=splunk
+Group=$GROUPSPLUNK
 Delegate=true
 CPUShares=1024
 MemoryLimit=$systemdmemlimit

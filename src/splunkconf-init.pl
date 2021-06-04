@@ -342,7 +342,7 @@ if ($splunkrole =~/ds|deployment/ ) {
      `unlink $SPLDEPLAPPSDIR; mv $SPLDEPLAPPSDIR $SPLDEPLAPPSDIROLD;ln -s $SPLDEPLAPPSDIR_ORIG $SPLDEPLAPPSDIR`; 
   } else {
     `mkdir -p $SPLETCDIR`;
-    # moving to reuse defaulkt content then creating symlink
+    # moving to reuse default content then creating symlink
     `mv $SPLDEPLAPPSDIR $SPLDEPLAPPSDIR_ORIG;ln -s $SPLDEPLAPPSDIR_ORIG $SPLDEPLAPPSDIR`;
   }
   print "multids -> copy template files for splunk.secret, user-seed.conf and certificates from ${SPLUNK_HOME_ORIG} to ${SPLUNK_HOME}\n";
@@ -409,7 +409,7 @@ EOF
   if ( -e "$SPLUNK_HOME_ORIG/etc/deployment-apps/app_serverclass/local/serverclass.conf" ) {
     print "app app_serverclass already exist\n";
   } else {
-    print "creating app_serverclassi, dummy , make sure to sync it in git repo if git used\n";
+    print "creating app_serverclass,  make sure to sync it in git repo if git used\n";
     `mkdir -p $SPLUNK_HOME_ORIG/etc/deployment-apps/app_serverclass/local`;
     `touch $SPLUNK_HOME_ORIG/etc/deployment-apps/app_serverclass/local/serverclass.conf`;
     `chown -R $USERSPLUNK. $SPLUNK_HOME`;

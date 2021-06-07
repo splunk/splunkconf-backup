@@ -77,6 +77,7 @@
 # 20210527 more tuning for ds splunk-launch, deployment apps hard link support 
 # 20210604 add mgmt port list to file for reload script
 # 20210604 add auto link for serverclass app (need to be named app_serverclass and contain local/serverclass.conf), app inputs.conf specific ds name support
+# 20210607 add dsetcapps option
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -86,7 +87,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20210604b";
+$VERSION="20210607a";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -138,6 +139,7 @@ my $instancenumber="";
 # only for multids, otherwise it has been deployed before (usually via rpm)
 my $splunktar="";
 my $usedefaultunitfile="";
+my $dsetcapps="";
 
 GetOptions (
      'help|h'=> \$help,
@@ -151,6 +153,7 @@ GetOptions (
      'no-prompt' => \$no_prompt,
      'disable-wlm' => \$disablewlm,
      'splunkrole=s' => \$splunkrole,
+     'dsetcappss=s' => \$dsetcapps,
      'instancenumber=i' => \$instancenumber,
      'splunktar=s' => \$splunktar,
      'with-default-service-file' => \$usedefaultunitfile,
@@ -180,6 +183,7 @@ admin password creation (Full, required existing or via user-seed.conf, UF no ac
         --disable-wlm do not create wlm configuration (systemd only)
         --splunkrole=xxx run specific code for a specific role (currently implemented : ds) 
         --instancenumber=number to be used for multids only , will use this for suffix and will also change ports and register the instance in lvs vip (created before outside this script)
+        --dsetcapps=\"app1,app2,app3,....\" to automatically set up the etc app versions of these apps from deployment-apps on a DS (short name, apps need to be defined in deployment-apps BEFORE) (example(replace org with your org) :org_all_deploymentserverbase,org_full_license_slave,org_to-site_forwarder_central_outputs,org_search_outputs-disableindexing,org_dsmanaged_disablewebserver)
         --splunktar=splunkxxxx.tar.gz required for multids 
         --dry-run  dont really do it (but run the checks)
         --no-prompt   disable prompting (for scripts) (will disable ask for user seed creation for example)
@@ -344,6 +348,17 @@ if ($splunkrole =~/ds|deployment/ ) {
     `mkdir -p $SPLETCDIR`;
     # moving to reuse default content then creating symlink
     `mv $SPLDEPLAPPSDIR $SPLDEPLAPPSDIR_ORIG;ln -s $SPLDEPLAPPSDIR_ORIG $SPLDEPLAPPSDIR`;
+  }
+  # adding links fron deployment apps to etc apps on DS to increase app consistency (still need a manual restart of DS in case the config change)
+  my @etcapps= split(',',$dsetcapps);
+  foreach my $val (@etcapps) {
+    print "looking at etc apps for $val\n";
+    if ( -d "$SPLDEPLAPPSDIR/$val" ) {
+      print "$val exist in $SPLDEPLAPPSDIR, adding link in etc app to the version in deployment-apps \n";
+      `cd $SPLAPPSDIR; ln -sv ../deployment-apps/$val`;
+    } else {
+      print "ATTENTION : apps $val specified as argument doesnt exist -> I wont create link for now to a non existing dir but you probably have either a typo or you forget to populate deployment-apps ! Probably not what you want, please check and correct/relaunch\n";
+    }
   }
   print "multids -> copy template files for splunk.secret, user-seed.conf and certificates from ${SPLUNK_HOME_ORIG} to ${SPLUNK_HOME}\n";
   # splunk.secret, user-seed.conf and certificates

@@ -97,8 +97,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210527 add ds lb script deployment
 # 20210531 move os detection + change system hostname to functions called at beginning then include route53 update for aws case to be inlined at beginning to avoid having to push extra script and speed up update (+remove some commented line fromn get_object conversion)
 # 20210531 more get_object comment clean up and fixes for route53 inline
+# 20210608 add splunkorg option to splunkconf-init call
 
-VERSION="20210531c"
+VERSION="20210608a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1312,6 +1313,13 @@ get_object ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/
 
 # make it executable
 chmod u+x ${localrootscriptdir}/splunkconf-init.pl 
+
+# we need this set to forward it to splunkconf-init
+if [ -z ${splunkorg+x} ]; then
+  echo "instance tags are not correctly set (splunkorg). I dont know prefix for splunk base apps, will use org ! Please add splunkorg tag" >> /var/log/splunkconf-cloud-recovery-info.log
+  splunkorg="org"
+fi
+
 if [ "$INSTALLMODE" = "tgz" ]; then
   get_object ${remoteinstalldir}/splunkconf-ds-lb.sh ${localrootscriptdir}
   echo "creating DS LB via LVS"
@@ -1327,12 +1335,12 @@ if [ "$INSTALLMODE" = "tgz" ]; then
 #    i=1
     SERVICENAME="${instancename}_$i"
     echo "setting up instance $i/$NBINSTANCES with SERVICENAME=$SERVICENAME"
-    ${localrootscriptdir}/splunkconf-init.pl --no-prompt --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary}
+    ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary}
   done
 else
   echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init" >> /var/log/splunkconf-cloud-recovery-info.log
   # no need to pass option, it will default to systemd + /opt/splunk + splunk user
-  ${localrootscriptdir}/splunkconf-init.pl --no-prompt
+  ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg
 fi
 
 

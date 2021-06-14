@@ -50,7 +50,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20201106 remove any extra spaces in tags around the = sign
 # 20210127 add GCP support
 # 20210202 add fallback to /etc/instance-tags for case where dynamic tags are not working but the files has been set by another way
+# 20210202 use splunkinstanceType before servername before host for instancename 
 
+VERSION="20210202b"
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
 # note : this script wont backup any index data
@@ -183,7 +185,7 @@ function echo_log_ext {
 function debug_log {
   DEBUG=0   
   # uncomment for debugging
-  #DEBUG=1   
+  # DEBUG=1   
   if [ "$DEBUG" == "1" ]; then 
     echo_log_ext  "DEBUG id=$ID $1"
   fi 
@@ -315,7 +317,7 @@ if [ $CHECK -ne 0 ]; then
     REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
     # we put store tags in instance-tags file-> we will use this later on
-    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > $INSTANCEFILE/
+    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > $ITANCEFILE
     if grep -qi splunkinstanceType $INSTANCEFILE
     then
       # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
@@ -367,15 +369,18 @@ if [ -e "$INSTANCEFILE" ]; then
   chmod 644 $INSTANCEFILE
   # including the tags for use in this script
   . $INSTANCEFILE
-else
-  warn_log "WARNING : no instance tags file at $INSTANCEFILE, trying fallback to /etc version"
-  INSTANCEFILE="/etc/instance-tags"
-  if [ -e "$INSTANCEFILE" ]; then
-    # impossible we are not root chmod 644 $INSTANCEFILE
-    # including the tags for use in this script
-    . $INSTANCEFILE
-  else
-    warn_log "WARNING : no instance tags file at $INSTANCEFILE"
+  # note : if the tag detection failed , file may be empty -> we are still checking after
+fi
+if [ -z ${splunks3backupbucket+x} ]; then 
+  if [ -z ${s3backupbucket+x} ]; then 
+    warn_log "WARNING : tags not set via $INSTANCEFILE, trying fallback to /etc version"
+    INSTANCEFILE="/etc/instance-tags"
+    if [ -e "$INSTANCEFILE" ]; then
+      # including the tags for use in this script
+      . $INSTANCEFILE
+    else
+      warn_log "WARNING : no instance tags file at $INSTANCEFILE"
+    fi
   fi
 fi
 
@@ -455,7 +460,11 @@ SERVERNAME=`grep ^serverName ${SPLUNK_HOME}/etc/system/local/server.conf  | awk 
 #SERVERNAME=`${SPLUNK_HOME}/bin/splunk show servername  | awk '{print $3}'`
 #splunk show servername
  
-if [ ${#INSTANCE} -ge 3 ]; then 
+debug_log "src detection  : splunkinstanceType=$splunkinstanceType,${#splunkinstanceType}, SERVERNAME=$SERVERNAME, ${#SERVERNAME},  HOST=$HOST"
+if [ ${#splunkinstanceType} -ge 2 ]; then 
+  INSTANCE=$splunkinstanceType
+  debug_log "using splunkinstanceType tag for instance, instance=${INSTANCE} src=splunkinstanceType"
+elif [ ${#SERVERNAME} -ge 2 ]; then 
   INSTANCE=$SERVERNAME
   debug_log "using servername for instance, instance=${INSTANCE} src=servername"
 else 

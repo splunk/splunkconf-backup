@@ -98,8 +98,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210531 move os detection + change system hostname to functions called at beginning then include route53 update for aws case to be inlined at beginning to avoid having to push extra script and speed up update (+remove some commented line fromn get_object conversion)
 # 20210531 more get_object comment clean up and fixes for route53 inline
 # 20210608 add splunkorg option to splunkconf-init call
+# 20210614 add splunk-appinspect installation for multids
 
-VERSION="20210608a"
+VERSION="20210614a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1321,14 +1322,20 @@ if [ -z ${splunkorg+x} ]; then
 fi
 
 if [ "$INSTALLMODE" = "tgz" ]; then
+  # for app inspect 
+  yum groupinstall "Development Tools"
+  yum install  python3-devel
+  pip3 install splunk-appinspect
+  # LB SETUP for multi DS
   get_object ${remoteinstalldir}/splunkconf-ds-lb.sh ${localrootscriptdir}
   echo "creating DS LB via LVS"
   chown root. ${localrootscriptdir}/splunkconf-ds-lb.sh 
   chmod 750 ${localrootscriptdir}/splunkconf-ds-lb.sh 
   ${localrootscriptdir}/splunkconf-ds-lb.sh 
+  # FIXME use the number from tags
   NBINSTANCES=4
   #NBINSTANCES=1
-  echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-initi for dsinabox with $NBINSTANCES " >> /var/log/splunkconf-cloud-recovery-info.log
+  echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init for dsinabox with $NBINSTANCES " >> /var/log/splunkconf-cloud-recovery-info.log
   # no need to pass option, it will default to systemd + /opt/splunk + splunk user
   for ((i=1;i<=$NBINSTANCES;i++)); 
   do 

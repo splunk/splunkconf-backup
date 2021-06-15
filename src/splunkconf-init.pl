@@ -79,6 +79,7 @@
 # 20210604 add auto link for serverclass app (need to be named app_serverclass and contain local/serverclass.conf), app inputs.conf specific ds name support
 # 20210607 add dsetcapps option
 # 20210608 add splunkorg option and automatically use it for dsetcinapps list
+# 20210615 fix regression with AWS1 support
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -742,9 +743,12 @@ EOF
 
   } # exist polkit
 
+} elsif ($enablesystemd==0  && $distritype eq "rh") {
+  print "systemd support disabled and RH -> RH6/AWS1 like -> ok (but deprecated)\n";
 } else {
-  die "logic error or unsupported distribution, please investigate\n";  
+  die "logic error or unsupported distribution, please investigate (enablesystemd=$enablesystemd distritype=$distritype \n";  
 }
+
 if ($enablesystemd==1 && !$disablewlm) {
   #we are in systemd mode with polkit -> we are enabling WLM 
   # for the moment , we deployed consistently in system local

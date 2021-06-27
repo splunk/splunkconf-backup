@@ -102,8 +102,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210627 add check and stop when not yum as not currently fully implemented otherwise
 # 20210627 add splunkconnectedmode tag + initial detection logic
 # 20210627 add splunkosupdatemode tag
+# 20210627 add rpm for 8.2.1 (no change to default)
 
-VERSION="20210627c"
+VERSION="20210627d"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -723,6 +724,8 @@ fi # if not upgrade
 #splbinary="splunk-8.1.3-63079c59e632-linux-2.6-x86_64.rpm"
 splbinary="splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm"
+#splbinary="splunk-8.2.1-ddff1c41e5cf-linux-2.6-x86_64.rpm"
+
 
 if [ -z ${splunktargetbinary+x} ]; then 
   echo "splunktargetbinary not set in instance tags, falling back to use version ${splbinary} from cloud recovery script" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -735,12 +738,14 @@ echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-cloud-re
 get_object ${remoteinstalldir}/${splbinary} ${localinstalldir} 
 ls ${localinstalldir}
 if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
-  echo "RPM not present in install, trying to download directly" 
+  echo "RPM not present in install, trying to download directly"
+  ###### change from version on splunk : add -q , add ${localinstalldir}/ and add quotes around 
   ######`wget -q -O ${localinstalldir}/splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.1&product=splunk&filename=splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm&wget=true'`
 #####  `wget -q -O ${localinstalldir}/splunk-8.1.2-545206cc9f70-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.2&product=splunk&filename=splunk-8.1.2-545206cc9f70-linux-2.6-x86_64.rpm&wget=true'`
 #  `wget -O splunk-8.1.3-63079c59e632-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.3&product=splunk&filename=splunk-8.1.3-63079c59e632-linux-2.6-x86_64.rpm&wget=true'`
    `wget -q -O ${localinstalldir}/splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.4&product=splunk&filename=splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm&wget=true'`
-# `wget -q -O ${localinstalldir}/splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.2.0&product=splunk&filename=splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm&wget=true'``
+# `wget -q -O ${localinstalldir}/splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.2.0&product=splunk&filename=splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm&wget=true'`
+#`wget -q -O ${localinstalldir}/splunk-8.2.1-ddff1c41e5cf-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.2.1&product=splunk&filename=splunk-8.2.1-ddff1c41e5cf-linux-2.6-x86_64.rpm&wget=true'`
   if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install (or fix the wget with wget -q -O ... if you just copied paste wget))  " >> /var/log/splunkconf-cloud-recovery-info.log
     # better to exit now and have the admin fix the situation

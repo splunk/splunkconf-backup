@@ -39,7 +39,7 @@
 # 20190910 move args to use getopt for more robustness and clarity
 # 20190918 more args and logic for systemd support
 # 20190918 fix --help case
-# 20190918 fix splunk stop icase issue before service configured or when moving to systemd
+# 20190918 fix splunk stop case issue before service configured or when moving to systemd
 # 20190919 var for splunk home in service file + other fixes
 # 20190923 fix path for servicename executable bit removal (systemd)
 # 20191009 add inline mode for classic init to speed up usage
@@ -80,6 +80,7 @@
 # 20210607 add dsetcapps option
 # 20210608 add splunkorg option and automatically use it for dsetcinapps list
 # 20210615 fix regression with AWS1 support
+# 20210627 update help to state it is fine with 8.2 (no change)
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -169,7 +170,7 @@ GetOptions (
 if ($help) {
 	print "splunkconf-initsplunk.pl [options]
 This script will initialize Splunk software after package installation or upgrade (tar or RPM)
-This version works with Splunk 7.1,7.2,7.3,8.0 and 8.1 (it would only work for upgrade for previous versions as the admin user creation changed)
+This version works with Splunk 7.1,7.2,7.3,8.0,8.1 and 8.2 (it would only work for upgrade for previous versions as the admin user creation changed)
 This version will work for full Splunk Enterprise or UF
 The behavior will change depending on type
 admin password creation (Full, required existing or via user-seed.conf, UF no account creation required (unless you provide user-seed.conf file)

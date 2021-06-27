@@ -555,7 +555,7 @@ if [ "$MODE" != "upgrade" ]; then
   if [ -z ${splunkosupdatemode+x} ]; then
     splunkosupdatemode="updateandreboot" 
   fi
-  if [ ${splunkosupdatemode} -eq "disabled" ]; then
+  if [ "${splunkosupdatemode}" = "disabled" ]; then
     echo "os update disabled, not applying them here. Make sure you applied them already in the os image or use for testing"
   else 
     echo "applying latest os updates/security and bugfixes"
@@ -1477,9 +1477,9 @@ fi # if not upgrade
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 #NOW=`(date "+%Y/%m/%d %H:%M:%S")`
 if [ "$MODE" != "upgrade" ]; then 
-  if [ ${splunkosupdatemode} -eq "disabled" ]; then
-     echo "os update disabled, noi no need to reboot"
-  elif [ ${splunkosupdatemode} -eq "noreboot" ]; then
+  if [ "${splunkosupdatemode}" = "disabled" ]; then
+     echo "os update disabled, no need to reboot"
+  elif [ "${splunkosupdatemode}" = "noreboot" ]; then
      echo "os update mode is no reboot , not rebooting"
   else
     echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log

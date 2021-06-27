@@ -101,8 +101,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210614 add splunk-appinspect installation for multids
 # 20210627 add check and stop when not yum as not currently fully implemented otherwise
 # 20210627 add splunkconnectedmode tag + initial detection logic
+# 20210627 add splunkosupdatemode tag
 
-VERSION="20210627b"
+VERSION="20210627c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -333,6 +334,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   projectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/project-id`
   splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
   splunkconnectedmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkconnectedmode`
+  splunkosupdatemode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkosupdatemode`
 fi
 
 # set the mode based on tag and test logic
@@ -548,9 +550,17 @@ fi
 # one yum command so yum can try to download and install in // which will improve recovery time
 yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned -y 
 
-if [ "$MODE" != "upgrade" ]; then 
 
-  yum update -y
+if [ "$MODE" != "upgrade" ]; then 
+  if [ -z ${splunkosupdatemode+x} ]; then
+    splunkosupdatemode="updateandreboot" 
+  fi
+  if [ ${splunkosupdatemode} -eq "disabled" ]; then
+    echo "os update disabled, not applying them here. Make sure you applied them already in the os image or use for testing"
+  else 
+    echo "applying latest os updates/security and bugfixes"
+    yum update -y
+  fi
 
   # swap partition creation
   # IMPORTAMT : please emake sure we have really swap available so we can resist peak and reduce OOM risk
@@ -1467,9 +1477,15 @@ fi # if not upgrade
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 #NOW=`(date "+%Y/%m/%d %H:%M:%S")`
 if [ "$MODE" != "upgrade" ]; then 
-  echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
-  # reboot
-  init 6
+  if [ ${splunkosupdatemode} -eq "disabled" ]; then
+     echo "os update disabled, noi no need to reboot"
+  elif [ ${splunkosupdatemode} -eq "noreboot" ]; then
+     echo "os update mode is no reboot , not rebooting"
+  else
+    echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
+    # reboot
+    init 6
+  fi
 else
   echo "${TODAY} splunkconf-cloud-recovery.sh end of script run in upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
 fi # if not upgrade

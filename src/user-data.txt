@@ -1,9 +1,10 @@
 #!/bin/bash -x
 exec > /var/log/user-data.log 2>&1
  
-# version 20210125
+# version 20210627
 
-yum update -y
+# moved to recovery
+# yum update -y
 # just in case the AMI doesn't have it (it is preinstalled on aws ami)
 # requirement access to repo that provide aws-cli (epel)
 yum install aws-cli curl -y
@@ -21,7 +22,7 @@ remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"
 mkdir -p $localinstalldir
 aws s3 cp $remoteinstalldir/splunkconf-cloud-recovery.sh  $localinstalldir --quiet
-if [ -e "$localinstalldir/splunkconf-cloud-recovery.sh" ] then
+if [ -e "$localinstalldir/splunkconf-cloud-recovery.sh" ]; then
   # newer case, script named cloud
   chmod +x $localinstalldir/splunkconf-cloud-recovery.sh
   ln -s $localinstalldir/splunkconf-cloud-recovery.sh $localinstalldir/splunkconf-aws-recovery.sh

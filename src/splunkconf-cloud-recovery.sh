@@ -100,8 +100,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210608 add splunkorg option to splunkconf-init call
 # 20210614 add splunk-appinspect installation for multids
 # 20210627 add check and stop when not yum as not currently fully implemented otherwise
+# 20210627 add splunkconnectedmode tag + initial detection logic
 
-VERSION="20210627a"
+VERSION="20210627b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -193,6 +194,26 @@ get_object () {
   else
     echo "number of arguments passed to get_object is incorrect ($# instead of 2)\n"
   fi
+}
+
+# splunkconnectedmode   (tag got from instance)
+# 0 = auto (try to detect connectivity) (default if not set)
+# 1 = connected (set it if auto fail and you think you are connected)
+# 2 = yum only (may be via proxy or local repo if yum configured correctly)
+# 3 = no connection, yum disabled
+
+# why we need this -> cloud context may vary depending on various compliance requirements
+# the full connected world -> easier 
+set_connectedmode () {
+  if [ -z ${splunkconnectedmode+x} ]; then
+     # variable not set -> default is auto
+     splunkconnectedmode=0
+  fi
+ # if 
+ # elif 
+
+ # fi
+
 }
 
 check_cloud
@@ -311,7 +332,12 @@ elif [[ "cloud_type" -eq 2 ]]; then
   numericprojectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/numeric-project-id`
   projectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/project-id`
   splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
+  splunkconnectedmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkconnectedmode`
 fi
+
+# set the mode based on tag and test logic
+set_connectedmode
+
 
 if [ -e "$INSTANCEFILE" ]; then
   chmod 644 $INSTANCEFILE

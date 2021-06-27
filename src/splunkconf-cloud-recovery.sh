@@ -99,8 +99,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210531 more get_object comment clean up and fixes for route53 inline
 # 20210608 add splunkorg option to splunkconf-init call
 # 20210614 add splunk-appinspect installation for multids
+# 20210627 add check and stop when not yum as not currently fully implemented otherwise
 
-VERSION="20210614a"
+VERSION="20210627a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -511,6 +512,12 @@ chown splunk. ${localinstalldir}
 # wget used by recovery
 # curl to fetch files
 # gdb provide pstack which may be needed to collect things for Splunk support
+
+if ! command -v yum &> /dev/null
+  then
+  echo "yum command could not be found, not RH like distribution , not fully implemented/tested at the moment, stopping here " >> /var/log/splunkconf-cloud-recovery-info.log
+  exit 1
+fi
 
 # one yum command so yum can try to download and install in // which will improve recovery time
 yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned -y 

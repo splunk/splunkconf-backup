@@ -1,16 +1,17 @@
 #!/bin/bash -x
 exec > /var/log/user-data.log 2>&1
  
-# version 20210627
+# version 20210630
 
 # moved to recovery
 # yum update -y
 # just in case the AMI doesn't have it (it is preinstalled on aws ami)
 # requirement access to repo that provide aws-cli (epel)
-yum install aws-cli curl -y
+# incomment one of the choices below if aws cli not yet on AMI
+#yum install aws-cli curl -y
 # aws recommended for rh8 
-dnf install python3-pip -y || yum install python3-pip -y
-pip3 install awscli --upgrade
+#dnf install python3-pip -y || yum install python3-pip -y
+#pip3 install awscli --upgrade
 
 # setting up token (IMDSv2)
 TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`

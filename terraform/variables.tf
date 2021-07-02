@@ -33,6 +33,23 @@ variable "instance-type-indexer-default" {
   default = "t3a.nano"
 }
 
+variable "splunkcloudmode" {
+  description = "1 = send to splunkcloud only with provided configuration, 2 = clone to splunkcloud with provided configuration, 3 = byol or manual config to splunkcloud"
+  type    = string
+  default = "3"
+}
+
+variable "splunkcloudconfiglocation" {
+  description = "universal forwarder packaged downloaded from your splunkcloud stack"
+  type    = string
+  default = "local/splunkclouduf.spl"
+}
+
+variable "splunkosupdatemode" {
+  description = "splunkosupdatemode=default,noreboot,disabled,updateandreboot (default means updateandreboot) (do not disable for prod unless you know what you do)"
+  type    = string
+  default = "disabled"
+}
 
 locals {
   env=var.splunktargetenv

@@ -9,6 +9,7 @@ VERSION="20201103b"
 # 20201102 version that does tags and script prechecks
 # 20201103 initial es version
 # 20201123 update for es6.4
+# 20210706 update to es 6.6
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
@@ -47,15 +48,15 @@ else
 fi
 
 
-aws s3 cp $remoteinstalldir/apps/splunk-enterprise-security_640.spl  $localappsinstalldir --quiet
-if [ -e "$localappsinstalldir/splunk-enterprise-security_640.spl" ]; then
+aws s3 cp $remoteinstalldir/apps/splunk-enterprise-security_660.spl  $localappsinstalldir --quiet
+if [ -e "$localappsinstalldir/splunk-enterprise-security_660.spl" ]; then
   echo "ES install file present : OK"
 else
   echo "ES install file is NOT present in s3 install at $remoteinstalldir: KO Please upload apps to s3 install"
 fi
 
-aws s3 cp $remoteinstalldir/apps/splunk-es-content-update_308.tgz  $localappsinstalldir --quiet
-if [ -e "$localappsinstalldir/splunk-es-content-update_308.tgz" ]; then
+aws s3 cp $remoteinstalldir/apps/splunk-es-content-update_3240.tgz  $localappsinstalldir --quiet
+if [ -e "$localappsinstalldir/splunk-es-content-update_3240.tgz" ]; then
   echo "ES Content update install file present : OK"
 else
   echo "ES Content update file is NOT present in s3 install at $remoteinstalldir : KO Please upload apps to s3 install"

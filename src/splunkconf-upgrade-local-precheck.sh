@@ -9,8 +9,9 @@
 # 20201116 extend to more files and make it more generic
 # 20201117 extend version check to be more generic
 # 20210202 add fallback to /etc/instance-tags
+# 20210706 use cloud version when existing to avoid outdated aws version kept on s3
 
-VERSION="20210202"
+VERSION="20210706"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -51,7 +52,7 @@ remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"
 mkdir -p $localinstalldir
 
-FILELIST="splunkconf-aws-recovery.sh splunkconf-swapme.pl splunkconf-upgrade-local.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-init.pl"
+FILELIST="splunkconf-aws-recovery.sh splunkconf-cloud-recovery.sh splunkconf-swapme.pl splunkconf-upgrade-local.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-init.pl"
 
 echo "splunkconf-upgrade-local-precheck  VERSION=$VERSION"
 
@@ -85,8 +86,14 @@ do
   else
     echo "script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"  
   fi
-  
 done
+if [ -e "$localinstalldir/splunkconf-cloud-recovery.sh" ]; then
+  if [ -e "$localinstalldir/splunkconf-aws-recovery.sh" ]; then
+    echo "cloud recovery exist, overwriting aws version in case old one still present in install bucket"
+    cp -p "$localinstalldir/splunkconf-cloud-recovery.sh" "$localinstalldir/splunkconf-aws-recovery.sh"
+  fi
+fi
+
 
 # scripts that run as splunk and deployed in the scripts dir
 localinstalldir="/opt/splunk/scripts"

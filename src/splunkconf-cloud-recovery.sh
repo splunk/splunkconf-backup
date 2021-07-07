@@ -929,7 +929,7 @@ if [ "$MODE" != "upgrade" ]; then
       echo "splunkcloudmode not set, setting to manual (3)"
       splunkcloudmode="3"
     fi
-    if [ "${splunkcloudmode" -eq "3" ]; then
+    if [ "${splunkcloudmode}" -eq "3" ]; then
       echo "splunkcloudmode is manual, not deploying splunkclouduf.spl (that was present, may be you forgot to set splunkcloudmode tag ?)"
     else 
       echo "deploying splunkclouduf.spl (splunkcloudmode=$splunkcloudmode)"

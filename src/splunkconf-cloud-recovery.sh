@@ -104,8 +104,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210627 add splunkosupdatemode tag
 # 20210627 add rpm for 8.2.1 (no change to default)
 # 20210707 fix regression in splunkconf-backup du to splunkbase packaging change
+# 20210707 add splunkcloudmode support to ease deploying collection layer to splunkcloud or test instance that index to splunkcloud
 
-VERSION="20210707a"
+VERSION="20210707b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -919,6 +920,24 @@ if [ "$MODE" != "upgrade" ]; then
     tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialtlsapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
   else
     echo "${remotepackagedir}/initialtlsapps.tar.gz not found, trying without but this may lead to a non functional splunk if you enabled custom certificates. This should contain the minimal apps to configure TLS in order to attach to the rest of infrastructure"
+  fi
+  echo "remote : ${remotepackagedir} : copying splunkcloud uf app to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/apps " >> /var/log/splunkconf-cloud-recovery-info.log
+  get_object  ${remotepackagedir}/splunkclouduf.spl ${localinstalldir} 
+  if [ -f "${localinstalldir}/splunkclouduf.spl"  ]; then
+    # 1 = send to splunkcloud only with provided configuration, 2 = clone to splunkcloud with provided configuration, 3 = byol or manual config to splunkcloud
+    if [ -z ${splunkcloudmode+x} ]; then 
+      echo "splunkcloudmode not set, setting to manual (3)"
+      splunkcloudmode="3"
+    fi
+    if [ "${splunkcloudmode" -eq "3" ]; then
+      echo "splunkcloudmode is manual, not deploying splunkclouduf.spl (that was present, may be you forgot to set splunkcloudmode tag ?)"
+    else 
+      echo "deploying splunkclouduf.spl (splunkcloudmode=$splunkcloudmode)"
+      # FIXME add clone support here ?
+      tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/splunkclouduf.spl >> /var/log/splunkconf-cloud-recovery-info.log
+    fi
+  else
+    echo "${remotepackagedir}/splunkclouduf.spl not found, assuming no need to send to splunkcloud or manual config"
   fi
   echo "remote : ${remotepackagedir} : copying certs " >> /var/log/splunkconf-cloud-recovery-info.log
   # copy to local

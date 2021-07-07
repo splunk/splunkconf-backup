@@ -103,8 +103,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210627 add splunkconnectedmode tag + initial detection logic
 # 20210627 add splunkosupdatemode tag
 # 20210627 add rpm for 8.2.1 (no change to default)
+# 20210707 fix regression in splunkconf-backup du to splunkbase packaging change
 
-VERSION="20210627d"
+VERSION="20210707a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1326,7 +1327,8 @@ if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix
     tar -C "${SPLUNK_HOME}/etc/apps/" -zcf ${localinstalldir}/splunkconf-backup-${TODAY}.tar.gz ./splunkconf-backup
     # remove so we dont have leftover in local that could break app
     find "${SPLUNK_HOME}/etc/apps/splunkconf-backup" -delete
-    tar -C "${SPLUNK_HOME}/etc/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz ./splunkconf-backup
+    # Note : old versions used relative path, new version without du to splunkbase packaging requirement
+    tar -C "${SPLUNK_HOME}/etc/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz 
     # removing old version for upgrade case 
     if [ -e "/etc/crond.d/splunkbackup.cron" ]; then
       rm -f /etc/crond.d/splunkbackup.cron

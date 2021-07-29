@@ -51,8 +51,10 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20210127 add GCP support
 # 20210202 add fallback to /etc/instance-tags for case where dynamic tags are not working but the files has been set by another way
 # 20210202 use splunkinstanceType before servername before host for instancename 
+# 20210729 add imdsv2 to aws cloud detection
 
-VERSION="20210202b"
+VERSION="20210729a"
+
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
 # note : this script wont backup any index data
@@ -239,14 +241,17 @@ function check_cloud() {
       cloud_type=1
     fi
   else
-  # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
-  # authoritative, we could follow Amazon's suggestions for cryptographically
-  # verifying their signature, see here:
-  #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
-  # but this is almost certainly overkill for this purpose (and the above
-  # checks of "EC2" prefixes have a higher false positive potential, anyway).
-  # FIXME add imsv2 support here
-    if $(curl -s -m 5 http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
+    # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
+    # authoritative, we could follow Amazon's suggestions for cryptographically
+    # verifying their signature, see here:
+    #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
+    # but this is almost certainly overkill for this purpose (and the above
+    # checks of "EC2" prefixes have a higher false positive potential, anyway).
+    #  imdsv2 support : TOKEN should exist if inside AWS even if not enforced   
+    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    if [ -z ${TOKEN+x} ]; then
+      # TOKEN NOT SET , NOT inside AWS
+    elif $(curl --silent -m 5 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
       echo_log 'AWS instance detected'
       cloud_type=1
     fi

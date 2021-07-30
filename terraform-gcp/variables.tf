@@ -46,6 +46,11 @@ variable "nb-indexer-max" {
   default = 12
 }
 
+variable "splunkosupdatemode" {
+  description = "splunkosupdatemode=default,noreboot,disabled,updateandreboot (default means updateandreboot) (do not disable for prod unless you know what you do)" 
+  type    = string
+  default = "disabled"
+}
 
 
 locals {

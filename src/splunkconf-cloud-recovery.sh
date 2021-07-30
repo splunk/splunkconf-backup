@@ -105,8 +105,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210627 add rpm for 8.2.1 (no change to default)
 # 20210707 fix regression in splunkconf-backup du to splunkbase packaging change
 # 20210707 add splunkcloudmode support to ease deploying collection layer to splunkcloud or test instance that index to splunkcloud
+# 20210719 up default to 8.1.5 
 
-VERSION="20210707b"
+VERSION="20210719a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -724,7 +725,8 @@ fi # if not upgrade
 #splbinary="splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.1.2-545206cc9f70-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.1.3-63079c59e632-linux-2.6-x86_64.rpm"
-splbinary="splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm"
+#splbinary="splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm"
+splbinary="splunk-8.1.5-9c0c082e4596-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.2.1-ddff1c41e5cf-linux-2.6-x86_64.rpm"
 
@@ -745,7 +747,8 @@ if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
   ######`wget -q -O ${localinstalldir}/splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.1&product=splunk&filename=splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm&wget=true'`
 #####  `wget -q -O ${localinstalldir}/splunk-8.1.2-545206cc9f70-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.2&product=splunk&filename=splunk-8.1.2-545206cc9f70-linux-2.6-x86_64.rpm&wget=true'`
 #  `wget -O splunk-8.1.3-63079c59e632-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.3&product=splunk&filename=splunk-8.1.3-63079c59e632-linux-2.6-x86_64.rpm&wget=true'`
-   `wget -q -O ${localinstalldir}/splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.4&product=splunk&filename=splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm&wget=true'`
+#   `wget -q -O ${localinstalldir}/splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.4&product=splunk&filename=splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm&wget=true'`
+`wget -q -O ${localinstalldir}/splunk-8.1.5-9c0c082e4596-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.5&product=splunk&filename=splunk-8.1.5-9c0c082e4596-linux-2.6-x86_64.rpm&wget=true'`
 # `wget -q -O ${localinstalldir}/splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.2.0&product=splunk&filename=splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm&wget=true'`
 #`wget -q -O ${localinstalldir}/splunk-8.2.1-ddff1c41e5cf-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.2.1&product=splunk&filename=splunk-8.2.1-ddff1c41e5cf-linux-2.6-x86_64.rpm&wget=true'`
   if [ ! -f "${localinstalldir}/${splbinary}"  ]; then

@@ -1,9 +1,11 @@
 #!/bin/bash -x
 exec > /var/log/user-data.log 2>&1
  
-# version 20210125b (for GCP)
+# version 20210629a (for GCP)
 
-yum update -y
+# moved to recovery
+#yum update -y
+
 splunks3installbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
 remoteinstalldir="$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"

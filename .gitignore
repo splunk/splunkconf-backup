@@ -22,6 +22,7 @@ src/test.pl
 
 # other
 splunkconf-backup/appserver/
+#file not shipped
 splunkconf-backup/default/savedsearches.conf.default
 splunkconf-backup/metadata/
 

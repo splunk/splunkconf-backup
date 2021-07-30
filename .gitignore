@@ -1,0 +1,27 @@
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# backups
+old
+splunkconf-backup.old
+
+# local
+terraform/local
+terraform-gcp/local
+
+# test
+src/test.pl
+
+# other
+splunkconf-backup/appserver/
+splunkconf-backup/default/savedsearches.conf.default
+splunkconf-backup/metadata/
+

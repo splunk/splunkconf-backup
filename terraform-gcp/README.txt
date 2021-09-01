@@ -8,8 +8,8 @@ Not yet in GCP version (du to lack of time (and knowledge at the time I did it):
 - refining iam 
 - potentially other GCP infra stuff (LB...)
 
+Please read the README in terraform (aws) directory for how to use this content
 
-As always, use at your own risk !
 
 
 

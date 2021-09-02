@@ -118,9 +118,9 @@ resource "aws_security_group_rule" "hf_from_mc_8089" {
 resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
   name = "asg-splunk-hf"
   vpc_zone_identifier  = [aws_subnet.subnet_1.id,aws_subnet.subnet_2.id,aws_subnet.subnet_3.id]
-  desired_capacity   = 0
-  max_size           = 0
-  min_size           = 0
+  desired_capacity   = 1
+  max_size           = 1
+  min_size           = 1
   mixed_instances_policy {
     launch_template {
       launch_template_specification {

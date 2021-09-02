@@ -111,8 +111,7 @@ tags are case sensitive
 
 | Tag | Description | Status |
 | --- | --- | --- |
-| splunkinstanceType | instance type. For a ASG with 1 instance, that become the instance name.
-Special type = idx (recovery script will automatically detect zone and adapt splunk site for cluster to match AZ) (or idx-site1, idx-site2, idx-site3 if you prefer) (there can be one ASG for all indexer so that cloud redistribute instances to other AZ automatically in case of AZ failure)| Required |
+| splunkinstanceType | instance type. For a ASG with 1 instance, that become the instance name. Special type = idx (recovery script will automatically detect zone and adapt splunk site for cluster to match AZ) (or idx-site1, idx-site2, idx-site3 if you prefer) (there can be one ASG for all indexer so that cloud redistribute instances to other AZ automatically in case of AZ failure)| Required |
 | Name | name that will appear in AWS console (usually same value as splunkinstanceType, do not set for idx) | Optional |
 
 

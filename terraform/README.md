@@ -139,8 +139,34 @@ Tags for inventory and reporting (billing for example)
 | Perimeter | Splunk | Optional |
 | Type | Splunk | Optional |
 
+GCP specific
+
+| Tag | Description | Status |
+| --- | --- | --- |
+| splunkdnszoneid | id for dns zone | required if splunkdnszone used|
+| numericprojectid | GCP numeric project id | set by GCP|
+| projectid | GCP project id | set by GCP|
+
+for dev purpose or if you understand the shortcomings , you can disable autonatic os update (stability and security fixes) as it speed up instance start (avoiding a reboot)
+| Tag | Description | Status |
+| --- | --- | --- |
+| splunkosupdatemode | default="updateandreboot" , other valid value is "disabled" | optional |
+
+multi DS mode specific tags 
+1) set the splunktargetbinary to be a tgz version (required to deploy splunk multiple times otherwise we prefer using the os packaging method 
+
+| Tag | Description | Status |
+| --- | --- | --- |
+| splunkinstancesnb | number of ds instances to deploy | optional , default to 4 for multi ds|
 
 
+
+
+In dev, partially implemented 
+
+| Tag | Description | Status |
+| --- | --- | --- |
+| splunkconnectedmode | # 0 = auto (try to detect connectivity) (default if not set) # 1 = connected (set it if auto fail and you think you are connected) # 2 = yum only (may be via proxy or local repo if yum configured correctly) # 3 = no connection, yum disabled | Optional |
 
 
 

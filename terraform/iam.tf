@@ -15,13 +15,13 @@ locals {
 #aws --profile ${var.profile} ec2 wait instance-status-ok --region ${var.region-worker} --instance-ids ${self.id}
 ##ansible-playbook --extra-vars 'passed_in_hosts=tag_Name_${self.tags.Name} master_ip=${aws_instance.jenkins-master.private_ip}' ansible_templates/install_jenkins_worker.yml
 ##ansible-playbook --extra-vars 'passed_in_hosts=tag_Name_${self.tags.Name}' ansible_templates/jenkins-worker-sample.yml
-resource "null_resource" "splunk-config" {
-  provisioner "local-exec" {
-    command = <<EOF
-EOF
-  }
-  depends_on = [ aws_s3_bucket.s3_data ]
-}
+#resource "null_resource" "splunk-config" {
+#  provisioner "local-exec" {
+#    command = <<EOF
+#EOF
+#  }
+#  depends_on = [ aws_s3_bucket.s3_data ]
+#}
 
 
 resource "aws_iam_policy" "pol-splunk-ec2" {

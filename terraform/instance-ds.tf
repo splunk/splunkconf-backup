@@ -34,14 +34,6 @@ resource "aws_iam_policy_attachment" "ds-attach-splunk-ec2" {
 }
 
 
-resource "aws_security_group" "splunk-ds" {
-  name = "splunk-ds"
-  description = "Security group for Splunk DS"
-  vpc_id = aws_vpc.vpc_master.id
-  tags = {
-    Name = "splunk-ds"
-  }
-}
 
 resource "aws_security_group_rule" "ds_from_bastion_ssh" { 
   security_group_id = aws_security_group.splunk-ds.id
@@ -185,7 +177,7 @@ resource "aws_security_group_rule" "ds_from_networks_ipv6_8089" {
  
 resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
   name = "asg-splunk-ds"
-  vpc_zone_identifier  = [aws_subnet.subnet_1.id,aws_subnet.subnet_3.id,aws_subnet.subnet_3.id]
+  vpc_zone_identifier  = [aws_subnet.subnet_1.id,aws_subnet.subnet_2.id,aws_subnet.subnet_3.id]
   desired_capacity   = 1
   max_size           = 1
   min_size           = 1

@@ -35,15 +35,6 @@ resource "aws_iam_policy_attachment" "mc-attach-splunk-ec2" {
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
 }
 
-resource "aws_security_group" "splunk-mc" {
-  name = "splunk-mc"
-  description = "Security group for Splunk Monitoring Console MC"
-  vpc_id = aws_vpc.vpc_master.id
-  tags = {
-    Name = "splunk-mc"
-  }
-}
-
 resource "aws_security_group_rule" "mc_from_bastion_ssh" { 
   security_group_id = aws_security_group.splunk-mc.id
   type      = "ingress"
@@ -116,7 +107,7 @@ resource "aws_security_group_rule" "mc_from_all_icmpv6" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-mc" {
   name = "asg-splunk-mc"
-  vpc_zone_identifier  = [aws_subnet.subnet_1.id,aws_subnet.subnet_3.id,aws_subnet.subnet_3.id]
+  vpc_zone_identifier  = [aws_subnet.subnet_1.id,aws_subnet.subnet_2.id,aws_subnet.subnet_3.id]
   desired_capacity   = 1
   max_size           = 1
   min_size           = 1

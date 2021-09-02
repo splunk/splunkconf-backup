@@ -35,15 +35,6 @@ resource "aws_iam_policy_attachment" "lm-attach-splunk-ec2" {
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
 }
 
-resource "aws_security_group" "splunk-lm" {
-  name = "splunk-lm"
-  description = "Security group for Splunk License Master LM"
-  vpc_id = aws_vpc.vpc_master.id
-  tags = {
-    Name = "splunk-lm"
-  }
-}
-
 resource "aws_security_group_rule" "lm_from_bastion_ssh" { 
   security_group_id = aws_security_group.splunk-lm.id
   type      = "ingress"

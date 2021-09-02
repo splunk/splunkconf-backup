@@ -42,15 +42,6 @@ resource "aws_iam_policy_attachment" "idx-attach-splunk-smartstore" {
 }
 
 
-resource "aws_security_group" "splunk-idx" {
-  name = "splunk-idx"
-  description = "Security group for Splunk Enterprise indexers"
-  vpc_id = aws_vpc.vpc_master.id
-  tags = {
-    Name = "splunk-idx"
-  }
-}
-
 # see https://discuss.hashicorp.com/t/discussion-of-aws-security-group-rules-for-absolute-management-while-avoiding-cyclical-dependencies/9647
 # security group are referencing each other in a splunk deployment creating a cycling dependency (still a issue with terraform 0.13.5 at the least)
 # until another solution exist (could be a future terraform version that automagically completelly this ?) , we have to use multiple levels with group rules , see link above
@@ -257,7 +248,7 @@ resource "aws_security_group_rule" "idx_from_networks_log" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
   name = "asg-splunk-idx"
-  vpc_zone_identifier  = [aws_subnet.subnet_1.id,aws_subnet.subnet_3.id,aws_subnet.subnet_3.id]
+  vpc_zone_identifier  = [aws_subnet.subnet_1.id,aws_subnet.subnet_2.id,aws_subnet.subnet_3.id]
   desired_capacity   = 3
   max_size           = 3
   min_size           = 3

@@ -87,38 +87,12 @@ resource "aws_iam_policy" "pol-splunk-smartstore" {
   #statement {
   #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-master}-${var.splunktargetenv}"
   #}
-  description = "Permissions needed for SmartStore"
+  description = "Permissions needed for Splunk SmartStore"
   provider    = aws.region-master
   policy      = data.template_file.pol-splunk-smartstore.rendered
 }
 
 
-
-#  **************** bastion ***************
-
-resource "aws_security_group" "splunk-bastion" {
-  name = "splunk-bastion"
-  description = "Security group for bastion"
-  vpc_id = aws_vpc.vpc_master.id
-
-  ingress {
-    from_port = 22
-    to_port = 22
-    protocol = "tcp"
-    self = false
-  }
-
- egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "splunk-bastion"
-  }
-}
 
 # ******************** OUTBOUND  ********************
 resource "aws_security_group" "splunk-outbound" {

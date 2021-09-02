@@ -106,8 +106,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210707 fix regression in splunkconf-backup du to splunkbase packaging change
 # 20210707 add splunkcloudmode support to ease deploying collection layer to splunkcloud or test instance that index to splunkcloud
 # 20210719 up default to 8.1.5 
+# 20210902 add splunkinstancesnb tag support (multids only)
 
-VERSION="20210719a"
+VERSION="20210902a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -339,6 +340,8 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
   splunkconnectedmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkconnectedmode`
   splunkosupdatemode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkosupdatemode`
+  splunkinstancesnb=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstancesnb`
+  
 fi
 
 # set the mode based on tag and test logic
@@ -1404,8 +1407,18 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   chown root. ${localrootscriptdir}/splunkconf-ds-lb.sh 
   chmod 750 ${localrootscriptdir}/splunkconf-ds-lb.sh 
   ${localrootscriptdir}/splunkconf-ds-lb.sh 
-  # FIXME use the number from tags
   NBINSTANCES=4
+  if [ -z ${splunkinstancesnb+x} ]; then
+    echo "multi ds mode used but splunkinstancesnb tag not defined, using 4 instances (default)
+  else
+    NBINSTANCES=${splunkinstancesnb}
+    if (( $NBINSTANCES > 0 )); then 
+      echo "set NBINSTANCES=${splunkinstancesnb} "
+   else
+      echo " ATTENTION ERROR splunkinstancenb is not numeric or contain invalid value, switching back to default 4 instances, please investigate and correct tag (remove extra spaces for example" 
+     NBINSTANCES=4
+   fi
+  fi
   #NBINSTANCES=1
   echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init for dsinabox with $NBINSTANCES " >> /var/log/splunkconf-cloud-recovery-info.log
   # no need to pass option, it will default to systemd + /opt/splunk + splunk user

@@ -29,6 +29,12 @@ variable "splunkcloudmode" {
   default = "3"
 }
 
+variable "splunkconnectedmode" {
+  description = "(partially implemented) # 0 = auto (try to detect connectivity) (default if not set) # 1 = connected (set it if auto fail and you think you are connected) # 2 = yum only (may be via proxy or local repo if yum configured correctly) # 3 = no connection, yum disabled"
+  type    = string
+  default = "0"
+}
+
 variable "instance-type-indexer-min" {
   type    = string
   default = "t3a.medium"
@@ -37,6 +43,12 @@ variable "instance-type-indexer-min" {
 variable "instance-type-indexer-default" {
   type    = string
   default = "t3a.nano"
+}
+
+variable "bastion" {
+  description = "bastion / nat instance name"
+  type    = string
+  default = "bastion"
 }
 
 variable "splunkcloudconfiglocation" {

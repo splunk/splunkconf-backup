@@ -227,9 +227,13 @@ resource aws_launch_template splunk-ds {
       splunks3databucket = aws_s3_bucket.s3_data.id
       splunkdnszone = var.dns-zone-name
       splunkorg = var.splunkorg
+      splunktargetenv = var.splunktargetenv
       splunktargetcm = var.cm
       splunktargetlm = var.lm
       splunktargetds = var.ds
+      splunkcloudmode = var.splunkcloudmode
+      splunkosupdatemode = var.splunkosupdatemode
+      splunkconnectedmode = var.splunkconnectedmode
       # this is needed for multi ds only
       # we only deploy by tar in that case
       splunktargetbinary=var.splunktar

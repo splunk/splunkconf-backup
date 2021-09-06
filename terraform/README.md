@@ -128,6 +128,7 @@ Tags to use for upgrade scenarios and/or backup bootstrap between env (exemple :
 | splunktargetcm | short name of cluster master (set master_uri= https://$splunktargetcm.$splunkdnszone:8089  under search|indexer cluster app + in outputs for idx discovery)  | Optional but recommended (default to splunk-cm which will effectively set master_uri= https://splunk-cm.$splunkdnszone:8089 ) |
 | splunktargetds | short name of deployment server (set targetUri= https://$splunktargetds.$splunkdnszone:8089  in deploymentclient.conf) | Optional |
 | splunktargetlm | short name of license server (support only apps where name contain license (should be the case when using base apps), set master_uri= https://$splunktargetlm.$splunkdnszone:8089 in server.conf)| Optional|
+| splunkcloudmode | 1 = send to splunkcloud only with provided configuration, 2 = clone to splunkcloud with provided configuration (partially implemeted -> behave like 1 at the moment, 3 = byol or manual config to splunkcloud(default) | Optional |
 
 
 Tags for inventory and reporting (billing for example)

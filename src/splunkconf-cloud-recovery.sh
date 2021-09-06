@@ -736,6 +736,9 @@ splbinary="splunk-8.1.5-9c0c082e4596-linux-2.6-x86_64.rpm"
 
 if [ -z ${splunktargetbinary+x} ]; then 
   echo "splunktargetbinary not set in instance tags, falling back to use version ${splbinary} from cloud recovery script" >> /var/log/splunkconf-cloud-recovery-info.log
+elif [ ${splunktargetbinary} -eq "auto" ];
+  echo "splunktargetbinary set to auto in instance tags, falling back to use version ${splbinary} from cloud recovery script" >> /var/log/splunkconf-cloud-recovery-info.log
+  unset ${splunktargetbinary}
 else 
   splbinary=${splunktargetbinary}
   echo "using splunktargetbinary ${splunktargetbinary} from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log

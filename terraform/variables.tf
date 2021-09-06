@@ -23,6 +23,12 @@ variable "splunkorg" {
   default = "org"
 }
 
+variable "splunkcloudmode" {
+  description = "1 = send to splunkcloud only with provided configuration, 2 = clone to splunkcloud with provided configuration (partially implemeted -> behave like 1 at the moment, 3 = byol or manual config to splunkcloud(default)"
+  type    = string
+  default = "3"
+}
+
 variable "instance-type-indexer-min" {
   type    = string
   default = "t3a.medium"
@@ -31,12 +37,6 @@ variable "instance-type-indexer-min" {
 variable "instance-type-indexer-default" {
   type    = string
   default = "t3a.nano"
-}
-
-variable "splunkcloudmode" {
-  description = "1 = send to splunkcloud only with provided configuration, 2 = clone to splunkcloud with provided configuration, 3 = byol or manual config to splunkcloud"
-  type    = string
-  default = "3"
 }
 
 variable "splunkcloudconfiglocation" {
@@ -49,6 +49,18 @@ variable "splunkosupdatemode" {
   description = "splunkosupdatemode=default,noreboot,disabled,updateandreboot (default means updateandreboot) (do not disable for prod unless you know what you do)"
   type    = string
   default = "disabled"
+}
+
+variable "splunktargetbinary" {
+  description = "splunk-xxxxx.rpm or auto to use the logic inside recovery script (that will choose default script version)"
+  type    = string
+  default = "auto"
+}
+
+variable "splunktargetbinaryuf" {
+  description = "splunk-forwarder-xxxxx.rpm or auto to use the logic inside recovery script (that will choose default script version)"
+  type    = string
+  default = "auto"
 }
 
 locals {
@@ -75,6 +87,12 @@ variable "ds" {
 variable "instance-type-ds" {
   type    = string
   default = "t3a.nano"
+}
+
+variable "splunktar" {
+  description = "set this only for multi ds where we install by tar"
+  type    = string
+  default = "splunk-xxxx.tar.gz"
 }
 
 variable "dsnb" {

@@ -137,11 +137,17 @@ resource aws_launch_template splunk-iuf {
       splunks3backupbucket = aws_s3_bucket.s3_backup.id
       splunks3installbucket = aws_s3_bucket.s3_install.id
       splunks3databucket = aws_s3_bucket.s3_data.id
-      splunkawsdnszone = var.dns-zone-name
+      splunkdnszone = var.dns-zone-name
       splunkorg = var.splunkorg
+      splunktargetenv = var.splunktargetenv
+      # special UF
+      splunktargetbinary = var.splunktargetbinaryuf
       splunktargetcm = var.cm
       splunktargetlm = var.lm
       splunktargetds = var.ds
+      splunkcloudmode = var.splunkcloudmode
+      splunkosupdatemode = var.splunkosupdatemode
+      splunkconnectedmode = var.splunkconnectedmode
     }
   }
   user_data = filebase64("../buckets/bucket-install/install/user-data.txt")

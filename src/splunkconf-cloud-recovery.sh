@@ -109,7 +109,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210902 add splunkinstancesnb tag support (multids only)
 # 20210906 up default to 8.2.2
 
-VERSION="20210906a"
+VERSION="20210906b"
 
 # dont break script on error as we rely on tests for this
 set +e

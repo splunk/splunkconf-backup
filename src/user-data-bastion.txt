@@ -1,0 +1,19 @@
+#!/bin/bash -x
+exec > /var/log/user-data.log 2>&1
+ 
+# version 20210630
+
+# moved to recovery
+ yum update -y
+# just in case the AMI doesn't have it (it is preinstalled on aws ami)
+# requirement access to repo that provide aws-cli (epel)
+# incomment one of the choices below if aws cli not yet on AMI
+#yum install aws-cli curl -y
+# aws recommended for rh8 
+#dnf install python3-pip -y || yum install python3-pip -y
+#pip3 install awscli --upgrade
+
+sysctl -w net.ipv4.ip_forward=1
+/sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+
+echo "end of user data script"

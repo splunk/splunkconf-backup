@@ -109,7 +109,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210902 add splunkinstancesnb tag support (multids only)
 # 20210906 up default to 8.2.2
 
-VERSION="20210906b"
+VERSION="20210906c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1414,7 +1414,7 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   ${localrootscriptdir}/splunkconf-ds-lb.sh 
   NBINSTANCES=4
   if [ -z ${splunkdsnb+x} ]; then
-    echo "multi ds mode used but splunkdsnb tag not defined, using 4 instances (default)
+    echo "multi ds mode used but splunkdsnb tag not defined, using 4 instances (default)"
   else
     NBINSTANCES=${splunkdsnb}
     if (( $NBINSTANCES > 0 )); then 

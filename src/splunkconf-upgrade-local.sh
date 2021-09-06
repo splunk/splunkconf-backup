@@ -5,8 +5,9 @@ exec > /var/log/splunkconf-upgrade.log 2>&1
 # it is getting latest aws recovery script and call it with upgrade arg
 # 20201011 add check for root use
 # 20210202 add fallback to /etc/instance-tags
+# 20210906 use cloud recovery by default
  
-VERSION="20210202"
+VERSION="20210906"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -47,12 +48,12 @@ remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"
 mkdir -p $localinstalldir
 # get latest version 
-aws s3 cp $remoteinstalldir/splunkconf-aws-recovery.sh  $localinstalldir --quiet
-if [ -e "$localinstalldir/splunkconf-aws-recovery.sh" ]; then
-  chmod +x $localinstalldir/splunkconf-aws-recovery.sh
+aws s3 cp $remoteinstalldir/splunkconf-cloud-recovery.sh  $localinstalldir --quiet
+if [ -e "$localinstalldir/splunkconf-cloud-recovery.sh" ]; then
+  chmod +x $localinstalldir/splunkconf-cloud-recovery.sh
   # need to pass upgrade argument,  for the rest we will use contextual data from tags
-  . $localinstalldir/splunkconf-aws-recovery.sh upgrade 
+  . $localinstalldir/splunkconf-cloud-recovery.sh upgrade 
 else
-  echo "splunkconf-aws-recovery.sh could not be downloaded, please check that it is on s3 install , that iam are set to autorize and tags for splunks3installbucket is set" 
+  echo "splunkconf-cloud-recovery.sh could not be downloaded, please check that it is on s3 install , that iam are set to autorize and tags for splunks3installbucket is set" 
 fi
 echo "end of splunkconf upgrade script"

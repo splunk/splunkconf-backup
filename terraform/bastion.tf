@@ -2,6 +2,28 @@
 
 #  **************** bastion ***************
 
+resource "aws_iam_role" "role-splunk-bastion" {
+  name = "role-splunk-bastion"
+  force_detach_policies = true
+  description = "iam role for splunk bastion"
+  assume_role_policy = file("policy-aws/assumerolepolicy.json")
+
+  tags = {
+    Name = "splunk"
+  }
+}
+
+resource "aws_iam_instance_profile" "role-splunk-bastion_profile" {
+  name  = "role-splunk-bastion_profile"
+  role = aws_iam_role.role-splunk-bastion.name
+}
+
+resource "aws_iam_policy_attachment" "bastion-attach-splunk-ec2" {
+  name       = "bastion-attach-splunk-ec2"
+  roles      = [aws_iam_role.role-splunk-bastion.name]
+  policy_arn = aws_iam_policy.pol-splunk-bastion.arn
+}
+
 resource "aws_security_group" "splunk-bastion" {
   name = "splunk-bastion"
   description = "Security group for bastion"
@@ -69,7 +91,8 @@ resource aws_launch_template splunk-bastion {
     associate_public_ip_address = true
     security_groups = [aws_security_group.splunk-bastion.id,aws_security_group.splunk-bastion.id]
     # nat instance
-    source_dest_check = false
+    # not possible here, moved to user-data
+    #source_dest_check = false
   }
   tag_specifications {
     resource_type = "instance"
@@ -79,6 +102,11 @@ resource aws_launch_template splunk-bastion {
       splunkosupdatemode = var.splunkosupdatemode
       splunkconnectedmode = var.splunkconnectedmode
     }
+  }
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
   }
   user_data = filebase64("../buckets/bucket-install/install/user-data-bastion.txt")
 }

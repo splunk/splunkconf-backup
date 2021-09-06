@@ -8,7 +8,7 @@
             "Resource": "*"
         },
         {
-            "Sid": "Allow Source-Dest check modification",
+            "Sid": "AllowSourceDestcheckmodification",
             "Effect": "Allow",
             "Action": "ec2:ModifyInstanceAttribute",
             "Resource": "*"

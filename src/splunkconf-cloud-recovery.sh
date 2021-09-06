@@ -340,7 +340,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
   splunkconnectedmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkconnectedmode`
   splunkosupdatemode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkosupdatemode`
-  splunkinstancesnb=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstancesnb`
+  splunkdsnb=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdsnb`
   
 fi
 
@@ -1408,14 +1408,14 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   chmod 750 ${localrootscriptdir}/splunkconf-ds-lb.sh 
   ${localrootscriptdir}/splunkconf-ds-lb.sh 
   NBINSTANCES=4
-  if [ -z ${splunkinstancesnb+x} ]; then
-    echo "multi ds mode used but splunkinstancesnb tag not defined, using 4 instances (default)
+  if [ -z ${splunkdsnb+x} ]; then
+    echo "multi ds mode used but splunkdsnb tag not defined, using 4 instances (default)
   else
-    NBINSTANCES=${splunkinstancesnb}
+    NBINSTANCES=${splunkdsnb}
     if (( $NBINSTANCES > 0 )); then 
-      echo "set NBINSTANCES=${splunkinstancesnb} "
+      echo "set NBINSTANCES=${splunkdsnb} "
    else
-      echo " ATTENTION ERROR splunkinstancenb is not numeric or contain invalid value, switching back to default 4 instances, please investigate and correct tag (remove extra spaces for example" 
+      echo " ATTENTION ERROR splunkdsnb is not numeric or contain invalid value, switching back to default 4 instances, please investigate and correct tag (remove extra spaces for example" 
      NBINSTANCES=4
    fi
   fi

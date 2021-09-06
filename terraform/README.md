@@ -157,7 +157,7 @@ multi DS mode specific tags
 
 | Tag | Description | Status |
 | --- | --- | --- |
-| splunkinstancesnb | number of ds instances to deploy | optional , default to 4 for multi ds|
+| splunkdsnb | number of ds instances to deploy | optional , default to 4 for multi ds|
 
 
 

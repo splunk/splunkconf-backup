@@ -108,8 +108,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210719 up default to 8.1.5 
 # 20210902 add splunkinstancesnb tag support (multids only)
 # 20210906 up default to 8.2.2
+# 20210907 add splunkcloudmode for gcp case
 
-VERSION="20210906c"
+VERSION="20210907a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -339,6 +340,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   numericprojectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/numeric-project-id`
   projectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/project-id`
   splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
+  splunkcloudmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkcloudmode`
   splunkconnectedmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkconnectedmode`
   splunkosupdatemode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkosupdatemode`
   splunkdsnb=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdsnb`

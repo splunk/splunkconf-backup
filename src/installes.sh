@@ -35,8 +35,9 @@
 # 20201215 update sha for 6.4 as the build was updated 
 # 20210210 add sha for 6.4.1
 # 20210706 add sha for 6.6.0
+# 20210929 add sha for 6.6.2
 
-VERSION="20210706"
+VERSION="20210929"
 
 SCRIPTNAME="installes"
 
@@ -210,14 +211,15 @@ fi
 #ESAPP="splunk-enterprise-security_60.spl";
 #ESAPP="splunk-enterprise-security_601.spl";
 #ESAPP="splunk-enterprise-security_602.spl";
+# 6.x , There were potential perf issues with assets and identities in some conditions. please prefer 6.02+ (over 60 and 601) or 6.1.1+(over 610) , please check by your usual source about ES versions and core field status as this comment may be outdated at the time you read it
+# (look at least on splservices ES status page for PS + ES RN,...)
 #ESAPP="splunk-enterprise-security_61.spl";
 #ESAPP="splunk-enterprise-security_611.spl";
 #ESAPP="splunk-enterprise-security_620.spl";
 #ESAPP="splunk-enterprise-security_640.spl";
 #ESAPP="splunk-enterprise-security_641.spl";
-ESAPP="splunk-enterprise-security_660.spl";
-# 6.x , There were potential perd issues with assets and identities in some conditions. please prefer 6.02+ (over 60 and 601) or 6.1.1+(over 610) , please check by your usual source about ES versions and core field status as this comment may be outdated at the time you read it
-# (look at least on splservices ES status page for PS + ES RN,...)
+#ESAPP="splunk-enterprise-security_660.spl";
+ESAPP="splunk-enterprise-security_662.spl";
 
 read -p "ESAPP file name (default : ${ESAPP})" input
 ESAPP=${input:-$ESAPP}
@@ -247,11 +249,11 @@ fi
 # SHA256 checksum (splunk-enterprise-security_640.spl) 940d83e15d4059b09f6a5518bbdc62ce32b6680f4c076a1d46e64cd0c54723c8
 # SHA256 checksum (splunk-enterprise-security_641.spl) f44dbc248cb85e8100f7afefe70d7949efab873269657d77e6488ba95c0df077
 # SHA256 checksum (splunk-enterprise-security_660.spl) 0e2b72f1396a82a155851b414401740179d955381498ec0d90a6dde70db2479f
+# SHA256 checksum (splunk-enterprise-security_662.spl) 2928d7f39b97c61a2d97306c083b1e04eb455df3a5070d9553f6679aacf2fdb4
 
 # SHA256 checksum (splunk-es-content-update_3240.tgz) 49aca3ab3bb1291f988459708e9a589aacc5b64caed493831a00546c36181ea6
 
-#EXPECTEDSHA="f44dbc248cb85e8100f7afefe70d7949efab873269657d77e6488ba95c0df077"
-EXPECTEDSHA="0e2b72f1396a82a155851b414401740179d955381498ec0d90a6dde70db2479f"
+EXPECTEDSHA="2928d7f39b97c61a2d97306c083b1e04eb455df3a5070d9553f6679aacf2fdb4"
 
 echo_log "please verify sha256 to check for integrity (corruption , truncation during file download....)"
 echo "expected sha256=${EXPECTEDSHA}"

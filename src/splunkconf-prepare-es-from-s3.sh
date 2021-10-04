@@ -4,13 +4,14 @@
 # This script is used to prepare upgrade splunk locally
 # it is getting latest aws recovery and upgrade scripts and check tags BUT wont launch upgrade
 
-VERSION="20201103b"
 # 20201011 add check for root use
 # 20201102 version that does tags and script prechecks
 # 20201103 initial es version
 # 20201123 update for es6.4
 # 20210706 update to es 6.6
-# 20211004 update for 6.6.2 and add variables for versions
+# 20211104 update for 6.6.2 and add variables for versions
+
+VERSION="20211104"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then

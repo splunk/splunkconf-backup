@@ -10,6 +10,7 @@ VERSION="20201103b"
 # 20201103 initial es version
 # 20201123 update for es6.4
 # 20210706 update to es 6.6
+# 20211004 update for 6.6.2 and add variables for versions
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
@@ -47,19 +48,22 @@ else
   echo "installes.sh is NOT present in s3 install at $remoteinstalldir: KO Please upload scripts to s3 install"
 fi
 
+ESAPP="splunk-enterprise-security_662.spl"
 
-aws s3 cp $remoteinstalldir/apps/splunk-enterprise-security_660.spl  $localappsinstalldir --quiet
-if [ -e "$localappsinstalldir/splunk-enterprise-security_660.spl" ]; then
-  echo "ES install file present : OK"
+aws s3 cp $remoteinstalldir/apps/$ESAPP  $localappsinstalldir --quiet
+if [ -e "$localappsinstalldir/$ESAPP" ]; then
+  echo "ES install file $ESAPP present : OK"
 else
-  echo "ES install file is NOT present in s3 install at $remoteinstalldir: KO Please upload apps to s3 install"
+  echo "ES install file $ESAPP is NOT present in s3 install at $remoteinstalldir: KO Please upload correct ES app version to s3 install or update this script is you want to use a different version"
 fi
 
-aws s3 cp $remoteinstalldir/apps/splunk-es-content-update_3240.tgz  $localappsinstalldir --quiet
-if [ -e "$localappsinstalldir/splunk-es-content-update_3240.tgz" ]; then
-  echo "ES Content update install file present : OK"
+ESCU="splunk-es-content-update_3280.tgz"
+
+aws s3 cp $remoteinstalldir/apps/$ESCU  $localappsinstalldir --quiet
+if [ -e "$localappsinstalldir/$ESCU" ]; then
+  echo "ES Content update install file $ESCU present : OK"
 else
-  echo "ES Content update file is NOT present in s3 install at $remoteinstalldir : KO Please upload apps to s3 install"
+  echo "ES Content update file $ESCU is NOT present in s3 install at $remoteinstalldir : KO Please upload correct version to s3 install or update this script to a different version"
 fi
 
 echo "end of script, if everything is ok please run installes.sh from /opt/splunk/scripts directory (sh only)"

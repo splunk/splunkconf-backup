@@ -36,8 +36,9 @@
 # 20210210 add sha for 6.4.1
 # 20210706 add sha for 6.6.0
 # 20210929 add sha for 6.6.2
+# 20211004 add debug statement to try to catch TCPOutloop crash sometimes occuring with 8.2 during ES setup
 
-VERSION="20210929"
+VERSION="20211104"
 
 SCRIPTNAME="installes"
 
@@ -390,6 +391,11 @@ echo_log "doing the ES setup with TA excluded (please wait for setup to complete
 
 ${SPLUNK_HOME}/bin/splunk login -auth $SPLADMIN:$SPLPASS
 
+# debug flags in case TCPOutloop crash with 8.2.x
+
+${SPLUNK_HOME}/bin/splunk set log-level TcpOutputQChannels -level DEBUG
+${SPLUNK_HOME}/bin/splunk set log-level TcpOutputProc -level DEBUG
+
 # note : starting with ES 5.3 , TA are not deployed by default but we already force to disable them 
 # starting with ES 6.2 , the exclude TA option no longer exist (the TA ae no longer shipped)
 
@@ -423,6 +429,11 @@ sleep 5
 echo_log "restarting Splunk after ES setup done"
 
 ${SPLUNK_HOME}/bin/splunk restart
+
+# back to INFO
+
+${SPLUNK_HOME}/bin/splunk set log-level TcpOutputQChannels -level INFO
+${SPLUNK_HOME}/bin/splunk set log-level TcpOutputProc -level INFO
 
 echo_log "ES installed and setup run. Please check for errors in $SPLUNK_HOME/var/log/splunk/essinstaller2.log"
 # Marquis check

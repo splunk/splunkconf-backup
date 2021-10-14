@@ -35,28 +35,40 @@ variable "instance-type-indexer-default" {
 
 # test
 variable "nb-indexer-min" {
-  description = "number of indexers to create in a test env" 
-  type    = number
-  default = 1
+  description = "number of indexers to create in a test env"
+  type        = number
+  default     = 1
 }
 
 variable "nb-indexer-max" {
-  description = "number of indexers to create in a prod env (non test)" 
-  type    = number
-  default = 12
+  description = "number of indexers to create in a prod env (non test)"
+  type        = number
+  default     = 12
+}
+
+variable "nb-hf" {
+  description = "create hf (0=disabled,1=enabled, create more autoscaling if needed)"
+  type        = number
+  default     = 0
+}
+
+variable "nb-sh" {
+  description = "create sh (0=disabled,1=enabled, create more autoscaling if needed)"
+  type        = number
+  default     = 0
 }
 
 variable "splunkosupdatemode" {
-  description = "splunkosupdatemode=default,noreboot,disabled,updateandreboot (default means updateandreboot) (do not disable for prod unless you know what you do)" 
-  type    = string
-  default = "disabled"
+  description = "splunkosupdatemode=default,noreboot,disabled,updateandreboot (default means updateandreboot) (do not disable for prod unless you know what you do)"
+  type        = string
+  default     = "disabled"
 }
 
 
 locals {
   env                   = var.splunktargetenv
   instance-type-indexer = (local.env == "test" ? var.instance-type-indexer-min : var.instance-type-indexer-default)
-  nb-indexers = (local.env == "test" ? var.nb-indexer-min : var.nb-indexer-max)
+  nb-indexers           = (local.env == "test" ? var.nb-indexer-min : var.nb-indexer-max)
 
 }
 

@@ -4,7 +4,7 @@ resource "google_compute_instance_template" "splunk-cm" {
   machine_type   = "n2-standard-2"
   can_ip_forward = false
 
-  tags = ["splunk"]
+  tags = ["splunk", "splunk-ui-mgt-log"]
 
 
   disk {
@@ -23,7 +23,7 @@ resource "google_compute_instance_template" "splunk-cm" {
   metadata_startup_script = file("../buckets/bucket-install/install/user-data-gcp.txt")
   scheduling {
     automatic_restart = false
-    preemptible = local.env == "test" ? true : false
+    preemptible       = local.env == "test" ? true : false
   }
 
   metadata = {
@@ -32,8 +32,9 @@ resource "google_compute_instance_template" "splunk-cm" {
     splunks3backupbucket     = google_storage_bucket.gcs_backup.url
     splunks3databucket       = google_storage_bucket.gcs_data.url
     splunkorg                = var.splunkorg
-    splunkdnszone = var.dns-zone-name
-    splunkdnszoneid = var.gcpdnszoneid
+    splunkosupdatemode       = var.splunkosupdatemode
+    splunkdnszone            = var.dns-zone-name
+    splunkdnszoneid          = var.gcpdnszoneid
     disable-legacy-endpoints = "TRUE"
     enable-guest-attributes  = "TRUE"
     sshKeys                  = "${var.ssh_user}:${file(var.ssh_keys)}"
@@ -57,9 +58,9 @@ resource "google_compute_target_pool" "splunk-cm" {
 }
 
 resource "google_compute_region_instance_group_manager" "splunk-cm" {
-  name = "igm-splunk-cm"
-  region= var.region
-  distribution_policy_zones = ["us-central1-a","us-central1-b","us-central1-c","us-central1-f"]
+  name                      = "igm-splunk-cm"
+  region                    = var.region
+  distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
 
   version {
     instance_template = google_compute_instance_template.splunk-cm.id
@@ -76,7 +77,7 @@ resource "google_compute_region_instance_group_manager" "splunk-cm" {
     port = "8000"
   }
 
-  target_pools       = [google_compute_target_pool.splunk-cm.id]
+  target_pools = [google_compute_target_pool.splunk-cm.id]
   # when not using autoscaler only , set this 
   #target_size = 1
   base_instance_name = "cm"
@@ -107,13 +108,13 @@ resource "google_compute_instance_template" "splunk-idx" {
   machine_type   = "n2-standard-2"
   can_ip_forward = false
 
-  tags = ["splunk"]
+  tags = ["splunk", "splunk-ui-mgt-log"]
 
   disk {
     # use the latest image at instance creation (reduce time to yum update)
     source_image = "centos-cloud/centos-8"
     #source_image = data.google_compute_image.centos_8.id
-    disk_name ="os"
+    disk_name   = "os"
     auto_delete = true
     boot        = true
   }
@@ -125,7 +126,7 @@ resource "google_compute_instance_template" "splunk-idx" {
       disk_type = "local-ssd"
       interface = "NVME"
       #interface = "SCSI"
-      type = "SCRATCH"
+      type         = "SCRATCH"
       disk_size_gb = 375
     }
   }
@@ -138,7 +139,7 @@ resource "google_compute_instance_template" "splunk-idx" {
   metadata_startup_script = file("../buckets/bucket-install/install/user-data-gcp.txt")
   scheduling {
     automatic_restart = false
-    preemptible = local.env == "test" ? true : false
+    preemptible       = local.env == "test" ? true : false
   }
 
   metadata = {
@@ -147,6 +148,7 @@ resource "google_compute_instance_template" "splunk-idx" {
     splunks3backupbucket     = google_storage_bucket.gcs_backup.url
     splunks3databucket       = google_storage_bucket.gcs_data.url
     splunkorg                = var.splunkorg
+    splunkosupdatemode       = var.splunkosupdatemode
     disable-legacy-endpoints = "TRUE"
     enable-guest-attributes  = "TRUE"
     sshKeys                  = "${var.ssh_user}:${file(var.ssh_keys)}"
@@ -170,15 +172,15 @@ resource "google_compute_target_pool" "splunk-idx" {
 }
 
 resource "google_compute_region_instance_group_manager" "splunk-idx" {
-  name = "igm-splunk-idx"
-  region= var.region
-  distribution_policy_zones = ["us-central1-a","us-central1-b","us-central1-c"]
+  name                      = "igm-splunk-idx"
+  region                    = var.region
+  distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
 
   version {
     instance_template = google_compute_instance_template.splunk-idx.id
     name              = "primary"
   }
- 
+
   named_port {
     name = "splunkhec"
     port = "8088"
@@ -204,7 +206,7 @@ resource "google_compute_region_instance_group_manager" "splunk-idx" {
     port = "9999"
   }
 
-  target_pools       = [google_compute_target_pool.splunk-idx.id]
+  target_pools = [google_compute_target_pool.splunk-idx.id]
   # when not using autoscaler only , set this
   #target_size = 1
   base_instance_name = "idx"

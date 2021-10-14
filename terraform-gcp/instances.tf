@@ -4,7 +4,7 @@ resource "google_compute_instance_template" "splunk-cm" {
   machine_type   = "n2-standard-2"
   can_ip_forward = false
 
-  tags = ["splunk", "splunk-ui-mgt-log"]
+  tags = ["splunk", "splunk-cm","splunk-restapi","splunk-webui"]
 
 
   disk {
@@ -108,7 +108,8 @@ resource "google_compute_instance_template" "splunk-idx" {
   machine_type   = "n2-standard-2"
   can_ip_forward = false
 
-  tags = ["splunk", "splunk-ui-mgt-log"]
+  tags = ["splunk","splunk-idx","splunk-restapi","splunk-replication","splunk-hec","splunk-log"]
+
 
   disk {
     # use the latest image at instance creation (reduce time to yum update)

@@ -6,8 +6,7 @@ resource "google_compute_instance_template" "splunk-hf" {
   machine_type   = "n2-standard-2"
   can_ip_forward = false
 
-  tags = ["splunk", "splunk-ui-mgt-log"]
-
+  tags = ["splunk","splunk-webui","splunk-restapi"]
 
   disk {
     # use the latest image at instance creation (reduce time to yum update)

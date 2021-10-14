@@ -108,7 +108,7 @@ resource "google_compute_instance_template" "splunk-idx" {
   machine_type   = "n2-standard-2"
   can_ip_forward = false
 
-  tags = ["splunk","splunk-idx","splunk-restapi","splunk-replication","splunk-hec","splunk-log"]
+  tags = ["splunk","splunk-idx","splunk-restapi","splunk-replication-idx","splunk-hec","splunk-log"]
 
 
   disk {

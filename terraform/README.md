@@ -161,6 +161,17 @@ multi DS mode specific tags
 | splunkdsnb | number of ds instances to deploy | optional , default to 4 for multi ds|
 
 
+Advanced, options to splunkconf-init , only set if you know what you do or for dev purposes 
+
+| Tag | Description | Status |
+| --- | --- | --- |
+| splunksystemd | auto (0=forced disabled,auto or 1=autodetect, 2=forced enabled(will fail on non systemd !)   | optional , default to autodetect and use when possible|
+| splunksystemdservicefile | wether or not to use tuned service file with user inside and custom limits (1=tuned (default), 2=version default | optional , default to tuned, 2 no fully tested at the moment (and will change service name)|
+| splunksystemdpolkit | 1=deploy inline packaged splunkconf-init version, 2=generate via boot-start (8.1 + required), 3=do not manage (will probably not work correctly as splunk restart will not work from splunk unless deployed via opther method (if using systemd) | optional , default to 1. 2 may break especially on multids case|
+| splunkdisablewlm | 0=try to deploy if possible (systemd, version is the one inline at the moment)) 1=disabled | optional , default to 0 (enabled)|
+| splunkuser | name of splunk user to use (non priviledge one) | optional , default to splunk (partial support in splunkconf-cloud-receovery at the moment) |
+| splunkgroup | name of splunk group to use (non priviledge one) | optional , default to splunk (partial support in splunkconf-cloud-receovery at the moment) |
+
 
 
 In dev, partially implemented 

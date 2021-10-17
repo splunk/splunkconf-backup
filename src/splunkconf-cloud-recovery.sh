@@ -109,8 +109,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210902 add splunkinstancesnb tag support (multids only)
 # 20210906 up default to 8.2.2
 # 20210907 add splunkcloudmode for gcp case
+# 20211017 add more tag support to be able to use various splunkconf-init options from recovery, add initial support for custom user/group in the recovery part
 
-VERSION="20210907a"
+VERSION="20211017a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -344,6 +345,13 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkconnectedmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkconnectedmode`
   splunkosupdatemode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkosupdatemode`
   splunkdsnb=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdsnb`
+  splunksystemd=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksystemd`
+  splunksystemdservicefile=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksystemdservicefile`
+  splunksystemdpolkit=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksystemdpolkit`
+  splunkdisablewlm=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdisablewlm`
+  splunkuser=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkuser`
+  splunkgroup=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkgroup`
+  #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
 
@@ -515,6 +523,7 @@ echo "splunkawsdnszone is ${splunkawsdnszone}" >> /var/log/splunkconf-cloud-reco
 
 
 localbackupdir="${SPLUNK_HOME}/var/backups"
+localinstalldir="${SPLUNK_HOME}/var/install"
 SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
 localkvdumpbackupdir="${SPLUNK_DB}/kvstorebackup/"
 if [ $cloud_type == 2 ]; then
@@ -535,15 +544,75 @@ localrootscriptdir="/usr/local/bin"
 # we will disable if indexer detected as not needed
 RESTORECONFBACKUP=1
 
+# splunkuser checks
+
+
+if [ -z ${splunkuser+x} ]; then 
+  usersplunk="splunk"
+  splunkuser="splunk"
+  echo "splunkuser is unset, default to splunk"
+else 
+  echo "splunkuser='${splunkuser}'" 
+  usersplunk=$splunkuser
+fi
+
+if [ -z ${splunkgroup+x} ]; then 
+  splunkgroup="splunk"
+  echo "splunkgroup is unset, default to splunk"
+else 
+  echo "splunkgroup='${splunkgroup}'" 
+fi
+
+USERFOUND=0
+if id "${splunkuser}" &>/dev/null; then
+  echo 'splunkuser ${splunkuser} found'
+  USERFOUND=1 
+else
+  echo 'splunkuser ${splunkuser} not found'
+  USERFOUND=0 
+fi
+
+GROUPFOUND=0
+if id "${splunkgroup}" &>/dev/null; then
+  echo 'splunkgroup ${splunkgroup} found'
+  GROUPFOUND=1
+else
+  echo 'splunkgroup ${splunkgroup} not found'
+  GROUPFOUND=0
+fi
+
+
+# check the splunkuser is not a admin, remove this check only if you understand what that mean
+
+sizeuser=${#splunkuser} 
+sizegroup=${#splunkgroup} 
+# size min (5 will avoid for exemple calling it root)
+sizemin=5
+
+
+if (( sizeuser < sizemin )); then 
+  echo "FAIL : splunk user length too short, minimum = $sizemin, please fix and relaunch"
+  exit 1
+fi 
+
+if (( sizegroup < sizemin )); then 
+  echo "FAIL : splunk group length too short, minimum = $sizemin, please fix and relaunch"
+  exit 1
+fi 
+
+# fixme add group support here
+
+# fixme more checks here
+
 # manually create the splunk user so that it will exist for next step   
-useradd --home-dir ${SPLUNK_HOME} --comment "Splunk Server" splunk --shell /bin/bash 
+useradd --home-dir ${SPLUNK_HOME} --comment "Splunk Server" ${splunkuser} --shell /bin/bash 
 
 # localbackupdir creation
 mkdir -p ${localbackupdir}
-chown splunk. ${localbackupdir}
+chown ${usersplunk}. ${localbackupdir}
 
 mkdir -p ${localinstalldir}
-chown splunk. ${localinstalldir}
+chown ${usersplunk}. ${localinstalldir}
 
 # perl needed for swap (regex) and splunkconf-init.pl
 # openjdk not needed by recovery itself but for app that use java such as dbconnect , itsi...
@@ -553,7 +622,7 @@ chown splunk. ${localinstalldir}
 
 if ! command -v yum &> /dev/null
   then
-  echo "yum command could not be found, not RH like distribution , not fully implemented/tested at the moment, stopping here " >> /var/log/splunkconf-cloud-recovery-info.log
+  echo "FAIL yum command could not be found, not RH like distribution , not fully implemented/tested at the moment, stopping here " >> /var/log/splunkconf-cloud-recovery-info.log
   exit 1
 fi
 
@@ -650,7 +719,7 @@ if [ "$MODE" != "upgrade" ]; then
       # for volume management to work in classic mode, it is better to use a distinct partition to not mix manage and unmanaged on the same partition
       echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-cloud-recovery-info.log
       mkdir -p /data/vol1/indexes
-      chown -R splunk. /data/vol1/indexes
+      chown -R ${usersplunk}. /data/vol1/indexes
     else
       echo "instance storage detected"
       #OSDEVICE=$(lsblk -o NAME -n | grep -v '[[:digit:]]' | sed "s/^sd/xvd/g")
@@ -685,9 +754,9 @@ if [ "$MODE" != "upgrade" ]; then
         mount /data/vol1
         echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-cloud-recovery-info.log
         mkdir -p /data/vol1/indexes
-        chown -R splunk. /data/vol1/indexes
+        chown -R ${usersplunk}. /data/vol1/indexes
         echo "moving splunk home to ephemeral devices in data/vol1/splunk (smartstore scenario)" >> /var/log/splunkconf-cloud-recovery-info.log
-        (mv /opt/splunk /data/vol1/splunk;ln -s /data/vol1/splunk /opt/splunk;chown -R splunk. /opt/splunk) || mkdir -p /data/vol1/splunk
+        (mv /opt/splunk /data/vol1/splunk;ln -s /data/vol1/splunk /opt/splunk;chown -R ${usersplunk}. /opt/splunk) || mkdir -p /data/vol1/splunk
         SPLUNK_HOME="/data/vol1/splunk"
       else
         echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -696,14 +765,14 @@ if [ "$MODE" != "upgrade" ]; then
     PARTITIONFAST="/data/vol1"
     # FS created in AMI, need to give them back to splunk user
     if [ -e "/data/hotwarm" ]; then
-       chown -R splunk. /data/hotwarm
+       chown -R ${usersplunk}. /data/hotwarm
        PARTITIONFAST="/data/hotwarm"
        # resize when size in AMI not the right one
        resize2fs /dev/xvda1
        resize2fs /dev/xvdb
     fi
     if [ -e "/data/cold" ]; then
-       chown -R splunk. /data/cold
+       chown -R ${usersplunk}. /data/cold
     fi
   else
     echo "not a idx, no additional partition to configure" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -850,7 +919,7 @@ fi
   mkdir -p ${SPLUNK_HOME}/etc/system/local/
   mkdir -p ${SPLUNK_HOME}/etc/apps/
   mkdir -p ${SPLUNK_HOME}/etc/auth/
-  chown -R splunk. ${SPLUNK_HOME}
+  chown -R ${usersplunk}. ${SPLUNK_HOME}
 #fi
 
 # tuning system
@@ -966,17 +1035,17 @@ if [ "$MODE" != "upgrade" ]; then
   #aws s3 cp ${remoteinstalldir}/passwd ${localinstalldir} --quiet
   ## copying to right place
   #cp ${localinstalldir}/passwd /opt/splunk/etc/
-  #chown -R splunk. /opt/splunk
+  #chown -R ${usersplunk}. /opt/splunk
 
   # giving the index directory to splunk if they exist
-  chown -R splunk. /data/vol1/indexes
-  chown -R splunk. /data/vol2/indexes
+  chown -R ${usersplunk}. /data/vol1/indexes
+  chown -R ${usersplunk}. /data/vol2/indexes
 
   # deploy including for indexers
   echo "remote : ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
   get_object ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz ${localbackupdir}
   # setting up permissions for backup
-  chown splunk ${localbackupdir}/*.tar.gz
+  chown ${usersplunk}. ${localbackupdir}/*.tar.gz
   chmod 500 ${localbackupdir}/*.tar.gz
   if [ -f "${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz"  ]; then
     # excluding this script to avoid restoring a older version from backup
@@ -990,11 +1059,11 @@ if [ "$MODE" != "upgrade" ]; then
     echo "remote : ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
     get_object ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz ${localbackupdir}
     # at first splunk install, need to recreate the dir and give it to splunk
-    mkdir -p ${localkvdumpbackupdir};chown splunk. ${localkvdumpbackupdir}
+    mkdir -p ${localkvdumpbackupdir};chown ${usersplunk}. ${localkvdumpbackupdir}
     echo "remote : ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
     get_object ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
     # making sure splunk user can access the backup 
-    chown splunk. ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
+    chown ${usersplunk}. ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
     # and only
     chmod 500 ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
     echo "remote : ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
@@ -1007,7 +1076,7 @@ if [ "$MODE" != "upgrade" ]; then
     get_object ${remotebackupdir}/backupconfsplunk-scripts.tar.gz ${localbackupdir}
 
     # setting up permissions for backup
-    chown splunk ${localbackupdir}/*.tar.gz
+    chown ${usersplunk}. ${localbackupdir}/*.tar.gz
     chmod 500 ${localbackupdir}/*.tar.gz
 
     echo "localbackupdir ${localbackupdir}  contains" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -1070,14 +1139,14 @@ if [ "$MODE" != "upgrade" ]; then
       echo "initializing inputs.conf with ${instancename}\n"
       echo "[default]" > ${SPLUNK_HOME}/etc/system/local/inputs.conf
       echo "host = ${instancename}" >> ${SPLUNK_HOME}/etc/system/local/inputs.conf
-      chown splunk. ${SPLUNK_HOME}/etc/system/local/inputs.conf
+      chown ${usersplunk}. ${SPLUNK_HOME}/etc/system/local/inputs.conf
     fi
     if [ ! -f "${SPLUNK_HOME}/etc/system/local/server.conf"  ]; then
       # Splunk was never started  (ie we just deployed in the recovery above)
       echo "initializing server.conf with ${instancename}\n"
       echo "[general]" > ${SPLUNK_HOME}/etc/system/local/server.conf
       echo "serverName = ${instancename}" >> ${SPLUNK_HOME}/etc/system/local/server.conf
-      chown splunk. ${SPLUNK_HOME}/etc/system/local/server.conf
+      chown ${usersplunk}. ${SPLUNK_HOME}/etc/system/local/server.conf
     fi
   elif [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
     if [ -z ${splunkorg+x} ]; then 
@@ -1119,15 +1188,15 @@ if [ "$MODE" != "upgrade" ]; then
     echo "Indexer detected setting site for availability zone $AZONE (letter=$ZONELETTER,sitenum=$sitenum, site=$site) " >> /var/log/splunkconf-cloud-recovery-info.log
     # removing any conflicting app that could define site
     # giving back files to splunk user (this is required here as if the permissions are incorrect from tar file du to packaging issues, the delete from splunk below will fail here)
-    chown -R splunk. $SPLUNK_HOME
+    chown -R ${usersplunk}. $SPLUNK_HOME
     FORME="*site*base"
     # find app that match forn and deleting the app folder
-    su - splunk -c "/usr/bin/find $SPLUNK_HOME/etc/apps/ -name \"${FORME}\" -exec rm -r {} \; "
+    su - ${usersplunk} -c "/usr/bin/find $SPLUNK_HOME/etc/apps/ -name \"${FORME}\" -exec rm -r {} \; "
     find $SPLUNK_HOME/etc/apps/ -name \"\*site\*base\" -delete -print >> /var/log/splunkconf-cloud-recovery-info.log
     mkdir -p "$SPLUNK_HOME/etc/apps/${splunkorg}_site${sitenum}_base/local"
     echo -e "#This configuration was automatically generated based on indexer location\n#This site should be defined on the CM\n[general] \nsite=$site" > $SPLUNK_HOME/etc/apps/${splunkorg}_site${sitenum}_base/local/server.conf
     # giving back files to splunk user
-    chown -R splunk. $SPLUNK_HOME/etc/apps/${splunkorg}_site${sitenum}_base
+    chown -R ${usersplunk}. $SPLUNK_HOME/etc/apps/${splunkorg}_site${sitenum}_base
     echo "Setting Indexer on site: $site" >> /var/log/splunkconf-cloud-recovery-info.log
     if [ $SYSVER -eq "6" ]; then
       echo "running non systemd os , we wont add a custom service to terminate"
@@ -1227,7 +1296,7 @@ EOF
       chmod 755 /usr/local/bin
       systemctl daemon-reload
       systemctl enable aws-terminate-helper.service
-      chown root.splunk ${localrootscriptdir}/splunkconf-aws-terminate-idx.sh
+      chown root.${splunkgroup} ${localrootscriptdir}/splunkconf-aws-terminate-idx.sh
       chmod 550 ${localrootscriptdir}/splunkconf-aws-terminate-idx.sh
     fi   
   else
@@ -1246,7 +1315,7 @@ EOF
   # copying to right place
   # FIXME : more  logic here
   cp ${localinstalldir}/user-seed.conf ${SPLUNK_HOME}/etc/system/local/
-  chown -R splunk. ${SPLUNK_HOME}
+  chown -R ${usersplunk}. ${SPLUNK_HOME}
 
 fi # if not upgrade
 
@@ -1313,12 +1382,12 @@ else
   echo "remote : ${remoteinstalldir}/${envhelperscript}" >> /var/log/splunkconf-cloud-recovery-info.log
   get_object ${remoteinstalldir}/${envhelperscript}  ${localinstalldir}
   if [ -e "${localinstalldir}/$envhelperscript" ]; then
-    chown splunk. ${localinstalldir}/$envhelperscript
+    chown ${usersplunk}. ${localinstalldir}/$envhelperscript
     chmod u+rx  ${localinstalldir}/$envhelperscript
     # give back files 
-    chown -R splunk. ${SPLUNK_HOME}
+    chown -R ${usersplunk}. ${SPLUNK_HOME}
     echo "launching $envhelperscript as splunk, please make sure you implement logic inside if needed to restrict to some instances only"  >> /var/log/splunkconf-cloud-recovery-info.log
-    su - splunk -c "${localinstalldir}/$envhelperscript"
+    su - ${usersplunk} -c "${localinstalldir}/$envhelperscript"
   else
     echo "$envhelperscript not present in ${remoteinstalldir}/${envhelperscript}, please consider creating it if you need to customize things specifically for this ${splunktargetenv} env" >> /var/log/splunkconf-cloud-recovery-info.log  >> /var/log/splunkconf-cloud-recovery-info.log
   fi
@@ -1328,7 +1397,7 @@ fi
 #${SPLUNK_HOME}/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user splunk -systemd-managed 0 || ${SPLUNK_HOME}/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user splunk
 ##${SPLUNK_HOME}/bin/splunk enable boot-start -user splunk --accept-license
 ## if run first time, because we haven't started splunk yet, this risk writing some files as root so lets give them back to splunk
-#chown -R splunk. ${SPLUNK_HOME}
+#chown -R ${usersplunk}. ${SPLUNK_HOME}
 
 ## redeploy system tuning as enable boot start may have overwritten files
 ##tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
@@ -1342,7 +1411,7 @@ else
 fi
 
 # give back files (see RN)
-chown -R splunk. ${SPLUNK_HOME}
+chown -R ${usersplunk}. ${SPLUNK_HOME}
 
 ## using updated init script with su - splunk
 #echo "remote : ${remoteinstalldir}/splunkenterprise-init.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log

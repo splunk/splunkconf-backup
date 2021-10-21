@@ -110,8 +110,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210906 up default to 8.2.2
 # 20210907 add splunkcloudmode for gcp case
 # 20211017 add more tag support to be able to use various splunkconf-init options from recovery, add initial support for custom user/group in the recovery part
+# 20211021 more tag support
 
-VERSION="20211017a"
+VERSION="20211021a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -353,6 +354,22 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkgroup=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkgroup`
   #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
+fi
+
+# additional options to splunkinit
+# default to empty
+# if we receive a tag with a non default value, we add it incremetaly to this variable 
+# this allow not to call splunkinit will all the options set 
+SPLUNKINITOPTIONS=""
+
+if [ ${splunksystemd} -eq "systemd" ]; then 
+  SPLUNKINITOPTIONS+=" --systemd=systemd"
+elif [ ${splunksystemd} -eq "init" ]; then
+  SPLUNKINITOPTIONS+=" --systemd=init"
+elif [ ${splunksystemd} -eq "auto" ]; then
+  echo "systemd tag set to auto -> default"
+else
+  echo "unsupported/unknown value for splunksystemd:${splunksystemd} , falling back to default"
 fi
 
 # set the mode based on tag and test logic
@@ -1503,12 +1520,12 @@ if [ "$INSTALLMODE" = "tgz" ]; then
 #    i=1
     SERVICENAME="${instancename}_$i"
     echo "setting up instance $i/$NBINSTANCES with SERVICENAME=$SERVICENAME"
-    ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary}
+    ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS}
   done
 else
   echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init" >> /var/log/splunkconf-cloud-recovery-info.log
   # no need to pass option, it will default to systemd + /opt/splunk + splunk user
-  ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg
+  ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg ${SPLUNKINITOPTIONS}
 fi
 
 

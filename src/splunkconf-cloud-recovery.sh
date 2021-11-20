@@ -1,8 +1,24 @@
 #!/bin/bash -x 
 exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 
-# Matthieu Araman
-# Splunk
+# Copyright 2021 Splunk Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Contributor :
+#
+# Matthieu Araman, Splunk
+#
 # This script is used either :
 #   - after cloud user-data launched by AWS S3 autoscaling to setup the OS , dowwnload and restore files to prepare for Splunk isntallation upgrade
 #   - on a running instance to perform a upgrade (same thing but the OS partition are expected to be there and the reboot is not done as we havent updated the system)
@@ -111,8 +127,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210907 add splunkcloudmode for gcp case
 # 20211017 add more tag support to be able to use various splunkconf-init options from recovery, add initial support for custom user/group in the recovery part
 # 20211021 more tag support
+# 20211120 fix typo and add more error checking for multids script presence
 
-VERSION="20211021a"
+VERSION="20211120aa"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1496,6 +1513,10 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   pip3 install splunk-appinspect
   # LB SETUP for multi DS
   get_object ${remoteinstalldir}/splunkconf-ds-lb.sh ${localrootscriptdir}
+  if [ ! -e "${localrootscriptdir}/splunkconf-ds-lb.sh" ]; then
+    echo " ${localrootscriptdir}/splunkconf-ds-lb.sh doesnt  exist, please fix (add file to expected location) and relaunch"
+    exit 1
+  fi 
   echo "creating DS LB via LVS"
   chown root. ${localrootscriptdir}/splunkconf-ds-lb.sh 
   chmod 750 ${localrootscriptdir}/splunkconf-ds-lb.sh 
@@ -1506,9 +1527,9 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   else
     NBINSTANCES=${splunkdsnb}
     if (( $NBINSTANCES > 0 )); then 
-      echo "set NBINSTANCES=${splunkdsnb} "
+      echo "set NBINSTANCES=${splunkdsnb}"
    else
-      echo " ATTENTION ERROR splunkdsnb is not numeric or contain invalid value, switching back to default 4 instances, please investigate and correct tag (remove extra spaces for example" 
+      echo " ATTENTION ERROR splunkdsnb is not numeric or contain invalid value, switching back to default 4 instances, please investigate and correct tag (remove extra spaces for example)" 
      NBINSTANCES=4
    fi
   fi
@@ -1517,7 +1538,6 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   # no need to pass option, it will default to systemd + /opt/splunk + splunk user
   for ((i=1;i<=$NBINSTANCES;i++)); 
   do 
-#    i=1
     SERVICENAME="${instancename}_$i"
     echo "setting up instance $i/$NBINSTANCES with SERVICENAME=$SERVICENAME"
     ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS}

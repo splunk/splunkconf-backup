@@ -1,13 +1,28 @@
 #!/bin/bash  
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
-
-
-/bin/env > /tmp/debugenv
+# Copyright 2021 Splunk Inc.
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Contributor :
+#
 # Matthieu Araman, Splunk
-# copyright splunk
 
-# This script backup splunk config files
+
+##/bin/env > /tmp/debugenv
+
+# This script backup splunk config files, state , scripts and kvstore 
 
 # 201610 initial
 # 20170123 move to use ENVSPL, add kvstore backup
@@ -52,8 +67,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20210202 add fallback to /etc/instance-tags for case where dynamic tags are not working but the files has been set by another way
 # 20210202 use splunkinstanceType before servername before host for instancename 
 # 20210729 add imdsv2 to aws cloud detection
+# 20211124 comment debug command, include license wording, add initial options for rsync
 
-VERSION="20210729a"
+VERSION="20211124a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -121,12 +137,14 @@ DOREMOTEBACKUP=1
 # PLEASE USE A SUBDIRECTORY ON THE REMOTE LOCATION SO THAT THE DIRECTORY CHECK WILL FAIL IN CASE THE REMOTE STORAGE IS NOT THERE (we don't want to write locally if not mouted for example)
 #REMOTEBACKUPDIR="/mnt/remotenas/backup"
 REMOTEBACKUPDIR="s3://pleaseconfigurenstancetagsorsetdirectlythes3bucketforbackupshere-splunks3splunkbackup/splunkconf-backup"
-# type 1 = nas (use cp), 2 = S3 (use aws s3 cp), 3= remote nas via scp
+# type 1 = nas (use cp), 2 = S3 (use aws s3 cp) or GCS , 3= remote nas via scp, 4 = rsync
 REMOTETECHNO=2
 # type : 0=auto 1 = date versioned backup (preferred for local),2 = only one backup file (dangerous, we need other feature to do versioning like filesystem (btrfs) , classic backup on top, ... 3 = only one backup, no instance name in it (they are still sorted by instance directory, may be easier for automatic reuse by install scripts)
 # auto -> S3 =0 (because s3 can store multiple versions of same file), NAS=1
 REMOTETYPE=0
 
+# RSYNC OVER SSH options
+# RSYNCMODE
 
 # WHAT TO BACKUP
 # this can be used for : rollback, doing diff , moving conf to new server, ....
@@ -785,7 +803,7 @@ debug_log "MODE=$MODE, starting remote part"
 
 ###############################    REMOTE    #############################################3
 
-# remote techno 1 = nas, 2=S3, 3= scp to nas
+# remote techno 1 = nas, 2=S3, 3= scp to nas, 4 = rsync
 # remotetype 0=auto, 1=date, 2 = no date, 3= no date, no instance
 
 TYPE="remote"
@@ -795,6 +813,9 @@ debug_log "starting remote backup"
     if [ ${REMOTETECHNO} -eq 2 ]; then
       REMOTETYPE=3;
       debug_log "object store remote type with versioning, automatic switching to non date and non instance format";
+    elif [ ${REMOTETECHNO} -eq 4 ]; then
+      REMOTETYPE=3;
+      debug_log "rsync mode, automatic switching to non date and non instance format in order to ease automatic restore";
     else 
       REMOTETYPE=1;
       debug_log "NAS type, automatic switching to date+instance format";
@@ -830,6 +851,10 @@ debug_log "starting remote backup"
   elif [ ${REMOTETECHNO} -eq 3 ]; then
     # remote via scp
     debug_log "backup via scp"
+    # dir creation remote here FIXME
+  elif [ ${REMOTETECHNO} -eq 4 ]; then
+    # remote via rsync over ssh
+    debug_log "backup via rsync over ssh"
     # dir creation remote here FIXME
   else
     fail_log "cant do remote backup. unknown remotetechno ${REMOTETECHNO}. Please fix configuration settings"
@@ -905,6 +930,10 @@ debug_log "starting remote backup"
 # --storage-class STANDARD_IA reduce cost for infrequent access objects such as backups while not decreasing availability/redundancy
   elif [ ${REMOTETECHNO} -eq 3 ]; then
     CPCMD="scp";
+# second option depend on recent ssh , instead it is possible to disable via =no or use other mean to accept the key before the script run
+    OPTION=" -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
+  elif [ ${REMOTETECHNO} -eq 4 ]; then
+    CPCMD="rsync -a -e \"ssh -oBatchMode=yes -oStrictHostKeyChecking=accept-new \" ";
 # second option depend on recent ssh , instead it is possible to disable via =no or use other mean to accept the key before the script run
     OPTION=" -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
   fi

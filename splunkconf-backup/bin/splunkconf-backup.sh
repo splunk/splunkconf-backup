@@ -68,8 +68,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20210202 use splunkinstanceType before servername before host for instancename 
 # 20210729 add imdsv2 to aws cloud detection
 # 20211124 comment debug command, include license wording, add initial options for rsync
+# 20220102 fix cloud detection for newer AWS kernels
 
-VERSION="20211124a"
+VERSION="20220102a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -258,14 +259,20 @@ function check_cloud() {
       echo_log 'AWS instance detected'
       cloud_type=1
     fi
-  else
+    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "ec2" ]; then
+      echo_log 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+  # if detection not yet successfull, try fallback method
+  if [[ $cloud_type -eq "0" ]]; then
     # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
     # authoritative, we could follow Amazon's suggestions for cryptographically
     # verifying their signature, see here:
     #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
     # but this is almost certainly overkill for this purpose (and the above
     # checks of "EC2" prefixes have a higher false positive potential, anyway).
-    #  imdsv2 support : TOKEN should exist if inside AWS even if not enforced   
+    #  imdsv2 support : TOKEN should exist if inside AWS even if not enforced
     TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
     if [ -z ${TOKEN+x} ]; then
       # TOKEN NOT SET , NOT inside AWS

@@ -128,8 +128,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20211017 add more tag support to be able to use various splunkconf-init options from recovery, add initial support for custom user/group in the recovery part
 # 20211021 more tag support
 # 20211120 fix typo and add more error checking for multids script presence
+# 20220102 fix cloud detection for newer AWS kernels
 
-VERSION="20211120aa"
+VERSION="20220102a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -157,15 +158,25 @@ function check_cloud() {
       echo 'AWS instance detected'
       cloud_type=1
     fi
-  else
+    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "ec2" ]; then
+      echo 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+  # if detection not yet successfull, try fallback method
+  if [[ $cloud_type -eq "0" ]]; then 
     # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
     # authoritative, we could follow Amazon's suggestions for cryptographically
     # verifying their signature, see here:
     #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
     # but this is almost certainly overkill for this purpose (and the above
     # checks of "EC2" prefixes have a higher false positive potential, anyway).
+    #  imdsv2 support : TOKEN should exist if inside AWS even if not enforced   
     TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
-    if $(curl -s -m 5 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
+    if [ -z ${TOKEN+x} ]; then
+      # TOKEN NOT SET , NOT inside AWS
+      cloud_type=0
+    elif $(curl --silent -m 5 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
       echo 'AWS instance detected'
       cloud_type=1
     fi
@@ -379,7 +390,10 @@ fi
 # this allow not to call splunkinit will all the options set 
 SPLUNKINITOPTIONS=""
 
-if [ ${splunksystemd} -eq "systemd" ]; then 
+if [ -z ${splunksystemd+x} ]; then 
+  echo "splunksystemd is unset, falling back to default value of auto"
+  splunksystemd="auto"
+elif [ ${splunksystemd} -eq "systemd" ]; then 
   SPLUNKINITOPTIONS+=" --systemd=systemd"
 elif [ ${splunksystemd} -eq "init" ]; then
   SPLUNKINITOPTIONS+=" --systemd=init"
@@ -404,7 +418,7 @@ fi
 # instance type
 if [ -z ${splunkinstanceType+x} ]; then 
   if [ -z ${instanceType+x} ]; then
-    echo "instance tags are not correctly set (splunkinstanceType). I dont know what kind of instance I am ! Please correct and relaunch. Exiting" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "ERROR : instance tags are not correctly set (splunkinstanceType). I dont know what kind of instance I am ! Please correct and relaunch. Exiting" >> /var/log/splunkconf-cloud-recovery-info.log
     exit 1
   else
     echo "legacy tags used, please update instance tags to use splunk prefix (splunkinstanceType)" >> /var/log/splunkconf-cloud-recovery-info.log

@@ -130,8 +130,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20211120 fix typo and add more error checking for multids script presence
 # 20220102 fix cloud detection for newer AWS kernels
 # 20220112 fix tag renaming support when splunkdnszone used (and add DEPRECATED warning to the old splunkawsdnszone )
+# 20220112 increase token validity for aws metadata 
 
-VERSION="202201r102a"
+VERSION="20220112b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -173,7 +174,7 @@ function check_cloud() {
     # but this is almost certainly overkill for this purpose (and the above
     # checks of "EC2" prefixes have a higher false positive potential, anyway).
     #  imdsv2 support : TOKEN should exist if inside AWS even if not enforced   
-    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 3600"`
     if [ -z ${TOKEN+x} ]; then
       # TOKEN NOT SET , NOT inside AWS
       cloud_type=0
@@ -323,7 +324,7 @@ if [[ "cloud_type" -eq 1 ]]; then
   # getting tokens and writting to /etc/instance-tags
 
   # setting up token (IMDSv2)
-  TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+  TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 3600"`
   # lets get the s3splunkinstall from instance tags
   INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
   REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
@@ -494,7 +495,7 @@ else
   elif [ $cloud_type == 1 ]; then
     echo "updating dns via route53 api"
     # AWS doing direct dns update in recovery
-    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 3600"`
     IP=$( curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4 )
     # need iam ->  policy  permissions of
     #

@@ -84,6 +84,7 @@
 # 20211013 test for 8.3 (no change)
 # 20211016 add option to use generated polkit + set group when calling boot-start in systemd mode (for default case)
 # 20211021 add systemd in option name for default service file to ease usage
+# 20220112 fix type mismatch in test
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -93,7 +94,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20211021a";
+$VERSION="20220112a";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -213,7 +214,7 @@ if ($SPLUNK_SUBSYS =~/forwarder/) {
   print "forwarder -> changing default splunk_home to $SPLUNK_HOME\n";
 }
 
-if ($systemdpolkit=="inline" || $systemdpolkit=="generated" ) {
+if ($systemdpolkit eq "inline" || $systemdpolkit eq "generated" ) {
    print "systemdpolkit value set to $systemdpolkit\n";
 } else {
    print " WARNING ! invalid value $systemdpolkit for systemdpolkit passed to splunkconf-init, using inline default\n";

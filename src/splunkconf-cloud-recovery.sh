@@ -129,8 +129,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20211021 more tag support
 # 20211120 fix typo and add more error checking for multids script presence
 # 20220102 fix cloud detection for newer AWS kernels
+# 20220112 fix tag renaming support when splunkdnszone used (and add DEPRECATED warning to the old splunkawsdnszone )
 
-VERSION="20220102a"
+VERSION="202201r102a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -384,7 +385,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   
 fi
 
-# additional options to splunkinit
+# additional options to splunkconf-init
 # default to empty
 # if we receive a tag with a non default value, we add it incremetaly to this variable 
 # this allow not to call splunkinit will all the options set 
@@ -480,7 +481,7 @@ if [ -z ${splunkdnszone+x} ]; then
     #we can continue as we will just do nothing but obviously route53 update will fail if this is needed for this instance
     #exit 1
   else 
-    echo "using splunkawsdnszone from instance tags (please consider renaming to just splunkdnszone) " >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "using splunkawsdnszone from instance tags (DEPRECATED, please consider renaming splunkawsdnszone to splunkdnszone) " >> /var/log/splunkconf-cloud-recovery-info.log
     splunkdnszone=$splunkawsdnszone
   fi
 fi
@@ -565,7 +566,7 @@ EOF
 fi
 echo "splunkdnszone is ${splunkdnszone}" >> /var/log/splunkconf-cloud-recovery-info.log
 echo "splunkdnszoneid is ${splunkdnszoneid}" >> /var/log/splunkconf-cloud-recovery-info.log
-echo "splunkawsdnszone is ${splunkawsdnszone}" >> /var/log/splunkconf-cloud-recovery-info.log
+echo "splunkdnszone is ${splunkdnszone}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 
 
@@ -1383,21 +1384,21 @@ if [ -z ${splunkorg+x} ]; then
 else 
   echo "using splunkorg=${splunkorg} from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
 fi
-# splunkawsdnszone used for updating route53 when apropriate
-if [ -z ${splunkawsdnszone+x} ]; then 
-    echo "instance tags is not defining splunkawsdnszone. Some features will be disabled such as updating master_uri in a cluster env ! Please consider adding splunkawsdnszone tag" >> /var/log/splunkconf-cloud-recovery-info.log
+# splunkdnszone used for updating route53 when apropriate
+if [ -z ${splunkdnszone+x} ]; then 
+    echo "instance tags is not defining splunkdnszone. Some features will be disabled such as updating master_uri in a cluster env ! Please consider adding splunkdnszone tag" >> /var/log/splunkconf-cloud-recovery-info.log
 elif [ -z ${splunktargetcm+x} ]; then
     echo "instance tags is not defining splunktargetcm. Some features will be disabled such as updating master_uri in a cluster env ! Please consider adding splunktargetcm tag" >> /var/log/splunkconf-cloud-recovery-info.log
 else 
-  echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (master_uri) master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089 (cm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
+  echo "using splunkdnszone ${splunkdnszone} from instance tags (master_uri) master_uri=https://${splunktargetcm}.${splunkdnszone}:8089 (cm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
   # assuming PS base apps are used   (indexer and search)
-  # we dont want to update master_uri=clustermaster:indexer1 in cluster_search_bae
-  find ${SPLUNK_HOME} -wholename "*cluster_search_base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*https.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \; 
-  find ${SPLUNK_HOME} -wholename "*cluster_indexer_base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \; 
+  # we dont want to update master_uri=clustermaster:indexer1 in cluster_search_base
+  find ${SPLUNK_HOME} -wholename "*cluster_search_base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*https.*$%master_uri=https://${splunktargetcm}.${splunkdnszone}:8089%" {} \; 
+  find ${SPLUNK_HOME} -wholename "*cluster_indexer_base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkdnszone}:8089%" {} \; 
   # it is also used fo rindexer discovery in outputs.conf
-  find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/deployment-apps ${SPLUNK_HOME}/etc/shcluster/apps ${SPLUNK_HOME}/etc/system/local  -name "outputs.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \; 
+  find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/deployment-apps ${SPLUNK_HOME}/etc/shcluster/apps ${SPLUNK_HOME}/etc/system/local  -name "outputs.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkdnszone}:8089%" {} \; 
   # $$ echo "master_uri replaced" || echo "master_uri not replaced"
-  # this wont work in that form because master_uri could be the one for license find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkawsdnszone}:8089%" {} \;  $$ echo "master_uri replaced" || echo "master_uri not replaced"
+  # this wont work in that form because master_uri could be the one for license find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkdnszone}:8089%" {} \;  $$ echo "master_uri replaced" || echo "master_uri not replaced"
 
   # DS case (targetUri)
   if [ -z ${splunktargetds+x} ]; then
@@ -1406,8 +1407,8 @@ else
     #splunktargetds="splunk-ds"
   else
     echo "tag splunktargetds is set to $splunktargetds and will be used as the short name for deploymentclient config to ref the DS" >> /var/log/splunkconf-cloud-recovery-info.log
-    echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags (targetUri) targetUri=${splunktargetds}.${splunkawsdnszone}:8089 (ds name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
-    find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "deploymentclient.conf" -exec grep -l targetUri {} \; -exec sed -i -e "s%^.*targetUri.*=.*$%targetUri=${splunktargetds}.${splunkawsdnszone}:8089%" {} \; 
+    echo "using splunkdnszone ${splunkdnszone} from instance tags (targetUri) targetUri=${splunktargetds}.${splunkdnszone}:8089 (ds name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
+    find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "deploymentclient.conf" -exec grep -l targetUri {} \; -exec sed -i -e "s%^.*targetUri.*=.*$%targetUri=${splunktargetds}.${splunkdnszone}:8089%" {} \; 
   # $$ echo "targetUri replaced" || echo "targetUri not replaced"
   fi
   # lm case 
@@ -1415,8 +1416,8 @@ else
     echo "tag splunktargetlm not set, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
   else 
     echo "tag splunktargetlm is set to $splunktargetlm and will be used as the short name for master_uri config under [license] in server.conf to ref the LM" >> /var/log/splunkconf-cloud-recovery-info.log
-    echo "using splunkawsdnszone ${splunkawsdnszone} from instance tags [license] master_uri=${splunktargetlm}.${splunkawsdnszone}:8089 (lm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
-    ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -I FILE -L 1 sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkawsdnszone}:8089%" FILE
+    echo "using splunkdnszone ${splunkdnszone} from instance tags [license] master_uri=${splunktargetlm}.${splunkdnszone}:8089 (lm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
+    ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -I FILE -L 1 sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkdnszone}:8089%" FILE
   fi
   # fixme add shc deployer case here
 fi

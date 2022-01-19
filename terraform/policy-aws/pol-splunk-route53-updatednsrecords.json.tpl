@@ -10,6 +10,11 @@
         {
             "Sid": "VisualEditor1",
             "Effect": "Allow",
+            "Action": [
+                "route53:GetHostedZone",
+                "route53:ListHostedZones",
+                "route53:ListHostedZonesByName"
+            ],
             "Action": "route53:ListHostedZonesByName",
             "Resource": "*"
         }

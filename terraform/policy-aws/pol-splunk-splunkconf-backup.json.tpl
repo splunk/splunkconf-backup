@@ -27,7 +27,7 @@
                 "s3:AbortMultipartUpload"
             ],
             "Resource": [
-                "${s3_backup}/*"
+                "${s3_backup}"
             ]
         }
     ]

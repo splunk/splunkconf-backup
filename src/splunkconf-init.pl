@@ -85,6 +85,7 @@
 # 20211016 add option to use generated polkit + set group when calling boot-start in systemd mode (for default case)
 # 20211021 add systemd in option name for default service file to ease usage
 # 20220112 fix type mismatch in test
+# 20220119 add more tests and messages for DS splunk-launch tuning and restart service after applying
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -94,7 +95,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20220112a";
+$VERSION="20220119a";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -1147,8 +1148,15 @@ unless ($SPLPASSWDFILE || $SPLUNK_SUBSYS=="splunkforwarder") {
 if ($splunkrole =~/ds|deployment/ ) {
   # Note this tuning require that the system tuning was deployed as the kernel tcp/ip limits needs to be over !
   my $SPLUNKLAUNCHCONF="${SPLUNK_HOME}/etc/splunk-launch.conf";
-  # removing stanza if exist then readding
-  ` grep -v SPLUNK_LISTEN_BACKLOG $SPLUNKLAUNCHCONF > /tmp/SPLUNKLAUNCHCONF;cp /tmp/SPLUNKLAUNCHCONF $SPLUNKLAUNCHCONF; echo "SPLUNK_LISTEN_BACKLOG = 2048" >> $SPLUNKLAUNCHCONF`;
+  if ( -e $SPLUNKLAUNCHCONF) {
+    # removing stanza if exist then readding
+    print "Tuning SPLUNK_LISTEN_BACKLOG to 2048 for DS in etc/splunk-launch.conf (need to be done after first start)\n";
+    ` grep -v SPLUNK_LISTEN_BACKLOG $SPLUNKLAUNCHCONF > /tmp/SPLUNKLAUNCHCONF;cp /tmp/SPLUNKLAUNCHCONF $SPLUNKLAUNCHCONF; echo "SPLUNK_LISTEN_BACKLOG = 2048" >> $SPLUNKLAUNCHCONF`;
+    print "telling systemd to restart the $servicename service via systemctl restart $servicename in order for tuning to be applied\n";
+    `systemctl restart $servicename`;
+  } else {
+    print "WARNING ! Something is wrong ! splunk-launch.conf not yet created at $SPLUNKLAUNCHCONF, not applying tuning yet\n";
+  }
 }
 
 #print "remove password change on UI\n";

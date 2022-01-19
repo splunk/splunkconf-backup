@@ -132,6 +132,26 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
       }
     }
   }
+  tags = concat(
+    [
+      {
+        "key"                 = "splunkdnszone"
+        "value"               = "var.dns-zone-name"
+        "propagate_at_launch" = false
+      },
+      {
+        "key"                 = "Tyoe"
+        "value"               = "Splunk"
+        "propagate_at_launch" = false
+      },
+      {
+        "key"                 = "dnsnames" 
+        "value"               = "asghf"
+        "propagate_at_launch" = false
+      },
+    ],
+    var.extra_tags,
+  )
   depends_on = [null_resource.bucket_sync]
 }
 

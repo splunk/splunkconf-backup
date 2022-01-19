@@ -6,3 +6,8 @@ variable "imdsv2" {
   default = "optional"
 }
 
+variable "extra_tags" {
+  description = "extra custom tags to add in each ASG/instances"
+  type    = string
+  default = ""
+}

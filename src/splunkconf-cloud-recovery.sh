@@ -131,8 +131,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220102 fix cloud detection for newer AWS kernels
 # 20220112 fix tag renaming support when splunkdnszone used (and add DEPRECATED warning to the old splunkawsdnszone )
 # 20220112 increase token validity for aws metadata 
+# 20220121 disable ami hotpatch not needed for splunk
 
-VERSION="20220112b"
+VERSION="20220121a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -678,6 +679,10 @@ fi
 
 # one yum command so yum can try to download and install in // which will improve recovery time
 yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned -y 
+# disable as scan in permanence and not needed for splunk
+systemctl stop log4j-cve-2021-44228-hotpatch
+systemctl disable log4j-cve-2021-44228-hotpatch
+
 
 
 if [ "$MODE" != "upgrade" ]; then 

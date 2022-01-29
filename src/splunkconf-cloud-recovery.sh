@@ -132,8 +132,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220112 fix tag renaming support when splunkdnszone used (and add DEPRECATED warning to the old splunkawsdnszone )
 # 20220112 increase token validity for aws metadata 
 # 20220121 disable ami hotpatch not needed for splunk
+# 20220129 deploy splunkconf-ds-reload.sh for ds instances type
 
-VERSION="20220121a"
+VERSION="20220129a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1510,9 +1511,19 @@ if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix
       tar -C "${SPLUNK_HOME}/etc/shcluster/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz
     fi
   else 
-    echo "splunkconf-backup not found on s3 so will not deploy it now. consider adding it at ${remoteinstallsplunkconfbackup} for autonatic deployment"
+    echo "ATTENTION : splunkconf-backup not found on s3 so will not deploy it now. consider adding it at ${remoteinstallsplunkconfbackup} for autonatic deployment"
   fi
 fi
+
+if [[ "${instancename}" =~ ^(ds)$ ]]; then
+  echo "instance is a deployment server, deploying ds serverclass reload script"
+  DSRELOAD="splunkconf-ds-reload.sh"
+  get_object ${remoteinstalldir}/splunkconf-ds-reload.sh ${localscriptdir}
+  chown $usersplunk.$groupsplunk ${localscriptdir}/${DSRELOAD}
+  chmod 550  ${localscriptdir}/${DSRELOAD}
+# TEST
+fi
+
 
 # splunk initialization (first time or upgrade)
 mkdir -p ${localrootscriptdir}

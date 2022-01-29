@@ -133,8 +133,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220112 increase token validity for aws metadata 
 # 20220121 disable ami hotpatch not needed for splunk
 # 20220129 deploy splunkconf-ds-reload.sh for ds instances type
+# 20220129 add fake structure for multids to make splunkconf-backup happy
 
-VERSION="20220129a"
+VERSION="202201b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1556,6 +1557,19 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   chown root. ${localrootscriptdir}/splunkconf-ds-lb.sh 
   chmod 750 ${localrootscriptdir}/splunkconf-ds-lb.sh 
   ${localrootscriptdir}/splunkconf-ds-lb.sh 
+  echo "creating fake structure and files for splunkconf-backup not to complain and report failures when backuping (as we only car about deployment-apps related stuff)"
+  mkdir -p ${SPLUNK_HOME}/etc/master-apps
+  mkdir -p ${SPLUNK_HOME}/etc/shcluster
+  touch ${SPLUNK_HOME}/etc/passwd
+  mkdir -p ${SPLUNK_HOME}/etc/openldap
+  touch ${SPLUNK_HOME}/opt/splunk/etc/openldap/ldap.conf
+  mkdir -p ${SPLUNK_HOME}/etc/users
+  touch ${SPLUNK_HOME}/etc/splunk-launch.conf
+  touch ${SPLUNK_HOME}/etc/instance.cfg
+  touch ${SPLUNK_HOME}/etc/.ui_login
+  mkdir -p ${SPLUNK_HOME}/etc/licenses
+  touch ${SPLUNK_HOME}/etc/log.cfg
+  mkdir -p ${SPLUNK_HOME}/etc/disabled-apps
   NBINSTANCES=4
   if [ -z ${splunkdsnb+x} ]; then
     echo "multi ds mode used but splunkdsnb tag not defined, using 4 instances (default)"

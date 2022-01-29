@@ -1515,13 +1515,12 @@ if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix
   fi
 fi
 
-if [[ "${instancename}" =~ ^(ds)$ ]]; then
+if [[ "${instancename}" =~ ds ]]; then
   echo "instance is a deployment server, deploying ds serverclass reload script"
   DSRELOAD="splunkconf-ds-reload.sh"
   get_object ${remoteinstalldir}/splunkconf-ds-reload.sh ${localscriptdir}
   chown $usersplunk.$groupsplunk ${localscriptdir}/${DSRELOAD}
   chmod 550  ${localscriptdir}/${DSRELOAD}
-# TEST
 fi
 
 

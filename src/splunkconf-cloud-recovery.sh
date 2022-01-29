@@ -1562,7 +1562,7 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   mkdir -p ${SPLUNK_HOME}/etc/shcluster
   touch ${SPLUNK_HOME}/etc/passwd
   mkdir -p ${SPLUNK_HOME}/etc/openldap
-  touch ${SPLUNK_HOME}/opt/splunk/etc/openldap/ldap.conf
+  touch ${SPLUNK_HOME}/etc/openldap/ldap.conf
   mkdir -p ${SPLUNK_HOME}/etc/users
   touch ${SPLUNK_HOME}/etc/splunk-launch.conf
   touch ${SPLUNK_HOME}/etc/instance.cfg
@@ -1570,6 +1570,8 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   mkdir -p ${SPLUNK_HOME}/etc/licenses
   touch ${SPLUNK_HOME}/etc/log.cfg
   mkdir -p ${SPLUNK_HOME}/etc/disabled-apps
+  mkdir -p ${SPLUNK_HOME}/var/run/splunk
+  chown ${usersplunk}. ${SPLUNK_HOME}
   NBINSTANCES=4
   if [ -z ${splunkdsnb+x} ]; then
     echo "multi ds mode used but splunkdsnb tag not defined, using 4 instances (default)"

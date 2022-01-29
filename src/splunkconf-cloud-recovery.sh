@@ -1518,7 +1518,11 @@ fi
 if [[ "${instancename}" =~ ds ]]; then
   echo "instance is a deployment server, deploying ds serverclass reload script"
   DSRELOAD="splunkconf-ds-reload.sh"
-  get_object ${remoteinstalldir}/splunkconf-ds-reload.sh ${localscriptdir}
+  mkdir -p ${localscriptdir}
+  chown $usersplunk.$groupsplunk ${localscriptdir}/
+  chown $usersplunk.$groupsplunk ${localscriptdir}
+  chmod 550  ${localscriptdir}
+  get_object ${remoteinstalldir}/splunkconf-ds-reload.sh ${localscriptdir}/${DSRELOAD}
   chown $usersplunk.$groupsplunk ${localscriptdir}/${DSRELOAD}
   chmod 550  ${localscriptdir}/${DSRELOAD}
 fi

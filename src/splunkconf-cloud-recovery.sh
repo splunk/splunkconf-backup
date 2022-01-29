@@ -1571,7 +1571,7 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   touch ${SPLUNK_HOME}/etc/log.cfg
   mkdir -p ${SPLUNK_HOME}/etc/disabled-apps
   mkdir -p ${SPLUNK_HOME}/var/run/splunk
-  chown ${usersplunk}. ${SPLUNK_HOME}
+  chown -R ${usersplunk}. ${SPLUNK_HOME}
   NBINSTANCES=4
   if [ -z ${splunkdsnb+x} ]; then
     echo "multi ds mode used but splunkdsnb tag not defined, using 4 instances (default)"

@@ -134,8 +134,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220121 disable ami hotpatch not needed for splunk
 # 20220129 deploy splunkconf-ds-reload.sh for ds instances type
 # 20220129 add fake structure for multids to make splunkconf-backup happy
+# 20220203 add splunkmode tag to ease uf detection (ie when to deploy uf instead of full enterprise)
 
-VERSION="202201b"
+VERSION="20220203a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -317,7 +318,6 @@ echo "running with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 # setting variables
 
-SPLUNK_HOME="/opt/splunk"
 INSTANCEFILE="/etc/instance-tags"
 
 if [[ "cloud_type" -eq 1 ]]; then
@@ -385,9 +385,11 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkdisablewlm=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdisablewlm`
   splunkuser=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkuser`
   splunkgroup=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkgroup`
+  splunkmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkmode`
   #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
+
 
 # additional options to splunkconf-init
 # default to empty
@@ -406,6 +408,23 @@ elif [ ${splunksystemd} -eq "auto" ]; then
   echo "systemd tag set to auto -> default"
 else
   echo "unsupported/unknown value for splunksystemd:${splunksystemd} , falling back to default"
+fi
+
+# splunkmode 
+# value = uf mean will be deploying uf only
+# currently the only possible value
+
+SPLUNK_HOME="/opt/splunk"
+if [ -z ${splunkmode+x} ]; then 
+  echo "splunkmode is not set, assuming full mode" >> /var/log/splunkconf-cloud-recovery-info.log
+  splunkmode="ent"
+elif [ ${splunkmode} -eq "uf" ]; then 
+  echo "splunkmode is set to uf, we will deploy uf" >> /var/log/splunkconf-cloud-recovery-info.log
+  SPLUNK_HOME="/opt/splunkforwarder"
+  SPLUNKINITOPTIONS+=" --SPLUNK_HOME=${SPLUNK_HOME} --service-name=splunkforwarder"
+else
+  echo "ATTENTION : Invalid value ${splunkmode} for splunkmode , ignoring it, please correct and relaunch if needed" >> /var/log/splunkconf-cloud-recovery-info.log
+  splunkmode="ent"
 fi
 
 # set the mode based on tag and test logic
@@ -436,7 +455,6 @@ fi
 instancename=$splunkinstanceType 
 echo "splunkinstanceType : instancename=${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
 
-echo "SPLUNK_HOME is ${SPLUNK_HOME}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 set_hostname
 
@@ -478,7 +496,7 @@ else
 fi
 echo "splunkorg is ${splunkorg}" >> /var/log/splunkconf-cloud-recovery-info.log
 
-# splunkawsdnszone used for updating route53 when apropriate
+# splunkdnszone used for updating route53 when apropriate (replace splunkawsdnszone that we still try to detect as a fallback) 
 if [ -z ${splunkdnszone+x} ]; then 
   if [ -z ${splunkawsdnszone+x} ]; then 
     echo "instance tags are not correctly set (splunkdnszone or splunkawsdnszone). I dont know splunkdnszone to use for updating dns ! Please add splunkdnszone tag" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -574,7 +592,7 @@ echo "splunkdnszone is ${splunkdnszone}" >> /var/log/splunkconf-cloud-recovery-i
 
 
 
-
+echo "SPLUNK_HOME is ${SPLUNK_HOME}" >> /var/log/splunkconf-cloud-recovery-info.log
 localbackupdir="${SPLUNK_HOME}/var/backups"
 localinstalldir="${SPLUNK_HOME}/var/install"
 SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
@@ -861,7 +879,14 @@ fi # if not upgrade
 #splbinary="splunk-8.1.5-9c0c082e4596-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.2.1-ddff1c41e5cf-linux-2.6-x86_64.rpm"
-splbinary="splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm"
+#splbinary="splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm"
+splbinary="splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm"
+
+
+if [ $splunkmode =eq "uf" ]; then 
+  splbinary="splunkforwarder-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm"
+  echo "switching to uf binary ${splbinary} if not set in tag"
+fi
 
 if [ -z ${splunktargetbinary+x} ]; then 
   echo "splunktargetbinary not set in instance tags, falling back to use version ${splbinary} from cloud recovery script" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -877,16 +902,16 @@ echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-cloud-re
 get_object ${remoteinstalldir}/${splbinary} ${localinstalldir} 
 ls ${localinstalldir}
 if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
-  echo "RPM not present in install, trying to download directly"
-  ###### change from version on splunk : add -q , add ${localinstalldir}/ and add quotes around 
-  ######`wget -q -O ${localinstalldir}/splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.1&product=splunk&filename=splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm&wget=true'`
-#####  `wget -q -O ${localinstalldir}/splunk-8.1.2-545206cc9f70-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.2&product=splunk&filename=splunk-8.1.2-545206cc9f70-linux-2.6-x86_64.rpm&wget=true'`
-#  `wget -O splunk-8.1.3-63079c59e632-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.3&product=splunk&filename=splunk-8.1.3-63079c59e632-linux-2.6-x86_64.rpm&wget=true'`
-#   `wget -q -O ${localinstalldir}/splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.4&product=splunk&filename=splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm&wget=true'`
-#`wget -q -O ${localinstalldir}/splunk-8.1.5-9c0c082e4596-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.1.5&product=splunk&filename=splunk-8.1.5-9c0c082e4596-linux-2.6-x86_64.rpm&wget=true'`
-# `wget -q -O ${localinstalldir}/splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.2.0&product=splunk&filename=splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm&wget=true'`
-#`wget -q -O ${localinstalldir}/splunk-8.2.1-ddff1c41e5cf-linux-2.6-x86_64.rpm 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.2.1&product=splunk&filename=splunk-8.2.1-ddff1c41e5cf-linux-2.6-x86_64.rpm&wget=true'`
-`wget -q -O ${localinstalldir}/splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm 'https://d7wz6hmoaavd0.cloudfront.net/products/splunk/releases/8.2.2/linux/splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm'`
+  if [ $splunkmode -eq "uf" ]; then 
+    echo "RPM not present in install, trying to download directly (uf version)"
+    ###### change from version on splunk.com : add -q , add ${localinstalldir}/ and add quotes around 
+    `wget -q -O ${localinstalldir}/splunkforwarder-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm 'https://download.splunk.com/products/universalforwarder/releases/8.2.4/linux/splunkforwarder-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm'`
+  else
+    echo "RPM not present in install, trying to download directlyi (ent version)"
+    ###### change from version on splunk.com : add -q , add ${localinstalldir}/ and add quotes around 
+    #`wget -q -O ${localinstalldir}/splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm 'https://d7wz6hmoaavd0.cloudfront.net/products/splunk/releases/8.2.2/linux/splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm'`
+    `wget -q -O ${localinstalldir}/splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm 'https://download.splunk.com/products/splunk/releases/8.2.4/linux/splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm'`
+  fi
   if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install (or fix the wget with wget -q -O ... if you just copied paste wget))  " >> /var/log/splunkconf-cloud-recovery-info.log
     # better to exit now and have the admin fix the situation

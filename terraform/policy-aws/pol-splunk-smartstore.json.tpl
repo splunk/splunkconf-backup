@@ -12,6 +12,7 @@
                 "s3:ListBucketVersions",
                 "s3:ListBucket",
                 "s3:DeleteObject",
+                "s3:DeleteObjectVersion",
                 "s3:GetBucketLocation",
                 "s3:PutObjectAcl"
             ],

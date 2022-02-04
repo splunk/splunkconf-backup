@@ -86,6 +86,7 @@
 # 20211021 add systemd in option name for default service file to ease usage
 # 20220112 fix type mismatch in test
 # 20220119 add more tests and messages for DS splunk-launch tuning and restart service after applying
+# 20220203 fix warning in test condition
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -638,7 +639,7 @@ if ($enablesystemd==1  && $distritype eq "rh") {
   `yum install -y polkit`;
   my $POLKITRULE="/etc/polkit-1/rules.d/99-splunk.rules";
   my $POLKITHELPER="/usr/local/bin/polkit_splunk";
-  if ($systemdpolkit == "generated") {
+  if ($systemdpolkit eq "generated") {
      print "not creating inline polkit as generated asked\n";
   } else {
     print "inline polkit mode\n";

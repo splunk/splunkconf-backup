@@ -135,8 +135,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220129 deploy splunkconf-ds-reload.sh for ds instances type
 # 20220129 add fake structure for multids to make splunkconf-backup happy
 # 20220203 add splunkmode tag to ease uf detection (ie when to deploy uf instead of full enterprise)
+# 20220204 fix permissions for script dir when not the default path
 
-VERSION="20220203a"
+VERSION="20220204a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1662,11 +1663,17 @@ fi # if not upgrade
 
 # always download even in upgrade mode
 
+# create script dir if not exist and give it to splunk user
+mkdir -p ${localscriptdir}
+chown ${usersplunk}. ${localscriptdir}
+chmod 750 ${localscriptdir}
+
+
 # script run as splunk
 # this script is to be used on es sh , it will download ES installation files and script
 get_object ${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh  ${localscriptdir}/
 if [ -e ${localscriptdir}/splunkconf-prepare-es-from-s3.sh ]; then
-  chown splunk. ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
+  chown ${usersplunk}. ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
   chmod 700 ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
 else
   echo "${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh not existing, please consider add it if willing to deploy ES" 

@@ -136,8 +136,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220129 add fake structure for multids to make splunkconf-backup happy
 # 20220203 add splunkmode tag to ease uf detection (ie when to deploy uf instead of full enterprise)
 # 20220204 fix permissions for script dir when not the default path
+# 20220206 disable auto swap with swapme  when splunkmode=uf as probably not worth it in that case
 
-VERSION="20220204a"
+VERSION="20220206a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -861,8 +862,12 @@ if [ "$MODE" != "upgrade" ]; then
     echo "WARNING  : ${swapme} is not present in ${remoteinstalldir}/${swapme}, unable to tune swap  -> please verify the version specified is present" >> /var/log/splunkconf-cloud-recovery-info.log
   else
     chmod u+x ${localrootscriptdir}/${swapme}
-    # launching script and providing it info about the main partition that should be SSD like and have some room
-    `${localrootscriptdir}/${swapme} $PARTITIONFAST`
+    if [ "${splunkmode}" == "uf" ]; then
+      echo "disabling swapme support as uf detected" >> /var/log/splunkconf-cloud-recovery-info.log
+    else
+      # launching script and providing it info about the main partition that should be SSD like and have some room
+      `${localrootscriptdir}/${swapme} $PARTITIONFAST`
+    fi
   fi
 fi # if not upgrade
 

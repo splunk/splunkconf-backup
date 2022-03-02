@@ -11,3 +11,16 @@ variable "extra_tags" {
   type    = string
   default = ""
 }
+
+#variable "usekms" {
+#  description = "set this to 1  if you plan  to use kms" 
+#  type    = number
+#  default = "0"
+#}
+
+variable "kmsid" {
+  description = "specify kms id if you use kms with customer supplied key (sse-kms)" 
+  type    = string
+  default = "splunks3kms"
+}
+

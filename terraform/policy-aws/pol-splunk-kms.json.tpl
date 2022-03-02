@@ -12,7 +12,7 @@
                 "kms:DescribeKey"
             ],
             "Resource": [
-                "${kmsids}"
+                "${kmsarn}"
             ]
         }
     ]

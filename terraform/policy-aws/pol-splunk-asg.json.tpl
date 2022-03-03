@@ -8,6 +8,7 @@
                 "ec2:DescribeInstances",
                 "autoscaling:DescribeAutoScalingGroups",
                 "ec2:DescribeVpcs",
+                "autoscaling:DescribeTags",
                 "ec2:DescribeSubnets"
             ],
             "Resource": "*"

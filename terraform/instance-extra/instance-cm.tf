@@ -36,6 +36,12 @@ resource "aws_iam_policy_attachment" "cm-attach-splunk-ec2" {
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
 }
 
+resource "aws_iam_policy_attachment" "cm-attach-ssm-managedinstance" {
+  name       = "cm-attach-ssm-managedinstance"
+  roles      = [aws_iam_role.role-splunk-cm.name]
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 
 resource "aws_security_group_rule" "cm_from_bastion_ssh" { 
   security_group_id = aws_security_group.splunk-cm.id

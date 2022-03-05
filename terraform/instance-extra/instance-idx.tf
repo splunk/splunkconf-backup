@@ -41,6 +41,12 @@ resource "aws_iam_policy_attachment" "idx-attach-splunk-smartstore" {
   policy_arn = aws_iam_policy.pol-splunk-smartstore.arn
 }
 
+resource "aws_iam_policy_attachment" "idx-attach-ssm-managedinstance" {
+  name       = "idx-attach-ssm-managedinstance"
+  roles      = [aws_iam_role.role-splunk-idx.name]
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 
 # see https://discuss.hashicorp.com/t/discussion-of-aws-security-group-rules-for-absolute-management-while-avoiding-cyclical-dependencies/9647
 # security group are referencing each other in a splunk deployment creating a cycling dependency (still a issue with terraform 0.13.5 at the least)

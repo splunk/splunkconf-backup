@@ -37,6 +37,12 @@ resource "aws_iam_policy_attachment" "iuf-attach-splunk-ec2" {
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
 }
 
+resource "aws_iam_policy_attachment" "iuf-attach-ssm-managedinstance" {
+  name       = "iuf-attach-ssm-managedinstance"
+  roles      = [aws_iam_role.role-splunk-iuf.name]
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 resource "aws_security_group_rule" "iuf_from_bastion_ssh" { 
   security_group_id = aws_security_group.splunk-iuf.id
   type      = "ingress"

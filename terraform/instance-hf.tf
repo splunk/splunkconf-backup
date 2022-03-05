@@ -35,6 +35,13 @@ resource "aws_iam_policy_attachment" "hf-attach-splunk-ec2" {
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
 }
 
+resource "aws_iam_policy_attachment" "hf-attach-ssm-managedinstance" {
+  name       = "hf-attach-ssm-managedinstance"
+  roles      = [aws_iam_role.role-splunk-hf.name]
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+
 resource "aws_security_group_rule" "hf_from_bastion_ssh" { 
   security_group_id = aws_security_group.splunk-hf.id
   type      = "ingress"
@@ -140,7 +147,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
         "propagate_at_launch" = false
       },
       {
-        "key"                 = "Tyoe"
+        "key"                 = "Type"
         "value"               = "Splunk"
         "propagate_at_launch" = false
       },
@@ -148,9 +155,9 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
         "key"                 = "dnsnames" 
         "value"               = "asghf"
         "propagate_at_launch" = false
-      },
-    ],
-    var.extra_tags,
+      }
+    ]
+    #var.extra_tags,
   )
   depends_on = [null_resource.bucket_sync]
 }

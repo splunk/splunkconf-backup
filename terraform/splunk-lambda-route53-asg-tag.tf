@@ -1,10 +1,10 @@
 #Lambda function
 
 resource "aws_iam_role" "role-splunk-lambda-route53-asg-tag" {
-  name = "role-splunk-lambda-route53-asg-tag"
+  name                  = "role-splunk-lambda-route53-asg-tag"
   force_detach_policies = true
-  description = "iam role for splunk lambda lambda-route53-asg-tag"
-  assume_role_policy = file("policy-aws/assumerolepolicy.json")
+  description           = "iam role for splunk lambda lambda-route53-asg-tag"
+  assume_role_policy    = file("policy-aws/assumerolepolicy.json")
 
   tags = {
     Name = "splunk"
@@ -12,7 +12,7 @@ resource "aws_iam_role" "role-splunk-lambda-route53-asg-tag" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-lambda-route53-asg-tag_profile" {
-  name  = "role-splunk-lambda-route53-asg-tag_profile"
+  name = "role-splunk-lambda-route53-asg-tag_profile"
   role = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
 }
 
@@ -44,12 +44,12 @@ data "archive_file" "zip_lambda_asg_updateroute53_tag" {
 }
 
 resource "aws_lambda_function" "lambda_update-route53-tag" {
-  filename         = "${data.archive_file.zip_lambda_asg_updateroute53_tag.output_path}"
-  source_code_hash = "${data.archive_file.zip_lambda_asg_updateroute53_tag.output_base64sha256}"
-  function_name = "lambda_function.py"
-  handler="lambda_handler"
-  role = aws_iam_role.role-splunk-lambda-route53-asg-tag
-  runtime = "python3.9"
+  filename         = data.archive_file.zip_lambda_asg_updateroute53_tag.output_path
+  source_code_hash = data.archive_file.zip_lambda_asg_updateroute53_tag.output_base64sha256
+  function_name    = "lambda_function.py"
+  handler          = "lambda_handler"
+  role             = aws_iam_role.role-splunk-lambda-route53-asg-tag
+  runtime          = "python3.9"
 }
 
 

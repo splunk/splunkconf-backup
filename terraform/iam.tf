@@ -112,7 +112,7 @@ data "template_file" "pol-splunk-kms" {
   template = file("policy-aws/pol-splunk-kms.json.tpl")
 
   vars = {
-    kmsarn         = aws_kms_key.splunkkms.arn
+    kmsarn          = aws_kms_key.splunkkms.arn
     profile         = var.profile
     splunktargetenv = var.splunktargetenv
   }

@@ -6,6 +6,6 @@ provider "aws" {
 }
 
 provider "aws" {
-  region  = var.region-master
+  region = var.region-master
 }
 

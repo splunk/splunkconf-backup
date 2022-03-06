@@ -2,10 +2,10 @@
 # ******************** HF ***********************
 
 resource "aws_iam_role" "role-splunk-hf" {
-  name = "role-splunk-hf-3"
+  name                  = "role-splunk-hf-3"
   force_detach_policies = true
-  description = "iam role for splunk hf"
-  assume_role_policy = file("policy-aws/assumerolepolicy.json")
+  description           = "iam role for splunk hf"
+  assume_role_policy    = file("policy-aws/assumerolepolicy.json")
 
   tags = {
     Name = "splunk"
@@ -13,7 +13,7 @@ resource "aws_iam_role" "role-splunk-hf" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-hf_profile" {
-  name  = "role-splunk-hf_profile"
+  name = "role-splunk-hf_profile"
   role = aws_iam_role.role-splunk-hf.name
 }
 
@@ -42,24 +42,24 @@ resource "aws_iam_policy_attachment" "hf-attach-ssm-managedinstance" {
 }
 
 
-resource "aws_security_group_rule" "hf_from_bastion_ssh" { 
-  security_group_id = aws_security_group.splunk-hf.id
-  type      = "ingress"
-  from_port = 22
-  to_port   = 22
-  protocol  = "tcp"
+resource "aws_security_group_rule" "hf_from_bastion_ssh" {
+  security_group_id        = aws_security_group.splunk-hf.id
+  type                     = "ingress"
+  from_port                = 22
+  to_port                  = 22
+  protocol                 = "tcp"
   source_security_group_id = aws_security_group.splunk-bastion.id
-  description = "allow SSH connection from bastion host"
+  description              = "allow SSH connection from bastion host"
 }
 
-resource "aws_security_group_rule" "hf_from_splunkadmin-networks_ssh" { 
+resource "aws_security_group_rule" "hf_from_splunkadmin-networks_ssh" {
   security_group_id = aws_security_group.splunk-hf.id
-  type      = "ingress"
-  from_port = 22
-  to_port   = 22
-  protocol  = "tcp"
-  cidr_blocks = var.splunkadmin-networks
-  description = "allow SSH connection from splunk admin networks"
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = var.splunkadmin-networks
+  description       = "allow SSH connection from splunk admin networks"
 }
 
 #resource "aws_security_group_rule" "hf_from_splunkadmin-networks-ipv6_ssh" { 
@@ -72,14 +72,14 @@ resource "aws_security_group_rule" "hf_from_splunkadmin-networks_ssh" {
 #  description = "allow SSH connection from splunk admin networks"
 #}
 
-resource "aws_security_group_rule" "hf_from_splunkadmin-networks_webui" { 
+resource "aws_security_group_rule" "hf_from_splunkadmin-networks_webui" {
   security_group_id = aws_security_group.splunk-hf.id
-  type      = "ingress"
-  from_port = 8000
-  to_port   = 8000
-  protocol  = "tcp"
-  cidr_blocks = var.splunkadmin-networks
-  description = "allow Webui connection from splunk admin networks"
+  type              = "ingress"
+  from_port         = 8000
+  to_port           = 8000
+  protocol          = "tcp"
+  cidr_blocks       = var.splunkadmin-networks
+  description       = "allow Webui connection from splunk admin networks"
 }
 
 #resource "aws_security_group_rule" "hf_from_splunkadmin-networks-ipv6_webui" { 
@@ -92,78 +92,78 @@ resource "aws_security_group_rule" "hf_from_splunkadmin-networks_webui" {
 #  description = "allow Webui connection from splunk admin networks"
 #}
 
-resource "aws_security_group_rule" "hf_from_all_icmp" { 
+resource "aws_security_group_rule" "hf_from_all_icmp" {
   security_group_id = aws_security_group.splunk-hf.id
-  type      = "ingress"
-  from_port = -1
-  to_port   = -1
-  protocol  = "icmp"
-  cidr_blocks = ["0.0.0.0/0"]
-  description = "allow icmp (ping, icmp path discovery, unreachable,...)"
+  type              = "ingress"
+  from_port         = -1
+  to_port           = -1
+  protocol          = "icmp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "allow icmp (ping, icmp path discovery, unreachable,...)"
 }
 
-resource "aws_security_group_rule" "hf_from_all_icmpv6" { 
+resource "aws_security_group_rule" "hf_from_all_icmpv6" {
   security_group_id = aws_security_group.splunk-hf.id
-  type      = "ingress"
-  from_port = -1
-  to_port   = -1
-  protocol  = "icmpv6"
-  ipv6_cidr_blocks = ["::/0"]
-  description = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
+  type              = "ingress"
+  from_port         = -1
+  to_port           = -1
+  protocol          = "icmpv6"
+  ipv6_cidr_blocks  = ["::/0"]
+  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
 }
 
-resource "aws_security_group_rule" "hf_from_mc_8089" { 
-  security_group_id = aws_security_group.splunk-hf.id
-  type      = "ingress"
-  from_port = 8089
-  to_port   = 8089
-  protocol  = "tcp"
+resource "aws_security_group_rule" "hf_from_mc_8089" {
+  security_group_id        = aws_security_group.splunk-hf.id
+  type                     = "ingress"
+  from_port                = 8089
+  to_port                  = 8089
+  protocol                 = "tcp"
   source_security_group_id = aws_security_group.splunk-mc.id
-  description = "allow MC to connect to instance on mgt port (rest api)"
+  description              = "allow MC to connect to instance on mgt port (rest api)"
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
-  name = "asg-splunk-hf"
-  vpc_zone_identifier  = [aws_subnet.subnet_1.id,aws_subnet.subnet_2.id,aws_subnet.subnet_3.id]
-  desired_capacity   = 1
-  max_size           = 1
-  min_size           = 1
+  name                = "asg-splunk-hf"
+  vpc_zone_identifier = [aws_subnet.subnet_1.id, aws_subnet.subnet_2.id, aws_subnet.subnet_3.id]
+  desired_capacity    = 1
+  max_size            = 1
+  min_size            = 1
   mixed_instances_policy {
     launch_template {
       launch_template_specification {
-        launch_template_id      = aws_launch_template.splunk-hf.id
-        version = "$Latest"
+        launch_template_id = aws_launch_template.splunk-hf.id
+        version            = "$Latest"
       }
       override {
-        instance_type     = "t3a.nano"
+        instance_type = "t3a.nano"
       }
     }
   }
   tag {
-        key                 = "splunkdnszone"
-        value               = "var.dns-zone-name"
-        propagate_at_launch = false
-      }
- 
+    key                 = "splunkdnszone"
+    value               = "var.dns-zone-name"
+    propagate_at_launch = false
+  }
+
   tag {
-        key                 = "Type"
-        value               = "Splunk"
-        propagate_at_launch = false
-      }
+    key                 = "Type"
+    value               = "Splunk"
+    propagate_at_launch = false
+  }
   tag {
-        key                 = "dnsnames" 
-        value               = "asghf"
-        propagate_at_launch = false
-      }
-    
+    key                 = "dnsnames"
+    value               = "asghf"
+    propagate_at_launch = false
+  }
+
   depends_on = [null_resource.bucket_sync]
 }
 
-resource aws_launch_template splunk-hf {
-  name = "splunk-hf"
-  image_id                         = data.aws_ssm_parameter.linuxAmi.value
-  key_name                    = aws_key_pair.master-key.key_name
-  instance_type     = "t3a.nano"
+resource "aws_launch_template" "splunk-hf" {
+  name          = "splunk-hf"
+  image_id      = data.aws_ssm_parameter.linuxAmi.value
+  key_name      = aws_key_pair.master-key.key_name
+  instance_type = "t3a.nano"
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {
@@ -171,33 +171,33 @@ resource aws_launch_template splunk-hf {
       volume_type = "gp3"
     }
   }
-#  ebs_optimized = true
+  #  ebs_optimized = true
   iam_instance_profile {
     name = "role-splunk-hf_profile"
   }
   network_interfaces {
-    device_index = 0
+    device_index                = 0
     associate_public_ip_address = true
-    security_groups = [aws_security_group.splunk-outbound.id,aws_security_group.splunk-hf.id]
+    security_groups             = [aws_security_group.splunk-outbound.id, aws_security_group.splunk-hf.id]
   }
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = var.hf
-      splunkinstanceType = var.hf
-      splunks3backupbucket = aws_s3_bucket.s3_backup.id
+      Name                  = var.hf
+      splunkinstanceType    = var.hf
+      splunks3backupbucket  = aws_s3_bucket.s3_backup.id
       splunks3installbucket = aws_s3_bucket.s3_install.id
-      splunks3databucket = aws_s3_bucket.s3_data.id
-      splunkdnszone = var.dns-zone-name
-      splunkorg = var.splunkorg
-      splunktargetenv = var.splunktargetenv
-      splunktargetbinary = var.splunktargetbinary
-      splunktargetcm = var.cm
-      splunktargetlm = var.lm
-      splunktargetds = var.ds
-      splunkcloudmode = var.splunkcloudmode
-      splunkosupdatemode = var.splunkosupdatemode
-      splunkconnectedmode = var.splunkconnectedmode
+      splunks3databucket    = aws_s3_bucket.s3_data.id
+      splunkdnszone         = var.dns-zone-name
+      splunkorg             = var.splunkorg
+      splunktargetenv       = var.splunktargetenv
+      splunktargetbinary    = var.splunktargetbinary
+      splunktargetcm        = var.cm
+      splunktargetlm        = var.lm
+      splunktargetds        = var.ds
+      splunkcloudmode       = var.splunkcloudmode
+      splunkosupdatemode    = var.splunkosupdatemode
+      splunkconnectedmode   = var.splunkconnectedmode
     }
   }
   metadata_options {

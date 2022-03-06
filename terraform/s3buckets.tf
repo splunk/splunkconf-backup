@@ -13,8 +13,8 @@ resource "aws_s3_bucket" "s3_install" {
 
 # aws provider change with 4.0 
 resource "aws_s3_bucket_versioning" "s3_install_versioning" {
-  provider      = aws.region-master
-  bucket = aws_s3_bucket.s3_install.id
+  provider = aws.region-master
+  bucket   = aws_s3_bucket.s3_install.id
 
   versioning_configuration {
     status = "Enabled"
@@ -22,16 +22,16 @@ resource "aws_s3_bucket_versioning" "s3_install_versioning" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle1" {
-  provider      = aws.region-master
-  bucket = aws_s3_bucket.s3_install.id
+  provider = aws.region-master
+  bucket   = aws_s3_bucket.s3_install.id
 
   rule {
-    id      = "purge-old-noncurrent-versionned-install"
+    id = "purge-old-noncurrent-versionned-install"
     filter {
-      prefix  = "install/"
+      prefix = "install/"
     }
     noncurrent_version_expiration {
-        noncurrent_days = 90
+      noncurrent_days = 90
     }
     abort_incomplete_multipart_upload {
       days_after_initiation = 1
@@ -45,13 +45,13 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle1" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle2" {
-  provider      = aws.region-master
-  bucket = aws_s3_bucket.s3_install.id
+  provider = aws.region-master
+  bucket   = aws_s3_bucket.s3_install.id
 
   rule {
-    id      = "purge-old-noncurrent-versionned-packaged"
+    id = "purge-old-noncurrent-versionned-packaged"
     filter {
-      prefix  = "packaged/"
+      prefix = "packaged/"
     }
     noncurrent_version_expiration {
       noncurrent_days = 90
@@ -81,8 +81,8 @@ resource "aws_s3_bucket" "s3_backup" {
 
 # aws provider change with 4.0 
 resource "aws_s3_bucket_versioning" "s3_backup_versioning" {
-  provider      = aws.region-master
-  bucket = aws_s3_bucket.s3_backup.id
+  provider = aws.region-master
+  bucket   = aws_s3_bucket.s3_backup.id
 
   versioning_configuration {
     status = "Enabled"
@@ -90,13 +90,13 @@ resource "aws_s3_bucket_versioning" "s3_backup_versioning" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle1" {
-  provider      = aws.region-master
-  bucket = aws_s3_bucket.s3_backup.id
+  provider = aws.region-master
+  bucket   = aws_s3_bucket.s3_backup.id
 
   rule {
-    id      = "purge-old-noncurrent-versionned-backup"
+    id = "purge-old-noncurrent-versionned-backup"
     filter {
-      prefix  = "splunkconf-backup/"
+      prefix = "splunkconf-backup/"
     }
     noncurrent_version_expiration {
       noncurrent_days = var.backup-retention
@@ -128,8 +128,8 @@ resource "aws_s3_bucket" "s3_data" {
 
 # aws provider change with 4.0 
 resource "aws_s3_bucket_versioning" "s3_data_versioning" {
-  provider      = aws.region-master
-  bucket = aws_s3_bucket.s3_data.id
+  provider = aws.region-master
+  bucket   = aws_s3_bucket.s3_data.id
 
   versioning_configuration {
     status = "Enabled"
@@ -137,14 +137,14 @@ resource "aws_s3_bucket_versioning" "s3_data_versioning" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle1" {
-  provider      = aws.region-master
-  bucket = aws_s3_bucket.s3_data.id
-    
+  provider = aws.region-master
+  bucket   = aws_s3_bucket.s3_data.id
+
   rule {
-    id      = "purge-old-noncurrent-versionned-data"
+    id = "purge-old-noncurrent-versionned-data"
     filter {
-      prefix  = "smartstore/"
-    } 
+      prefix = "smartstore/"
+    }
     noncurrent_version_expiration {
       noncurrent_days = var.deleteddata-retention
     }
@@ -157,4 +157,4 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle1" {
     }
     status = "Enabled"
   }
-} 
+}

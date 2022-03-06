@@ -1,38 +1,38 @@
 
 variable "profile" {
   description = "profile name"
-  type    = string
-  default = "default"
+  type        = string
+  default     = "default"
 }
 
 variable "region-master" {
   description = "AWS region to use (us-east-1,eu-west-3,...)"
-  type    = string
-  default = "eu-west-3"
+  type        = string
+  default     = "eu-west-3"
 }
 
 variable "splunktargetenv" {
   description = "environnement (min,dev,prod,...) Some other default depend on theses"
-  type    = string
-  default = "test"
+  type        = string
+  default     = "test"
 }
 
 variable "splunkorg" {
   description = "prefix for apps (organization prefix)"
-  type    = string
-  default = "org"
+  type        = string
+  default     = "org"
 }
 
 variable "splunkcloudmode" {
   description = "1 = send to splunkcloud only with provided configuration, 2 = clone to splunkcloud with provided configuration (partially implemeted -> behave like 1 at the moment, 3 = byol or manual config to splunkcloud(default)"
-  type    = string
-  default = "3"
+  type        = string
+  default     = "3"
 }
 
 variable "splunkconnectedmode" {
   description = "(partially implemented) # 0 = auto (try to detect connectivity) (default if not set) # 1 = connected (set it if auto fail and you think you are connected) # 2 = yum only (may be via proxy or local repo if yum configured correctly) # 3 = no connection, yum disabled"
-  type    = string
-  default = "0"
+  type        = string
+  default     = "0"
 }
 
 variable "instance-type-indexer-min" {
@@ -47,37 +47,37 @@ variable "instance-type-indexer-default" {
 
 variable "bastion" {
   description = "bastion / nat instance name"
-  type    = string
-  default = "bastion"
+  type        = string
+  default     = "bastion"
 }
 
 variable "splunkcloudconfiglocation" {
   description = "universal forwarder packaged downloaded from your splunkcloud stack"
-  type    = string
-  default = "local/splunkclouduf.spl"
+  type        = string
+  default     = "local/splunkclouduf.spl"
 }
 
 variable "splunkosupdatemode" {
   description = "splunkosupdatemode=default,noreboot,disabled,updateandreboot (default means updateandreboot) (do not disable for prod unless you know what you do)"
-  type    = string
-  default = "disabled"
+  type        = string
+  default     = "disabled"
 }
 
 variable "splunktargetbinary" {
   description = "splunk-xxxxx.rpm or auto to use the logic inside recovery script (that will choose default script version)"
-  type    = string
-  default = "auto"
+  type        = string
+  default     = "auto"
 }
 
 variable "splunktargetbinaryuf" {
   description = "splunk-forwarder-xxxxx.rpm or auto to use the logic inside recovery script (that will choose default script version)"
-  type    = string
-  default = "auto"
+  type        = string
+  default     = "auto"
 }
 
 locals {
-  env=var.splunktargetenv
-  instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default )
+  env                   = var.splunktargetenv
+  instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default)
 
 }
 
@@ -103,12 +103,12 @@ variable "instance-type-ds" {
 
 variable "splunktar" {
   description = "set this only for multi ds where we install by tar"
-  type    = string
-  default = "splunk-xxxx.tar.gz"
+  type        = string
+  default     = "splunk-xxxx.tar.gz"
 }
 
 variable "dsnb" {
-  type = number
+  type    = number
   default = 1
 }
 
@@ -258,5 +258,5 @@ variable "hec-in-allowed-networks" {
 
 variable "hec-in-allowed-firehose-networks" {
   type    = list(string)
-  default = ["18.216.68.160/27","18.216.170.64/27","18.216.170.96/27","34.238.188.128/26","34.238.188.192/26","34.238.195.0/26","13.57.180.0/26","34.216.24.32/27","34.216.24.192/27","34.216.24.224/27","18.253.138.192/26","52.61.204.192/26","18.162.221.64/26","13.232.67.64/26","13.209.71.0/26","13.229.187.128/26","13.211.12.0/26","13.230.21.0/27","13.230.21.32/27","35.183.92.64/26","18.194.95.192/27","18.194.95.224/27","18.195.48.0/27","34.241.197.32/27","34.241.197.64/27","34.241.197.96/27","18.130.91.0/26","35.180.112.0/26","13.53.191.0/26","15.185.91.64/26","18.228.1.192/26","15.161.135.192/26","13.244.165.128/26"]
+  default = ["18.216.68.160/27", "18.216.170.64/27", "18.216.170.96/27", "34.238.188.128/26", "34.238.188.192/26", "34.238.195.0/26", "13.57.180.0/26", "34.216.24.32/27", "34.216.24.192/27", "34.216.24.224/27", "18.253.138.192/26", "52.61.204.192/26", "18.162.221.64/26", "13.232.67.64/26", "13.209.71.0/26", "13.229.187.128/26", "13.211.12.0/26", "13.230.21.0/27", "13.230.21.32/27", "35.183.92.64/26", "18.194.95.192/27", "18.194.95.224/27", "18.195.48.0/27", "34.241.197.32/27", "34.241.197.64/27", "34.241.197.96/27", "18.130.91.0/26", "35.180.112.0/26", "13.53.191.0/26", "15.185.91.64/26", "18.228.1.192/26", "15.161.135.192/26", "13.244.165.128/26"]
 }

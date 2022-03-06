@@ -118,6 +118,7 @@ tags are case sensitive
 | splunks3databucket | cloud SmartStore (s3/gcs) bucket | Optional |
 | splunkorg | name used as prefix for base apps | optional but recommended |
 | splunkdnszone | this is used to update instance name via dns API (route53,...) in order for the instance to be found by name | Required|
+| spunkmode | set this to uf to deploy a uf instead of a full instance| optional |
 
 Tags to use for upgrade scenarios and/or backup bootstrap between env (exemple : to restore and auto adapt a prod backup to a test env
 
@@ -166,7 +167,7 @@ Advanced, options to splunkconf-init , only set if you know what you do or for d
 | Tag | Description | Status |
 | --- | --- | --- |
 | splunksystemd | whether to enable or not systemd for Splunk (auto, systemd or init)  | optional , default to auto  ie autodetect and use when possible|
-| splunksystemdservicefile | wether or not to use tuned service file with user inside and custom limits (1=tuned (default), 2=version default | optional , default to tuned, 2 no fully tested at the moment (and will change service name)|
+| splunksystemdservicefile | custom systemd service file  | optional |
 | splunksystemdpolkit | 1=deploy inline packaged splunkconf-init version, 2=generate via boot-start (8.1 + required), 3=do not manage (will probably not work correctly as splunk restart will not work from splunk unless deployed via opther method (if using systemd) | optional , default to 1. 2 may break especially on multids case|
 | splunkdisablewlm | 0=try to deploy if possible (systemd, version is the one inline at the moment)) 1=disabled | optional , default to 0 (enabled)|
 | splunkuser | name of splunk user to use (non priviledge one) | optional , default to splunk (partial support in splunkconf-cloud-receovery at the moment) |

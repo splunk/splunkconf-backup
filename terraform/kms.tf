@@ -9,9 +9,9 @@ resource "aws_kms_key" "splunkkms" {
   is_enabled = true
   multi_region = false
   # in order to avoid that terraform destroy remove it (clean it manually if you need , use terraform inport if ever needed later (interesting for testing as AWS charge for each key creation)
-  lifecycle {
-    prevent_destroy = true
-  }
+  #lifecycle {
+  #  prevent_destroy = true
+  #}
   tags = {
     Type = "Splunk"
   }

@@ -105,10 +105,9 @@ resource aws_launch_template splunk-bastion {
   }
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "required"
+    http_tokens                 = (var.imdsv2 == "required" ? "required" : "optional")
     http_put_response_hop_limit = 1
   }
   user_data = filebase64("../buckets/bucket-install/install/user-data-bastion.txt")
 }
-
 

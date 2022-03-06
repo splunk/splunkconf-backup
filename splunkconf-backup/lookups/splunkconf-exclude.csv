@@ -1,5 +1,7 @@
 ./etc/apps/SplunkForwarder/default/
 ./etc/apps/SplunkLightForwarder/default/
+./etc/apps/SplunkEnterpriseSecuritySuite/install/
+./etc/shcluster/apps/SplunkEnterpriseSecuritySuite/install/
 ./etc/apps/alert_logevent/default/
 ./etc/apps/alert_webhook/default/
 ./etc/apps/appsbrowser/default/

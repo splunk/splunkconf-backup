@@ -1,0 +1,40 @@
+#!/bin/bash -x
+exec > /var/log/user-data.log 2>&1
+ 
+# version 20220211
+
+# this version has cli install uncommented (for AMI that dont include or are tool old)
+
+# moved to recovery
+# yum update -y
+# just in case the AMI doesn't have it (it is preinstalled on aws ami)
+# requirement access to repo that provide aws-cli (epel)
+# uncomment one of the choices below if aws cli not yet on AMI
+yum install aws-cli curl -y
+# aws recommended for rh8 
+dnf install python3-pip -y || yum install python3-pip -y
+pip3 install awscli --upgrade
+
+# setting up token (IMDSv2)
+TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+# lets get the splunks3splunkinstall from instance tags
+INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
+REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
+splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunks3installbucket | cut -f 5`
+remoteinstalldir="s3://$splunks3installbucket/install"
+localinstalldir="/usr/local/bin"
+mkdir -p $localinstalldir
+aws s3 cp $remoteinstalldir/splunkconf-cloud-recovery.sh  $localinstalldir --quiet
+if [ -e "$localinstalldir/splunkconf-cloud-recovery.sh" ]; then
+  # newer case, script named cloud
+  chmod +x $localinstalldir/splunkconf-cloud-recovery.sh
+  ln -s $localinstalldir/splunkconf-cloud-recovery.sh $localinstalldir/splunkconf-aws-recovery.sh
+else
+  # missing cloud script, fallback to aws and still use ln
+  aws s3 cp $remoteinstalldir/splunkconf-aws-recovery.sh  $localinstalldir/splunkconf-cloud-recovery.sh --quiet
+  ln -s $localinstalldir/splunkconf-cloud-recovery.sh $localinstalldir/splunkconf-aws-recovery.sh
+  chmod +x $localinstalldir/splunkconf-cloud-recovery.sh
+fi
+# no need to pass arguments,  we will use contextual data from tags
+. $localinstalldir/splunkconf-cloud-recovery.sh  
+echo "end of user data script"

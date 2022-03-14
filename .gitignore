@@ -29,3 +29,7 @@ splunkconf-backup/appserver/
 splunkconf-backup/default/savedsearches.conf.default
 splunkconf-backup/metadata/
 
+#terraform files
+.terraform.lock.hcl
+.terraform
+

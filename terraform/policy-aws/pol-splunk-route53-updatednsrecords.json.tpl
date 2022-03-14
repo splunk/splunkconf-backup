@@ -15,7 +15,6 @@
                 "route53:ListHostedZones",
                 "route53:ListHostedZonesByName"
             ],
-            "Action": "route53:ListHostedZonesByName",
             "Resource": "*"
         }
     ]

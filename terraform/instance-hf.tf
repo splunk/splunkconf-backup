@@ -141,7 +141,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
   }
   tag {
     key                 = "splunkdnszone"
-    value               = "var.dns-zone-name"
+    value               = var.dns-zone-name
     propagate_at_launch = false
   }
 
@@ -151,7 +151,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
     propagate_at_launch = false
   }
   tag {
-    key                 = "dnsnames"
+    key                 = "splunkdnsnames"
     value               = "asghf"
     propagate_at_launch = false
   }

@@ -15,10 +15,16 @@ env_level = os.environ.get("LOG_LEVEL")
 log_level = logging.INFO if not env_level else env_level
 logger.setLevel(log_level)
 
-version="2022030604"
+version="2022030701"
 
 # dont set this too low or the entry could be invalid before being used at all ...
 ttl = 300
+
+# in dev mode or to test the lambda without impacting existing used route53 entries, you can use a prefix here that is added to every ressource created by this function
+prefix="lambda-"
+# uncomment below when ready
+#prefix=""
+
 
 def lambda_handler(event, context):
     """
@@ -65,7 +71,7 @@ def lambda_handler(event, context):
     # If there are Private IPs it means the autoscaling group exists and contains at least one active instances. Create/Update record set in Route53 Hosted Zone.
     if servers:
         for host in names.split():
-            record_set_name = "lambda-" + host + "." + domain   
+            record_set_name = prefix + host + "." + domain   
             update_hosted_zone_records(r53_client,hosted_zone_id, record_set_name, ttl, servers)
             print (f"Record set {record_set_name} was created/updated successfully with the following A records {servers}")
     else:
@@ -147,4 +153,5 @@ def update_hosted_zone_records(r53_client,hosted_zone_id, record_set_name, ttl, 
         }]
     })
     return
+
 

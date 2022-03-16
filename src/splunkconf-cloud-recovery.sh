@@ -139,8 +139,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220206 disable auto swap with swapme  when splunkmode=uf as probably not worth it in that case
 # 20220217 default to 8.2.5
 # 20220316 add ability to use tar mode even if not multi ds (but better to use rpm when possible + add splunkdnsmode tag (disabled or lambda) to disable inline mode for AWS)
+# 20220316 improve auto space removal in tags
 
-VERSION="20220316a"
+VERSION="20220316b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -337,7 +338,7 @@ if [[ "cloud_type" -eq 1 ]]; then
   REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
   # we put store tags in /etc/instance-tags -> we will use this later on
-  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > $INSTANCEFILE
+  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  -e 's/[[:space:]]*\"$//' -e 's/^\"[[:space:]]*//' | grep -E "^splunk" > $INSTANCEFILE
   if grep -qi splunkinstanceType $INSTANCEFILE
   then
     # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
@@ -913,7 +914,7 @@ elif [ "${splunktargetbinary}" == "auto" ]; then
   unset ${splunktargetbinary}
 else 
   splbinary=${splunktargetbinary}
-  echo "using splunktargetbinary ${splunktargetbinary} from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
+  echo "using splunktargetbinary=\"${splunktargetbinary}\" from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
 fi
 echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
 # aws s3 cp doesnt support unix globing

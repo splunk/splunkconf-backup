@@ -522,7 +522,7 @@ else
     if [ -z ${splunkdnsmode+x} ]; then
       splunkdnsmode="inline"
     fi
-    if [ "${splunkdnsmode}" =~ (lambda|disabled) ]; then
+    if [[ "${splunkdnsmode}" =~ (lambda|disabled) ]]; then
       echo "disabling route53 update inside recovery as explicitiley disabled by admin or running in lambda mode (splunkdnsmode=${splunkdnsmode})" >> /var/log/splunkconf-cloud-recovery-info.log
     else 
       echo "updating dns via route53 api" >> /var/log/splunkconf-cloud-recovery-info.log

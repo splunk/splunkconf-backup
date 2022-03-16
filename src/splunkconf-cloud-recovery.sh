@@ -338,7 +338,7 @@ if [[ "cloud_type" -eq 1 ]]; then
   REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
   # we put store tags in /etc/instance-tags -> we will use this later on
-  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  -e 's/[[:space:]]*\"$//' -e 's/^\"[[:space:]]*//' | grep -E "^splunk" > $INSTANCEFILE
+  aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'   | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > $INSTANCEFILE
   if grep -qi splunkinstanceType $INSTANCEFILE
   then
     # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts

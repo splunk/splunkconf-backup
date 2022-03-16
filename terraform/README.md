@@ -118,6 +118,7 @@ tags are case sensitive
 | splunks3databucket | cloud SmartStore (s3/gcs) bucket | Optional |
 | splunkorg | name used as prefix for base apps | optional but recommended |
 | splunkdnszone | this is used to update instance name via dns API (route53,...) in order for the instance to be found by name | Required|
+| splunkdnsmode | set this to disabled or lambda if running update via lambda function in AWS| optional, default to inline|
 | spunkmode | set this to uf to deploy a uf instead of a full instance| optional |
 
 Tags to use for upgrade scenarios and/or backup bootstrap between env (exemple : to restore and auto adapt a prod backup to a test env

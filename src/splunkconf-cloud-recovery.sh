@@ -138,8 +138,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220204 fix permissions for script dir when not the default path
 # 20220206 disable auto swap with swapme  when splunkmode=uf as probably not worth it in that case
 # 20220217 default to 8.2.5
+# 20220316 add ability to use tar mode even if not multi ds (but better to use rpm when possible + add splunkdnsmode tag (disabled or lambda) to disable inline mode for AWS)
 
-VERSION="20220217a"
+VERSION="20220316a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -389,6 +390,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkuser=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkuser`
   splunkgroup=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkgroup`
   splunkmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkmode`
+  splunkdnsmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnsmode`
   #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
@@ -517,35 +519,41 @@ else
   if [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
     echo " indexer , no dns update on this kind of host"
   elif [ $cloud_type == 1 ]; then
-    echo "updating dns via route53 api"
-    # AWS doing direct dns update in recovery
-    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 3600"`
-    IP=$( curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4 )
-    # need iam ->  policy  permissions of
-    #
-    #{
-    #    "Version": "2012-10-17",
-    #    "Statement": [
-    #        {
-    #            "Sid": "VisualEditor0",
-    #            "Effect": "Allow",
-    #            "Action": [
-    #                "route53:ChangeResourceRecordSets",
-    #                "route53:ListHostedZonesByName"
-    #            ],
-    #            "Resource": "*"
-    #        }
-    #    ]
-    #}
+    if [ -z ${splunkdnsmode+x} ]; then
+      splunkdnsmode="inline"
+    fi
+    if [ "${splunkdnsmode}" =~ (lambda|disabled) ]; then
+      echo "disabling route53 update inside recovery as explicitiley disabled by admin or running in lambda mode (splunkdnsmode=${splunkdnsmode})" >> /var/log/splunkconf-cloud-recovery-info.log
+    else 
+      echo "updating dns via route53 api" >> /var/log/splunkconf-cloud-recovery-info.log
+      # AWS doing direct dns update in recovery
+      TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 3600"`
+      IP=$( curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4 )
+      # need iam ->  policy  permissions of
+      #
+      #{
+      #    "Version": "2012-10-17",
+      #    "Statement": [
+      #        {
+      #            "Sid": "VisualEditor0",
+      #            "Effect": "Allow",
+      #            "Action": [
+      #                "route53:ChangeResourceRecordSets",
+      #                "route53:ListHostedZonesByName"
+      #            ],
+      #            "Resource": "*"
+      #        }
+      #    ]
+      #}
 
-    NAME=`hostname --short`
-    DOMAIN=$splunkdnszone
-    FULLNAME=$NAME"."$DOMAIN
+      NAME=`hostname --short`
+      DOMAIN=$splunkdnszone
+      FULLNAME=$NAME"."$DOMAIN
 
-    HOSTED_ZONE_ID=$( aws route53 list-hosted-zones-by-name | grep -i ${DOMAIN} -B5 | grep hostedzone | sed 's/.*hostedzone\/\([A-Za-z0-9]*\)\".*/\1/')
-    echo "Hosted zone being modified: $HOSTED_ZONE_ID"
+      HOSTED_ZONE_ID=$( aws route53 list-hosted-zones-by-name | grep -i ${DOMAIN} -B5 | grep hostedzone | sed 's/.*hostedzone\/\([A-Za-z0-9]*\)\".*/\1/')
+      echo "Hosted zone being modified: $HOSTED_ZONE_ID"
 
-    INPUT_JSON=$(cat <<EOF
+      INPUT_JSON=$(cat <<EOF
 { "ChangeBatch":
  {
   "Comment": "Update the record set of ${FULLNAME}",
@@ -569,8 +577,9 @@ else
 EOF
 )
 
-    echo "updating dns via route53 API for ${FULLNAME} to ${IP}"
-    aws route53 change-resource-record-sets --hosted-zone-id "$HOSTED_ZONE_ID" --cli-input-json "$INPUT_JSON" || echo "ERROR updating dns record for ${FULLNAME}"
+      echo "updating dns via route53 API for ${FULLNAME} to ${IP}"
+      aws route53 change-resource-record-sets --hosted-zone-id "$HOSTED_ZONE_ID" --cli-input-json "$INPUT_JSON" || echo "ERROR updating dns record for ${FULLNAME}"
+    fi  # splunkdnsmode
   elif [ -z ${splunkdnszoneid+x} ]; then
     echo "ERROR ATTENTION splunkdnszoneid is not defined, please add it as we cant update dns in GCP without this"
   elif [ $cloud_type == 2 ]; then
@@ -1578,7 +1587,7 @@ if [ -z ${splunkorg+x} ]; then
   splunkorg="org"
 fi
 
-if [ "$INSTALLMODE" = "tgz" ]; then
+if [[ "${instancename}" =~ ds ]]; then
   # for app inspect 
   yum groupinstall "Development Tools"
   yum install  python3-devel
@@ -1629,6 +1638,10 @@ if [ "$INSTALLMODE" = "tgz" ]; then
     echo "setting up instance $i/$NBINSTANCES with SERVICENAME=$SERVICENAME"
     ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS}
   done
+elif [ "$INSTALLMODE" = "tgz" ]; then
+  echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init in tar mode (please use RPM when possible)" >> /var/log/splunkconf-cloud-recovery-info.log
+  # no need to pass option, it will default to systemd + /opt/splunk + splunk user
+  ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS} 
 else
   echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init" >> /var/log/splunkconf-cloud-recovery-info.log
   # no need to pass option, it will default to systemd + /opt/splunk + splunk user

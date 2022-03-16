@@ -87,6 +87,7 @@
 # 20220112 fix type mismatch in test
 # 20220119 add more tests and messages for DS splunk-launch tuning and restart service after applying
 # 20220203 fix warning in test condition
+# 20220316 add logic for splunktar without DS
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -96,7 +97,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20220119a";
+$VERSION="2022036a";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -239,6 +240,12 @@ if ($splunkrole =~/ds|deployment/ ) {
       die ("please fix and relaunch") unless ($dry_run);
     }
   }
+} elsif (-e $splunktar) {
+  print "deploying with tar splunk $splunktar at $SPLUNK_HOME with user=$USERSPLUNK";
+  `mkdir -p $SPLUNK_HOME;cd $SPLUNK_HOME;tar --strip-components=1 -zxvf $splunktar; chown -R $USERSPLUNK. $SPLUNK_HOME` unless ($dry_run);
+}
+
+
 }
 
 my $res= $dsetcapps =~ s/org/$splunkorg/ge;
@@ -272,7 +279,7 @@ if ($enablesystemd==0 || $enablesystemd eq "init") {
          print " check polkit ko\n";
        }
     } else {
-        print " checka systemd version ko, fallback to init d\n";
+        print " check systemd version ko, fallback to init d\n";
          $enablesystemd=0 ;
     }
   } elsif (check_exists_command('systemctl') && check_exists_command('apt-get') ) {

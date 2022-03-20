@@ -121,6 +121,16 @@ tags are case sensitive
 | splunkdnsmode | set this to disabled or lambda if running update via lambda function in AWS| optional, default to inline|
 | spunkmode | set this to uf to deploy a uf instead of a full instance| optional |
 
+
+Tags to be used for lambda at ASG level (only needed if configured for lambda (AWS))
+| Tag | Description | Status |
+| --- | --- | --- |
+| splunkdnszone | this is used to update instance name via dns API (route53,...) in order for the instance to be found by name | Required|
+| splunkdnsnames | name(s) to update in the zone when a autoscaling event occur  | Required|
+| splunkdnsprefix| prefix to add to each dns entry| Optional , default to 'lambda-' , set to empty or disabled if you dont want a prefix to be added|
+
+
+
 Tags to use for upgrade scenarios and/or backup bootstrap between env (exemple : to restore and auto adapt a prod backup to a test env
 
 | Tag | Description | Status |

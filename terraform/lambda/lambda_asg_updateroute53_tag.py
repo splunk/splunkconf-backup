@@ -15,21 +15,15 @@ env_level = os.environ.get("LOG_LEVEL")
 log_level = logging.INFO if not env_level else env_level
 logger.setLevel(log_level)
 
-version="2022030701"
+version="2022032001"
 
 # dont set this too low or the entry could be invalid before being used at all ...
 ttl = 300
 
-# in dev mode or to test the lambda without impacting existing used route53 entries, you can use a prefix here that is added to every ressource created by this function
-prefix="lambda-"
-# uncomment below when ready
-#prefix=""
-
-
 def lambda_handler(event, context):
     """
     - This lambda function gets triggered for every event in auto scaling group (Instance Launch/Instance Terminate)
-    - It first checks if splunkdnsnames and splunkdnszones tags are present in the ASG 
+    - It first checks if splunkdnsnames and splunkdnszones tags are present in the ASG
     - If Hosted Zone exists it obtains its ID
     - Else do nothing as the zone should have been created by terraform
     - Next it obtains a list of private IPs of all active instances in the autoscaling group which triggered this event
@@ -40,19 +34,19 @@ def lambda_handler(event, context):
     event_region = event['region']
     event_type=event['detail-type']
     print (f"lambda {version}, asg_name={asg_name}, event_type={event_type}, region={event_region}")
-    # we try to stay as much as possible in the same region to isolate per region 
+    # we try to stay as much as possible in the same region to isolate per region
     ec2_client = boto3.client('ec2',region_name=event_region)
     asg_client = boto3.client('autoscaling',region_name=event_region)
     # for route53, we try to call the API within the region but the zone may be global (and sonehow dependent on us-east-1 at least from a API view)
     r53_client = boto3.client('route53',region_name=event_region)
-    (names,domain)=get_asg_dns_tags(asg_client, asg_name, event_region)
+    (names,domain,prefix)=get_asg_dns_tags(asg_client, asg_name, event_region)
     try:
         sub=ec2_client.describe_subnets(SubnetIds=[event['detail']['Details']['Subnet ID']])['Subnets']
         for subnet in sub:
             event_vpc_id = subnet['VpcId']
         print (f"{event['detail']['Description']} in autoscaling group {asg_name} under VPC ID {event_vpc_id}")
     except Exception as ex:
-        # when a ASG downscale, there are 3 events trigering the lambda in a few ms, only one of them has the right info , so we still update route53 correctly (but the ones where describe_subnets is not ready will fail here 
+        # when a ASG downscale, there are 3 events trigering the lambda in a few ms, only one of them has the right info , so we still update route53 correctly (but the ones where describe_subnets is not ready will fail here
         print(f"There is no SubNetID for this event_type (exception={ex}, event_type={event_type}) This may be the case for lifecycle actions")
         #sys.exit("Stopping lambda. describe_subnets incomplete")
         sub=""
@@ -71,13 +65,15 @@ def lambda_handler(event, context):
     # If there are Private IPs it means the autoscaling group exists and contains at least one active instances. Create/Update record set in Route53 Hosted Zone.
     if servers:
         for host in names.split():
-            record_set_name = prefix + host + "." + domain   
+            record_set_name = prefix + host + "." + domain
             update_hosted_zone_records(r53_client,hosted_zone_id, record_set_name, ttl, servers)
             print (f"Record set {record_set_name} was created/updated successfully with the following A records {servers}")
     else:
-        print (f"Auto Scaling group {asg_name} does not exist or contain no instances at this time - not doing anything")
-        # we prefer not to completely delete the DNS entry at this time
-        #delete_hosted_zone_records(hosted_zone_id, record_set_name)
+        for host in names.split():
+            record_set_name = prefix + host + "." + domain
+            print (f"Auto Scaling group {asg_name} does not exist or contain no instances at this time - Trying to delete {record_set_name}")
+            #  delete the DNS entry 
+            delete_hosted_zone_records(r53_client,hosted_zone_id, record_set_name)
     return {
         'statusCode': 200,
         'body': json.dumps('Executed lambda autoscale route53 tags successfully!')
@@ -111,8 +107,8 @@ def get_asg_private_ips(asg_client,ec2_client,asg_name):
             return servers
 
 def get_asg_dns_tags(asg_client,asg_name,region):
-    r=asg_client.describe_tags(Filters=[{'Name':'auto-scaling-group','Values':[asg_name]},{'Name':'key','Values':['splunkdnszone','splunkdnsnames']}])
-    for tag in r['Tags']: 
+    r=asg_client.describe_tags(Filters=[{'Name':'auto-scaling-group','Values':[asg_name]},{'Name':'key','Values':['splunkdnszone','splunkdnsnames','splunkdnsprefix']}])
+    for tag in r['Tags']:
         k=tag['Key']
         v=tag['Value']
         print (f"key={k},Value={v}")
@@ -120,6 +116,18 @@ def get_asg_dns_tags(asg_client,asg_name,region):
             zone=v
         elif k == 'splunkdnsnames':
             names=v
+        elif k == 'splunkdnsprefix':
+            prefix=v
+    if 'prefix' in locals():
+        if prefix == 'disabled':
+            prefix=""
+            print (f"OK we have splunkdnsprefix tag set to disabled, setting splunkdnsprefix to be empty")
+        else:
+            print (f"OK we have splunkdnsprefix={prefix}")
+    else:
+        # in dev mode or to test the lambda without impacting existing used route53 entries, you can use a prefix here that is added to every ressource created by this function
+        prefix="lambda-"
+        print (f"splunkdnsprefix tag not found using default value : splunkdnsprefix={prefix}")
     if 'zone' in locals():
         if 'names' in locals():
             print (f"OK we have splunkdnszone={zone} and splunkdnsnames={names}")
@@ -134,7 +142,7 @@ def get_asg_dns_tags(asg_client,asg_name,region):
 
         zone+="."
         #print (f"added . to zone which become {zone} ")
-    return [names,zone]
+    return [names,zone,prefix]
 
 
 def update_hosted_zone_records(r53_client,hosted_zone_id, record_set_name, ttl, servers):
@@ -154,4 +162,23 @@ def update_hosted_zone_records(r53_client,hosted_zone_id, record_set_name, ttl, 
     })
     return
 
+def delete_hosted_zone_records(r53_client,hosted_zone_id, record_set_name):
+    for record_set in r53_client.list_resource_record_sets(HostedZoneId = hosted_zone_id)['ResourceRecordSets']:
+        if record_set['Name'] == record_set_name:
+            try:
+                r53_client.change_resource_record_sets(
+                HostedZoneId = hosted_zone_id,
+                ChangeBatch = {
+                    'Changes': [
+                        {
+                        'Action': 'DELETE',
+                        'ResourceRecordSet': record_set
+                    }]
+                })
+                print (f"Record set {record_set_name} removed successfully")
+            except:
+                print (f"Record set {record_set_name} was already removed by other instance of the lambda function")
+            break
+    else:
+        print (f"Record set {record_set_name} was already removed by other instance of the lambda function")
 

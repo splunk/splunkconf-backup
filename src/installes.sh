@@ -38,8 +38,9 @@
 # 20210929 add sha for 6.6.2
 # 20211004 add debug statement to try to catch TCPOutloop crash sometimes occuring with 8.2 during ES setup
 # 20211217 add sha for 7.0.0
+# 20220325 add sha for 7.0.1
 
-VERSION="20211217"
+VERSION="20220325"
 
 SCRIPTNAME="installes"
 
@@ -222,7 +223,8 @@ fi
 #ESAPP="splunk-enterprise-security_641.spl";
 #ESAPP="splunk-enterprise-security_660.spl";
 #ESAPP="splunk-enterprise-security_662.spl";
-ESAPP="splunk-enterprise-security_700.spl";
+#ESAPP="splunk-enterprise-security_700.spl";
+ESAPP="splunk-enterprise-security_701.spl";
 
 read -p "ESAPP file name (default : ${ESAPP})" input
 ESAPP=${input:-$ESAPP}
@@ -254,10 +256,11 @@ fi
 # SHA256 checksum (splunk-enterprise-security_660.spl) 0e2b72f1396a82a155851b414401740179d955381498ec0d90a6dde70db2479f
 # SHA256 checksum (splunk-enterprise-security_662.spl) 2928d7f39b97c61a2d97306c083b1e04eb455df3a5070d9553f6679aacf2fdb4
 # SHA256 checksum (splunk-enterprise-security_700.spl) fc83e107f709df2cf4bbebedb5e044b859c5f07ce8a6e21fafcab44bebf60ef4
+# SHA256 checksum (splunk-enterprise-security_701.spl) cf3d4afc06bd20f5ab039c01a533b1f5c29c6fbe3dc9dbcf5ef177ef66f36cac
 
 # SHA256 checksum (splunk-es-content-update_3240.tgz) 49aca3ab3bb1291f988459708e9a589aacc5b64caed493831a00546c36181ea6
 
-EXPECTEDSHA="fc83e107f709df2cf4bbebedb5e044b859c5f07ce8a6e21fafcab44bebf60ef4"
+EXPECTEDSHA="cf3d4afc06bd20f5ab039c01a533b1f5c29c6fbe3dc9dbcf5ef177ef66f36cac"
 
 echo_log "please verify sha256 to check for integrity (corruption , truncation during file download....)"
 echo "expected sha256=${EXPECTEDSHA}"

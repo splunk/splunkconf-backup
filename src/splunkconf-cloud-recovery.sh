@@ -140,8 +140,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220217 default to 8.2.5
 # 20220316 add ability to use tar mode even if not multi ds (but better to use rpm when possible + add splunkdnsmode tag (disabled or lambda) to disable inline mode for AWS)
 # 20220316 improve auto space removal in tags
+# 20220325 add zstd binary install + change tar option to autodetect format + add error handling for zstd backup with no zstd binary case (initial support)
 
-VERSION="20220316b"
+VERSION="20220325a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -711,7 +712,7 @@ if ! command -v yum &> /dev/null
 fi
 
 # one yum command so yum can try to download and install in // which will improve recovery time
-yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned -y 
+yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd -y 
 # disable as scan in permanence and not needed for splunk
 systemctl stop log4j-cve-2021-44228-hotpatch
 systemctl disable log4j-cve-2021-44228-hotpatch
@@ -1141,8 +1142,12 @@ if [ "$MODE" != "upgrade" ]; then
   #chown -R ${usersplunk}. /opt/splunk
 
   # giving the index directory to splunk if they exist
-  chown -R ${usersplunk}. /data/vol1/indexes
-  chown -R ${usersplunk}. /data/vol2/indexes
+  if [ -d "/data/vol1/indexes" ]; then 
+    chown -R ${usersplunk}. /data/vol1/indexes
+  fi
+  if [ -d "/data/vol2/indexes" ]; then 
+    chown -R ${usersplunk}. /data/vol2/indexes
+  fi
 
   # deploy including for indexers
   echo "remote : ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -1159,28 +1164,85 @@ if [ "$MODE" != "upgrade" ]; then
   if [ "$RESTORECONFBACKUP" -eq 1 ]; then
     # getting configuration backups if exist 
     # change here for kvstore 
-    echo "remote : ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-    get_object ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz ${localbackupdir}
+    for type in etc-targeted scripts kvdump kvstore state;
+    do 
+       FOUND=0
+       # we are looping with priority so as soon as we find we exit the loop to find the next type
+       for mode in rel abs;
+       do  
+           for compress in zst gz;
+           do  
+               extmode=""
+               if [ "${mode}" = "rel" ]; then
+                   extmode="rel-"
+                   # this is the form that gets added in name if the backup was made relative to splunk home
+                   # otherwise no extension
+               fi
+               FI="backupconfsplunk-${extmode}${type}.tar.${compress}"
+               localdir=${localbackupdir}
+               if [ "${type}" = "kvdump" ]; then
+                   localdir=${localkvdumpbackupdir}
+               fi
+               if [ ! -d ${localdir} ]; then
+                    mkdir -p ${localdir}
+                    chown ${usersplunk}. ${localdir}
+               fi
+               get_object ${remotebackupdir}/${FI} ${localdir}
+               if [ -e "${localdir}/${FI}" ]; then
+                   echo "backup form ${FI} found" >> /var/log/splunkconf-cloud-recovery-info.log
+                   # making sure splunk user can access the backup
+                   chmod 500 ${localdir}/$FI
+                   chown ${usersplunk}. ${localdir}/$FI
+                   if [ "${type}" = "kvdump" ]; then
+                       mv ${localdir}/$FI ${localdir}/backupconfsplunk-kvdump-toberestored.tar.${compress}
+                   fi
+                   if [ "${compress}" = "zst" ]; then
+                       if ! command -v zstd &> /dev/null
+                       then
+                          echo "ERROR FATAL : backup $FI was created with zstd but zstd binary could not be deployed to this instance, stopping here to force admin fix that unforeseen situation !" >> /var/log/splunkconf-cloud-recovery-info.log
+                          exit 1
+                       fi
+                   fi
+                   DONE=1
+               else
+                   echo "backup form ${FI} not found" >> /var/log/splunkconf-cloud-recovery-info.log
+               fi
+               if [[ $DONE == 1 ]]; then
+                   break
+               fi
+           done # compress
+           if [[ $DONE == 1 ]]; then
+               break
+           fi
+       done # mode
+       if [[ $DONE == 1 ]]; then
+           continue
+       else
+           echo "attention, no remote backup found for $type (this is expected if you just created the env otherwise you are probably in trouble" 
+       fi
+    done   # type
+#    echo "remote : ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
+#    get_object ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz ${localbackupdir}
     # at first splunk install, need to recreate the dir and give it to splunk
-    mkdir -p ${localkvdumpbackupdir};chown ${usersplunk}. ${localkvdumpbackupdir}
-    echo "remote : ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
-    get_object ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
+#    mkdir -p ${localkvdumpbackupdir};chown ${usersplunk}. ${localkvdumpbackupdir}
+#    echo "remote : ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
+#    get_object ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
     # making sure splunk user can access the backup 
-    chown ${usersplunk}. ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
+#    chown ${usersplunk}. ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
     # and only
-    chmod 500 ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
-    echo "remote : ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
-    get_object ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz ${localbackupdir}
+#    chmod 500 ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
+#    echo "remote : ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
+#    get_object ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz ${localbackupdir}
 
-    echo "remote : ${remotebackupdir}/backupconfsplunk-state.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-    get_object ${remotebackupdir}/backupconfsplunk-state.tar.gz ${localbackupdir}
+#    echo "remote : ${remotebackupdir}/backupconfsplunk-state.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
+#    get_object ${remotebackupdir}/backupconfsplunk-state.tar.gz ${localbackupdir}
 
-    echo "remote : ${remotebackupdir}/backupconfsplunk-scripts.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-    get_object ${remotebackupdir}/backupconfsplunk-scripts.tar.gz ${localbackupdir}
+#    echo "remote : ${remotebackupdir}/backupconfsplunk-scripts.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
+#    get_object ${remotebackupdir}/backupconfsplunk-scripts.tar.gz ${localbackupdir}
 
     # setting up permissions for backup
-    chown ${usersplunk}. ${localbackupdir}/*.tar.gz
-    chmod 500 ${localbackupdir}/*.tar.gz
+#    chown ${usersplunk}. ${localbackupdir}/*.tar.gz
+#    chmod 500 ${localbackupdir}/*.tar.gz
 
     echo "localbackupdir ${localbackupdir}  contains" >> /var/log/splunkconf-cloud-recovery-info.log
     ls -l ${localbackupdir} >> /var/log/splunkconf-cloud-recovery-info.log

@@ -10,9 +10,10 @@
 # 20201123 update for es6.4
 # 20210706 update to es 6.6
 # 20211104 update for 6.6.2 and add variables for versions
-# 20211217 update for 7.7.0
+# 20211217 update for 7.0.0
+# 20220325 update for 7.0.1
 
-VERSION="20211217"
+VERSION="20220325"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
@@ -50,7 +51,7 @@ else
   echo "installes.sh is NOT present in s3 install at $remoteinstalldir: KO Please upload scripts to s3 install"
 fi
 
-ESAPP="splunk-enterprise-security_700.spl"
+ESAPP="splunk-enterprise-security_701.spl"
 
 aws s3 cp $remoteinstalldir/apps/$ESAPP  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESAPP" ]; then

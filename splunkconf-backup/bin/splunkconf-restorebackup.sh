@@ -1,10 +1,26 @@
 #!/bin/bash  
 exec > /tmp/splunkconf-restore-debug.log  2>&1
 
+# Copyright 2022 Splunk Inc.
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Contributor :
+#
 # Matthieu Araman, Splunk
-# copyright splunk
 
-# This script backup splunk config files
+# This script restore kvdump at Splunk start if needed
+# This script also does a preventive log file rotation 
 
 # 201610 initial
 # 20170123 move to use ENVSPL, add kvstore backup
@@ -35,6 +51,7 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20200413 add timer at start to allow kvstore some time to finish initializing and to avoid trying a restore is splunk is just being restarted as part of a installation script (prevent race condition)
 # 20200414 add comments about possible error/solution when restore fail in some conditions
 # 20201105 add /bin to PATH as required for AWS1
+# 20220326 add preventive log file rotation and improve logging by moving part to debug
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -119,23 +136,52 @@ SCRIPTNAME="splunkconf-restore"
 ###### function definition
 
 function echo_log_ext {
-    LANG=C
-    NOW=(date "+%Y/%m/%d %H:%M:%S")
-    #NOW=(date)
-    echo `$NOW`" ${SCRIPTNAME} $1 " >> $LOGFILE
+  LANG=C
+  #NOW=(date "+%Y/%m/%d %H:%M:%S")
+  NOW=(date)
+  echo `$NOW`" ${SCRIPTNAME} $1 " >> $LOGFILE
 }
 
+function debug_log {
+  DEBUG="0";
+  # change me here, not yet in conf file
+  #DEBUG="1";
+  if [ $DEBUG -ne "0" ]; then
+    echo_log_ext  "DEBUG id=$ID $1"
+  fi
+}
 
 function echo_log {
-    echo_log_ext  "INFO id=$ID $1" 
+  echo_log_ext  "INFO id=$ID $1"
 }
 
 function warn_log {
-    echo_log_ext  "WARN id=$ID $1" 
+  echo_log_ext  "WARN id=$ID $1"
 }
 
 function fail_log {
-    echo_log_ext  "FAIL id=$ID $1" 
+  echo_log_ext  "FAIL id=$ID $1"
+}
+
+function rotate_log {
+  if [ -e "${LOGFILE}.4" ]; then
+    rm ${LOGFILE}.4  || fail_log "could not remove old file ${LOGFILE}.4 , please check permissions"
+    debug_log "removing oldest log file ${LOGFILE}.4"
+  fi
+  for i in 3 2 1 
+  do
+    if [ -e "${LOGFILE}.$i" ]; then
+      let "j=i+1"
+      mv ${LOGFILE}.$i ${LOGFILE}.$j  || fail_log "could not rotate log file ${LOGFILE}.$i , please check permissions"
+      debug_log "rotating log file ${LOGFILE}.$i"
+    fi
+  done
+  if [ -e "${LOGFILE}" ]; then
+    echo_log "Splunk start : rotating file=${LOGFILE}"
+    j=1
+    mv ${LOGFILE} ${LOGFILE}.$j  || fail_log "could not rotate log file ${LOGFILE} , please check permissions"
+    echo_log "Starting new log file"
+  fi
 }
 
 ###### start
@@ -146,16 +192,18 @@ ID=`date '+%s'`;
 
 
 
-echo_log "checking that we were not launched by root for security reasons"
+debug_log "checking that we were not launched by root for security reasons"
 # check that we are not launched by root
 if [[ $EUID -eq 0 ]]; then
    fail_log "Exiting ! This script must be run as splunk user, not root !" 
    exit 1
 fi
 
-echo_log "sleeping one minute to prevent race condition at kvstore start"
+rotate_log;
+
+debug_log "sleeping one minute to prevent race condition at kvstore start"
 sleep 60
-echo_log "done sleeping, starting real restore"
+debug_log "done sleeping, starting real restore"
 
 
 if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then

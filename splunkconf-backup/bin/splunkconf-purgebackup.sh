@@ -1,12 +1,30 @@
 #!/bin/bash 
 exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 
+# Copyright 2022 Splunk Inc.
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Contributor :
+#
 # Matthieu Araman, Splunk
 
 
-# This script purge old backups depending on the parameters set in ENVSPL
+# This script purge old backups according to your settings, current space used by backup, disk free space...
+# Script will keep at least one version of each type
+# This script is launched more frequently that backups in order to maximize chance of being to create newer backups even in starving disk conditions
 
-# 20170123 purge script iassoaicted to backup script
+# 20170123 purge script assoiated to backup script
 # 20170123 renamed ending with splunk
 # 20170131 force change dir to find envspl
 # 20180620 updates to match backup updates
@@ -22,6 +40,8 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20200419 change size default
 # 20200421 improve logging
 # 20201105 add test for default and local conf file to prevent error appearing in logs
+# 20220326 add support for rel and zstd types by relaxing form detection
+# 20220326 change starving condition to fail even if that is probably du to external condition in order to try to be more visible that we have a problem + only log when all the types have been tried 
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -105,7 +125,7 @@ function echo_log_ext {
 
 function debug_log {
   DEBUG="0";
-  # change me here, not yet in conf file
+  # change me here only to debug
   #DEBUG="1";
   if [ $DEBUG -ne "0" ]; then 
     echo_log_ext  "DEBUG id=$ID $1"
@@ -185,19 +205,19 @@ EXCLUSION_LIST=""
 REASON="age" 
 # etc
 OBJECT="etc"
-A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-${OBJECT}*tar.gz| tail -1`
+A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 
 # delete with exclusion of latest backup of this type
 #/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-state*tar.gz" ! -wholename $A \) -print0 | xargs --null -I {} echo "action=purge type=local reason=retentionpolicy object=state result=success localbackupdir=${LOCALBACKUPDIR} dest={} retentiondays=${LOCALBACKUPSTATERETENTIONDAYS} purge local state backup done"  
 
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-${OBJECT}*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
 # || fail_log "action=purge type=local reason=retentionpolicy object=etc result=fail error purging local etc backup "
 
 # kv tar version
 OBJECT="kvstore"
-A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-kvstore*tar.gz| tail -1`
+A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
@@ -206,36 +226,36 @@ EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 
 # kv dump version
 OBJECT="kvdump"
-A=`ls -tr ${LOCALKVDUMPDIR}/backupconfsplunk-kvdump*tar.gz| tail -1`
+A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-${OBJECT}*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
 #/usr/bin/find ${LOCALKVDUMPDIR} -type f \( -name "backupconfsplunk-kvdump*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=kvdump result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPKVRETENTIONDAYS} purge local kv dump done" || fail_log "action=purge type=local reason=retentionpolicy object=kvdump result=fail error purging local kv dump "
 
 # scripts
 OBJECT="scripts"
-A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-script*tar.gz| tail -1`
+A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-${OBJECT}*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
 #/usr/bin/find ${LOCALBACKUPDIR} \( -name "backupconfsplunk-script*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPSCRIPTSRETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=scripts result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSCRIPTSRETENTIONDAYS} purge local scripts backup done" || fail_log "action=purge type=local reason=retentionpolicy object=scripts result=fail error purging local scripts backup "
 
 # modinput (for upgrade, newer version only create state)
 OBJECT="modinput"
 A="na"
 # we may remove all versions after retention as we will now have state
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-${OBJECT}*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
 #/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-modinput*tar.gz" -mtime +${LOCALBACKUPMODINPUTRETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=modinput result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPMODINPUTRETENTIONDAYS} purge local modinput backup done" || fail_log "action=purge type=local reason=retentionpolicy object=modinput result=fail error purging local modinput backup "
 
 # state
 OBJECT="state"
-A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-state*tar.gz| tail -1`
+A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-${OBJECT}*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
 #/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-state*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPSTATERETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=state result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSTATERETENTIONDAYS} purge local state backup done" || fail_log "action=purge type=local reason=retentionpolicy object=state result=fail error purging local state backup "
 
 # delete on size
@@ -246,14 +266,15 @@ CURRENTSIZE=`du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump* 
 debug_log "checking purge on size action=checksize currentlocalsize=${CURRENTSIZE},currentmaxlocalsize=${LOCALMAXSIZE} EXCLUSION_LIST=${EXCLUSION_LIST}"
 EXITSIZE=0
 while [ ${CURRENTSIZE} -gt ${LOCALMAXSIZE} ];
-do 
+do
+  EXITSIZE=0    # at each round we start by 0 then if all backup type just have one remaining and we are still starving we will exit anyway 
   debug_log " in current size loop, need to purge !"
   #OLDESTFILE=`ls -t ${LOCALBACKUPDIR}/backup* | tail -1`;
   #OLDESTFILE=`echo ${LASTSIZE} | cut -d ' ' -f 2 | tail -1`;
   for OBJECT in "etc" "scripts" "kvstore" "kvdump" "modinput" "state"; 
   do
     debug_log " in current size and object (${OBJECT}) loop"
-    OLDESTFILE=`find ${LOCALBACKUPDIR} ${LOCALKVDUMPDIR}  -type f \( -name "*.tar.gz" ${EXCLUSION_LIST} \) -printf '%Cs %p\n'|sort -rn | cut -d ' ' -f 2 | tail -1`
+    OLDESTFILE=`find ${LOCALBACKUPDIR} ${LOCALKVDUMPDIR}  -type f \( -name "*${OBJECT}*.tar.*" ${EXCLUSION_LIST} \) -printf '%Cs %p\n'|sort -rn | cut -d ' ' -f 2 | tail -1`
     OLDESTFILE=${OLDESTFILE:-"na"}
     if [ -e ${OLDESTFILE} ]; then
       rm -f ${OLDESTFILE}  && RES="success" || RES="failure";
@@ -262,22 +283,25 @@ do
       echo_log "action=purge type=$TYPE reason=$REASON object=${OBJECT} dest=${OLDESTFILE}  localsizepre=${CURRENTSIZEPRE} localsize=${CURRENTSIZE} maxlocalsize=${LOCALMAXSIZE} result=$RES"
       #LASTSIZE=`find ${LOCALBACKUPDIR} ${LOCALKVDUMPDIR}  -type f -name "*.tar.gz" -printf '%Cs %p\n'|sort -rn | tail -1`
       #CURRENTSIZE=`echo ${LASTSIZE} | cut -d ' ' -f 1`
-      debug_log "checking purge on size action=checksize currentlocalsize=${CURRENTSIZE},currentmaxlocalsize=${LOCALMAXSIZE} "
+      debug_log "checking purge on size action=checksize currentlocalsize=${CURRENTSIZE},currentmaxlocalsize=${LOCALMAXSIZE} , OBJECT=${OBJECT} "
     else
       CURRENTSIZEPRE=${CURRENTSIZE}
       CURRENTSIZE=`du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump*| cut -f1 | tail -1`
-      echo_log "action=nopurge type=$TYPE reason=$REASON object=${OBJECT} dest=${OLDESTFILE}  localsizepre=${CURRENTSIZEPRE} localsize=${CURRENTSIZE} maxlocalsize=${LOCALMAXSIZE} result=\"nobackupcandidate\" starving condition "
       # we must exit loop, we cant purge more
-      EXITSIZE=1
-      break;
+      let "EXITSIZE=EXITSIZE+1"
+      debug_log "just increased existsize to ${EXITSIZE}, OBJECT=${OBJECT}"
+      continue;
     fi
   done
-  if [ ${EXITSIZE} -eq 1 ]; then
+  # potential max value is 6 currently
+  if [ ${EXITSIZE} -gt 5 ]; then
     debug_log "forwarding starving condition size exit to underlying loop"
+    # we only log once in that case
+    fail_log "action=nopurge type=$TYPE reason=$REASON localsizepre=${CURRENTSIZEPRE} localsize=${CURRENTSIZE} maxlocalsize=${LOCALMAXSIZE} result=\"starving-nopurgebackupcandidate\" "
     # alternatively we could add a condition to while
     break;
-  #else 
-  #  debug_log "not in starving condition, continuing through normal loop"
+  else 
+    debug_log "not in starving condition, EXITSIZE=${EXITSIZE}, continuing through normal loop"
   fi  
 done;
 
@@ -304,18 +328,18 @@ else
   if [ -d "${REMOTEBACKUPDIR}" ]; then
     debug_log "Starting to purging old backups"
 # FIXME : reuse exclusion_list logic to always keep one backup for remote nas condition
-    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-etc*tar.gz" -mtime +${REMOTEBACKUPRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=etc result=success purge remote etc backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=etc result=fail   error purging remote etc backup "
+    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*etc*tar.*" -mtime +${REMOTEBACKUPRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=etc result=success purge remote etc backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=etc result=fail   error purging remote etc backup "
     # kv tar
-    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-kvstore*tar.gz" -mtime +${REMOTEBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=kvstore result=success purge remote kv backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=kvstore result=fail  error purging remote kv backups"
+    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*kvstore*tar.*" -mtime +${REMOTEBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=kvstore result=success purge remote kv backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=kvstore result=fail  error purging remote kv backups"
     # kv dump
     # note after a restore the file end by tar.gz.processed, we still want to clean it up after a while
-    /usr/bin/find ${REMOTEKVDUMPDIR} -type f -name "backupconfsplunk-kvdump*tar.gz*" -mtime +${REMOTEBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=kvdump result=success purge remote kv dump done" || fail_log "action=purge type=remote reason=retentionpolicy object=kvdump result=fail error purging remote kv dump"
+    /usr/bin/find ${REMOTEKVDUMPDIR} -type f -name "backupconfsplunk-*kvdump*tar.*" -mtime +${REMOTEBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=kvdump result=success purge remote kv dump done" || fail_log "action=purge type=remote reason=retentionpolicy object=kvdump result=fail error purging remote kv dump"
     # scripts
-    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-script*tar.gz" -mtime +${REMOTEBACKUPSCRIPTSRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=scripts result=success purge remote scripts backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=scripts result=fail error purging remote scripts backup"
+    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*script*tar.*" -mtime +${REMOTEBACKUPSCRIPTSRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=scripts result=success purge remote scripts backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=scripts result=fail error purging remote scripts backup"
     # modinput (upgrade case)
-    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-modinput*tar.gz" -mtime +${REMOTEBACKUPMODINPUTRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=modinput result=success purge remote modinput backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=modinput result=fail error purging remote modinput backup"
+    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*modinput*tar.*" -mtime +${REMOTEBACKUPMODINPUTRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=modinput result=success purge remote modinput backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=modinput result=fail error purging remote modinput backup"
     # state
-    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-state*tar.gz" -mtime +${REMOTEBACKUPMODINPUTRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=state result=success purge remote state backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=state result=fail error purging remote state backup"
+    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*state*tar.*" -mtime +${REMOTEBACKUPMODINPUTRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=state result=success purge remote state backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=state result=fail error purging remote state backup"
 
     # delete on size, we try to delete a whole set of backups so we hopefully have enough space for a new whole set of backups 
     while [ `du -c ${REMOTEBACKUPDIR}/backup* | cut -f1 | tail -1` -gt ${REMOTEMAXSIZE} ];

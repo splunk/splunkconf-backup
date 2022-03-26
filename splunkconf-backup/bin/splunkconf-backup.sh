@@ -1,7 +1,7 @@
 #!/bin/bash  
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
-# Copyright 2021 Splunk Inc.
+# Copyright 2022 Splunk Inc.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -69,13 +69,19 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20210729 add imdsv2 to aws cloud detection
 # 20211124 comment debug command, include license wording, add initial options for rsync
 # 20220102 fix cloud detection for newer AWS kernels
+# 20220322 improve tag space autodetection
+# 20220322 code factorization to ease support tar format change
+# 20220323 add manager-apps dir (for cm)
+# 20220325 improve file detection to remove false warning from tar
+# 20220326 reduce log verbosity for cloud detection 
 
-VERSION="20220102a"
+VERSION="20220326a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
 # note : this script wont backup any index data
 
+# Note : we can be called either from splunk via a input or via direct call 
 # get script dir
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd $DIR
@@ -89,11 +95,11 @@ cd ..
 #SPLUNK_HOME="/opt/splunk"
 #SPLUNK_HOME=`cd ../../..;pwd`
 SPLUNK_HOME=`cd ../../..;pwd`
-# note : we could get this from env now that we run via input
+# note : we could get this from env now when we run via input
 
 # debug -> verify the env that splunk set (python version may affect aws command for example,...)
 #env
-# undetting env to not depend on splunk python version 
+# unsetting env to not depend on splunk python version 
 # this is because we may call aws command which is in python itself and can break du to this
 unset LD_LIBRARY_PATH
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin
@@ -244,23 +250,23 @@ function check_cloud() {
   cloud_type=0
   response=$(curl -fs -m 5 -H "Metadata-Flavor: Google" ${METADATA_URL})
   if [ $? -eq 0 ]; then
-    echo_log 'GCP instance detected'
+    debug_log 'GCP instance detected'
     cloud_type=2
   # old aws hypervisor
   elif [ -f /sys/hypervisor/uuid ]; then
     if [ `head -c 3 /sys/hypervisor/uuid` == "ec2" ]; then
-      echo_log 'AWS instance detected'
+      debug_log 'AWS instance detected'
       cloud_type=1
     fi
   fi
   # newer aws hypervisor (test require root)
   if [ -r /sys/devices/virtual/dmi/id/product_uuid ]; then
     if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "EC2" ]; then
-      echo_log 'AWS instance detected'
+      debug_log 'AWS instance detected'
       cloud_type=1
     fi
     if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "ec2" ]; then
-      echo_log 'AWS instance detected'
+      debug_log 'AWS instance detected'
       cloud_type=1
     fi
   fi
@@ -278,11 +284,66 @@ function check_cloud() {
       # TOKEN NOT SET , NOT inside AWS
       cloud_type=0
     elif $(curl --silent -m 5 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
-      echo_log 'AWS instance detected'
+      debug_log 'AWS instance detected'
       cloud_type=1
     fi
   fi
 }
+
+# at start we check what compression we can use
+# at the moment this is mainly zstd
+function check_compress() {
+    COMPRESS="gzip"
+    EXTENSION="gz"
+    # if zstd command is present, better to choose zstd
+    # note that you may use yum install zstd or equivalent to have this command available
+    if command -v zstd &> /dev/null
+    then
+        COMPRESS="zstd"
+        EXTENSION="zst"
+    fi
+    debug_log "Compression method will be ${COMPRESS}";
+}
+
+function do_backup_tar() {
+    # inputs : MODE FIC FILELIST TYPE OBJECT MESS1 TARMODE COMPRESSMODE
+    # MODE can be etc etctargeted scripts state
+    # OBJECT can be etc scripts state   (the only difference is for etctargeted versus etc (full))
+    # FIC is tar filename
+    # EXCLUDELIST ref to a exclude list file
+    # EXCLUDEFORM
+    # FILELIST contain list of files to tar for this mode
+    # MESS1
+    # TARMODE is either absolute (original mode) or relative (future)
+    # COMPRESSMODE is either gzip (original) or other compression algo (future)
+    debug_log "running tar for ${MODE} backup";
+    if [ "$MODE" == "etc" ]; then
+         PARAMEXCLUDE=" --exclude-from=${TAREXCLUDEFILE} --exclude '*/dump'"
+    else
+         PARAMEXCLUDE=""
+    fi
+    debug_log "running tar -I ${COMPRESS} -cf ${FIC} ${PARAMEXCLUDE} ${FILELIST}";
+    START=$(($(date +%s%N)));
+    tar -I ${COMPRESS} -cf ${FIC} ${PARAMEXCLUDE} ${FILELIST} 
+    RES=$?
+    END=$(($(date +%s%N)));
+    #let DURATIONNS=(END-START)
+    let DURATION=(END-START)/1000000
+    if [ -e "$FIC" ]; then
+      FILESIZE=$(/usr/bin/stat -c%s "$FIC")
+    else
+      debug_log "FIC=$FIC doesntexist after tar"
+      FILESIZE=0
+    fi
+    #echo_log "res=${RES}"
+    if [ $RES -eq 0 ]; then
+        echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION}  size=${FILESIZE} ${MESS1}"; 
+        #echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} durationns=${DURATIONNS} size=${FILESIZE} ${MESS1}"; 
+    else
+        fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC durationms=${DURATION} reason=tar${RES} size=${FILESIZE} ${MESS1}" 
+    fi
+}
+
 
 ###### start
 
@@ -316,8 +377,9 @@ else
 fi 
 
 check_cloud
+debug_log "cloud_type=$cloud_type"
 
-echo_log "cloud_type=$cloud_type"
+check_compress
 
 # we get most var dynamically from ec2 tags associated to instance
 
@@ -333,7 +395,7 @@ fi
 
 if ! command -v aws &> /dev/null
 then
-  warn_log "command aws not detected, assuming we are not running inside aws"
+  debug_log "command aws not detected, assuming we are not running inside aws"
   CHECK=0
 fi
 
@@ -348,14 +410,14 @@ if [ $CHECK -ne 0 ]; then
     REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
     # we put store tags in instance-tags file-> we will use this later on
-    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  | grep -E "^splunk" > $INSTANCEFILE
+    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/' | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > $INSTANCEFILE
     if grep -qi splunkinstanceType $INSTANCEFILE
     then
       # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
-      echo_log "filtering tags with splunk prefix for instance tags (file=$INSTANCEFILE)" 
+      debug_log "filtering tags with splunk prefix for instance tags (file=$INSTANCEFILE)" 
     else
-      echo_log "splunk prefixed tags not found, reverting to full tag inclusion (file=$INSTANCEFILE)" 
-      aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/'  > $INSTANCEFILE
+      debug_log "splunk prefixed tags not found, reverting to full tag inclusion (file=$INSTANCEFILE)" 
+      aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/' | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' > $INSTANCEFILE
     fi
   fi
 elif [[ "cloud_type" -eq 2 ]]; then
@@ -393,7 +455,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
   
 else
-  echo_log "aws cloud tag detection disabled (missing commands)"
+  warn_log "aws cloud tag detection disabled (missing commands)"
 fi
 
 if [ -e "$INSTANCEFILE" ]; then
@@ -547,24 +609,24 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
   # building name depending on options
   if [ ${BACKUPTYPE} -eq 2 ]; then
     if [ ${LOCALTYPE} -eq 2 ]; then
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}.tar.gz";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}.tar.${EXTENSION}";
 	MESS1="backuptype=etcfullinstanceoverwrite ";
     elif [ ${LOCALTYPE} -eq 3 ]; then
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-full.tar.gz";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-full.tar.${EXTENSION}";
 	MESS1="backuptype=etcfullnoinstanceoverwrite ";
     else
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}-${TODAY}.tar.gz";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
 	MESS1="backuptype=etcfullinstanceversion ";
     fi
   else
     if [ ${LOCALTYPE} -eq 2 ]; then
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}.tar.gz";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}.tar.${EXTENSION}";
 	MESS1="backuptype=etctargetedinstanceoverwrite ";
     elif [ ${LOCALTYPE} -eq 3 ]; then
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-targeted.tar.gz";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-targeted.tar.${EXTENSION}";
 	MESS1="backuptype=etctargetednoinstanceoverwrite ";
     else
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}-${TODAY}.tar.gz";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
 	MESS1="backuptype=etctargetedinstanceversion ";
     fi
   fi
@@ -573,13 +635,24 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
     fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}" 
   elif [ ${BACKUPTYPE} -eq 2 ]; then
     debug_log "running tar for etc full backup";
-    tar -zcf ${FIC}  ${SPLUNK_HOME}/etc && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
+    FILELIST="${SPLUNK_HOME}/etc"
+    #tar -zcf ${FIC}  ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
+    do_backup_tar;
     etc_done=1
     LFICETC=$FIC;
   else
     #debug_log "running tar for etc targeted backup
     # dump exlusion for collection app that store temp huge files in etc instead of a proper dir under var
-    tar --exclude-from=${TAREXCLUDEFILE} --exclude '*/dump' -zcf ${FIC} ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/deployment-apps ${SPLUNK_HOME}/etc/master-apps ${SPLUNK_HOME}/etc/shcluster ${SPLUNK_HOME}/etc/passwd ${SPLUNK_HOME}/etc/system/local ${SPLUNK_HOME}/etc/auth ${SPLUNK_HOME}/etc/openldap/ldap.conf ${SPLUNK_HOME}/etc/users ${SPLUNK_HOME}/etc/splunk-launch.conf ${SPLUNK_HOME}/etc/instance.cfg ${SPLUNK_HOME}/etc/.ui_login ${SPLUNK_HOME}/etc/licenses ${SPLUNK_HOME}/etc/*.cfg ${SPLUNK_HOME}/etc/disabled-apps && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
+    FILELIST2="${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/deployment-apps ${SPLUNK_HOME}/etc/shcluster ${SPLUNK_HOME}/etc/passwd ${SPLUNK_HOME}/etc/system/local ${SPLUNK_HOME}/etc/auth ${SPLUNK_HOME}/etc/openldap/ldap.conf ${SPLUNK_HOME}/etc/users ${SPLUNK_HOME}/etc/splunk-launch.conf ${SPLUNK_HOME}/etc/instance.cfg ${SPLUNK_HOME}/etc/.ui_login ${SPLUNK_HOME}/etc/licenses ${SPLUNK_HOME}/etc/*.cfg ${SPLUNK_HOME}/etc/disabled-apps"
+    FILELIST=""
+    for file in $FILELIST2;
+    do
+      if [ -d "${file}" ]; then
+        FILELIST="$FILELIST ${file}"
+      fi
+    done
+    #tar --exclude-from=${TAREXCLUDEFILE} --exclude '*/dump' -zcf ${FIC} ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
+    do_backup_tar;
     etc_done=1
     LFICETC=$FIC;
   fi
@@ -593,13 +666,13 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
   FIC="disabled"
   #debug_log "start to backup scripts"; 
   if [ ${LOCALTYPE} -eq 2 ]; then
-    FIC="${LOCALBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}.tar.gz";
+    FIC="${LOCALBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}.tar.${EXTENSION}";
     ESS1="backuptype=scriptstargetedinstanceoverwrite ";
   elif [ ${LOCALTYPE} -eq 3 ]; then
-    FIC="${LOCALBACKUPDIR}/backupconfsplunk-scripts.tar.gz";
+    FIC="${LOCALBACKUPDIR}/backupconfsplunk-scripts.tar.${EXTENSION}";
     MESS1="backuptype=scriptstargetednoinstanceoverwrite  ";
   else
-    FIC="${LOCALBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}-${TODAY}.tar.gz";
+    FIC="${LOCALBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
     MESS1="backuptype=scriptstargetedinstanceversion ";
   fi
   splunkconf_checkspace;
@@ -610,7 +683,9 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
     debug_log "action=backup type=$TYPE object=${OBJECT} result=disabled dest=$FIC reason=disabled ${MESS1}" 
   else 
     #debug_log "doing backup scripts via tar";
-    tar -zcf ${FIC}  ${SCRIPTDIR} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
+    FILELIST=${SCRIPTDIR}
+    #tar -zcf ${FIC}  ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
+    do_backup_tar;
     scripts_done=1
     LFICSCRIPT=$FIC;
   fi
@@ -678,7 +753,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
 	kvdump_done="-1"
       else
 	kvdump_done="1"
-	LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}.tar.gz"
+	LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}.tar.${EXTENSION}"
 	echo_log "COUNTER=$COUNTER $MESSVER $MESS1 action=backup type=$TYPE object=$kvbackupmode result=success dest=${LFICKVDUMP}  kvstore online (kvdump) backup complete"
       fi
     elif [[ "$MODE" == "0" ]] || [[ "$MODE" == "kvstore" ]] || [[ "$MODE" == "kvauto" ]]; then
@@ -700,15 +775,15 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       fi
       debug_log "doing backup kvstore via tar";
       if [ ${LOCALTYPE} -eq 2 ]; then
-        FIC="${LOCALBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.gz";
+        FIC="${LOCALBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.${EXTENSION}";
         MESS1="backuptype=kvstoreinstanceoverwrite ";
         debug_log "backup for kvstore no date with instance to $FIC";
       elif [ ${LOCALTYPE} -eq 3 ]; then
-        FIC="${LOCALBACKUPDIR}/backupconfsplunk-kvstore.tar.gz";
+        FIC="${LOCALBACKUPDIR}/backupconfsplunk-kvstore.tar.${EXTENSION}";
         MESS1="backuptype=kvstorenoinstanceoverwrite ";
         debug_log "backup for kvstore no date no instance to $FIC";
       else
-        FIC="${LOCALBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.gz";
+        FIC="${LOCALBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         MESS1="backuptype=kvstoreinstanceversion ";
         debug_log "backup for kvstore with instance and date to $FIC";
       fi
@@ -720,7 +795,8 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       while [ ${CONTINUE} -eq 1 ]
       do
         #echo_log "running tar for kvstore"
-        tar -zcf ${FIC}  ${KVDBPATH}
+        FILELIST=${KVDBPATH}
+        tar -I ${COMPRESS} -cf ${FIC}  ${FILELIST}
         RES=$?
         #echo_log "res=${RES}"
         if [ $RES -eq 0 ]; then
@@ -768,15 +844,15 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
   else
     debug_log "start to backup state (modinput , scheduler states, bundle, fishbuckets,....)";
     if [ ${LOCALTYPE} -eq 2 ]; then
-      FIC="${LOCALBACKUPDIR}/backupconfsplunk-state-${INSTANCE}.tar.gz";
+      FIC="${LOCALBACKUPDIR}/backupconfsplunk-state-${INSTANCE}.tar.${EXTENSION}";
       MESS1="backuptype=stateinstanceoverwrite ";
       debug_log "backup type will be state with instance no date";
     elif [ ${LOCALTYPE} -eq 3 ]; then
-      FIC="${LOCALBACKUPDIR}/backupconfsplunk-state.tar.gz";
+      FIC="${LOCALBACKUPDIR}/backupconfsplunk-state.tar.${EXTENSION}";
       MESS1="backuptype=statenoinstanceoverwrite ";
       debug_log "backup type will be state no instance no date";
     else
-      FIC="${LOCALBACKUPDIR}/backupconfsplunk-state-${INSTANCE}-${TODAY}.tar.gz";
+      FIC="${LOCALBACKUPDIR}/backupconfsplunk-state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
       MESS1="backuptype=stateinstanceversion ";
       debug_log "backup type will be state (date versioned with instance backup mode)";
     fi
@@ -799,7 +875,9 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
     else
       #echo_log "doing backup state (modinput and scheduler state) via tar";
       #result=$(tar -zcf ${FIC}  ${MODINPUTPATH} ${SCHEDULERSTATEPATH} ${STATELIST}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (modinputpath=${MODINPUTPATH} schedulerpath=${SCHEDULERSTATEPATH}  statelist=${STATELIST} result=$result )"
-      result=$(tar -zcf ${FIC} ${STATELIST2}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (statelist=${STATELIST} statelist2=${STATELIST2} result=$result )"
+      FILELIST=${STATELIST2}
+      #result=$(tar -zcf ${FIC} ${FILELIST}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (statelist=${STATELIST} statelist2=${STATELIST2} result=$result )"
+      do_backup_tar;
       state_done=1
       LFICSTATE=$FIC;
     fi
@@ -872,48 +950,48 @@ debug_log "starting remote backup"
   cd /
   if [ ${BACKUPTYPE} -eq 2 ]; then
     if [ ${REMOTETYPE} -eq 2 ]; then
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}.tar.gz";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}.tar.gz";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.gz";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.gz";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}.tar.gz";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSION}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}.tar.${EXTENSION}";
         debug_log "backup type will be etc full no date";
     elif [ ${REMOTETYPE} -eq 3 ]; then
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full.tar.gz";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts.tar.gz";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore.tar.gz";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.gz";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state.tar.gz";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.${EXTENSION}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state.tar.${EXTENSION}";
         debug_log "backup type will be etc full no date no instance";
     else
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}-${TODAY}.tar.gz";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}-${TODAY}.tar.gz";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.gz";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.gz";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}-${TODAY}.tar.gz";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         debug_log "backup type will be etc full (date versioned backup mode with instance name)";
     fi
   else
     if [ ${REMOTETYPE} -eq 2 ]; then
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}.tar.gz";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}.tar.gz";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.gz";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.gz";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}.tar.gz";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSION}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted no date";
     elif [ ${REMOTETYPE} -eq 3 ]; then
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted.tar.gz";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts.tar.gz";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore.tar.gz";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.gz";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state.tar.gz";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.${EXTENSION}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted no date no instance ";
     else
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}-${TODAY}.tar.gz";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}-${TODAY}.tar.gz";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.gz";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.gz";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}-${TODAY}.tar.gz";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted (date versioned backup mode)";
     fi
   fi

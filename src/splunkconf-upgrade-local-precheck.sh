@@ -10,8 +10,9 @@
 # 20201117 extend version check to be more generic
 # 20210202 add fallback to /etc/instance-tags
 # 20210706 use cloud version when existing to avoid outdated aws version kept on s3
+# 20220326 add zstd package install
 
-VERSION="20210706"
+VERSION="20220326"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -23,8 +24,8 @@ fi
 #yum update -y
 # just in case the AMI doesn't have it (it is preinstalled on aws ami)
 # requirement access to repo that provide aws-cli (epel)
-yum install aws-cli curl -y 2>&1 >/dev/null
-yum install python3-pip -y 2>&1 >/dev/null
+yum install --setopt=skip_missing_names_on_install=True aws-cli curl python3-pip zstd -y 2>&1 >/dev/null
+#yum install python3-pip -y 2>&1 >/dev/null
 pip3 install awscli --upgrade 2>&1 >/dev/null
 
 # setting up token (IMDSv2)

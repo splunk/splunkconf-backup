@@ -142,8 +142,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220316 improve auto space removal in tags
 # 20220325 add zstd binary install + change tar option to autodetect format + add error handling for zstd backup with no zstd binary case (initial support)
 # 20220327 relax form for permission on initial backups for zstd to prevent false warning
+# 20220327 add protection from very old splunkconf backup that would run by cron as we dont want a conflict
 
-VERSION="20220327a"
+VERSION="20220327b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1084,6 +1085,11 @@ else
   pip3 install splunksecrets
 fi
 
+# removal of any leftover from previous splunkconf-backup (that would come from AMI)
+if [ -e "/etc/cron.d/splunkbackup.cron" ]; then
+   rm /etc/cron.d/splunkbackup.cron
+   warn_log "ATTENTION : I had to remove a old splunkbackup cron entry, you may have a old splunkback version deployed as part of the os image. The cron removal will prevent it to run"
+fi
 
 if [ "$MODE" != "upgrade" ]; then
   # fetching files that we will use to initialize splunk

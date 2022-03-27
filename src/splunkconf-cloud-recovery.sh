@@ -141,8 +141,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220316 add ability to use tar mode even if not multi ds (but better to use rpm when possible + add splunkdnsmode tag (disabled or lambda) to disable inline mode for AWS)
 # 20220316 improve auto space removal in tags
 # 20220325 add zstd binary install + change tar option to autodetect format + add error handling for zstd backup with no zstd binary case (initial support)
+# 20220327 relax form for permission on initial backups for zstd to prevent false warning
 
-VERSION="20220325a"
+VERSION="20220327a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1153,8 +1154,8 @@ if [ "$MODE" != "upgrade" ]; then
   echo "remote : ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
   get_object ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz ${localbackupdir}
   # setting up permissions for backup
-  chown ${usersplunk}. ${localbackupdir}/*.tar.gz
-  chmod 500 ${localbackupdir}/*.tar.gz
+  chown ${usersplunk}. ${localbackupdir}/*.tar.*
+  chmod 500 ${localbackupdir}/*.tar.*
   if [ -f "${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz"  ]; then
     # excluding this script to avoid restoring a older version from backup
     tar -C "/" --exclude opt/splunk/scripts/splunkconf-aws-recovery.sh --exclude usr/local/bin/splunkconf-aws-recovery.sh --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz

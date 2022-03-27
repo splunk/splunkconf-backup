@@ -42,6 +42,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20201105 add test for default and local conf file to prevent error appearing in logs
 # 20220326 add support for rel and zstd types by relaxing form detection
 # 20220326 change starving condition to fail even if that is probably du to external condition in order to try to be more visible that we have a problem + only log when all the types have been tried 
+# 20220327 improve logging by adding freespace info
+
+VERSION="20220327"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -144,6 +147,20 @@ function fail_log {
   echo_log_ext  "FAIL id=$ID $1"
 }
 
+function splunkconf_checkspace {
+  CURRENTAVAIL=`df --output=avail -k  ${LOCALBACKUPDIR} | tail -1`
+  if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
+    # we dont report the error here in normal case as it will be reported with nore info by the local backup functions
+    debug_log "mode=$MODE, minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} type=localdiskspacecheck reason=insufficientspaceleft action=checkdiskfree result=fail ERROR : Insufficient disk space left , disabling backups ! Please fix "
+    ERROR=1
+    ERROR_MESS="localdiskspacecheck"
+    return -1
+  else
+    debug_log "mode=$MODE, minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} type=localdiskspacecheck action=checkdiskfree result=success min free available OK"
+    # dont touch ERROR here, we dont want to overwrite it
+    return 0
+  fi
+}
 ###### start
 
 # %u is day of week , we may use this for custom purge
@@ -195,6 +212,8 @@ else
   exit 1;
 fi
 
+splunkconf_checkspace
+
 # -delete option to find does the delete
 
 # LOCAL
@@ -212,8 +231,10 @@ EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
 #/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-state*tar.gz" ! -wholename $A \) -print0 | xargs --null -I {} echo "action=purge type=local reason=retentionpolicy object=state result=success localbackupdir=${LOCALBACKUPDIR} dest={} retentiondays=${LOCALBACKUPSTATERETENTIONDAYS} purge local state backup done"  
 
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 # || fail_log "action=purge type=local reason=retentionpolicy object=etc result=fail error purging local etc backup "
+
+splunkconf_checkspace
 
 # kv tar version
 OBJECT="kvstore"
@@ -221,8 +242,10 @@ A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-${OBJECT}*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-${OBJECT}*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
 #/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-kvstore*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=kvstore result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPKVRETENTIONDAYS} purge local kv backup done" || fail_log "action=purge type=local reason=retentionpolicy object=kvstore result=fail error purging local kv backup "
+
+splunkconf_checkspace
 
 # kv dump version
 OBJECT="kvdump"
@@ -230,8 +253,10 @@ A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
 #/usr/bin/find ${LOCALKVDUMPDIR} -type f \( -name "backupconfsplunk-kvdump*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=kvdump result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPKVRETENTIONDAYS} purge local kv dump done" || fail_log "action=purge type=local reason=retentionpolicy object=kvdump result=fail error purging local kv dump "
+
+splunkconf_checkspace
 
 # scripts
 OBJECT="scripts"
@@ -239,15 +264,19 @@ A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
 #/usr/bin/find ${LOCALBACKUPDIR} \( -name "backupconfsplunk-script*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPSCRIPTSRETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=scripts result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSCRIPTSRETENTIONDAYS} purge local scripts backup done" || fail_log "action=purge type=local reason=retentionpolicy object=scripts result=fail error purging local scripts backup "
+
+splunkconf_checkspace
 
 # modinput (for upgrade, newer version only create state)
 OBJECT="modinput"
 A="na"
 # we may remove all versions after retention as we will now have state
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
 #/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-modinput*tar.gz" -mtime +${LOCALBACKUPMODINPUTRETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=modinput result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPMODINPUTRETENTIONDAYS} purge local modinput backup done" || fail_log "action=purge type=local reason=retentionpolicy object=modinput result=fail error purging local modinput backup "
+
+splunkconf_checkspace
 
 # state
 OBJECT="state"
@@ -255,7 +284,7 @@ A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
 #/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-state*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPSTATERETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=state result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSTATERETENTIONDAYS} purge local state backup done" || fail_log "action=purge type=local reason=retentionpolicy object=state result=fail error purging local state backup "
 
 # delete on size
@@ -263,7 +292,7 @@ REASON=size
 CURRENTSIZE=`du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump* | cut -f1 | tail -1`
 #LASTSIZE=`find ${LOCALBACKUPDIR} ${LOCALKVDUMPDIR}  -type f -name "*.tar.gz" -printf '%Cs %p\n'|sort -rn | tail -1`
 #CURRENTSIZE=`echo ${LASTSIZE} | cut -d ' ' -f 1`
-debug_log "checking purge on size action=checksize currentlocalsize=${CURRENTSIZE},currentmaxlocalsize=${LOCALMAXSIZE} EXCLUSION_LIST=${EXCLUSION_LIST}"
+debug_log "checking purge on size action=checksize currentlocalsize=${CURRENTSIZE},currentmaxlocalsize=${LOCALMAXSIZE} EXCLUSION_LIST=${EXCLUSION_LIST} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
 EXITSIZE=0
 while [ ${CURRENTSIZE} -gt ${LOCALMAXSIZE} ];
 do
@@ -280,7 +309,10 @@ do
       rm -f ${OLDESTFILE}  && RES="success" || RES="failure";
       CURRENTSIZEPRE=${CURRENTSIZE}
       CURRENTSIZE=`du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump*| cut -f1 | tail -1`
-      echo_log "action=purge type=$TYPE reason=$REASON object=${OBJECT} dest=${OLDESTFILE}  localsizepre=${CURRENTSIZEPRE} localsize=${CURRENTSIZE} maxlocalsize=${LOCALMAXSIZE} result=$RES"
+      # in case of purge by size, we get available free space after purging which is better
+      splunkconf_checkspace
+
+      echo_log "action=purge type=$TYPE reason=$REASON object=${OBJECT} dest=${OLDESTFILE}  localsizepre=${CURRENTSIZEPRE} localsize=${CURRENTSIZE} maxlocalsize=${LOCALMAXSIZE} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} result=$RES"
       #LASTSIZE=`find ${LOCALBACKUPDIR} ${LOCALKVDUMPDIR}  -type f -name "*.tar.gz" -printf '%Cs %p\n'|sort -rn | tail -1`
       #CURRENTSIZE=`echo ${LASTSIZE} | cut -d ' ' -f 1`
       debug_log "checking purge on size action=checksize currentlocalsize=${CURRENTSIZE},currentmaxlocalsize=${LOCALMAXSIZE} , OBJECT=${OBJECT} "
@@ -296,8 +328,9 @@ do
   # potential max value is 6 currently
   if [ ${EXITSIZE} -gt 5 ]; then
     debug_log "forwarding starving condition size exit to underlying loop"
+    splunkconf_checkspace
     # we only log once in that case
-    fail_log "action=nopurge type=$TYPE reason=$REASON localsizepre=${CURRENTSIZEPRE} localsize=${CURRENTSIZE} maxlocalsize=${LOCALMAXSIZE} result=\"starving-nopurgebackupcandidate\" "
+    fail_log "action=nopurge type=$TYPE reason=$REASON localsizepre=${CURRENTSIZEPRE} localsize=${CURRENTSIZE} maxlocalsize=${LOCALMAXSIZE} result=\"starving-nopurgebackupcandidate\" minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
     # alternatively we could add a condition to while
     break;
   else 

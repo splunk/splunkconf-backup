@@ -78,8 +78,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20220326 add rel mode and default to it
 # 20220327 fix test condition regression for etc targeted and regular conf files
 # 20220327 add also size and duration for kvstore legacy mode
+# 20220327 factor remote copy in order to add duration and size to log
 
-VERSION="20220327b"
+VERSION="20220327c"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -368,14 +369,46 @@ function do_backup_tar() {
       FILESIZE=0
     fi
     #echo_log "res=${RES}"
+    splunkconf_checkspace;
     if [ $RES -eq 0 ]; then
-        echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} ${MESS1}"; 
+        echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} ${MESS1}"; 
         #echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} durationns=${DURATIONNS} size=${FILESIZE} ${MESS1}"; 
     else
-        fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC durationms=${DURATION} reason=tar${RES} size=${FILESIZE} ${MESS1}" 
+        fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC durationms=${DURATION} size=${FILESIZE} reason=tar${RES} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} ${MESS1}" 
     fi
 }
 
+function do_remote_copy() {
+  FIC=$LFIC
+  if [ -e "$FIC" ]; then
+    FILESIZE=$(/usr/bin/stat -c%s "$FIC")
+  else
+    debug_log "FIC=$FIC doesntexist !"
+    FILESIZE=0
+  fi
+  START=$(($(date +%s%N)));
+  if [ "${LFIC}" != "disabled" ] && [ "${OBJECT}" == "kvdump" ] && [ "${kvdump_done}" == "0" ]; then
+      # we have initiated kvdump but it took so long we never had a complete message so we cant copy as it could be incomplete
+      # we want to log here so it appear in dashboard and alerts
+      DURATION=0
+      fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} kvdump may be incomplete, not copying to remote" 
+  elif [ "${LFIC}" != "disabled" ]; then
+    debug_log "doing remote copy with ${CPCMD} ${LFIC} ${RFIC} ${OPTION}"
+    ${CPCMD} ${LFIC} ${RFIC} ${OPTION}
+    RES=$?
+    END=$(($(date +%s%N)));
+    #let DURATIONNS=(END-START)
+    let DURATION=(END-START)/1000000
+    if [ $RES -eq 0 ]; then
+        echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}" 
+
+    else
+         fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}"
+    fi
+  else
+    debug_log "not doing remote $OBJECT as no local version present MODE=$MODE"
+  fi
+}
 
 ###### start
 
@@ -775,6 +808,9 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \# | sed -r 's/.*=\s*([0-9\.:]+)/\1/' |tail -1`
       KVARCHIVE="backupconfsplunk-kvdump-${TODAY}"
       MESS1="MGMTURL=${MGMTURL} KVARCHIVE=${KVARCHIVE}";
+      START=$(($(date +%s%N)));
+
+
       RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/create -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}"`
       #echo_log "KVDUMP CREATE RES=$RES"
       COUNTER=50
@@ -789,13 +825,24 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
         sleep 10
       done
       #echo_log "RES=$RES"
+      END=$(($(date +%s%N)));
+      #let DURATIONNS=(END-START)
+      let DURATION=(END-START)/1000000
+      FIC="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}.tar.${EXTENSIONKV}"
+      LFICKVDUMP=$FIC
+      if [ -e "$FIC" ]; then
+        FILESIZE=$(/usr/bin/stat -c%s "$FIC")
+      else
+        debug_log "FIC=$FIC doesntexist after kvdump"
+        FILESIZE=0
+      fi
+
       if [[ -z "$RES" ]];  then
-	warn_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=$kvbackupmode result=failure dest=${LFICKVDUMP} ATTENTION : we didnt get ready status ! Either backup kvstore (kvdump) has failed or takes too long"
+	warn_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=$kvbackupmode result=failure dest=${LFICKVDUMP} durationms=${DURATION} size=${FILESIZE}  ATTENTION : we didnt get ready status ! Either backup kvstore (kvdump) has failed or takes too long"
 	kvdump_done="-1"
       else
 	kvdump_done="1"
-	LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}.tar.${EXTENSIONKV}"
-	echo_log "COUNTER=$COUNTER $MESSVER $MESS1 action=backup type=$TYPE object=$kvbackupmode result=success dest=${LFICKVDUMP}  kvstore online (kvdump) backup complete"
+	echo_log "COUNTER=$COUNTER $MESSVER $MESS1 action=backup type=$TYPE object=$kvbackupmode result=success dest=${LFICKVDUMP} durationms=${DURATION} size=${FILESIZE}  kvstore online (kvdump) backup complete"
       fi
     elif [[ "$MODE" == "0" ]] || [[ "$MODE" == "kvstore" ]] || [[ "$MODE" == "kvauto" ]]; then
       if [[ "$MODE" == "0" ]] || [[ "$MODE" == "kvauto" ]]; then
@@ -838,14 +885,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
         #echo_log "running tar for kvstore"
         FILELIST=${KVDBPATH}
 
-    #echo_log "res=${RES}"
-    if [ $RES -eq 0 ]; then
         echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} ${MESS1}";
-     
-
-
-
-
 
         START=$(($(date +%s%N)));
         tar -I ${COMPRESS} -cf ${FIC}  ${FILELIST}
@@ -861,16 +901,16 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
            FILESIZE=0
         fi
         if [ $RES -eq 0 ]; then
-          echo_log "${MESS1} action=backup type=$TYPE object=kvstore result=success dest=$FIC durationms=${DURATION} size=${FILESIZE}";
-          KVBOK=1;
-          CONTINUE=0;
+           echo_log "${MESS1} action=backup type=$TYPE object=kvstore result=success dest=$FIC durationms=${DURATION} size=${FILESIZE}";
+           KVBOK=1;
+           CONTINUE=0;
         else
-          warn_log "${MESS1} action=backup type=$TYPE object=kvstore result=retry kotry=${KVBKO} komax=${KVBKOMAX} dest=$FIC  durationms=${DURATION} size=${FILESIZE} local kvstore backup returned error (probably file changed during backup) , please investigate";
-          ((KVBKO++))
-          CONTINUE=0;
-          if [ $KVBKO -lt ${KVBKOMAX} ]; then 
-            CONTINUE=1;
-          fi
+           warn_log "${MESS1} action=backup type=$TYPE object=kvstore result=retry kotry=${KVBKO} komax=${KVBKOMAX} dest=$FIC  durationms=${DURATION} size=${FILESIZE} local kvstore backup returned error (probably file changed during backup) , please investigate";
+           ((KVBKO++))
+           CONTINUE=0;
+           if [ $KVBKO -lt ${KVBKOMAX} ]; then 
+               CONTINUE=1;
+           fi
         fi
         debug_log "KVBOK=${KVBOK} , KVBKO=${KVBKO}, CONTINUE=${CONTINUE} "
       done
@@ -1087,52 +1127,28 @@ debug_log "starting remote backup"
   OBJECT="etc"
   LFIC=${LFICETC}
   RFIC=${FICETC}
-  if [ "${LFIC}" != "disabled" ]; then
-  ` ${CPCMD} ${LFIC} ${RFIC} ${OPTION}` && echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC}" || warn_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC}"
-  else
-    debug_log "not doing remote $OBJECT as no local version present MODE=$MODE"
-  fi
+  do_remote_copy;
+
   OBJECT="scripts"
   LFIC=${LFICSCRIPT}
   RFIC=${FICSCRIPT}
-  if [ "${LFIC}" != "disabled" ]; then
-    ` ${CPCMD} ${LFIC} ${RFIC} ${OPTION}` && echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC}" || warn_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC}"
-  else
-    debug_log "not doing remote $OBJECT as no local version present MODE=$MODE"
-  fi
+  do_remote_copy;
+
   OBJECT="kvdump"
   LFIC=${LFICKVDUMP}
   RFIC=${FICKVDUMP}
-  if [ "${LFIC}" != "disabled" ]; then
-    if [ "${kvdump_done}" == "1" ]; then
-      # 7.1+ with online backup
-      debug_log "remote : kvdump ${LFICKVDUMP} to ${FICKVDUMP}"
-      ` ${CPCMD} ${LFIC} ${RFIC} ${OPTION}` && echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC}" || warn_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC}"
-     # ` ${CPCMD} ${LFICKVDUMP} ${FICKVDUMP} ${OPTION}` && echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=$LFICKVDUMP dest=$FICKVDUMP" || warn_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=$LFICKVDUMP dest=$FICKVDUMP remote backup kvdump to $FICKVDUMP returned error , please investigate"
-    else
-      debug_log "MODE=$MODE,no local kvdump, kvdump_done=${kvdump_done}, nothing to copy on remote"
-    fi
-  else
-    debug_log "not doing remote $OBJECT as no local version present MODE=$MODE"
-  fi
+  do_remote_copy;
+
   OBJECT="kvstore"
   LFIC=${LFICKVSTORE}
   RFIC=${FICKVSTORE}
-  if [ "${LFIC}" != "disabled" ]; then
-    ` ${CPCMD} ${LFIC} ${RFIC} ${OPTION}` && echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC}" || warn_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC}"
-    #    ` ${CPCMD} ${LFICKV} ${FICKV} ${OPTION}` && echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFICKV} dest=${FICKV} remote backup kvstore succesfull to $FICKV" || warn_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFICKV} dest=${FICKV} remote backup kvstore to $FICKV returned error , please investigate"
-  else
-      debug_log "MODE=$MODE,no local kvstore, nothing to copy remote"
-  fi
+  do_remote_copy;
+
   OBJECT="state"
   LFIC=${LFICSTATE}
   RFIC=${FICSTATE}
-  if [ "${LFIC}" != "disabled" ]; then
-    ` ${CPCMD} ${LFIC} ${RFIC} ${OPTION}` && echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC}" || warn_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC}"
-    #` ${CPCMD} ${LFICSTATE} ${FICSTATE} ${OPTION}` && echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFICSTATE} dest=${FICSTATE} remote backup state succesfull to $FICSTATE" || warn_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFICSTATE} dest=${FICSTATE} remote backup state to $FICSTATE returned error , please investigate"
-  else
-    debug_log "not doing remote $OBJECT as no local version present MODE=$MODE"
-  fi
+  do_remote_copy;
+
 else 
 	debug_log "no remote backup requested"
 fi

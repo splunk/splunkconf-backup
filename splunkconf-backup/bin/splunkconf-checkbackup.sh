@@ -9,6 +9,7 @@ exec > /tmp/splunkconf-checkbackup-debug.log  2>&1
 
 # 20200305 initial version 
 # 20201105 add python3 protection with AWS1 support and test for conf file inclusion to improve logging
+# 20220327 relax form protection for std
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -103,21 +104,26 @@ function echo_log_ext {
     echo `$NOW`" ${SCRIPTNAME} $1 " >> $LOGFILE
   }
 
-  function debug_log {
+function debug_log {
+  DEBUG="0";
+  # change me here only to debug
+  #DEBUG="1";
+  if [ $DEBUG -ne "0" ]; then
     echo_log_ext  "DEBUG id=$ID $1"
-  }
+  fi
+}
 
-  function echo_log {
-    echo_log_ext  "INFO id=$ID $1"
-  }
+function echo_log {
+  echo_log_ext  "INFO id=$ID $1"
+}
 
-  function warn_log {
-    echo_log_ext  "WARN id=$ID $1"
-  }
+function warn_log {
+  echo_log_ext  "WARN id=$ID $1"
+}
 
-  function fail_log {
-    echo_log_ext  "FAIL id=$ID $1"
-  }
+function fail_log {
+  echo_log_ext  "FAIL id=$ID $1"
+}
 
 ###### start
 
@@ -172,20 +178,20 @@ fi
 
 
 # LOCAL 
-/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-etc*tar.gz" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=local reason=retentionpolicy object=etc result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPRETENTIONDAYS}  purge local etc backup done" || fail_log "action=check type=local reason=retentionpolicy object=etc result=fail error purging local etc backup "
+/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-*etc*tar.*" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=local reason=retentionpolicy object=etc result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPRETENTIONDAYS}  purge local etc backup done" || fail_log "action=check type=local reason=retentionpolicy object=etc result=fail error purging local etc backup "
 
 # kv tar version
-/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-kvstore*tar.gz" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=local reason=retentionpolicy object=kvstore result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPKVRETENTIONDAYS} purge local kv backup done" || fail_log "action=check type=local reason=retentionpolicy object=kvstore result=fail error purging local kv backup "
+/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-*kvstore*tar.*" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=local reason=retentionpolicy object=kvstore result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPKVRETENTIONDAYS} purge local kv backup done" || fail_log "action=check type=local reason=retentionpolicy object=kvstore result=fail error purging local kv backup "
 # kv dump version
-/usr/bin/find ${LOCALKVDUMPDIR} -type f -name "backupconfsplunk-kvdump*tar.gz" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=local reason=retentionpolicy object=kvdump result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPKVRETENTIONDAYS} purge local kv dump done" || fail_log "action=check type=local reason=retentionpolicy object=kvdump result=fail error purging local kv dump "
+/usr/bin/find ${LOCALKVDUMPDIR} -type f -name "backupconfsplunk-*kvdump*tar.*" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=local reason=retentionpolicy object=kvdump result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPKVRETENTIONDAYS} purge local kv dump done" || fail_log "action=check type=local reason=retentionpolicy object=kvdump result=fail error purging local kv dump "
 
 # scripts
-/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-script*tar.gz" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=local reason=retentionpolicy object=scripts result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSCRIPTSRETENTIONDAYS} purge local scripts backup done" || fail_log "action=check type=local reason=retentionpolicy object=scripts result=fail error purging local scripts backup "
+/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-*script*tar.*" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=local reason=retentionpolicy object=scripts result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSCRIPTSRETENTIONDAYS} purge local scripts backup done" || fail_log "action=check type=local reason=retentionpolicy object=scripts result=fail error purging local scripts backup "
 
 # modinput (for upgrade, newer version only create state)
-/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-modinput*tar.gz" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=local reason=retentionpolicy object=modinout result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPMODINPUTRETENTIONDAYS} purge local modinput backup done" || fail_log "action=check type=local reason=retentionpolicy object=modinput result=fail error purging local modinput backup "
+/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-*modinput*tar.gz*" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=local reason=retentionpolicy object=modinout result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPMODINPUTRETENTIONDAYS} purge local modinput backup done" || fail_log "action=check type=local reason=retentionpolicy object=modinput result=fail error purging local modinput backup "
 # state
-/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-state*tar.gz" -mtime-${BACKUPRECENCY} -print && echo_log "action=check type=local reason=retentionpolicy object=state result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSTATERETENTIONDAYS} purge local state backup done" || fail_log "action=check type=local reason=retentionpolicy object=state result=fail error purging local state backup "
+/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-*state*tar.*" -mtime-${BACKUPRECENCY} -print && echo_log "action=check type=local reason=retentionpolicy object=state result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSTATERETENTIONDAYS} purge local state backup done" || fail_log "action=check type=local reason=retentionpolicy object=state result=fail error purging local state backup "
 
 
 # note : only implemented for nas type currently, implicitely you have use the date versioned files for this to work correctly
@@ -203,18 +209,16 @@ else
   debug_log "INSTANCE=${INSTANCE}, REMOTEBACKUPDIR=${REMOTEBACKUPDIR}"
   if [ -d "${REMOTEBACKUPDIR}" ]; then
     debug_log "Starting to purging old backups"
-    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-etc*tar.gz" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=remote reason=retentionpolicy object=etc result=success purge remote etc backup done" || fail_log "action=check type=remote reason=retentionpolicy object=etc result=fail   error purging remote etc backup "
+    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*etc*tar.*" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=remote reason=retentionpolicy object=etc result=success purge remote etc backup done" || fail_log "action=check type=remote reason=retentionpolicy object=etc result=fail   error purging remote etc backup "
     # kv tar
-    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-kvstore*tar.gz" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=remote reason=retentionpolicy object=kvstore result=success purge remote kv backup done" || fail_log "action=check type=remote reason=retentionpolicy object=kvstore result=fail  error purging remote kv backups"
+    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*kvstore*tar.*" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=remote reason=retentionpolicy object=kvstore result=success purge remote kv backup done" || fail_log "action=check type=remote reason=retentionpolicy object=kvstore result=fail  error purging remote kv backups"
     # kv dump
     # note after a restore the file end by tar.gz.processed, we still want to clean it up after a while
-    /usr/bin/find ${REMOTEKVDUMPDIR} -type f -name "backupconfsplunk-kvdump*tar.gz*" -mtime -${BACKUPRECENCY} -print && echo_log "action=check type=remote reason=retentionpolicy object=kvdump result=success purge remote kv dump done" || fail_log "action=check type=remote reason=retentionpolicy object=kvdump result=fail error purging remote kv dump"
+    /usr/bin/find ${REMOTEKVDUMPDIR} -type f -name "backupconfsplunk-*kvdump*tar.*" -mtime -${BACKUPRECENCY} -print && echo_log "action=check type=remote reason=retentionpolicy object=kvdump result=success purge remote kv dump done" || fail_log "action=check type=remote reason=retentionpolicy object=kvdump result=fail error purging remote kv dump"
     # scripts
-    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-script*tar.gz" -mtime -${BACKUPRECENCY} -print && echo_log "action=check type=remote reason=retentionpolicy object=scripts result=success purge remote scripts backup done" || fail_log "action=check type=remote reason=retentionpolicy object=scripts result=fail error purging remote scripts backup"
-    # modinput (upgrade case)
-    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-modinput*tar.gz" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=remote reason=retentionpolicy object=modinput result=success purge remote modinput backup done" || fail_log "action=check type=remote reason=retentionpolicy object=modinput result=fail error purging remote modinput backup"
+    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*script*tar.*" -mtime -${BACKUPRECENCY} -print && echo_log "action=check type=remote reason=retentionpolicy object=scripts result=success purge remote scripts backup done" || fail_log "action=check type=remote reason=retentionpolicy object=scripts result=fail error purging remote scripts backup"
     # state
-    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-state*tar.gz" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=remote reason=retentionpolicy object=state result=success purge remote state backup done" || fail_log "action=check type=remote reason=retentionpolicy object=state result=fail error purging remote state backup"
+    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*state*tar.*" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=remote reason=retentionpolicy object=state result=success purge remote state backup done" || fail_log "action=check type=remote reason=retentionpolicy object=state result=fail error purging remote state backup"
 
   fi
 fi

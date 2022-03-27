@@ -74,8 +74,12 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20220323 add manager-apps dir (for cm)
 # 20220325 improve file detection to remove false warning from tar
 # 20220326 reduce log verbosity for cloud detection 
+# 20220326 add distinct extension for kvdump (as of now splunk will generate as gz)
+# 20220326 add rel mode and default to it
+# 20220327 fix test condition regression for etc targeted and regular conf files
+# 20220327 add also size and duration for kvstore legacy mode
 
-VERSION="20220326a"
+VERSION="20220327b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -114,8 +118,23 @@ umask 027
 # group can access backup (should be splunk group)
 # other should not access backups
 
+# we always do relative backup but if ever you want the old way, change mode below to abs
+# recovery part support both mode 
+# du to recent tar behavior related to exclusion it is better to use rel mode
+TARMODE="rel"
+# this is the form that gets added in name if the backup was made relative to splunk home
+# otherwise no extension
+extmode="rel-"
+backuptardir="${SPLUNK_HOME}"
+if [ "${TARMODE}" = "abs" ]; then
+     extmode=""
+     backuptardir="/"
+fi
+#FI="backupconfsplunk-${extmode}${type}.tar.${compress}"
+
 # FIXME , get it automatically from splunk-launch.conf 
 SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
+SPLUNK_DB_REL="./var/lib/splunk"
 
 
 # backup type selection 
@@ -172,17 +191,29 @@ BACKUPSCRIPTS=1
 # risk is that data could be corrupted if something is written to kvstore while we do the backup
 #RESTARTFORKVBACKUP=1
 # default path, change if you need, especially if you customized splunk_db
-KVDBPATH="${SPLUNK_DB}/kvstore"
+if [ "${TARMODE}" = "abs" ]; then
+  KVDBPATH="${SPLUNK_DB}/kvstore"
+else
+  KVDBPATH="${SPLUNK_DB_REL}/kvstore"
+fi
 
 # fixme : move this after so that splunk_home changes apply
 # state files and dir
 #MODINPUTPATH="${SPLUNK_DB}/modinput"
 #SCHEDULERSTATEPATH="${SPLUNK_HOME}/var/run/splunk/scheduler"
-STATELIST="${SPLUNK_DB}/modinput ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy"
+if [ "${TARMODE}" = "abs" ]; then
+    STATELIST="${SPLUNK_DB}/modinput ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy"
+else
+    STATELIST="${SPLUNK_DB_REL}/modinput ./var/run/splunk/scheduler ./var/run/splunk/cluster/remote-bundle ./persistentstorage ./fishbucket ./var/run/splunk/deploy"
+fi
 
 # configuration for scripts backups
 # script dir (what to backup)
-SCRIPTDIR="${SPLUNK_HOME}/scripts"
+if [ "${TARMODE}" = "abs" ]; then
+    SCRIPTDIR="${SPLUNK_HOME}/scripts"
+else
+    SCRIPTDIR="./scripts"
+fi
 
 #minfreespace
 
@@ -212,7 +243,7 @@ function echo_log_ext {
 function debug_log {
   DEBUG=0   
   # uncomment for debugging
-  # DEBUG=1   
+  #DEBUG=1   
   if [ "$DEBUG" == "1" ]; then 
     echo_log_ext  "DEBUG id=$ID $1"
   fi 
@@ -317,14 +348,15 @@ function do_backup_tar() {
     # TARMODE is either absolute (original mode) or relative (future)
     # COMPRESSMODE is either gzip (original) or other compression algo (future)
     debug_log "running tar for ${MODE} backup";
+
     if [ "$MODE" == "etc" ]; then
          PARAMEXCLUDE=" --exclude-from=${TAREXCLUDEFILE} --exclude '*/dump'"
     else
          PARAMEXCLUDE=""
     fi
-    debug_log "running tar -I ${COMPRESS} -cf ${FIC} ${PARAMEXCLUDE} ${FILELIST}";
+    debug_log "running tar -I ${COMPRESS} -C${backuptardir} -cf ${FIC} ${PARAMEXCLUDE} ${FILELIST}";
     START=$(($(date +%s%N)));
-    tar -I ${COMPRESS} -cf ${FIC} ${PARAMEXCLUDE} ${FILELIST} 
+    tar -I ${COMPRESS} -C${backuptardir} -cf ${FIC} ${PARAMEXCLUDE} ${FILELIST} 
     RES=$?
     END=$(($(date +%s%N)));
     #let DURATIONNS=(END-START)
@@ -337,7 +369,7 @@ function do_backup_tar() {
     fi
     #echo_log "res=${RES}"
     if [ $RES -eq 0 ]; then
-        echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION}  size=${FILESIZE} ${MESS1}"; 
+        echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} ${MESS1}"; 
         #echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} durationns=${DURATIONNS} size=${FILESIZE} ${MESS1}"; 
     else
         fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC durationms=${DURATION} reason=tar${RES} size=${FILESIZE} ${MESS1}" 
@@ -543,6 +575,7 @@ if [ -z ${LOCALBACKUPDIR+x} ]; then echo_log "LOCALBACKUPDIR not defined in ENVS
 if [ -z ${SPLUNK_HOME+x} ]; then fail_log "SPLUNK_HOME not defined in default or ENVSPLBACKUP file. CANT BACKUP !!!!"; exit 1; else debug_log "SPLUNK_HOME=${SPLUNK_HOME}"; fi
 if [ -z ${SPLUNK_DB+x} ]; then fail_log "SPLUNK_DB not defined in default or ENVSPLBACKUP file. CANT BACKUP !!!!"; exit 1; else debug_log "SPLUNK_DB=${SPLUNK_DB}"; fi
 
+EXTENSIONKV="gz"
 
 HOST=`hostname`;
 
@@ -609,24 +642,24 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
   # building name depending on options
   if [ ${BACKUPTYPE} -eq 2 ]; then
     if [ ${LOCALTYPE} -eq 2 ]; then
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}.tar.${EXTENSION}";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
 	MESS1="backuptype=etcfullinstanceoverwrite ";
     elif [ ${LOCALTYPE} -eq 3 ]; then
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-full.tar.${EXTENSION}";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}etc-full.tar.${EXTENSION}";
 	MESS1="backuptype=etcfullnoinstanceoverwrite ";
     else
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}etc-full-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
 	MESS1="backuptype=etcfullinstanceversion ";
     fi
   else
     if [ ${LOCALTYPE} -eq 2 ]; then
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}.tar.${EXTENSION}";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}etc-targeted-${INSTANCE}.tar.${EXTENSION}";
 	MESS1="backuptype=etctargetedinstanceoverwrite ";
     elif [ ${LOCALTYPE} -eq 3 ]; then
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-targeted.tar.${EXTENSION}";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}etc-targeted.tar.${EXTENSION}";
 	MESS1="backuptype=etctargetednoinstanceoverwrite ";
     else
-	FIC="${LOCALBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+	FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}etc-targeted-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
 	MESS1="backuptype=etctargetedinstanceversion ";
     fi
   fi
@@ -635,7 +668,11 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
     fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}" 
   elif [ ${BACKUPTYPE} -eq 2 ]; then
     debug_log "running tar for etc full backup";
-    FILELIST="${SPLUNK_HOME}/etc"
+    if [ "${TARMODE}" = "abs" ]; then
+        FILELIST="${SPLUNK_HOME}/etc"
+    else
+        FILELIST="./etc"
+    fi
     #tar -zcf ${FIC}  ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
     do_backup_tar;
     etc_done=1
@@ -643,11 +680,15 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
   else
     #debug_log "running tar for etc targeted backup
     # dump exlusion for collection app that store temp huge files in etc instead of a proper dir under var
-    FILELIST2="${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/deployment-apps ${SPLUNK_HOME}/etc/shcluster ${SPLUNK_HOME}/etc/passwd ${SPLUNK_HOME}/etc/system/local ${SPLUNK_HOME}/etc/auth ${SPLUNK_HOME}/etc/openldap/ldap.conf ${SPLUNK_HOME}/etc/users ${SPLUNK_HOME}/etc/splunk-launch.conf ${SPLUNK_HOME}/etc/instance.cfg ${SPLUNK_HOME}/etc/.ui_login ${SPLUNK_HOME}/etc/licenses ${SPLUNK_HOME}/etc/*.cfg ${SPLUNK_HOME}/etc/disabled-apps"
+    if [ "${TARMODE}" = "abs" ]; then
+        FILELIST2="${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/deployment-apps ${SPLUNK_HOME}/etc/shcluster ${SPLUNK_HOME}/etc/passwd ${SPLUNK_HOME}/etc/system/local ${SPLUNK_HOME}/etc/auth ${SPLUNK_HOME}/etc/openldap/ldap.conf ${SPLUNK_HOME}/etc/users ${SPLUNK_HOME}/etc/splunk-launch.conf ${SPLUNK_HOME}/etc/instance.cfg ${SPLUNK_HOME}/etc/.ui_login ${SPLUNK_HOME}/etc/licenses ${SPLUNK_HOME}/etc/*.cfg ${SPLUNK_HOME}/etc/disabled-apps"
+    else
+        FILELIST2="./etc/apps ./etc/deployment-apps ./etc/shcluster ./etc/passwd ./etc/system/local ./etc/auth ./etc/openldap/ldap.conf ./etc/users ./etc/splunk-launch.conf ./etc/instance.cfg ./etc/.ui_login ./etc/licenses ./etc/*.cfg ./etc/disabled-apps"
+    fi
     FILELIST=""
     for file in $FILELIST2;
     do
-      if [ -d "${file}" ]; then
+      if [ -e "${backuptardir}/${file}" ]; then
         FILELIST="$FILELIST ${file}"
       fi
     done
@@ -666,13 +707,13 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
   FIC="disabled"
   #debug_log "start to backup scripts"; 
   if [ ${LOCALTYPE} -eq 2 ]; then
-    FIC="${LOCALBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}.tar.${EXTENSION}";
+    FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
     ESS1="backuptype=scriptstargetedinstanceoverwrite ";
   elif [ ${LOCALTYPE} -eq 3 ]; then
-    FIC="${LOCALBACKUPDIR}/backupconfsplunk-scripts.tar.${EXTENSION}";
+    FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}scripts.tar.${EXTENSION}";
     MESS1="backuptype=scriptstargetednoinstanceoverwrite  ";
   else
-    FIC="${LOCALBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+    FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
     MESS1="backuptype=scriptstargetedinstanceversion ";
   fi
   splunkconf_checkspace;
@@ -753,7 +794,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
 	kvdump_done="-1"
       else
 	kvdump_done="1"
-	LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}.tar.${EXTENSION}"
+	LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}.tar.${EXTENSIONKV}"
 	echo_log "COUNTER=$COUNTER $MESSVER $MESS1 action=backup type=$TYPE object=$kvbackupmode result=success dest=${LFICKVDUMP}  kvstore online (kvdump) backup complete"
       fi
     elif [[ "$MODE" == "0" ]] || [[ "$MODE" == "kvstore" ]] || [[ "$MODE" == "kvauto" ]]; then
@@ -775,15 +816,15 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       fi
       debug_log "doing backup kvstore via tar";
       if [ ${LOCALTYPE} -eq 2 ]; then
-        FIC="${LOCALBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.${EXTENSION}";
+        FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
         MESS1="backuptype=kvstoreinstanceoverwrite ";
         debug_log "backup for kvstore no date with instance to $FIC";
       elif [ ${LOCALTYPE} -eq 3 ]; then
-        FIC="${LOCALBACKUPDIR}/backupconfsplunk-kvstore.tar.${EXTENSION}";
+        FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}kvstore.tar.${EXTENSION}";
         MESS1="backuptype=kvstorenoinstanceoverwrite ";
         debug_log "backup for kvstore no date no instance to $FIC";
       else
-        FIC="${LOCALBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         MESS1="backuptype=kvstoreinstanceversion ";
         debug_log "backup for kvstore with instance and date to $FIC";
       fi
@@ -796,15 +837,35 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       do
         #echo_log "running tar for kvstore"
         FILELIST=${KVDBPATH}
+
+    #echo_log "res=${RES}"
+    if [ $RES -eq 0 ]; then
+        echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} ${MESS1}";
+     
+
+
+
+
+
+        START=$(($(date +%s%N)));
         tar -I ${COMPRESS} -cf ${FIC}  ${FILELIST}
         RES=$?
         #echo_log "res=${RES}"
+        END=$(($(date +%s%N)));
+        #let DURATIONNS=(END-START)
+        let DURATION=(END-START)/1000000
+        if [ -e "$FIC" ]; then
+           FILESIZE=$(/usr/bin/stat -c%s "$FIC")
+        else
+           debug_log "FIC=$FIC doesntexist after tar"
+           FILESIZE=0
+        fi
         if [ $RES -eq 0 ]; then
-          echo_log "${MESS1} action=backup type=$TYPE object=kvstore result=success dest=$FIC";
+          echo_log "${MESS1} action=backup type=$TYPE object=kvstore result=success dest=$FIC durationms=${DURATION} size=${FILESIZE}";
           KVBOK=1;
           CONTINUE=0;
         else
-          warn_log "${MESS1} action=backup type=$TYPE object=kvstore result=retry kotry=${KVBKO} komax=${KVBKOMAX} dest=$FIC local kvstore backup returned error (probably file changed during backup) , please investigate";
+          warn_log "${MESS1} action=backup type=$TYPE object=kvstore result=retry kotry=${KVBKO} komax=${KVBKOMAX} dest=$FIC  durationms=${DURATION} size=${FILESIZE} local kvstore backup returned error (probably file changed during backup) , please investigate";
           ((KVBKO++))
           CONTINUE=0;
           if [ $KVBKO -lt ${KVBKOMAX} ]; then 
@@ -844,15 +905,15 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
   else
     debug_log "start to backup state (modinput , scheduler states, bundle, fishbuckets,....)";
     if [ ${LOCALTYPE} -eq 2 ]; then
-      FIC="${LOCALBACKUPDIR}/backupconfsplunk-state-${INSTANCE}.tar.${EXTENSION}";
+      FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
       MESS1="backuptype=stateinstanceoverwrite ";
       debug_log "backup type will be state with instance no date";
     elif [ ${LOCALTYPE} -eq 3 ]; then
-      FIC="${LOCALBACKUPDIR}/backupconfsplunk-state.tar.${EXTENSION}";
+      FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}state.tar.${EXTENSION}";
       MESS1="backuptype=statenoinstanceoverwrite ";
       debug_log "backup type will be state no instance no date";
     else
-      FIC="${LOCALBACKUPDIR}/backupconfsplunk-state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+      FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
       MESS1="backuptype=stateinstanceversion ";
       debug_log "backup type will be state (date versioned with instance backup mode)";
     fi
@@ -861,7 +922,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
     for i in $STATELIST;
     do
       #debug_log "mode=$MODE, i=$i"
-      if [ -e "$i" ]; then
+      if [ -e "${backuptardir}/$i" ]; then
         STATELIST2="${STATELIST2} $i"
         debug_log "stateverif : $i exist"
      else
@@ -884,7 +945,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
   fi
   # if mode explicit state or all
 fi
-debug_log "MODE=$MODE, starting remote part"
+debug_log "MODE=$MODE, extmode=${extmode} starting remote part"
 
 ###############################    REMOTE    #############################################3
 
@@ -950,48 +1011,48 @@ debug_log "starting remote backup"
   cd /
   if [ ${BACKUPTYPE} -eq 2 ]; then
     if [ ${REMOTETYPE} -eq 2 ]; then
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}.tar.${EXTENSION}";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}.tar.${EXTENSION}";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.${EXTENSION}";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSION}";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}.tar.${EXTENSION}";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk$-{extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
         debug_log "backup type will be etc full no date";
     elif [ ${REMOTETYPE} -eq 3 ]; then
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full.tar.${EXTENSION}";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts.tar.${EXTENSION}";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore.tar.${EXTENSION}";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.${EXTENSION}";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state.tar.${EXTENSION}";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-full.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}scripts.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.${EXTENSIONKV}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state.tar.${EXTENSION}";
         debug_log "backup type will be etc full no date no instance";
     else
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-full-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-full-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSIONKV}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         debug_log "backup type will be etc full (date versioned backup mode with instance name)";
     fi
   else
     if [ ${REMOTETYPE} -eq 2 ]; then
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}.tar.${EXTENSION}";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}.tar.${EXTENSION}";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}.tar.${EXTENSION}";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSION}";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}.tar.${EXTENSION}";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-targeted-${INSTANCE}.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted no date";
     elif [ ${REMOTETYPE} -eq 3 ]; then
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted.tar.${EXTENSION}";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts.tar.${EXTENSION}";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore.tar.${EXTENSION}";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.${EXTENSION}";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state.tar.${EXTENSION}";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-targeted.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}scripts.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.${EXTENSIONKV}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted no date no instance ";
     else
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-etc-targeted-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
-        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
-        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
-        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
-        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-targeted-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSIONKV}";
+        FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted (date versioned backup mode)";
     fi
   fi

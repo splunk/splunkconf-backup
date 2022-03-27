@@ -1050,6 +1050,9 @@ if [ "$SYSVER" -eq 6 ]; then
   # deploying splunk secrets
   yum install -y python36-pip
   pip install --upgrade pip
+  sleep 1
+  # this is now problematic to install on AWS1 which is so old
+  pip install splunksecrets
   pip-3.6 install splunksecrets
 else
   # RH7/8 AWS2 like

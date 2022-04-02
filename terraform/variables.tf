@@ -170,8 +170,16 @@ variable "instance-type-iuf" {
 #}
 
 variable "dns-zone-name" {
+  description = "Please give here a public dns sub zone like splunk.acme.com that is cloud managed so we can publish dns entries in it as instances start and stop"
   type    = string
   default = "cloud.plouic.com."
+}
+
+variable "dns-prefix" {
+  description = "this setting will tell the lambda function to add this prefix to all names. This is mainly useful for testing lambda without overriding normal names in use. Use disabled to not add prefix. If tag unset, lambda- will be used as prefix"
+  type    = string
+  #default = "disabled"
+  default = var.region-master
 }
 
 variable "backup-retention" {

@@ -65,6 +65,22 @@ resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
       }
     }
   }
+
+  tag {
+    key                 = "splunkdnszone"
+    value               = var.dns-zone-name
+    propagate_at_launch = false
+  }
+  tag {
+    key                 = "splunkdnsnames"
+    value               = var.bastion
+    propagate_at_launch = false
+  }
+  tag {
+    key                 = "splunkdnsprefix"
+    value               = var.dns-prefix
+    propagate_at_launch = false
+  }
   depends_on = [null_resource.bucket_sync]
 }
 
@@ -98,9 +114,10 @@ resource "aws_launch_template" "splunk-bastion" {
     resource_type = "instance"
     tags = {
       Name                = var.bastion
-      splunkinstanceType  = var.bastion
-      splunkosupdatemode  = var.splunkosupdatemode
-      splunkconnectedmode = var.splunkconnectedmode
+# not used for bastion 
+#      splunkinstanceType  = var.bastion
+#      splunkosupdatemode  = var.splunkosupdatemode
+#      splunkconnectedmode = var.splunkconnectedmode
     }
   }
   metadata_options {

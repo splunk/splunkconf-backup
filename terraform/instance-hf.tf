@@ -17,27 +17,31 @@ resource "aws_iam_instance_profile" "role-splunk-hf_profile" {
   role = aws_iam_role.role-splunk-hf.name
 }
 
-resource "aws_iam_policy_attachment" "hf-attach-splunk-splunkconf-backup" {
-  name       = "hf-attach-splunk-splunkconf-backup"
-  roles      = [aws_iam_role.role-splunk-hf.name]
+resource "aws_iam_role_policy_attachment" "hf-attach-splunk-splunkconf-backup" {
+  #name       = "hf-attach-splunk-splunkconf-backup"
+  role      = aws_iam_role.role-splunk-hf.name
+  #roles      = [aws_iam_role.role-splunk-hf.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
 }
 
-resource "aws_iam_policy_attachment" "hf-attach-splunk-route53-updatednsrecords" {
-  name       = "hf-attach-splunk-route53-updatednsrecords"
-  roles      = [aws_iam_role.role-splunk-hf.name]
+resource "aws_iam_role_policy_attachment" "hf-attach-splunk-route53-updatednsrecords" {
+  #name       = "hf-attach-splunk-route53-updatednsrecords"
+  #roles      = [aws_iam_role.role-splunk-hf.name]
+  role      = aws_iam_role.role-splunk-hf.name
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
 }
 
-resource "aws_iam_policy_attachment" "hf-attach-splunk-ec2" {
-  name       = "hf-attach-splunk-ec2"
-  roles      = [aws_iam_role.role-splunk-hf.name]
+resource "aws_iam_role_policy_attachment" "hf-attach-splunk-ec2" {
+  #name       = "hf-attach-splunk-ec2"
+  #roles      = [aws_iam_role.role-splunk-hf.name]
+  role      = aws_iam_role.role-splunk-hf.name
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
 }
 
-resource "aws_iam_policy_attachment" "hf-attach-ssm-managedinstance" {
-  name       = "hf-attach-ssm-managedinstance"
-  roles      = [aws_iam_role.role-splunk-hf.name]
+resource "aws_iam_role_policy_attachment" "hf-attach-ssm-managedinstance" {
+  #name       = "hf-attach-ssm-managedinstance"
+  #roles      = [aws_iam_role.role-splunk-hf.name]
+  role      = aws_iam_role.role-splunk-hf.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
@@ -156,7 +160,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
   }
   tag {
     key                 = "splunkdnsprefix"
-    value               = var.dns-prefix
+    value               = local.dns-prefix
     propagate_at_launch = false
   }
 
@@ -164,7 +168,8 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
 }
 
 resource "aws_launch_template" "splunk-hf" {
-  name          = "splunk-hf"
+  #name          = "splunk-hf"
+  name_prefix   = "launch-template-splunk-hf"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = aws_key_pair.master-key.key_name
   instance_type = "t3a.nano"
@@ -193,6 +198,7 @@ resource "aws_launch_template" "splunk-hf" {
       splunks3installbucket = aws_s3_bucket.s3_install.id
       splunks3databucket    = aws_s3_bucket.s3_data.id
       splunkdnszone         = var.dns-zone-name
+      splunkdnsmode         = "lambda"
       splunkorg             = var.splunkorg
       splunktargetenv       = var.splunktargetenv
       splunktargetbinary    = var.splunktargetbinary

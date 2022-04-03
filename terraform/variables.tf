@@ -78,7 +78,6 @@ variable "splunktargetbinaryuf" {
 locals {
   env                   = var.splunktargetenv
   instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default)
-
 }
 
 variable "cm" {
@@ -176,10 +175,17 @@ variable "dns-zone-name" {
 }
 
 variable "dns-prefix" {
-  description = "this setting will tell the lambda function to add this prefix to all names. This is mainly useful for testing lambda without overriding normal names in use. Use disabled to not add prefix. If tag unset, lambda- will be used as prefix"
+  description = "this setting will tell the lambda function to add this prefix to all names. This is mainly useful for testing lambda without overriding normal names in use. Use disabled to not add prefix. If tag unset, lambda- will be used as prefix (look at local.dns-prefix logic, it will the region if you dont change the locals version)"
   type    = string
+  default = "region-"
   #default = "disabled"
-  default = var.region-master
+}
+
+locals {
+# we have to create as local to be able to use a variable
+# comment and use the second version if you prefer specify it
+  dns-prefix="${var.dns-prefix == "region-" ? format("%s-",var.region-master) : var.dns-prefix}"
+  #dns-prefix=var.dns-prefix
 }
 
 variable "backup-retention" {
@@ -204,8 +210,7 @@ variable "users-networks-ipv6" {
 
 variable "splunkadmin-networks" {
   type    = list(string)
-  default = ["82.64.149.57/32"]
-  #default = ["127.0.0.1/32"]
+  default = ["127.0.0.1/32"]
 }
 
 #variable "splunkadmin-networks-ipv6" {

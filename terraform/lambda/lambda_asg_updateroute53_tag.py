@@ -15,7 +15,7 @@ env_level = os.environ.get("LOG_LEVEL")
 log_level = logging.INFO if not env_level else env_level
 logger.setLevel(log_level)
 
-version="2022032001"
+version="2022040303"
 
 # dont set this too low or the entry could be invalid before being used at all ...
 ttl = 300
@@ -62,16 +62,34 @@ def lambda_handler(event, context):
         }
     # Obtain Private IPs of all active instances in the auto scaling group which triggered this event.
     servers = get_asg_private_ips(asg_client,ec2_client,asg_name)
+    print (f"Processing private ips for {names}")
     # If there are Private IPs it means the autoscaling group exists and contains at least one active instances. Create/Update record set in Route53 Hosted Zone.
     if servers:
+        print (f"Got servers : Processing private ips for {names}")
         for host in names.split():
             record_set_name = prefix + host + "." + domain
             update_hosted_zone_records(r53_client,hosted_zone_id, record_set_name, ttl, servers)
             print (f"Record set {record_set_name} was created/updated successfully with the following A records {servers}")
     else:
+        print (f"No servers : Processing private ips for {names}")
         for host in names.split():
             record_set_name = prefix + host + "." + domain
             print (f"Auto Scaling group {asg_name} does not exist or contain no instances at this time - Trying to delete {record_set_name}")
+            #  delete the DNS entry 
+            delete_hosted_zone_records(r53_client,hosted_zone_id, record_set_name)
+    # Obtain Public IPs of all active instances in the auto scaling group which triggered this event.
+    print (f"Processing public ips for {names}")
+    servers = get_asg_public_ips(asg_client,ec2_client,asg_name)
+    # If there are public IPs it means the autoscaling group exists and contains at least one active instances. Create/Update record set in Route53 Hosted Zone.
+    if servers:
+        for host in names.split():
+            record_set_name = prefix + host + "-ext." + domain
+            update_hosted_zone_records(r53_client,hosted_zone_id, record_set_name, ttl, servers)
+            print (f"(ext) Record set {record_set_name} was created/updated successfully with the following A records {servers}")
+    else:
+        for host in names.split():
+            record_set_name = prefix + host + "-ext." + domain
+            print (f"(ext)Auto Scaling group {asg_name} does not exist or contain no instances with public ip at this time - Trying to delete {record_set_name}")
             #  delete the DNS entry 
             delete_hosted_zone_records(r53_client,hosted_zone_id, record_set_name)
     return {
@@ -104,6 +122,20 @@ def get_asg_private_ips(asg_client,ec2_client,asg_name):
                 for instance in reservation['Instances']:
                     if instance['State']['Name'] == 'running':
                         servers.append({'Value': instance['PrivateIpAddress']})
+            return servers
+
+def get_asg_public_ips(asg_client,ec2_client,asg_name):
+    for asg in asg_client.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])['AutoScalingGroups']:
+        instance_ids = []
+        for instance in asg['Instances']:
+            if instance['LifecycleState'] == 'InService':
+                instance_ids.append(instance['InstanceId'])
+        if instance_ids:
+            servers = []
+            for reservation in ec2_client.describe_instances(InstanceIds = instance_ids)['Reservations']:
+                for instance in reservation['Instances']:
+                    if instance['State']['Name'] == 'running':
+                        servers.append({'Value': instance['PublicIpAddress']})
             return servers
 
 def get_asg_dns_tags(asg_client,asg_name,region):

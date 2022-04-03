@@ -18,9 +18,10 @@ resource "aws_iam_instance_profile" "role-splunk-bastion_profile" {
   role = aws_iam_role.role-splunk-bastion.name
 }
 
-resource "aws_iam_policy_attachment" "bastion-attach-splunk-ec2" {
-  name       = "bastion-attach-splunk-ec2"
-  roles      = [aws_iam_role.role-splunk-bastion.name]
+resource "aws_iam_role_policy_attachment" "bastion-attach-splunk-ec2" {
+  #name       = "bastion-attach-splunk-ec2"
+  #roles      = [aws_iam_role.role-splunk-bastion.name]
+  role      = aws_iam_role.role-splunk-bastion.name
   policy_arn = aws_iam_policy.pol-splunk-bastion.arn
 }
 
@@ -34,6 +35,7 @@ resource "aws_security_group" "splunk-bastion" {
     to_port   = 22
     protocol  = "tcp"
     self      = false
+    cidr_blocks = var.splunkadmin-networks
   }
 
   egress {
@@ -78,7 +80,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
   }
   tag {
     key                 = "splunkdnsprefix"
-    value               = var.dns-prefix
+    value               = local.dns-prefix
     propagate_at_launch = false
   }
   depends_on = [null_resource.bucket_sync]
@@ -87,7 +89,8 @@ resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
 
 
 resource "aws_launch_template" "splunk-bastion" {
-  name          = var.bastion
+  #name          = var.bastion
+  name_prefix   = "launch-template-splunk-bastion"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = aws_key_pair.master-key.key_name
   instance_type = "t3a.nano"

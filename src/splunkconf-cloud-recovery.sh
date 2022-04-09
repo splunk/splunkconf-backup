@@ -143,8 +143,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220325 add zstd binary install + change tar option to autodetect format + add error handling for zstd backup with no zstd binary case (initial support)
 # 20220327 relax form for permission on initial backups for zstd to prevent false warning
 # 20220327 add protection from very old splunkconf backup that would run by cron as we dont want a conflict
+# 20220409 add autoresizing for splunk partition when created in AMI and not a idx
 
-VERSION="20220327b"
+VERSION="2022030409a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -867,6 +868,20 @@ if [ "$MODE" != "upgrade" ]; then
     fi
   else
     echo "not a idx, no additional partition to configure" >> /var/log/splunkconf-cloud-recovery-info.log
+    # for non idx where AMI was created with FS no matching what was created, try to extend the partition
+    # without LVM
+    # note it will print resize2fs help if not exist, that is fine
+    # note if /opt/splunk exist we try it first
+    echo "trying to extend /opt/splunk if created in AMI"
+    mount |grep " /opt/splunk " |  cut -s -d" " -f 1 | xargs resize2fs
+    echo "trying to extend / if created in AMI"
+    mount |grep " / " |  cut -s -d" " -f 1 | xargs resize2fs
+    # with LVM
+    # now if the FS was created with LVM we need to do it via lvextend
+    echo "trying to extend /opt/splunk via LVM if created in AMI"
+    mount |grep " /opt/splunk " |  cut -s -d" " -f 1 | xargs lvextend --resizefs -l +100%FREE
+    echo "trying to extend / via LVM if created in AMI"
+    mount |grep " / " |  cut -s -d" " -f 1 | xargs lvextend --resizefs -l +100%FREE
     PARTITIONFAST="/"
   fi # if idx
   # swap management

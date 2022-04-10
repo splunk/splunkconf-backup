@@ -147,7 +147,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220410 for upgrade set setting for kvstore engine upgrade
 # 20220410 default to 8.2.6
 
-VERSION="2022030410b"
+VERSION="20220410b"
 
 # dont break script on error as we rely on tests for this
 set +e

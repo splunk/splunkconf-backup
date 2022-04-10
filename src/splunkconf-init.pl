@@ -97,7 +97,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="2022036a";
+$VERSION="20220316a";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !

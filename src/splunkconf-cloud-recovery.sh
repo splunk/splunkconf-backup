@@ -145,8 +145,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220327 add protection from very old splunkconf backup that would run by cron as we dont want a conflict
 # 20220409 add autoresizing for splunk partition when created in AMI and not a idx
 # 20220410 for upgrade set setting for kvstore engine upgrade
+# 20220410 default to 8.2.6
 
-VERSION="2022030410a"
+VERSION="2022030410b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -934,7 +935,8 @@ fi # if not upgrade
 #splbinary="splunk-8.2.1-ddff1c41e5cf-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm"
-splbinary="splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm"
+#splbinary="splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm"
+splbinary="splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm"
 
 
 if [ "$splunkmode" == "uf" ]; then 
@@ -967,7 +969,8 @@ if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     ###### change from version on splunk.com : add -q , add ${localinstalldir}/ and add quotes around 
     #`wget -q -O ${localinstalldir}/splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm 'https://d7wz6hmoaavd0.cloudfront.net/products/splunk/releases/8.2.2/linux/splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm'`
     #`wget -q -O ${localinstalldir}/splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm 'https://download.splunk.com/products/splunk/releases/8.2.4/linux/splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm'`
-    `wget -q -O ${localinstalldir}/splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/8.2.5/linux/splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm"`
+    #`wget -q -O ${localinstalldir}/splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/8.2.5/linux/splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm"`
+    `wget -q -O ${localinstalldir}/splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/8.2.6/linux/splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm"`
   fi
   if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install (or fix the wget with wget -q -O ... if you just copied paste wget))  " >> /var/log/splunkconf-cloud-recovery-info.log

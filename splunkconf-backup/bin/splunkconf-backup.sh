@@ -79,8 +79,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20220327 fix test condition regression for etc targeted and regular conf files
 # 20220327 add also size and duration for kvstore legacy mode
 # 20220327 factor remote copy in order to add duration and size to log
+# 20220409 fix double remote copy issue with kvdump/kvstore 
 
-VERSION="20220327c"
+VERSION="20220409a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -922,12 +923,12 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
         ${SPLUNK_HOME}/bin/splunk start;
         debug_log "done kvstore backup(tar) with splunk service restart";
       fi
-  # end traditional kvstore backup
+      LFICKVSTORE=$FIC;
+      # end traditional kvstore backup
     else 
       debug_log "action=backup object=kvstore type=$TYPE result=nobackuprequested"
     fi
   fi
-  LFICKVSTORE=$FIC;
   # if mode explicit kvxxx or all
 fi
 

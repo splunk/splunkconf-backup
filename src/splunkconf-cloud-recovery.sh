@@ -144,8 +144,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220327 relax form for permission on initial backups for zstd to prevent false warning
 # 20220327 add protection from very old splunkconf backup that would run by cron as we dont want a conflict
 # 20220409 add autoresizing for splunk partition when created in AMI and not a idx
+# 20220410 for upgrade set setting for kvstore engine upgrade
 
-VERSION="2022030409a"
+VERSION="2022030410a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -721,6 +722,23 @@ systemctl stop log4j-cve-2021-44228-hotpatch
 systemctl disable log4j-cve-2021-44228-hotpatch
 
 
+if [ "$MODE" == "upgrade" ]; then 
+  # add storageEngineMigration=true
+  SPLSPLUNKBIN="${SPLUNK_HOME}/bin/splunk";
+  kvengine=`su - $usersplunk -c "$SPLSPLUNKBIN btool server list kvstore | grep storageEngine | grep -v storageEngineMigration | cut -d\" \" -f 3"`
+  kvmigration=`su - $usersplunk -c "$SPLSPLUNKBIN btool server list kvstore | grep storageEngineMigration | cut -d\" \" -f 3"`
+
+  if [ "$kvmigration" == "false" ]; then
+    if [ "$kvengine" == "mmapv1" ]; then
+          echo "nmapv1 in use and kvstore enginemigration not set, setting it so upgrade will initiate migration"
+          echo -e "\n[kvstore]\nstorageEngineMigration=true\n" >> ${SPLUNK_HOME}/etc/system/local/server.conf
+    else
+          echo "engine already nigrated , nothing to do"
+    fi
+  else
+    echo "kvmigration already set, nothing to do"
+  fi
+fi
 
 if [ "$MODE" != "upgrade" ]; then 
   if [ -z ${splunkosupdatemode+x} ]; then
@@ -734,7 +752,7 @@ if [ "$MODE" != "upgrade" ]; then
   fi
 
   # swap partition creation
-  # IMPORTAMT : please emake sure we have really swap available so we can resist peak and reduce OOM risk
+  # IMPORTANT : please emake sure we have really swap available so we can resist peak and reduce OOM risk
   # need at least on sh, idx but also good idea on other roles such as cm
   # safe and arbitrary figure 100G (0.1T) but you can adapt it to your spec and workload
   # obviously this is just a part of strategy about ressource management

@@ -24,6 +24,7 @@ locals {
 
 
 resource "aws_iam_policy" "pol-splunk-ec2" {
+  name_prefix = "splunkconf_ec2_"
   # ... other configuration ...
   #name_prefix = local.name-prefix-pol-splunk-ec2
   description = "This policy include shared policy for Splunk EC2 instances"
@@ -59,6 +60,7 @@ data "template_file" "pol-splunk-splunkconf-backup" {
 }
 
 resource "aws_iam_policy" "pol-splunk-splunkconf-backup" {
+  name_prefix = "splunkconf_splunkconf-backup_"
   # ... other configuration ...
   #statement {
   #  sid = "pol-splunk-splunkconf-backup-${var.profile}-$(var.region-master}-${var.splunktargetenv}"
@@ -79,7 +81,7 @@ data "template_file" "pol-splunk-route53-updatednsrecords" {
 }
 
 resource "aws_iam_policy" "pol-splunk-route53-updatednsrecords" {
-  name_prefix = "splunkconf_route53_updatednsrecords"
+  name_prefix = "splunkconf_route53_updatednsrecords_"
   # ... other configuration ...
   #statement {
   #  sid = "pol-splunk-splunkconf-backup-${var.profile}-$(var.region-master}-${var.splunktargetenv}"

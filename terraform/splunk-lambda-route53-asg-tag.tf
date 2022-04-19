@@ -1,10 +1,11 @@
 #Lambda function
 
 resource "aws_iam_role" "role-splunk-lambda-route53-asg-tag" {
-  name                  = "role-splunk-lambda-route53-asg-tag"
+  provider    = aws.region-master
+  name                  = "role-splunk-lambda-route53-asg-tags"
   force_detach_policies = true
   description           = "iam role for splunk lambda lambda-route53-asg-tag"
-  assume_role_policy    = file("policy-aws/assumerolepolicy.json")
+  assume_role_policy    = file("policy-aws/assumerolepolicy-lambda.json")
 
   tags = {
     Name = "splunk"
@@ -12,6 +13,7 @@ resource "aws_iam_role" "role-splunk-lambda-route53-asg-tag" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-lambda-route53-asg-tag_profile" {
+  provider    = aws.region-master
   name = "role-splunk-lambda-route53-asg-tag_profile"
   role = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
 }
@@ -23,6 +25,7 @@ resource "aws_iam_instance_profile" "role-splunk-lambda-route53-asg-tag_profile"
 #}
 
 resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-splunk-route53-updatednsrecords" {
+  provider    = aws.region-master
   #name       = "lambda-attach-splunk-route53-updatednsrecords"
   #roles      = [aws_iam_role.role-splunk-lambda-route53-asg-tag.name]
   role      = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
@@ -30,6 +33,7 @@ resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-splunk-
 }
 
 resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-splunk-ec2" {
+  provider    = aws.region-master
   #name       = "lambda-attach-splunk-ec2"
   #roles      = [aws_iam_role.role-splunk-lambda-route53-asg-tag.name]
   role      = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
@@ -37,13 +41,15 @@ resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-splunk-
 }
 
 resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-splunk-asg" {
+  provider    = aws.region-master
   #name       = "lambda-attach-splunk-asg"
   #roles      = [aws_iam_role.role-splunk-lambda-route53-asg-tag.name]
   role      = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
   policy_arn = aws_iam_policy.pol-splunk-lambda-asg.arn
 }
 
-resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag--attach-assume-role" {
+resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-assume-role" {
+  provider    = aws.region-master
   #name       = "lambda-attach-splunk-lambda"
   #roles      = [aws_iam_role.role-splunk-lambda-route53-asg-tag.name]
   role      = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
@@ -51,7 +57,8 @@ resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag--attach-assume
   #policy_arn = aws_iam_policy.pol-splunk-lambda.arn
 }
 
-resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag--attach-splunk-cloudwatch-write" {
+resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-splunk-cloudwatch-write" {
+  provider    = aws.region-master
   #name       = "lambda-attach-splunk-logwrite"
   #roles      = [aws_iam_role.role-splunk-lambda-route53-asg-tag.name]
   role      = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
@@ -68,6 +75,7 @@ data "archive_file" "zip_lambda_asg_updateroute53_tag" {
 }
 
 resource "aws_lambda_function" "lambda_update-route53-tag" {
+  provider    = aws.region-master
   filename         = data.archive_file.zip_lambda_asg_updateroute53_tag.output_path
   source_code_hash = data.archive_file.zip_lambda_asg_updateroute53_tag.output_base64sha256
   function_name     = "aws_lambda_autoscale_route53_tags"
@@ -79,11 +87,13 @@ resource "aws_lambda_function" "lambda_update-route53-tag" {
 }
 
 resource "aws_cloudwatch_log_group" "splunkconf_asg_logging" {
+  provider    = aws.region-master
   name              = "/aws/lambda/lambda_update-route53-tag"
   retention_in_days = 14
 }
 
 resource "aws_iam_policy" "lambda_logging" {
+  provider    = aws.region-master
   name        = "lambda_logging"
   path        = "/"
   description = "IAM policy for logging from a lambda"
@@ -112,6 +122,7 @@ EOF
 #}
 
 resource "aws_cloudwatch_event_rule" "asg" {
+  provider    = aws.region-master
   name        = "capture-aws-asg"
   description = "Capture each AWS ASG events"
 
@@ -134,12 +145,14 @@ EOF
 }
 
 resource "aws_cloudwatch_event_target" "lambda_route53asg" {
+  provider    = aws.region-master
   rule      = aws_cloudwatch_event_rule.asg.name
   target_id = "SendTolambdaroute53asg"
   arn       = aws_lambda_function.lambda_update-route53-tag.arn
 }
 
 resource "aws_lambda_alias" "route53asg_alias" {
+  provider    = aws.region-master
   name             = "route53asg"
   description      = "lambda route53 asg alias"
   function_name    = aws_lambda_function.lambda_update-route53-tag.function_name
@@ -148,6 +161,7 @@ resource "aws_lambda_alias" "route53asg_alias" {
 
 
 resource "aws_lambda_permission" "allow_cloudwatch_route53asg" {
+  provider    = aws.region-master
   statement_id  = "AllowExecutionFromCloudWatchroute53asg"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda_update-route53-tag.function_name

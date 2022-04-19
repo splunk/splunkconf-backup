@@ -3,7 +3,7 @@ resource "aws_iam_role" "role-splunk-ds" {
   name                  = "role-splunk-ds-3"
   force_detach_policies = true
   description           = "iam role for splunk ds"
-  assume_role_policy    = file("policy-aws/assumerolepolicy.json")
+  assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
 
   tags = {
     Name = "splunk"
@@ -33,11 +33,11 @@ resource "aws_iam_policy_attachment" "ds-attach-splunk-ec2" {
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
 }
 
-resource "aws_iam_policy_attachment" "ds-attach-ssm-managedinstance" {
-  name       = "ds-attach-ssm-managedinstance"
-  roles      = [aws_iam_role.role-splunk-ds.name]
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
+#resource "aws_iam_policy_attachment" "ds-attach-ssm-managedinstance" {
+#  name       = "ds-attach-ssm-managedinstance"
+#  roles      = [aws_iam_role.role-splunk-ds.name]
+#  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+#}
 
 
 

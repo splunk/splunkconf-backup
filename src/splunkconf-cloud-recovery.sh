@@ -146,8 +146,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220409 add autoresizing for splunk partition when created in AMI and not a idx
 # 20220410 for upgrade set setting for kvstore engine upgrade
 # 20220410 default to 8.2.6
+# 20220420 Fix regression that would try deploy multids when singleds case by adding a constraint on tag set for it
 
-VERSION="20220410b"
+VERSION="20220420a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1700,8 +1701,10 @@ if [[ "${instancename}" =~ ds ]]; then
   chown $usersplunk.$groupsplunk ${localscriptdir}
   chmod 550  ${localscriptdir}
   get_object ${remoteinstalldir}/splunkconf-ds-reload.sh ${localscriptdir}/${DSRELOAD}
-  chown $usersplunk.$groupsplunk ${localscriptdir}/${DSRELOAD}
-  chmod 550  ${localscriptdir}/${DSRELOAD}
+  if [ -e "${localscriptdir}/${DSRELOAD}" ]; then
+    chown $usersplunk.$groupsplunk ${localscriptdir}/${DSRELOAD}
+    chmod 550  ${localscriptdir}/${DSRELOAD}
+  fi
 fi
 
 
@@ -1718,7 +1721,10 @@ if [ -z ${splunkorg+x} ]; then
   splunkorg="org"
 fi
 
-if [[ "${instancename}" =~ ds ]]; then
+# if we are a ds and number of ds instances is set , we are multi ds case , otherwise we just deploy like a normal instance
+if [[ "${instancename}" =~ ds ]]  && [ ! -z ${splunkdsnb+x} ] && [[ $splunkdsnb -gt 1 ]]; then
+  echo "configuring for multi DS" 
+  # multi DS here
   # for app inspect 
   yum groupinstall "Development Tools"
   yum install  python3-devel
@@ -1726,7 +1732,7 @@ if [[ "${instancename}" =~ ds ]]; then
   # LB SETUP for multi DS
   get_object ${remoteinstalldir}/splunkconf-ds-lb.sh ${localrootscriptdir}
   if [ ! -e "${localrootscriptdir}/splunkconf-ds-lb.sh" ]; then
-    echo " ${localrootscriptdir}/splunkconf-ds-lb.sh doesnt  exist, please fix (add file to expected location) and relaunch"
+    echo " ${localrootscriptdir}/splunkconf-ds-lb.sh doesnt exist, please fix (add file to expected location) and relaunch"
     exit 1
   fi 
   echo "creating DS LB via LVS"

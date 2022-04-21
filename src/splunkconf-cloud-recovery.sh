@@ -147,8 +147,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220410 for upgrade set setting for kvstore engine upgrade
 # 20220410 default to 8.2.6
 # 20220420 Fix regression that would try deploy multids when singleds case by adding a constraint on tag set for it
+# 20220421 add logic for splunkconnectedmode 
 
-VERSION="20220420a"
+VERSION="20220421b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -265,11 +266,47 @@ set_connectedmode () {
      # variable not set -> default is auto
      splunkconnectedmode=0
   fi
- # if 
- # elif 
+  # FIXME here add logic for auto detect 
+  # for now assuming connected
+  if [ $splunkconnectedmode == 0 ]; then
+    echo "switching from auto to fully connected mode"
+    splunkconnectedmode=1
+  elif [ $splunkconnectedmode == 1 ]; then
+    echo "splunkconnectmode was set to fully connected"
+  elif [ $splunkconnectedmode == 2 ]; then
+    echo "splunkconnectmode was set to download via package manager (ie yum,...) only"
+  elif [ $splunkconnectedmode == 3 ]; then
+    echo "splunkconnectmode was set to no connection. Assuming you have deployed all the requirement yourself"
+  else
+    echo "splunkconnectmode=${splunkconnectedmode} is not a expected value, falling back to fully connected"
+    splunkconnectedmode=1
+  fi
+  echo "splunkconnectedmode=${splunkconnectedmode}"
+}
 
- # fi
+get_packages () {
 
+  if [ $splunkconnectedmode == 3 ]; then
+    echo "not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd -y"
+  else 
+    # perl needed for swap (regex) and splunkconf-init.pl
+    # openjdk not needed by recovery itself but for app that use java such as dbconnect , itsi...
+    # wget used by recovery
+    # curl to fetch files
+    # gdb provide pstack which may be needed to collect things for Splunk support
+
+    if ! command -v yum &> /dev/null
+    then
+      echo "FAIL yum command could not be found, not RH like distribution , not fully implemented/tested at the moment, stopping here " >> /var/log/splunkconf-cloud-recovery-info.log
+      exit 1
+    fi
+
+    # one yum command so yum can try to download and install in // which will improve recovery time
+    yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd -y
+    # disable as scan in permanence and not needed for splunk
+    systemctl stop log4j-cve-2021-44228-hotpatch
+    systemctl disable log4j-cve-2021-44228-hotpatch
+  fi #splunkconnectedmode
 }
 
 check_cloud
@@ -423,9 +460,6 @@ else
   echo "unsupported/unknown value for splunksystemd:${splunksystemd} , falling back to default"
 fi
 
-# set the mode based on tag and test logic
-set_connectedmode
-
 
 if [ -e "$INSTANCEFILE" ]; then
   chmod 644 $INSTANCEFILE
@@ -434,6 +468,9 @@ if [ -e "$INSTANCEFILE" ]; then
 else
   echo "WARNING : no instance tags file at $INSTANCEFILE"
 fi
+
+# set the mode based on tag and test logic
+set_connectedmode
 
 # instance type
 if [ -z ${splunkinstanceType+x} ]; then 
@@ -705,23 +742,7 @@ chown ${usersplunk}. ${localbackupdir}
 mkdir -p ${localinstalldir}
 chown ${usersplunk}. ${localinstalldir}
 
-# perl needed for swap (regex) and splunkconf-init.pl
-# openjdk not needed by recovery itself but for app that use java such as dbconnect , itsi...
-# wget used by recovery
-# curl to fetch files
-# gdb provide pstack which may be needed to collect things for Splunk support
-
-if ! command -v yum &> /dev/null
-  then
-  echo "FAIL yum command could not be found, not RH like distribution , not fully implemented/tested at the moment, stopping here " >> /var/log/splunkconf-cloud-recovery-info.log
-  exit 1
-fi
-
-# one yum command so yum can try to download and install in // which will improve recovery time
-yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd -y 
-# disable as scan in permanence and not needed for splunk
-systemctl stop log4j-cve-2021-44228-hotpatch
-systemctl disable log4j-cve-2021-44228-hotpatch
+get_packages
 
 
 if [ "$MODE" == "upgrade" ]; then 
@@ -748,21 +769,13 @@ if [ "$MODE" != "upgrade" ]; then
   fi
   if [ "${splunkosupdatemode}" = "disabled" ]; then
     echo "os update disabled, not applying them here. Make sure you applied them already in the os image or use for testing"
+  elif [ $splunkconnectedmode == 3 ]; then
+    echo "Full disconnected mode ! Attention, I wont try to apply latest/updates fixes even if splunosupdatemode is not set to disabled -> incoherent settings"
   else 
     echo "applying latest os updates/security and bugfixes"
     yum update -y
   fi
 
-  # swap partition creation
-  # IMPORTANT : please emake sure we have really swap available so we can resist peak and reduce OOM risk
-  # need at least on sh, idx but also good idea on other roles such as cm
-  # safe and arbitrary figure 100G (0.1T) but you can adapt it to your spec and workload
-  # obviously this is just a part of strategy about ressource management
-  # and you should not swap all time
-  #mkswap /dev/sdc
-  #echo "/dev/sdc       none    swap    sw  0       0" >> /etc/fstab
-  #swapon /dev/sdc
-  # end of swap creation
   # if idx
   if [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
     #****************************FIXME : REPLACE HERE OR CALL THE NEW PARTITION CODE*********************
@@ -960,7 +973,9 @@ echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-cloud-re
 get_object ${remoteinstalldir}/${splbinary} ${localinstalldir} 
 ls ${localinstalldir}
 if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
-  if [ "$splunkmode" == "uf" ]; then 
+  if [ $splunkconnectedmode == 2 ] || [ $splunkconnectedmode == 3 ]; then
+    echo "RPM missing from install and splunkconnectedmode setting prevent trying to download directly "
+  elif [ "$splunkmode" == "uf" ]; then 
     echo "RPM not present in install, trying to download directly (uf version)"
     ###### change from version on splunk.com : add -q , add ${localinstalldir}/ and add quotes around 
     #`wget -q -O ${localinstalldir}/splunkforwarder-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm 'https://download.splunk.com/products/universalforwarder/releases/8.2.4/linux/splunkforwarder-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm'`
@@ -1085,12 +1100,18 @@ if [ "$SYSVER" -eq 6 ]; then
   # enable the system tuning 
   sysctl --system;/etc/rc.d/rc.local 
   # deploying splunk secrets
-  yum install -y python36-pip
-  pip install --upgrade pip
+  if [ $splunkconnectedmode == 1 ] || [ $splunkconnectedmode == 2 ]; then 
+    yum install -y python36-pip
+  fi
+  if [ $splunkconnectedmode == 1 ]; then 
+    pip install --upgrade pip
+  fi
   sleep 1
   # this is now problematic to install on AWS1 which is so old
-  pip install splunksecrets
-  pip-3.6 install splunksecrets
+  if [ $splunkconnectedmode == 1 ]; then 
+    pip install splunksecrets
+    pip-3.6 install splunksecrets
+  fi
 else
   # RH7/8 AWS2 like
   # issue on aws2 , polkit and tuned not there by default
@@ -1726,9 +1747,13 @@ if [[ "${instancename}" =~ ds ]]  && [ ! -z ${splunkdsnb+x} ] && [[ $splunkdsnb 
   echo "configuring for multi DS" 
   # multi DS here
   # for app inspect 
-  yum groupinstall "Development Tools"
-  yum install  python3-devel
-  pip3 install splunk-appinspect
+  if [ $splunkconnectedmode == 1 ] || [ $splunkconnectedmode == 2 ]; then
+    yum groupinstall "Development Tools"
+    yum install  python3-devel
+  fi
+  if [ $splunkconnectedmode == 1 ]; then
+    pip3 install splunk-appinspect
+  fi
   # LB SETUP for multi DS
   get_object ${remoteinstalldir}/splunkconf-ds-lb.sh ${localrootscriptdir}
   if [ ! -e "${localrootscriptdir}/splunkconf-ds-lb.sh" ]; then

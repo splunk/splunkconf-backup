@@ -148,8 +148,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220410 default to 8.2.6
 # 20220420 Fix regression that would try deploy multids when singleds case by adding a constraint on tag set for it
 # 20220421 add logic for splunkconnectedmode 
+# 20220421 move disk logic to functions, add comments for block to make log faster to read
 
-VERSION="20220421b"
+VERSION="20220421c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -308,6 +309,149 @@ get_packages () {
     systemctl disable log4j-cve-2021-44228-hotpatch
   fi #splunkconnectedmode
 }
+
+setup_disk () {
+
+    DEVNUM=1
+
+
+    # let try to find if we have ephemeral storage
+    if [[ "cloud_type" -eq 2 ]]; then
+      # gcp
+      INSTANCELIST=`nvme list | grep "nvme_card" | cut -f 1 -d" "`
+    else
+      # aws
+      INSTANCELIST=`nvme list | grep "Instance Storage" | cut -f 1 -d" "`
+    fi
+    echo "instance storage=$INSTANCELIST" >> /var/log/splunkconf-cloud-recovery-info.log
+
+    if [ ${#INSTANCELIST} -lt 5 ]; then
+      echo "instance storage not detected" >> /var/log/splunkconf-cloud-recovery-info.log
+      INSTANCELIST=`nvme list | grep "Amazon Elastic Block Store" | cut -f 1 -d" "`
+      OSDEVICE=$INSTANCELIST
+      echo "OSDEVICE=${OSDEVICE}" >> /var/log/splunkconf-cloud-recovery-info.log
+      NBDISK=0
+      for e in ${OSDEVICE}; do
+        echo "checking EBS volume $e" >> /var/log/splunkconf-cloud-recovery-info.log
+        RES=`mount | grep $e `
+        if [ -z "${RES}" ]; then
+          echo "$e not found in mounted devices" >> /var/log/splunkconf-cloud-recovery-info.log
+
+          pvcreate $e >> /var/log/splunkconf-cloud-recovery-info.log
+          # extend or create vg
+          echo "adding $e to vgsplunkstorage${DEVNUM} " >> /var/log/splunkconf-cloud-recovery-info.log
+          vgextend vgsplunkstorage${DEVNUM} $e || vgcreate vgsplunkstorage${DEVNUM} $e >> /var/log/splunkconf-cloud-recovery-info.log
+          LIST="$LIST $e"
+          #pvdisplay
+          ((NBDISK=NBDISK+1))
+        else
+          echo "$e is already mounted, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
+        fi
+      done
+      echo "LIST=$LIST NBDISK=$NBDISK" >> /var/log/splunkconf-cloud-recovery-info.log
+      if [ $NBDISK -gt 0 ]; then
+        echo "we have $NBDISK disk(s) to configure" >> /var/log/splunkconf-cloud-recovery-info.log
+        lvcreate --name lvsplunkstorage${DEVNUM} -l100%FREE vgsplunkstorage${DEVNUM} >> /var/log/splunkconf-cloud-recovery-info.log
+        pvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
+        vgdisplay >> /var/log/splunkconf-cloud-recovery-info.log
+        lvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
+        # note mkfs wont format if the FS is already mounted -> no need to check here
+        mkfs.ext4 -L storage1 /dev/vgsplunkstorage1/lvsplunkstorage1 >> /var/log/splunkconf-cloud-recovery-info.log
+        mkdir -p /data/vol1
+        RES=`grep /data/vol1 /etc/fstab`
+        #echo " debug F=$RES."
+        if [ -z "${RES}" ]; then
+
+          #mount /dev/vgsplunkephemeral1/lvsplunkephemeral1 /data/vol1 && mkdir -p /data/vol1/indexes
+          echo "/data/vol1 not found in /etc/fstab, adding it" >> /var/log/splunkconf-cloud-recovery-info.log
+          echo "/dev/vgsplunkstorage${DEVNUM}//lvsplunkstorage${DEVNUM} /data/vol1 ext4 defaults,nofail 0 2" >> /etc/fstab
+          mount /data/vol1
+        else
+          echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
+        fi
+      else
+        echo "no EBS partition to configure" >> /var/log/splunkconf-cloud-recovery-info.log
+      fi
+      # Note : in case there is just one partition , this will create the dir so that splunk will run
+      # for volume management to work in classic mode, it is better to use a distinct partition to not mix manage and unmanaged on the same partition
+      echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-cloud-recovery-info.log
+      mkdir -p /data/vol1/indexes
+      chown -R ${usersplunk}. /data/vol1/indexes
+    else
+      echo "instance storage detected"
+      #OSDEVICE=$(lsblk -o NAME -n | grep -v '[[:digit:]]' | sed "s/^sd/xvd/g")
+      #OSDEVICE=$(lsblk -o NAME -n --nodeps | grep nvme)
+      #pvdisplay
+      OSDEVICE=$INSTANCELIST
+      echo "OSDEVICE=${OSDEVICE}" >> /var/log/splunkconf-cloud-recovery-info.log
+      for e in ${OSDEVICE}; do
+        echo "creating physical volume $e" >> /var/log/splunkconf-cloud-recovery-info.log
+        pvcreate $e >> /var/log/splunkconf-cloud-recovery-info.log
+        # extend or create vg
+        echo "adding $e to vgsplunkephemeral${DEVNUM}" >> /var/log/splunkconf-cloud-recovery-info.log
+        vgextend vgsplunkephemeral${DEVNUM} $e || vgcreate vgsplunkephemeral${DEVNUM} $e >> /var/log/splunkconf-cloud-recovery-info.log
+        LIST="$LIST $e"
+        #pvdisplay
+      done
+      echo "LIST=$LIST" >> /var/log/splunkconf-cloud-recovery-info.log
+      #vgcreate vgephemeral1 $LIST
+      lvcreate --name lvsplunkephemeral${DEVNUM} -l100%FREE vgsplunkephemeral${DEVNUM} >> /var/log/splunkconf-cloud-recovery-info.log
+      pvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
+      vgdisplay >> /var/log/splunkconf-cloud-recovery-info.log
+      lvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
+      # note mkfs wont format if the FS is already mounted -> no need to check here
+      mkfs.ext4 -L ephemeral1 /dev/vgsplunkephemeral1/lvsplunkephemeral1  >> /var/log/splunkconf-cloud-recovery-info.log
+      mkdir -p /data/vol1
+      RES=`grep /data/vol1 /etc/fstab`
+      #echo " debug F=$RES."
+      if [ -z "${RES}" ]; then
+        #mount /dev/vgsplunkephemeral1/lvsplunkephemeral1 /data/vol1 && mkdir -p /data/vol1/indexes
+        echo "/data/vol1 not found in /etc/fstab, adding it" >> /var/log/splunkconf-cloud-recovery-info.log
+        echo "/dev/vgsplunkephemeral${DEVNUM}/lvsplunkephemeral${DEVNUM} /data/vol1 ext4 defaults,nofail 0 2" >> /etc/fstab
+        mount /data/vol1
+        echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-cloud-recovery-info.log
+        mkdir -p /data/vol1/indexes
+        chown -R ${usersplunk}. /data/vol1/indexes
+        echo "moving splunk home to ephemeral devices in data/vol1/splunk (smartstore scenario)" >> /var/log/splunkconf-cloud-recovery-info.log
+        (mv /opt/splunk /data/vol1/splunk;ln -s /data/vol1/splunk /opt/splunk;chown -R ${usersplunk}. /opt/splunk) || mkdir -p /data/vol1/splunk
+        SPLUNK_HOME="/data/vol1/splunk"
+      else
+        echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
+      fi
+    fi
+    PARTITIONFAST="/data/vol1"
+    # FS created in AMI, need to give them back to splunk user
+    if [ -e "/data/hotwarm" ]; then
+       chown -R ${usersplunk}. /data/hotwarm
+       PARTITIONFAST="/data/hotwarm"
+       # resize when size in AMI not the right one
+       resize2fs /dev/xvda1
+       resize2fs /dev/xvdb
+    fi
+    if [ -e "/data/cold" ]; then
+       chown -R ${usersplunk}. /data/cold
+    fi
+
+}
+
+extend_fs () {
+    # for non idx where AMI was created with FS no matching what was created, try to extend the partition
+    # without LVM
+    # note it will print resize2fs help if not exist, that is fine
+    # note if /opt/splunk exist we try it first
+    echo "trying to extend /opt/splunk if created in AMI"
+    mount |grep " /opt/splunk " |  cut -s -d" " -f 1 | xargs resize2fs
+    echo "trying to extend / if created in AMI"
+    mount |grep " / " |  cut -s -d" " -f 1 | xargs resize2fs
+    # with LVM
+    # now if the FS was created with LVM we need to do it via lvextend
+    echo "trying to extend /opt/splunk via LVM if created in AMI"
+    mount |grep " /opt/splunk " |  cut -s -d" " -f 1 | xargs lvextend --resizefs -l +100%FREE
+    echo "trying to extend / via LVM if created in AMI"
+    mount |grep " / " |  cut -s -d" " -f 1 | xargs lvextend --resizefs -l +100%FREE
+}
+
+echo "#*************************************  START  ********************************************************"
 
 check_cloud
 check_sysver
@@ -570,6 +714,7 @@ else
     if [[ "${splunkdnsmode}" =~ (lambda|disabled) ]]; then
       echo "disabling route53 update inside recovery as explicitiley disabled by admin or running in lambda mode (splunkdnsmode=${splunkdnsmode})" >> /var/log/splunkconf-cloud-recovery-info.log
     else 
+      echo "#************************************* ROUTE53 ********************************************************"
       echo "updating dns via route53 api" >> /var/log/splunkconf-cloud-recovery-info.log
       # AWS doing direct dns update in recovery
       TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 3600"`
@@ -628,6 +773,7 @@ EOF
   elif [ -z ${splunkdnszoneid+x} ]; then
     echo "ERROR ATTENTION splunkdnszoneid is not defined, please add it as we cant update dns in GCP without this"
   elif [ $cloud_type == 2 ]; then
+    echo "#************************************* GCP DNS RECORD-SETS ********************************************************"
     # GCP doing direct dns update in recovery
     MYIP=`ifconfig |  grep -v 127.0.0.1 | grep inet | grep -v inet6 | grep -Eo 'inet\s[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+' | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+'`
     OLDIP=`gcloud dns --project=${projectid} record-sets list --zone=${splunkdnszoneid} --name=${instancename}.${splunkdnszone} --type A | tail -1 |grep -Eo '[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+'`
@@ -672,6 +818,7 @@ localrootscriptdir="/usr/local/bin"
 # we will disable if indexer detected as not needed
 RESTORECONFBACKUP=1
 
+echo "#************************************* SPLUNK USER AND GROUP CREATION ********************************************************"
 # splunkuser checks
 
 
@@ -746,6 +893,7 @@ get_packages
 
 
 if [ "$MODE" == "upgrade" ]; then 
+  echo "#************************************* UPGRADE ENGINE MIGRATION CHECK ********************************************************"
   # add storageEngineMigration=true
   SPLSPLUNKBIN="${SPLUNK_HOME}/bin/splunk";
   kvengine=`su - $usersplunk -c "$SPLSPLUNKBIN btool server list kvstore | grep storageEngine | grep -v storageEngineMigration | cut -d\" \" -f 3"`
@@ -756,7 +904,7 @@ if [ "$MODE" == "upgrade" ]; then
           echo "nmapv1 in use and kvstore enginemigration not set, setting it so upgrade will initiate migration"
           echo -e "\n[kvstore]\nstorageEngineMigration=true\n" >> ${SPLUNK_HOME}/etc/system/local/server.conf
     else
-          echo "engine already nigrated , nothing to do"
+          echo "engine already migrated , nothing to do"
     fi
   else
     echo "kvmigration already set, nothing to do"
@@ -764,6 +912,7 @@ if [ "$MODE" == "upgrade" ]; then
 fi
 
 if [ "$MODE" != "upgrade" ]; then 
+  echo "#************************************* OS UPDATES MANAGEMENT ********************************************************"
   if [ -z ${splunkosupdatemode+x} ]; then
     splunkosupdatemode="updateandreboot" 
   fi
@@ -778,145 +927,16 @@ if [ "$MODE" != "upgrade" ]; then
 
   # if idx
   if [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
-    #****************************FIXME : REPLACE HERE OR CALL THE NEW PARTITION CODE*********************
+    echo "#************************************** DISK ************************"
     echo "indexer -> configuring additional partition(s)" >> /var/log/splunkconf-cloud-recovery-info.log
     RESTORECONFBACKUP=0
-    DEVNUM=1
-
-
-    # let try to find if we have ephemeral storage
-    if [[ "cloud_type" -eq 2 ]]; then
-      # gcp
-      INSTANCELIST=`nvme list | grep "nvme_card" | cut -f 1 -d" "`
-    else
-      # aws
-      INSTANCELIST=`nvme list | grep "Instance Storage" | cut -f 1 -d" "`
-    fi
-    echo "instance storage=$INSTANCELIST" >> /var/log/splunkconf-cloud-recovery-info.log
-
-    if [ ${#INSTANCELIST} -lt 5 ]; then
-      echo "instance storage not detected" >> /var/log/splunkconf-cloud-recovery-info.log
-      INSTANCELIST=`nvme list | grep "Amazon Elastic Block Store" | cut -f 1 -d" "`
-      OSDEVICE=$INSTANCELIST
-      echo "OSDEVICE=${OSDEVICE}" >> /var/log/splunkconf-cloud-recovery-info.log
-      NBDISK=0
-      for e in ${OSDEVICE}; do
-        echo "checking EBS volume $e" >> /var/log/splunkconf-cloud-recovery-info.log
-        RES=`mount | grep $e `
-        if [ -z "${RES}" ]; then
-          echo "$e not found in mounted devices" >> /var/log/splunkconf-cloud-recovery-info.log
-
-          pvcreate $e >> /var/log/splunkconf-cloud-recovery-info.log
-          # extend or create vg
-          echo "adding $e to vgsplunkstorage${DEVNUM} " >> /var/log/splunkconf-cloud-recovery-info.log
-          vgextend vgsplunkstorage${DEVNUM} $e || vgcreate vgsplunkstorage${DEVNUM} $e >> /var/log/splunkconf-cloud-recovery-info.log
-          LIST="$LIST $e"
-          #pvdisplay
-          ((NBDISK=NBDISK+1))
-        else
-          echo "$e is already mounted, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
-        fi
-      done
-      echo "LIST=$LIST NBDISK=$NBDISK" >> /var/log/splunkconf-cloud-recovery-info.log
-      if [ $NBDISK -gt 0 ]; then
-        echo "we have $NBDISK disk(s) to configure" >> /var/log/splunkconf-cloud-recovery-info.log
-        lvcreate --name lvsplunkstorage${DEVNUM} -l100%FREE vgsplunkstorage${DEVNUM} >> /var/log/splunkconf-cloud-recovery-info.log
-        pvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
-        vgdisplay >> /var/log/splunkconf-cloud-recovery-info.log
-        lvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
-        # note mkfs wont format if the FS is already mounted -> no need to check here
-        mkfs.ext4 -L storage1 /dev/vgsplunkstorage1/lvsplunkstorage1 >> /var/log/splunkconf-cloud-recovery-info.log
-        mkdir -p /data/vol1
-        RES=`grep /data/vol1 /etc/fstab`
-        #echo " debug F=$RES."
-        if [ -z "${RES}" ]; then
-          #mount /dev/vgsplunkephemeral1/lvsplunkephemeral1 /data/vol1 && mkdir -p /data/vol1/indexes
-          echo "/data/vol1 not found in /etc/fstab, adding it" >> /var/log/splunkconf-cloud-recovery-info.log
-          echo "/dev/vgsplunkstorage${DEVNUM}//lvsplunkstorage${DEVNUM} /data/vol1 ext4 defaults,nofail 0 2" >> /etc/fstab
-          mount /data/vol1
-        else
-          echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
-        fi
-      else
-        echo "no EBS partition to configure" >> /var/log/splunkconf-cloud-recovery-info.log
-      fi
-      # Note : in case there is just one partition , this will create the dir so that splunk will run
-      # for volume management to work in classic mode, it is better to use a distinct partition to not mix manage and unmanaged on the same partition
-      echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-cloud-recovery-info.log
-      mkdir -p /data/vol1/indexes
-      chown -R ${usersplunk}. /data/vol1/indexes
-    else
-      echo "instance storage detected"
-      #OSDEVICE=$(lsblk -o NAME -n | grep -v '[[:digit:]]' | sed "s/^sd/xvd/g")
-      #OSDEVICE=$(lsblk -o NAME -n --nodeps | grep nvme)
-      #pvdisplay
-      OSDEVICE=$INSTANCELIST
-      echo "OSDEVICE=${OSDEVICE}" >> /var/log/splunkconf-cloud-recovery-info.log
-      for e in ${OSDEVICE}; do
-        echo "creating physical volume $e" >> /var/log/splunkconf-cloud-recovery-info.log
-        pvcreate $e >> /var/log/splunkconf-cloud-recovery-info.log
-        # extend or create vg
-        echo "adding $e to vgsplunkephemeral${DEVNUM}" >> /var/log/splunkconf-cloud-recovery-info.log
-        vgextend vgsplunkephemeral${DEVNUM} $e || vgcreate vgsplunkephemeral${DEVNUM} $e >> /var/log/splunkconf-cloud-recovery-info.log
-        LIST="$LIST $e"
-        #pvdisplay
-      done
-      echo "LIST=$LIST" >> /var/log/splunkconf-cloud-recovery-info.log
-      #vgcreate vgephemeral1 $LIST
-      lvcreate --name lvsplunkephemeral${DEVNUM} -l100%FREE vgsplunkephemeral${DEVNUM} >> /var/log/splunkconf-cloud-recovery-info.log
-      pvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
-      vgdisplay >> /var/log/splunkconf-cloud-recovery-info.log
-      lvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
-      # note mkfs wont format if the FS is already mounted -> no need to check here
-      mkfs.ext4 -L ephemeral1 /dev/vgsplunkephemeral1/lvsplunkephemeral1  >> /var/log/splunkconf-cloud-recovery-info.log
-      mkdir -p /data/vol1
-      RES=`grep /data/vol1 /etc/fstab`
-      #echo " debug F=$RES."
-      if [ -z "${RES}" ]; then
-        #mount /dev/vgsplunkephemeral1/lvsplunkephemeral1 /data/vol1 && mkdir -p /data/vol1/indexes
-        echo "/data/vol1 not found in /etc/fstab, adding it" >> /var/log/splunkconf-cloud-recovery-info.log
-        echo "/dev/vgsplunkephemeral${DEVNUM}/lvsplunkephemeral${DEVNUM} /data/vol1 ext4 defaults,nofail 0 2" >> /etc/fstab
-        mount /data/vol1
-        echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-cloud-recovery-info.log
-        mkdir -p /data/vol1/indexes
-        chown -R ${usersplunk}. /data/vol1/indexes
-        echo "moving splunk home to ephemeral devices in data/vol1/splunk (smartstore scenario)" >> /var/log/splunkconf-cloud-recovery-info.log
-        (mv /opt/splunk /data/vol1/splunk;ln -s /data/vol1/splunk /opt/splunk;chown -R ${usersplunk}. /opt/splunk) || mkdir -p /data/vol1/splunk
-        SPLUNK_HOME="/data/vol1/splunk"
-      else
-        echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
-      fi
-    fi
-    PARTITIONFAST="/data/vol1"
-    # FS created in AMI, need to give them back to splunk user
-    if [ -e "/data/hotwarm" ]; then
-       chown -R ${usersplunk}. /data/hotwarm
-       PARTITIONFAST="/data/hotwarm"
-       # resize when size in AMI not the right one
-       resize2fs /dev/xvda1
-       resize2fs /dev/xvdb
-    fi
-    if [ -e "/data/cold" ]; then
-       chown -R ${usersplunk}. /data/cold
-    fi
+    setup_disk
   else
     echo "not a idx, no additional partition to configure" >> /var/log/splunkconf-cloud-recovery-info.log
-    # for non idx where AMI was created with FS no matching what was created, try to extend the partition
-    # without LVM
-    # note it will print resize2fs help if not exist, that is fine
-    # note if /opt/splunk exist we try it first
-    echo "trying to extend /opt/splunk if created in AMI"
-    mount |grep " /opt/splunk " |  cut -s -d" " -f 1 | xargs resize2fs
-    echo "trying to extend / if created in AMI"
-    mount |grep " / " |  cut -s -d" " -f 1 | xargs resize2fs
-    # with LVM
-    # now if the FS was created with LVM we need to do it via lvextend
-    echo "trying to extend /opt/splunk via LVM if created in AMI"
-    mount |grep " /opt/splunk " |  cut -s -d" " -f 1 | xargs lvextend --resizefs -l +100%FREE
-    echo "trying to extend / via LVM if created in AMI"
-    mount |grep " / " |  cut -s -d" " -f 1 | xargs lvextend --resizefs -l +100%FREE
+    extend_fs
     PARTITIONFAST="/"
   fi # if idx
+  echo "#************************************** SWAP MANAGEMENT ************************"
   # swap management
   swapme="splunkconf-swapme.pl"
   get_object ${remoteinstalldir}/${swapme} ${localrootscriptdir}
@@ -935,6 +955,7 @@ fi # if not upgrade
 
 
 
+echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update at reinstanciation, make sure you know what you do !
 #splbinary="splunk-8.0.5-a1a6394cc5ae-linux-2.6-x86_64.rpm"
@@ -1080,7 +1101,7 @@ fi
   chown -R ${usersplunk}. ${SPLUNK_HOME}
 #fi
 
-# tuning system
+echo "#****************************************** tuning system ***********************************"
 echo "Tuning system"
 if [ "$SYSVER" -eq 6 ]; then
   # RH6/AWS1 like (deprecated)
@@ -1099,6 +1120,7 @@ if [ "$SYSVER" -eq 6 ]; then
   fi
   # enable the system tuning 
   sysctl --system;/etc/rc.d/rc.local 
+  echo "#****************************************** splunksecrets deployment ***********************************"
   # deploying splunk secrets
   if [ $splunkconnectedmode == 1 ] || [ $splunkconnectedmode == 2 ]; then 
     yum install -y python36-pip
@@ -1142,17 +1164,20 @@ else
   fi
   # enable the tuning done via rc.local and restart polkit so it takes into account new rules
   sysctl --system;sleep 1;chmod u+x /etc/rc.d/rc.local;systemctl start rc-local;systemctl restart polkit
+  echo "#****************************************** splunksecrets deployment ***********************************"
   # deploying splunk secrets
   pip3 install splunksecrets
 fi
 
 # removal of any leftover from previous splunkconf-backup (that would come from AMI)
 if [ -e "/etc/cron.d/splunkbackup.cron" ]; then
+   echo "#****************************************** old splunkconf-backup cleanup ***********************************"
    rm /etc/cron.d/splunkbackup.cron
    warn_log "ATTENTION : I had to remove a old splunkbackup cron entry, you may have a old splunkback version deployed as part of the os image. The cron removal will prevent it to run"
 fi
 
 if [ "$MODE" != "upgrade" ]; then
+  echo "#****************************************** Initial files (skeleton) management ***********************************"
   # fetching files that we will use to initialize splunk
   # splunk.secret just in case we are on a new install (ie won't be in the backup)
   echo "remote : ${remoteinstalldir}/splunk.secret" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -1217,6 +1242,7 @@ if [ "$MODE" != "upgrade" ]; then
     chown -R ${usersplunk}. /data/vol2/indexes
   fi
 
+  echo "#****************************************** BACKUP DOWNLOAD AND DEPLOYMENT ***********************************"
   # deploy including for indexers
   echo "remote : ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
   get_object ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz ${localbackupdir}
@@ -1381,6 +1407,7 @@ if [ "$MODE" != "upgrade" ]; then
   # if restore
   fi
 
+  echo "#****************************************** SPLUNK HOSTNAMES MANAGEMENT ***********************************"
   # set the hostname except if this is auto or contain idx or generic name
   # below is the exception criteria (ie indexer, uf  we cant set the name for example as there can be multiple instance of the same type)
   if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
@@ -1404,6 +1431,7 @@ if [ "$MODE" != "upgrade" ]; then
       chown ${usersplunk}. ${SPLUNK_HOME}/etc/system/local/server.conf
     fi
   elif [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
+    echo "#****************************************** AUTO ZONE DETECTION ***********************************"
     if [ -z ${splunkorg+x} ]; then 
       echo "instance tags are not correctly set (splunkorg). I dont know prefix for splunk base apps, will use org ! Please add splunkorg tag" >> /var/log/splunkconf-cloud-recovery-info.log
       splunkorg="org"
@@ -1574,6 +1602,7 @@ EOF
 
 fi # if not upgrade
 
+echo "#****************************************** CONF/BACKUPS ADAPTATION VIA TAGS ***********************************"
 # updating master_uri (needed when reusing backup from one env to another)
 # this is for indexers, search heads, mc ,.... (we will detect if the conf is present)
 if [ -z ${splunktargetcm+x} ]; then
@@ -1657,8 +1686,9 @@ fi
 ## redeploy system tuning as enable boot start may have overwritten files
 ##tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
 
+echo "#********************************************SPLUNK BINARY INSTALLATION*****************************"
 if [ "$INSTALLMODE" = "tgz" ]; then
-  echo "disabling rpm install as ds in a box install via tar"
+  echo "disabling rpm install as install via tar"
 else
   echo "installing/upgrading splunk via RPM using ${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
   # install or upgrade
@@ -1729,6 +1759,7 @@ if [[ "${instancename}" =~ ds ]]; then
 fi
 
 
+echo "#********************************************SPLUNK INITIALISATION*****************************"
 # splunk initialization (first time or upgrade)
 mkdir -p ${localrootscriptdir}
 get_object ${remoteinstalldir}/splunkconf-init.pl ${localrootscriptdir}/
@@ -1744,6 +1775,7 @@ fi
 
 # if we are a ds and number of ds instances is set , we are multi ds case , otherwise we just deploy like a normal instance
 if [[ "${instancename}" =~ ds ]]  && [ ! -z ${splunkdsnb+x} ] && [[ $splunkdsnb -gt 1 ]]; then
+  echo "#************************************************ MULI DS **************************************"
   echo "configuring for multi DS" 
   # multi DS here
   # for app inspect 
@@ -1906,9 +1938,11 @@ if [ "$MODE" != "upgrade" ]; then
      echo "os update mode is no reboot , not rebooting"
   else
     echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "#************************************* END with reboot ***************************************"
     # reboot
     init 6
   fi
 else
   echo "${TODAY} splunkconf-cloud-recovery.sh end of script run in upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
+  echo "#************************************* END ***************************************"
 fi # if not upgrade

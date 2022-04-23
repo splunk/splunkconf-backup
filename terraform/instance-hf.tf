@@ -178,7 +178,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
     propagate_at_launch = false
   }
 
-  depends_on = [null_resource.bucket_sync]
+  depends_on = [null_resource.bucket_sync,aws_lambda_function.lambda_update-route53-tag]
 }
 
 resource "aws_launch_template" "splunk-hf" {

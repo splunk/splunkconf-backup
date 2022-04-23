@@ -83,7 +83,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
     value               = local.dns-prefix
     propagate_at_launch = false
   }
-  depends_on = [null_resource.bucket_sync]
+  depends_on = [null_resource.bucket_sync,aws_lambda_function.lambda_update-route53-tag]
 }
 
 

@@ -84,6 +84,8 @@ resource "aws_lambda_function" "lambda_update-route53-tag" {
   role             = aws_iam_role.role-splunk-lambda-route53-asg-tag.arn
   runtime          = "python3.9"
   timeout          = 60
+  # we need dns zone to be available before 
+  depends_on=[aws_route53_zone.dnszone]
 }
 
 resource "aws_cloudwatch_log_group" "splunkconf_asg_logging" {

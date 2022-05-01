@@ -1,7 +1,7 @@
 #Create VPC in eu-west-3
 resource "aws_vpc" "vpc_master" {
   provider             = aws.region-master
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = var.vpc_cidr_block
   enable_dns_support   = true
   enable_dns_hostnames = true
   tags = {
@@ -10,7 +10,7 @@ resource "aws_vpc" "vpc_master" {
 
 }
 
-#Create IGW in eu-east-3
+#Create IGW in region
 resource "aws_internet_gateway" "igw" {
   provider = aws.region-master
   vpc_id   = aws_vpc.vpc_master.id
@@ -24,29 +24,29 @@ data "aws_availability_zones" "azs" {
 }
 
 
-#Create subnet # 1 in eu-west-3
-resource "aws_subnet" "subnet_1" {
+#Create subnet pub # 1 in vpc
+resource "aws_subnet" "subnet_pub_1" {
   provider          = aws.region-master
   availability_zone = element(data.aws_availability_zones.azs.names, 0)
   vpc_id            = aws_vpc.vpc_master.id
-  cidr_block        = "10.0.1.0/24"
+  cidr_block        = var.cidr_subnet_pub_1
 }
 
 
-#Create subnet #2  in eu-wast-3
-resource "aws_subnet" "subnet_2" {
+#Create subnet pub #2  in vpc
+resource "aws_subnet" "subnet_pub_2" {
   provider          = aws.region-master
   vpc_id            = aws_vpc.vpc_master.id
   availability_zone = element(data.aws_availability_zones.azs.names, 1)
-  cidr_block        = "10.0.2.0/24"
+  cidr_block        = var.cidr_subnet_pub_2
 }
 
-#Create subnet #3  in eu-wast-3
-resource "aws_subnet" "subnet_3" {
+#Create subnet pub #3  in vpc
+resource "aws_subnet" "subnet_pub_3" {
   provider          = aws.region-master
   vpc_id            = aws_vpc.vpc_master.id
   availability_zone = element(data.aws_availability_zones.azs.names, 2)
-  cidr_block        = "10.0.3.0/24"
+  cidr_block        = var.cidr_subnet_pub_3
 }
 
 #Create route table in us-east-1
@@ -70,5 +70,31 @@ resource "aws_main_route_table_association" "set-master-default-rt-assoc" {
   provider       = aws.region-master
   vpc_id         = aws_vpc.vpc_master.id
   route_table_id = aws_route_table.internet_route.id
+}
+
+
+#Create subnet priv # 1 in vpc
+resource "aws_subnet" "subnet_priv_1" {
+  provider          = aws.region-master
+  availability_zone = element(data.aws_availability_zones.azs.names, 0)
+  vpc_id            = aws_vpc.vpc_master.id
+  cidr_block        = var.cidr_subnet_priv_1
+}
+
+
+#Create subnet priv #2  in vpc
+resource "aws_subnet" "subnet_priv_2" {
+  provider          = aws.region-master
+  vpc_id            = aws_vpc.vpc_master.id
+  availability_zone = element(data.aws_availability_zones.azs.names, 1)
+  cidr_block        = var.cidr_subnet_priv_2
+}
+
+#Create subnet priv #3  in vpc
+resource "aws_subnet" "subnet_priv_3" {
+  provider          = aws.region-master
+  vpc_id            = aws_vpc.vpc_master.id
+  availability_zone = element(data.aws_availability_zones.azs.names, 2)
+  cidr_block        = var.cidr_subnet_priv_3
 }
 

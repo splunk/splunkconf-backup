@@ -301,7 +301,7 @@ resource aws_launch_template splunk-idx {
   }
   network_interfaces {
     device_index = 0
-    associate_public_ip_address = true
+    associate_public_ip_address = var.associate_public_ip
     security_groups = [aws_security_group.splunk-outbound.id,aws_security_group.splunk-idx.id]
   }
   tag_specifications {

@@ -52,7 +52,8 @@ resource "aws_security_group" "splunk-bastion" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
   name                = "asg-splunk-bastion"
-  vpc_zone_identifier = [aws_subnet.subnet_1.id, aws_subnet.subnet_2.id, aws_subnet.subnet_3.id]
+  # note : this has to be on pub network for the bastion to be reachable from outside
+  vpc_zone_identifier = [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id]
   desired_capacity    = 1
   max_size            = 1
   min_size            = 1

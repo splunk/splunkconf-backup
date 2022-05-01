@@ -161,6 +161,13 @@ variable "instance-type-iuf" {
   default = "t3a.nano"
 }
 
+variable "associate_public_ip" {
+  description = "define if the splunk instances will have a additional public ip (still require autorizing flows on top if applicable) or just use private networks"
+  type    = string
+  default = "true"
+  #default = "false"
+}
+
 #DNS Configuration
 
 #variable "dns-name" {

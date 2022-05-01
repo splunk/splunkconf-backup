@@ -95,7 +95,7 @@ resource "aws_security_group_rule" "iuf_from_all_icmpv6" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-iuf" {
   name = "asg-splunk-iuf"
-  vpc_zone_identifier  = [aws_subnet.subnet_1.id,aws_subnet.subnet_2.id,aws_subnet.subnet_3.id]
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id] : [aws_subnet.subnet_priv_1.id, aws_subnet.subnet_priv_2.id, aws_subnet.subnet_priv_3.id] )
   desired_capacity   = 0
   max_size           = 0
   min_size           = 0
@@ -132,7 +132,7 @@ resource aws_launch_template splunk-iuf {
   }
   network_interfaces {
     device_index = 0
-    associate_public_ip_address = true
+    associate_public_ip_address = var.associate_public_ip
     security_groups = [aws_security_group.splunk-outbound.id,aws_security_group.splunk-iuf.id]
   }
   tag_specifications {

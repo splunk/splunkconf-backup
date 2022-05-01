@@ -185,7 +185,7 @@ resource "aws_security_group_rule" "cm_from_iuf_8089" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-cm" {
   name = "asg-splunk-cm"
-  vpc_zone_identifier  = [aws_subnet.subnet_1.id,aws_subnet.subnet_2.id,aws_subnet.subnet_3.id]
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id] : [aws_subnet.subnet_priv_1.id, aws_subnet.subnet_priv_2.id, aws_subnet.subnet_priv_3.id] )
   desired_capacity   = 1
   max_size           = 1
   min_size           = 1
@@ -221,7 +221,7 @@ resource aws_launch_template splunk-cm {
   }
   network_interfaces {
     device_index = 0
-    associate_public_ip_address = true
+    associate_public_ip_address = var.associate_public_ip
     security_groups = [aws_security_group.splunk-outbound.id,aws_security_group.splunk-cm.id]
   }
   tag_specifications {

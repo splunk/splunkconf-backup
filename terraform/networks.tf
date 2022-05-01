@@ -49,7 +49,7 @@ resource "aws_subnet" "subnet_pub_3" {
   cidr_block        = var.cidr_subnet_pub_3
 }
 
-#Create route table in us-east-1
+#Create default route table in region
 resource "aws_route_table" "internet_route" {
   provider = aws.region-master
   vpc_id   = aws_vpc.vpc_master.id
@@ -98,3 +98,36 @@ resource "aws_subnet" "subnet_priv_3" {
   cidr_block        = var.cidr_subnet_priv_3
 }
 
+resource "aws_route_table" "private_route" {
+  provider = aws.region-master
+  vpc_id   = aws_vpc.vpc_master.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    # workaround for bastion in asg 
+    # as the bastion is in a asg group, the eni doesnt exist yet
+    # also there is current way to attach a any as part of a asg at the moment
+    # heavy workaround would be to start a lambda and add/remove the route table dynamically
+    # until this, please edit here to give the eni of the bastion that does nat instance 
+    # this is for test env only as a prod env would use a nat gateway (price per hour make it not compelling for just testing)
+    network_interface_id = "eni-024549cb31a489975"
+  }
+  #lifecycle {
+  #  ignore_changes = all
+  #}
+  tags = {
+    Name = "Private-Region-RT"
+  }
+}
+
+resource "aws_route_table_association" "private_1" {
+  subnet_id      = aws_subnet.subnet_priv_1.id
+  route_table_id = aws_route_table.private_route.id
+}
+resource "aws_route_table_association" "private_2" {
+  subnet_id      = aws_subnet.subnet_priv_2.id
+  route_table_id = aws_route_table.private_route.id
+}
+resource "aws_route_table_association" "private_3" {
+  subnet_id      = aws_subnet.subnet_priv_3.id
+  route_table_id = aws_route_table.private_route.id
+}

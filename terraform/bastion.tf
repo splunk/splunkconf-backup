@@ -38,6 +38,14 @@ resource "aws_security_group" "splunk-bastion" {
     cidr_blocks = var.splunkadmin-networks
   }
 
+  ingress {
+    from_port = 0
+    to_port   = 0
+    protocol  = -1
+    security_groups = [ aws_security_group.splunk-hf.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-idx.id, aws_security_group.splunk-sh.id, aws_security_group.splunk-iuf.id, aws_security_group.splunk-mc.id ]
+    self      = true
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -95,6 +103,8 @@ resource "aws_launch_template" "splunk-bastion" {
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = aws_key_pair.master-key.key_name
   instance_type = "t3a.nano"
+  # just recreate one if needed
+  instance_initiated_shutdown_behavior = "terminate"
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {
@@ -132,3 +142,22 @@ resource "aws_launch_template" "splunk-bastion" {
   user_data = filebase64("../buckets/bucket-install/install/user-data-bastion.txt")
 }
 
+#resource "aws_network_interface" "bastion_1" {
+#  subnet_id       = aws_subnet.subnet_pub_1.id
+#  private_ips     = ["10.0.1.50"]
+#  security_groups = [aws_security_group.splunk-bastion.id]
+#
+#}
+
+#resource "aws_network_interface" "bastion_2" {
+#  subnet_id       = aws_subnet.subnet_pub_2.id
+#  private_ips     = ["10.0.2.50"]
+#  security_groups = [aws_security_group.splunk-bastion.id]
+#
+#}
+
+#resource "aws_network_interface" "bastion_3" {
+#  subnet_id       = aws_subnet.subnet_pub_3.id
+#  private_ips     = ["10.0.3.50"]
+#  security_groups = [aws_security_group.splunk-bastion.id]
+#}

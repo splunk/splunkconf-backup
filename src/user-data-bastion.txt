@@ -23,5 +23,7 @@ aws ec2 modify-instance-attribute --no-source-dest-check --instance-id $INSTANCE
 
 sysctl -w net.ipv4.ip_forward=1
 /sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+# alternative with source
+#/sbin/iptables -t nat  -A POSTROUTING -s 10.0.0.0/16 -o eth0 -j MASQUERADE
 
 echo "end of user data script"

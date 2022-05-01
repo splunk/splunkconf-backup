@@ -98,7 +98,26 @@ resource "aws_subnet" "subnet_priv_3" {
   cidr_block        = var.cidr_subnet_priv_3
 }
 
-resource "aws_route_table" "private_route" {
+
+resource "aws_eip" "nat_gateway" {
+  count = var.use_nat_gateway ? 1 : 0
+  vpc = true
+}
+
+resource "aws_nat_gateway" "nat_gateway1" {
+  count = var.use_nat_gateway ? 1 : 0
+  allocation_id = aws_eip.nat_gateway[0].id
+  subnet_id     = aws_subnet.subnet_pub_1.id
+  tags = {
+    Name = "gw NAT"
+  }
+  # To ensure proper ordering, it is recommended to add an explicit dependency
+  # on the Internet Gateway for the VPC.
+  depends_on = [aws_internet_gateway.igw]
+}
+
+resource "aws_route_table" "private_route_instancegw" {
+  count = var.use_nat_gateway ? 0 : 1
   provider = aws.region-master
   vpc_id   = aws_vpc.vpc_master.id
   route {
@@ -111,23 +130,34 @@ resource "aws_route_table" "private_route" {
     # this is for test env only as a prod env would use a nat gateway (price per hour make it not compelling for just testing)
     network_interface_id = "eni-024549cb31a489975"
   }
-  #lifecycle {
-  #  ignore_changes = all
-  #}
   tags = {
     Name = "Private-Region-RT"
   }
 }
 
+resource "aws_route_table" "private_route_natgw1" {
+  count = var.use_nat_gateway ? 1 : 0
+  provider = aws.region-master
+  vpc_id   = aws_vpc.vpc_master.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat_gateway1[0].id
+  }
+  tags = {
+    Name = "Private-Region-RT"
+  }
+}
+
+
 resource "aws_route_table_association" "private_1" {
   subnet_id      = aws_subnet.subnet_priv_1.id
-  route_table_id = aws_route_table.private_route.id
+  route_table_id = ( var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
 }
 resource "aws_route_table_association" "private_2" {
   subnet_id      = aws_subnet.subnet_priv_2.id
-  route_table_id = aws_route_table.private_route.id
+  route_table_id = ( var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
 }
 resource "aws_route_table_association" "private_3" {
   subnet_id      = aws_subnet.subnet_priv_3.id
-  route_table_id = aws_route_table.private_route.id
+  route_table_id = ( var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
 }

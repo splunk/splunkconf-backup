@@ -1,6 +1,6 @@
 
 # this is for network.tf 
-# for iexsiting vpc and networks, you probably already have these defined
+# for existing vpc and networks, you probably already have these defined
 
 variable "vpc_cidr_block" {
   description = "private cidr network for vpc"
@@ -42,5 +42,18 @@ variable "cidr_subnet_priv_3" {
   description = "private cidr network for this subnet"
   type    = string
   default = "10.0.131.0/24"
+}
+
+variable "use_nat_gateway" {
+  description = "set this to true if you want to use nat gateway otherwise false to fall back to nat instance (for test only, read networks.tf)"
+  type = bool
+  default = true
+}
+
+# not yet implemented in networks.tf
+variable "nat_gateway_ha" {
+  description = "for a prod env, you probably want a nat gateway in each AZ so set this to true otherwise false. Only set this to true if use_nat_gateway is also true"
+  type = bool
+  default = true
 }
 

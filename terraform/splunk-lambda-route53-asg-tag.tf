@@ -171,3 +171,11 @@ resource "aws_lambda_permission" "allow_cloudwatch_route53asg" {
   source_arn    =  aws_cloudwatch_event_rule.asg.arn
   #qualifier     = aws_lambda_alias.route53asg_alias.name
 }
+
+# this is used to not destroy lambda immediately after asg as we need some time for eventbridge event to fire the lambda that will remove dsn entries in route53
+resource "time_sleep" "wait_asglambda_destroy" {
+  # timer for lambda is currently 60s
+  # high value for test only
+  destroy_duration = "1m"
+  depends_on = [aws_lambda_function.lambda_update-route53-tag,aws_cloudwatch_event_rule.asg,aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-assume-role,aws_cloudwatch_log_group.splunkconf_asg_logging,aws_route_table.internet_route,aws_main_route_table_association.set-master-default-rt-assoc,aws_cloudwatch_event_target.lambda_route53asg,aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-splunk-route53-updatednsrecords-forlambda,aws_iam_policy.lambda_logging,aws_lambda_alias.route53asg_alias,aws_lambda_permission.allow_cloudwatch_route53asg,aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-splunk-cloudwatch-write,aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-splunk-asg]
+}

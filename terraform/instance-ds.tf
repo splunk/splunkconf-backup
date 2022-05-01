@@ -199,7 +199,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
       }
     }
   }
-  depends_on = [null_resource.bucket_sync,aws_lambda_function.lambda_update-route53-tag]
+  depends_on = [null_resource.bucket_sync,aws_lambda_function.lambda_update-route53-tag,time_sleep.wait_asglambda_destroy]
 }
 
 resource "aws_launch_template" "splunk-ds" {

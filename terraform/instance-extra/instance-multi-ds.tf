@@ -254,6 +254,7 @@ resource "aws_launch_template" "splunk-ds" {
       splunks3installbucket = aws_s3_bucket.s3_install.id
       splunks3databucket    = aws_s3_bucket.s3_data.id
       splunkdnszone         = var.dns-zone-name
+      splunkdnsmode         = "lambda"
       splunkorg             = var.splunkorg
       splunktargetenv       = var.splunktargetenv
       splunktargetcm        = var.cm

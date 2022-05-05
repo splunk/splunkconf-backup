@@ -283,14 +283,14 @@ resource aws_launch_template splunk-idx {
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {
-      volume_size = 35
+      volume_size = var.disk-size-idx-a
       volume_type = "gp3"
     }
   }
   block_device_mappings {
     device_name = "/dev/sdb"
     ebs {
-      volume_size = 35
+      volume_size = var.disk-size-idx-b
       volume_type = "gp3"
     }
   }

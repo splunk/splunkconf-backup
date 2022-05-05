@@ -211,7 +211,7 @@ resource aws_launch_template splunk-cm {
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {
-      volume_size = 35
+      volume_size = var.disk-size-cm
       volume_type = "gp3"
     }
   }

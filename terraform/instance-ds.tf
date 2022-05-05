@@ -210,7 +210,7 @@ resource "aws_launch_template" "splunk-ds" {
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {
-      volume_size = 35
+      volume_size = var.disk-size-ds
       volume_type = "gp3"
     }
   }

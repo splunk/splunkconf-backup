@@ -45,6 +45,18 @@ variable "instance-type-indexer-default" {
   default = "t3a.nano"
 }
 
+variable "disk-size-idx-a" {
+  description = "disk size in G (first disk)"
+  type    = number
+  default = 35
+}
+
+variable "disk-size-idx-b" {
+  description = "disk size in G (second disk if used)"
+  type    = number
+  default = 35
+}
+
 variable "bastion" {
   description = "bastion / nat instance name"
   type        = string
@@ -90,6 +102,14 @@ variable "instance-type-cm" {
   default = "t3a.nano"
 }
 
+variable "disk-size-cm" {
+  description = "disk size in G"
+  type    = number
+  default = 35
+}
+
+
+
 variable "ds" {
   type    = string
   default = "ds3"
@@ -98,6 +118,12 @@ variable "ds" {
 variable "instance-type-ds" {
   type    = string
   default = "t3a.nano"
+}
+
+variable "disk-size-ds" {
+  description = "disk size in G"
+  type    = number
+  default = 35
 }
 
 variable "splunktar" {
@@ -131,6 +157,12 @@ variable "instance-type-sh" {
   default = "t3a.nano"
 }
 
+variable "disk-size-sh" {
+  description = "disk size in G"
+  type    = number
+  default = 100
+}
+
 variable "mc" {
   type    = string
   default = "mc3"
@@ -139,6 +171,12 @@ variable "mc" {
 variable "instance-type-mc" {
   type    = string
   default = "t3a.nano"
+}
+
+variable "disk-size-mc" {
+  description = "disk size in G"
+  type    = number
+  default = 35
 }
 
 variable "hf" {
@@ -151,6 +189,12 @@ variable "instance-type-hf" {
   default = "t3a.nano"
 }
 
+variable "disk-size-hf" {
+  description = "disk size in G"
+  type    = number
+  default = 35
+}
+
 variable "iuf" {
   type    = string
   default = "iuf3"
@@ -159,6 +203,12 @@ variable "iuf" {
 variable "instance-type-iuf" {
   type    = string
   default = "t3a.nano"
+}
+
+variable "disk-size-iuf" {
+  description = "disk size in G"
+  type    = number
+  default = 35
 }
 
 variable "associate_public_ip" {

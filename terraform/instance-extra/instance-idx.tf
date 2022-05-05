@@ -5,7 +5,8 @@ resource "aws_iam_role" "role-splunk-idx" {
   name                  = "role-splunk-idx-3"
   force_detach_policies = true
   description           = "iam role for splunk idx"
-  assume_role_policy    = file("policy-aws/assumerolepolicy.json")
+  assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
+  provider              = aws.region-master
 
   tags = {
     Name = "splunk"
@@ -15,30 +16,35 @@ resource "aws_iam_role" "role-splunk-idx" {
 resource "aws_iam_instance_profile" "role-splunk-idx_profile" {
   name = "role-splunk-idx_profile"
   role = aws_iam_role.role-splunk-idx.name
+  provider              = aws.region-master
 }
 
 resource "aws_iam_policy_attachment" "idx-attach-splunk-splunkconf-backup" {
   name       = "idx-attach-splunk-splunkconf-backup"
   roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
+  provider              = aws.region-master
 }
 
 resource "aws_iam_policy_attachment" "idx-attach-splunk-route53-updatednsrecords" {
   name       = "idx-attach-splunk-route53-updatednsrecords"
   roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
+  provider              = aws.region-master
 }
 
 resource "aws_iam_policy_attachment" "idx-attach-splunk-ec2" {
   name       = "idx-attach-splunk-ec2"
   roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
+  provider   = aws.region-master
 }
 
 resource "aws_iam_policy_attachment" "idx-attach-splunk-smartstore" {
   name       = "idx-attach-splunk-smartstore"
   roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-smartstore.arn
+  provider   = aws.region-master
 }
 
 resource "aws_iam_policy_attachment" "idx-attach-ssm-managedinstance" {

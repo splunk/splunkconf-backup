@@ -3,7 +3,7 @@ resource "aws_iam_role" "role-splunk-ds" {
   name                  = "role-splunk-ds-3"
   force_detach_policies = true
   description           = "iam role for splunk ds"
-  assume_role_policy    = file("policy-aws/assumerolepolicy.json")
+  assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
 
   tags = {
     Name = "splunk"

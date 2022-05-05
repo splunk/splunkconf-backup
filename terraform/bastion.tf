@@ -42,7 +42,7 @@ resource "aws_security_group" "splunk-bastion" {
     from_port       = 0
     to_port         = 0
     protocol        = -1
-    security_groups = [aws_security_group.splunk-hf.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-idx.id, aws_security_group.splunk-sh.id, aws_security_group.splunk-iuf.id, aws_security_group.splunk-mc.id]
+    security_groups = [aws_security_group.splunk-hf.id, aws_security_group.splunk-cm.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-idx.id, aws_security_group.splunk-sh.id, aws_security_group.splunk-iuf.id, aws_security_group.splunk-mc.id]
     self            = true
   }
 

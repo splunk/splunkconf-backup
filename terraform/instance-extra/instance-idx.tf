@@ -254,10 +254,10 @@ resource "aws_security_group_rule" "idx_from_networks_log" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
   name = "asg-splunk-idx"
-  vpc_zone_identifier  = [aws_subnet.subnet_1.id,aws_subnet.subnet_2.id,aws_subnet.subnet_3.id]
-  desired_capacity   = 3
-  max_size           = 3
-  min_size           = 3
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id] : [aws_subnet.subnet_priv_1.id, aws_subnet.subnet_priv_2.id, aws_subnet.subnet_priv_3.id] )
+  desired_capacity   = var.idx-nb
+  max_size           = var.idx-nb
+  min_size           = var.idx-nb
   mixed_instances_policy {
     launch_template {
       launch_template_specification {

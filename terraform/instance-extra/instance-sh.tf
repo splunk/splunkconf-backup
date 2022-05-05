@@ -34,7 +34,7 @@ resource "aws_iam_policy_attachment" "sh-attach-splunk-ec2" {
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
 }
 
-resource "awRs_iam_policy_attachment" "sh-attach-ssm-managedinstance" {
+resource "aws_iam_policy_attachment" "sh-attach-ssm-managedinstance" {
   name       = "sh-attach-ssm-managedinstance"
   roles      = [aws_iam_role.role-splunk-sh.name]
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"

@@ -57,6 +57,12 @@ variable "disk-size-idx-b" {
   default = 35
 }
 
+variable "idx-nb" {
+  description = "target indexer number in ASG"
+  type    = number
+  default = 3
+}
+
 variable "bastion" {
   description = "bastion / nat instance name"
   type        = string

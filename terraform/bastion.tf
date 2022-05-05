@@ -21,7 +21,7 @@ resource "aws_iam_instance_profile" "role-splunk-bastion_profile" {
 resource "aws_iam_role_policy_attachment" "bastion-attach-splunk-ec2" {
   #name       = "bastion-attach-splunk-ec2"
   #roles      = [aws_iam_role.role-splunk-bastion.name]
-  role      = aws_iam_role.role-splunk-bastion.name
+  role       = aws_iam_role.role-splunk-bastion.name
   policy_arn = aws_iam_policy.pol-splunk-bastion.arn
 }
 
@@ -31,19 +31,19 @@ resource "aws_security_group" "splunk-bastion" {
   vpc_id      = aws_vpc.vpc_master.id
 
   ingress {
-    from_port = 22
-    to_port   = 22
-    protocol  = "tcp"
-    self      = false
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    self        = false
     cidr_blocks = var.splunkadmin-networks
   }
 
   ingress {
-    from_port = 0
-    to_port   = 0
-    protocol  = -1
-    security_groups = [ aws_security_group.splunk-hf.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-idx.id, aws_security_group.splunk-sh.id, aws_security_group.splunk-iuf.id, aws_security_group.splunk-mc.id ]
-    self      = true
+    from_port       = 0
+    to_port         = 0
+    protocol        = -1
+    security_groups = [aws_security_group.splunk-hf.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-idx.id, aws_security_group.splunk-sh.id, aws_security_group.splunk-iuf.id, aws_security_group.splunk-mc.id]
+    self            = true
   }
 
   egress {
@@ -59,7 +59,7 @@ resource "aws_security_group" "splunk-bastion" {
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
-  name                = "asg-splunk-bastion"
+  name = "asg-splunk-bastion"
   # note : this has to be on pub network for the bastion to be reachable from outside
   vpc_zone_identifier = [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id]
   desired_capacity    = 1
@@ -92,7 +92,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
     value               = local.dns-prefix
     propagate_at_launch = false
   }
-  depends_on = [null_resource.bucket_sync,aws_lambda_function.lambda_update-route53-tag,time_sleep.wait_asglambda_destroy,aws_security_group.splunk-bastion,aws_iam_role.role-splunk-bastion]
+  depends_on = [null_resource.bucket_sync, aws_lambda_function.lambda_update-route53-tag, time_sleep.wait_asglambda_destroy, aws_security_group.splunk-bastion, aws_iam_role.role-splunk-bastion]
 }
 
 
@@ -127,11 +127,11 @@ resource "aws_launch_template" "splunk-bastion" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name                = var.bastion
-# not used for bastion 
-#      splunkinstanceType  = var.bastion
-#      splunkosupdatemode  = var.splunkosupdatemode
-#      splunkconnectedmode = var.splunkconnectedmode
+      Name = var.bastion
+      # not used for bastion 
+      #      splunkinstanceType  = var.bastion
+      #      splunkosupdatemode  = var.splunkosupdatemode
+      #      splunkconnectedmode = var.splunkconnectedmode
     }
   }
   metadata_options {

@@ -183,9 +183,9 @@ resource "aws_security_group_rule" "ds_from_networks_ipv6_8089" {
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
-  provider    = aws.region-master
+  provider            = aws.region-master
   name                = "asg-splunk-ds"
-  vpc_zone_identifier = (var.associate_public_ip == "true" ? [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id] : [aws_subnet.subnet_priv_1.id, aws_subnet.subnet_priv_2.id, aws_subnet.subnet_priv_3.id] )
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id] : [aws_subnet.subnet_priv_1.id, aws_subnet.subnet_priv_2.id, aws_subnet.subnet_priv_3.id])
   desired_capacity    = 1
   max_size            = 1
   min_size            = 1
@@ -222,12 +222,12 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
   }
 
 
-  depends_on = [null_resource.bucket_sync,aws_lambda_function.lambda_update-route53-tag,time_sleep.wait_asglambda_destroy]
+  depends_on = [null_resource.bucket_sync, aws_lambda_function.lambda_update-route53-tag, time_sleep.wait_asglambda_destroy]
 }
 
 resource "aws_launch_template" "splunk-ds" {
   #name          = "splunk-ds"
-  name_prefix          = "splunk-ds-"
+  name_prefix   = "splunk-ds-"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = aws_key_pair.master-key.key_name
   instance_type = "t3a.nano"

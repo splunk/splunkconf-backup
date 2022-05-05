@@ -2,10 +2,10 @@
 # *********************** MC ********************
 
 resource "aws_iam_role" "role-splunk-mc" {
-  name = "role-splunk-mc-3"
+  name                  = "role-splunk-mc-3"
   force_detach_policies = true
-  description = "iam role for splunk mc"
-  assume_role_policy = file("policy-aws/assumerolepolicy.json")
+  description           = "iam role for splunk mc"
+  assume_role_policy    = file("policy-aws/assumerolepolicy.json")
 
   tags = {
     Name = "splunk"
@@ -13,7 +13,7 @@ resource "aws_iam_role" "role-splunk-mc" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-mc_profile" {
-  name  = "role-splunk-mc_profile"
+  name = "role-splunk-mc_profile"
   role = aws_iam_role.role-splunk-mc.name
 }
 
@@ -41,24 +41,24 @@ resource "aws_iam_policy_attachment" "mc-attach-ssm-managedinstance" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-resource "aws_security_group_rule" "mc_from_bastion_ssh" { 
-  security_group_id = aws_security_group.splunk-mc.id
-  type      = "ingress"
-  from_port = 22
-  to_port   = 22
-  protocol  = "tcp"
+resource "aws_security_group_rule" "mc_from_bastion_ssh" {
+  security_group_id        = aws_security_group.splunk-mc.id
+  type                     = "ingress"
+  from_port                = 22
+  to_port                  = 22
+  protocol                 = "tcp"
   source_security_group_id = aws_security_group.splunk-bastion.id
-  description = "allow SSH connection from bastion host"
+  description              = "allow SSH connection from bastion host"
 }
 
-resource "aws_security_group_rule" "mc_from_splunkadmin-networks_ssh" { 
+resource "aws_security_group_rule" "mc_from_splunkadmin-networks_ssh" {
   security_group_id = aws_security_group.splunk-mc.id
-  type      = "ingress"
-  from_port = 22
-  to_port   = 22
-  protocol  = "tcp"
-  cidr_blocks = var.splunkadmin-networks
-  description = "allow SSH connection from splunk admin networks"
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = var.splunkadmin-networks
+  description       = "allow SSH connection from splunk admin networks"
 }
 
 #resource "aws_security_group_rule" "mc_from_splunkadmin-networks-ipv6_ssh" { 
@@ -71,14 +71,14 @@ resource "aws_security_group_rule" "mc_from_splunkadmin-networks_ssh" {
 #  description = "allow SSH connection from splunk admin networks"
 #}
 
-resource "aws_security_group_rule" "mc_from_splunkadmin-networks_webui" { 
+resource "aws_security_group_rule" "mc_from_splunkadmin-networks_webui" {
   security_group_id = aws_security_group.splunk-mc.id
-  type      = "ingress"
-  from_port = 8000
-  to_port   = 8000
-  protocol  = "tcp"
-  cidr_blocks = var.splunkadmin-networks
-  description = "allow Webui connection from splunk admin networks"
+  type              = "ingress"
+  from_port         = 8000
+  to_port           = 8000
+  protocol          = "tcp"
+  cidr_blocks       = var.splunkadmin-networks
+  description       = "allow Webui connection from splunk admin networks"
 }
 
 #resource "aws_security_group_rule" "mc_from_splunkadmin-networks-ipv6_webui" { 
@@ -91,40 +91,40 @@ resource "aws_security_group_rule" "mc_from_splunkadmin-networks_webui" {
 #  description = "allow Webui connection from splunk admin networks"
 #}
 
-resource "aws_security_group_rule" "mc_from_all_icmp" { 
+resource "aws_security_group_rule" "mc_from_all_icmp" {
   security_group_id = aws_security_group.splunk-mc.id
-  type      = "ingress"
-  from_port = -1
-  to_port   = -1
-  protocol  = "icmp"
-  cidr_blocks = ["0.0.0.0/0"]
-  description = "allow icmp (ping, icmp path discovery, unreachable,...)"
+  type              = "ingress"
+  from_port         = -1
+  to_port           = -1
+  protocol          = "icmp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "allow icmp (ping, icmp path discovery, unreachable,...)"
 }
 
-resource "aws_security_group_rule" "mc_from_all_icmpv6" { 
+resource "aws_security_group_rule" "mc_from_all_icmpv6" {
   security_group_id = aws_security_group.splunk-mc.id
-  type      = "ingress"
-  from_port = -1
-  to_port   = -1
-  protocol  = "icmpv6"
-  ipv6_cidr_blocks = ["::/0"]
-  description = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
+  type              = "ingress"
+  from_port         = -1
+  to_port           = -1
+  protocol          = "icmpv6"
+  ipv6_cidr_blocks  = ["::/0"]
+  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-mc" {
-  name = "asg-splunk-mc"
-  vpc_zone_identifier = (var.associate_public_ip == "true" ? [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id] : [aws_subnet.subnet_priv_1.id, aws_subnet.subnet_priv_2.id, aws_subnet.subnet_priv_3.id] )
-  desired_capacity   = 1
-  max_size           = 1
-  min_size           = 1
+  name                = "asg-splunk-mc"
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id] : [aws_subnet.subnet_priv_1.id, aws_subnet.subnet_priv_2.id, aws_subnet.subnet_priv_3.id])
+  desired_capacity    = 1
+  max_size            = 1
+  min_size            = 1
   mixed_instances_policy {
     launch_template {
       launch_template_specification {
-        launch_template_id      = aws_launch_template.splunk-mc.id
-        version = "$Latest"
+        launch_template_id = aws_launch_template.splunk-mc.id
+        version            = "$Latest"
       }
       override {
-        instance_type     = "t3a.nano"
+        instance_type = "t3a.nano"
       }
     }
   }
@@ -153,11 +153,11 @@ resource "aws_autoscaling_group" "autoscaling-splunk-mc" {
   depends_on = [null_resource.bucket_sync]
 }
 
-resource aws_launch_template splunk-mc {
-  name = "splunk-mc"
-  image_id                         = data.aws_ssm_parameter.linuxAmi.value
-  key_name                    = aws_key_pair.master-key.key_name
-  instance_type     = "t3a.nano"
+resource "aws_launch_template" "splunk-mc" {
+  name          = "splunk-mc"
+  image_id      = data.aws_ssm_parameter.linuxAmi.value
+  key_name      = aws_key_pair.master-key.key_name
+  instance_type = "t3a.nano"
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {
@@ -165,34 +165,34 @@ resource aws_launch_template splunk-mc {
       volume_type = "gp3"
     }
   }
-#  ebs_optimized = true
-#  vpc_security_group_ids = [aws_security_group.splunk-cm.id]
+  #  ebs_optimized = true
+  #  vpc_security_group_ids = [aws_security_group.splunk-cm.id]
   iam_instance_profile {
     name = "role-splunk-mc_profile"
   }
   network_interfaces {
-    device_index = 0
+    device_index                = 0
     associate_public_ip_address = var.associate_public_ip
-    security_groups = [aws_security_group.splunk-outbound.id,aws_security_group.splunk-mc.id]
+    security_groups             = [aws_security_group.splunk-outbound.id, aws_security_group.splunk-mc.id]
   }
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = var.mc
-      splunkinstanceType = var.mc
-      splunks3backupbucket = aws_s3_bucket.s3_backup.id
+      Name                  = var.mc
+      splunkinstanceType    = var.mc
+      splunks3backupbucket  = aws_s3_bucket.s3_backup.id
       splunks3installbucket = aws_s3_bucket.s3_install.id
-      splunks3databucket = aws_s3_bucket.s3_data.id
-      splunkdnszone = var.dns-zone-name
-      splunkorg = var.splunkorg
-      splunktargetenv = var.splunktargetenv
-      splunktargetbinary = var.splunktargetbinary
-      splunktargetcm = var.cm
-      splunktargetlm = var.lm
-      splunktargetds = var.ds
-      splunkcloudmode = var.splunkcloudmode
-      splunkosupdatemode = var.splunkosupdatemode
-      splunkconnectedmode = var.splunkconnectedmode
+      splunks3databucket    = aws_s3_bucket.s3_data.id
+      splunkdnszone         = var.dns-zone-name
+      splunkorg             = var.splunkorg
+      splunktargetenv       = var.splunktargetenv
+      splunktargetbinary    = var.splunktargetbinary
+      splunktargetcm        = var.cm
+      splunktargetlm        = var.lm
+      splunktargetds        = var.ds
+      splunkcloudmode       = var.splunkcloudmode
+      splunkosupdatemode    = var.splunkosupdatemode
+      splunkconnectedmode   = var.splunkconnectedmode
     }
   }
   metadata_options {

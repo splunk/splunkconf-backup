@@ -158,9 +158,9 @@ data "template_file" "pol-splunk-lambda-asg" {
 }
 
 resource "aws_iam_policy" "pol-splunk-lambda-asg" {
-   description = "Permissions needed specific for ASG Lambda execution"
-   provider    = aws.region-master
-   policy      = data.template_file.pol-splunk-lambda-asg.rendered
+  description = "Permissions needed specific for ASG Lambda execution"
+  provider    = aws.region-master
+  policy      = data.template_file.pol-splunk-lambda-asg.rendered
 }
 
 

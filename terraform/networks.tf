@@ -101,11 +101,11 @@ resource "aws_subnet" "subnet_priv_3" {
 
 resource "aws_eip" "nat_gateway" {
   count = var.use_nat_gateway ? 1 : 0
-  vpc = true
+  vpc   = true
 }
 
 resource "aws_nat_gateway" "nat_gateway1" {
-  count = var.use_nat_gateway ? 1 : 0
+  count         = var.use_nat_gateway ? 1 : 0
   allocation_id = aws_eip.nat_gateway[0].id
   subnet_id     = aws_subnet.subnet_pub_1.id
   tags = {
@@ -117,7 +117,7 @@ resource "aws_nat_gateway" "nat_gateway1" {
 }
 
 resource "aws_route_table" "private_route_instancegw" {
-  count = var.use_nat_gateway ? 0 : 1
+  count    = var.use_nat_gateway ? 0 : 1
   provider = aws.region-master
   vpc_id   = aws_vpc.vpc_master.id
   route {
@@ -136,11 +136,11 @@ resource "aws_route_table" "private_route_instancegw" {
 }
 
 resource "aws_route_table" "private_route_natgw1" {
-  count = var.use_nat_gateway ? 1 : 0
+  count    = var.use_nat_gateway ? 1 : 0
   provider = aws.region-master
   vpc_id   = aws_vpc.vpc_master.id
   route {
-    cidr_block = "0.0.0.0/0"
+    cidr_block     = "0.0.0.0/0"
     nat_gateway_id = aws_nat_gateway.nat_gateway1[0].id
   }
   tags = {
@@ -151,13 +151,13 @@ resource "aws_route_table" "private_route_natgw1" {
 
 resource "aws_route_table_association" "private_1" {
   subnet_id      = aws_subnet.subnet_priv_1.id
-  route_table_id = ( var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
+  route_table_id = (var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
 }
 resource "aws_route_table_association" "private_2" {
   subnet_id      = aws_subnet.subnet_priv_2.id
-  route_table_id = ( var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
+  route_table_id = (var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
 }
 resource "aws_route_table_association" "private_3" {
   subnet_id      = aws_subnet.subnet_priv_3.id
-  route_table_id = ( var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
+  route_table_id = (var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
 }

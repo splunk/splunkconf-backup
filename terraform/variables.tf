@@ -47,20 +47,20 @@ variable "instance-type-indexer-default" {
 
 variable "disk-size-idx-a" {
   description = "disk size in G (first disk)"
-  type    = number
-  default = 35
+  type        = number
+  default     = 35
 }
 
 variable "disk-size-idx-b" {
   description = "disk size in G (second disk if used)"
-  type    = number
-  default = 35
+  type        = number
+  default     = 35
 }
 
 variable "idx-nb" {
   description = "target indexer number in ASG"
-  type    = number
-  default = 3
+  type        = number
+  default     = 3
 }
 
 variable "bastion" {
@@ -110,8 +110,8 @@ variable "instance-type-cm" {
 
 variable "disk-size-cm" {
   description = "disk size in G"
-  type    = number
-  default = 35
+  type        = number
+  default     = 35
 }
 
 
@@ -128,8 +128,8 @@ variable "instance-type-ds" {
 
 variable "disk-size-ds" {
   description = "disk size in G"
-  type    = number
-  default = 35
+  type        = number
+  default     = 35
 }
 
 variable "splunktar" {
@@ -165,8 +165,8 @@ variable "instance-type-sh" {
 
 variable "disk-size-sh" {
   description = "disk size in G"
-  type    = number
-  default = 100
+  type        = number
+  default     = 100
 }
 
 variable "mc" {
@@ -181,8 +181,8 @@ variable "instance-type-mc" {
 
 variable "disk-size-mc" {
   description = "disk size in G"
-  type    = number
-  default = 35
+  type        = number
+  default     = 35
 }
 
 variable "hf" {
@@ -197,8 +197,8 @@ variable "instance-type-hf" {
 
 variable "disk-size-hf" {
   description = "disk size in G"
-  type    = number
-  default = 35
+  type        = number
+  default     = 35
 }
 
 variable "iuf" {
@@ -213,13 +213,13 @@ variable "instance-type-iuf" {
 
 variable "disk-size-iuf" {
   description = "disk size in G"
-  type    = number
-  default = 35
+  type        = number
+  default     = 35
 }
 
 variable "associate_public_ip" {
   description = "define if the splunk instances will have a additional public ip (still require autorizing flows on top if applicable) or just use private networks"
-  type    = string
+  type        = string
   #default = "true"
   default = "false"
 }
@@ -233,21 +233,21 @@ variable "associate_public_ip" {
 
 variable "dns-zone-name" {
   description = "Please give here a public dns sub zone like splunk.acme.com that is cloud managed so we can publish dns entries in it as instances start and stop"
-  type    = string
-  default = "cloud.plouic.com."
+  type        = string
+  default     = "cloud.plouic.com."
 }
 
 variable "dns-prefix" {
   description = "this setting will tell the lambda function to add this prefix to all names. This is mainly useful for testing lambda without overriding normal names in use. Use disabled to not add prefix. If tag unset, lambda- will be used as prefix (look at local.dns-prefix logic, it will the region if you dont change the locals version)"
-  type    = string
-  default = "region-"
+  type        = string
+  default     = "region-"
   #default = "disabled"
 }
 
 locals {
-# we have to create as local to be able to use a variable
-# comment and use the second version if you prefer specify it
-  dns-prefix="${var.dns-prefix == "region-" ? format("%s-",var.region-master) : var.dns-prefix}"
+  # we have to create as local to be able to use a variable
+  # comment and use the second version if you prefer specify it
+  dns-prefix = var.dns-prefix == "region-" ? format("%s-", var.region-master) : var.dns-prefix
   #dns-prefix=var.dns-prefix
 }
 

@@ -190,7 +190,7 @@ In dev, partially implemented
 
 | Tag | Description | Status |
 | --- | --- | --- |
-| splunkconnectedmode | # 0 = auto (try to detect connectivity) (default if not set) # 1 = connected (set it if auto fail and you think you are connected) # 2 = yum only (may be via proxy or local repo if yum configured correctly) # 3 = no connection, yum disabled | Optional |
+| splunkconnectedmode | # 0 = auto (try to detect connectivity, currently fallback to connected) (default if not set) # 1 = connected (set it if auto fail and you think you are connected) # 2 = yum only (may be via proxy or local repo if yum configured correctly) # 3 = no connection, yum disabled | Optional (implemented, except for autodetection)|
 
 
 

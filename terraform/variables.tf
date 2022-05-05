@@ -30,7 +30,7 @@ variable "splunkcloudmode" {
 }
 
 variable "splunkconnectedmode" {
-  description = "(partially implemented) # 0 = auto (try to detect connectivity) (default if not set) # 1 = connected (set it if auto fail and you think you are connected) # 2 = yum only (may be via proxy or local repo if yum configured correctly) # 3 = no connection, yum disabled"
+  description = "(autodetection not yet implemented, will assume connected) # 0 = auto (try to detect connectivity) (default if not set) # 1 = connected (set it if auto fail and you think you are connected) # 2 = yum only (may be via proxy or local repo if yum configured correctly) # 3 = no connection, yum disabled"
   type        = string
   default     = "0"
 }

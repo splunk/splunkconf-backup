@@ -226,15 +226,10 @@ variable "associate_public_ip" {
 
 #DNS Configuration
 
-#variable "dns-name" {
-#  type    = string
-#  default = "cloud.plouic.com."
-#}
-
 variable "dns-zone-name" {
   description = "Please give here a public dns sub zone like splunk.acme.com that is cloud managed so we can publish dns entries in it as instances start and stop"
   type        = string
-  default     = "cloud.plouic.com."
+  default     = "splunk.acme.com"
 }
 
 variable "dns-prefix" {

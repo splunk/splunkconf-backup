@@ -149,8 +149,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220420 Fix regression that would try deploy multids when singleds case by adding a constraint on tag set for it
 # 20220421 add logic for splunkconnectedmode 
 # 20220421 move disk logic to functions, add comments for block to make log faster to read
+# 20220506 update regex to replace lm when tag set
 
-VERSION="20220421c"
+VERSION="20220506a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1652,7 +1653,7 @@ else
   else 
     echo "tag splunktargetlm is set to $splunktargetlm and will be used as the short name for master_uri config under [license] in server.conf to ref the LM" >> /var/log/splunkconf-cloud-recovery-info.log
     echo "using splunkdnszone ${splunkdnszone} from instance tags [license] master_uri=${splunktargetlm}.${splunkdnszone}:8089 (lm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
-    ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -I FILE -L 1 sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkdnszone}:8089%" FILE
+    ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -L 1 sed -i -e "s%^[^#]{1}.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkdnszone}:8089%" 
   fi
   # fixme add shc deployer case here
 fi

@@ -8,7 +8,12 @@ resource "aws_s3_bucket" "s3_install" {
   # }
   # for test
   force_destroy = true
+}
 
+resource "aws_s3_bucket_public_access_block" "s3_install" {
+  bucket = aws_s3_bucket.s3_install.id
+  block_public_acls   = true
+  block_public_policy = true
 }
 
 # aws provider change with 4.0 
@@ -76,7 +81,12 @@ resource "aws_s3_bucket" "s3_backup" {
   #}
   # for test
   force_destroy = true
+}
 
+resource "aws_s3_bucket_public_access_block" "s3_backup" {
+  bucket = aws_s3_bucket.s3_backup.id
+  block_public_acls   = true
+  block_public_policy = true
 }
 
 # aws provider change with 4.0 
@@ -123,7 +133,12 @@ resource "aws_s3_bucket" "s3_data" {
   #}
   # for test
   force_destroy = true
+}
 
+resource "aws_s3_bucket_public_access_block" "s3_data" {
+  bucket = aws_s3_bucket.s3_data.id
+  block_public_acls   = true
+  block_public_policy = true
 }
 
 # aws provider change with 4.0 

@@ -88,6 +88,7 @@
 # 20220119 add more tests and messages for DS splunk-launch tuning and restart service after applying
 # 20220203 fix warning in test condition
 # 20220316 add logic for splunktar without DS
+# 20220611 fix test condition "generated"
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -97,7 +98,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20220316a";
+$VERSION="20220611a";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -857,7 +858,7 @@ if ($enablesystemd==1 ) {
   # removing all init file if needed
   print "disabling boot-start via $SPLUNK_HOME/bin/splunk disable boot-start\n";
   `$SPLUNK_HOME/bin/splunk disable boot-start`;
-  if ($systemdpolkit=="generated") {
+  if ($systemdpolkit eq "generated") {
     print "enabling boot-start via $SPLUNK_HOME/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user $USERSPLUNK -group $GROUPSPLUNK -systemd-managed 1 -systemd-unit-file-name $servicename -create-polkit-rules 1\n";
     `$SPLUNK_HOME/bin/splunk enable boot-start --accept-license --answer-yes --no-prompt -user $USERSPLUNK -group $GROUPSPLUNK -systemd-managed 1 -systemd-unit-file-name $servicename -create-polkit-rules 1`;
   } else {

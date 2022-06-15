@@ -1,7 +1,7 @@
 #!/bin/bash -x 
 exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 
-# Copyright 2021 Splunk Inc.
+# Copyright 2022 Splunk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -150,8 +150,11 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220421 add logic for splunkconnectedmode 
 # 20220421 move disk logic to functions, add comments for block to make log faster to read
 # 20220506 update regex to replace lm when tag set
+# 20220507 include splunk untar here for non rpmn case and move lm tag management after binary to get btool working at this point
+# 20220611 add condition test to prevent false warning in debug log + add explicit message when old splunkconf-backup in scripts found 
+# 20220615 up to v9.0.0 by default
 
-VERSION="20220506a"
+VERSION="20220615a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -450,6 +453,19 @@ extend_fs () {
     mount |grep " /opt/splunk " |  cut -s -d" " -f 1 | xargs lvextend --resizefs -l +100%FREE
     echo "trying to extend / via LVM if created in AMI"
     mount |grep " / " |  cut -s -d" " -f 1 | xargs lvextend --resizefs -l +100%FREE
+}
+
+tag_replacement () {
+  if [ ! -z ${splunkdnszone+x} ]; then 
+    # lm case 
+    if [ -z ${splunktargetlm+x} ]; then
+      echo "tag splunktargetlm not set, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
+    else 
+      echo "tag splunktargetlm is set to $splunktargetlm and will be used as the short name for master_uri config under [license] in server.conf to ref the LM" >> /var/log/splunkconf-cloud-recovery-info.log
+      echo "using splunkdnszone ${splunkdnszone} from instance tags [license] master_uri=${splunktargetlm}.${splunkdnszone}:8089 (lm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
+      ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -L 1 sed -i -e "s%^[^#]{1}.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkdnszone}:8089%" 
+    fi
+  fi
 }
 
 echo "#*************************************  START  ********************************************************"
@@ -972,7 +988,8 @@ echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATIO
 #splbinary="splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm"
 #splbinary="splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm"
-splbinary="splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm"
+#splbinary="splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm"
+splbinary="splunk-9.0.0-6818ac46f2ec-linux-2.6-x86_64.rpm"
 
 
 if [ "$splunkmode" == "uf" ]; then 
@@ -1008,7 +1025,8 @@ if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     #`wget -q -O ${localinstalldir}/splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm 'https://d7wz6hmoaavd0.cloudfront.net/products/splunk/releases/8.2.2/linux/splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm'`
     #`wget -q -O ${localinstalldir}/splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm 'https://download.splunk.com/products/splunk/releases/8.2.4/linux/splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm'`
     #`wget -q -O ${localinstalldir}/splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/8.2.5/linux/splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm"`
-    `wget -q -O ${localinstalldir}/splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/8.2.6/linux/splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm"`
+    #`wget -q -O ${localinstalldir}/splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/8.2.6/linux/splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm"`
+     `wget -q -O ${localinstalldir}/splunk-9.0.0-6818ac46f2ec-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/9.0.0/linux/splunk-9.0.0-6818ac46f2ec-linux-2.6-x86_64.rpm"`
   fi
   if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install (or fix the wget with wget -q -O ... if you just copied paste wget))  " >> /var/log/splunkconf-cloud-recovery-info.log
@@ -1647,14 +1665,6 @@ else
     find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "deploymentclient.conf" -exec grep -l targetUri {} \; -exec sed -i -e "s%^.*targetUri.*=.*$%targetUri=${splunktargetds}.${splunkdnszone}:8089%" {} \; 
   # $$ echo "targetUri replaced" || echo "targetUri not replaced"
   fi
-  # lm case 
-  if [ -z ${splunktargetlm+x} ]; then
-    echo "tag splunktargetlm not set, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
-  else 
-    echo "tag splunktargetlm is set to $splunktargetlm and will be used as the short name for master_uri config under [license] in server.conf to ref the LM" >> /var/log/splunkconf-cloud-recovery-info.log
-    echo "using splunkdnszone ${splunkdnszone} from instance tags [license] master_uri=${splunktargetlm}.${splunkdnszone}:8089 (lm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
-    ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -L 1 sed -i -e "s%^[^#]{1}.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkdnszone}:8089%" 
-  fi
   # fixme add shc deployer case here
 fi
 
@@ -1690,6 +1700,11 @@ fi
 echo "#********************************************SPLUNK BINARY INSTALLATION*****************************"
 if [ "$INSTALLMODE" = "tgz" ]; then
   echo "disabling rpm install as install via tar"
+  mkdir -p $SPLUNK_HOME
+  cd $SPLUNK_HOME
+  splunktar="${localinstalldir}/${splbinary}"
+  # we need to install here in order to get btool working which is needed for tag replacement
+  tar --strip-components=1 -zxvf $splunktar
 else
   echo "installing/upgrading splunk via RPM using ${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
   # install or upgrade
@@ -1698,6 +1713,9 @@ fi
 
 # give back files (see RN)
 chown -R ${usersplunk}. ${SPLUNK_HOME}
+
+echo "#************************************MORE TAG REPLACEMENT IF NEEDED********************************"
+tag_replacement
 
 ## using updated init script with su - splunk
 #echo "remote : ${remoteinstalldir}/splunkenterprise-init.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -1720,7 +1738,10 @@ if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix
     if [ -e "/etc/crond.d/splunkbackup.cron" ]; then
       rm -f /etc/crond.d/splunkbackup.cron
     fi
-    mv ${SPLUNK_HOME}/scripts/splunconf-backup ${SPLUNK_HOME}/scripts/splunconf-backup-disabled
+    if [ -e "${SPLUNK_HOME}/scripts/splunconf-backup" ]; then
+      echo "renaming old legacy splunkconf-back from scripts dir to prevent usage of a old version in // of updated one"
+      mv ${SPLUNK_HOME}/scripts/splunconf-backup ${SPLUNK_HOME}/scripts/splunconf-backup-disabled
+    fi
     echo "splunkconfbackup found on s3 at ${remoteinstallsplunkconfbackup} and updated from it"
     # we may be on a DS then we need to also update it
     if [ -e "${SPLUNK_HOME}/etc/deployment-apps/splunkconf-backup" ]; then
@@ -1896,6 +1917,9 @@ if [ -e ${localscriptdir}/splunkconf-prepare-es-from-s3.sh ]; then
 else
   echo "${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh not existing, please consider add it if willing to deploy ES" 
 fi
+
+# redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 
+tag_replacement
 
 # apply sessions workaround for 8.0 if needed
 # commenting as no longer needed, please comment tools.session timeout in web.conf if you have the issue with sessions and error 500 

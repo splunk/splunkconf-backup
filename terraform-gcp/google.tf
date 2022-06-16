@@ -5,6 +5,13 @@ provider "google" {
   zone        = var.zone
 }
 
+provider "google-beta" {
+  credentials = file("terraform-key.json")
+  project     = var.project
+  region      = var.region
+  zone        = var.zone
+}
+
 #data "google_compute_default_service_account" "default" {
 #}
 

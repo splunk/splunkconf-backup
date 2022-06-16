@@ -2,7 +2,7 @@ provider "google" {
   credentials = file("terraform-key.json")
   project     = var.project
   region      = var.region
-  zone        = "us-central1-c"
+  zone        = var.zone
 }
 
 #data "google_compute_default_service_account" "default" {

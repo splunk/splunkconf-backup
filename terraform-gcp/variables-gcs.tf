@@ -1,6 +1,6 @@
 
 variable "project" {
-  default = "pure-muse-302714"
+  default = "myproject"
 }
 
 variable "region" {
@@ -24,7 +24,7 @@ variable "ssh_keys" {
 }
 
 variable "gcpdnszoneid" {
-  default = "gcpplouiccom"
+  default = "acme.com"
 }
 
 # for Local SSD's

@@ -153,8 +153,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220507 include splunk untar here for non rpmn case and move lm tag management after binary to get btool working at this point
 # 20220611 add condition test to prevent false warning in debug log + add explicit message when old splunkconf-backup in scripts found 
 # 20220615 up to v9.0.0 by default
+# 20220617 add detection for empty tag value for user and group to fallback to splunk values
 
-VERSION="20220615a"
+VERSION="20220617a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -844,6 +845,14 @@ if [ -z ${splunkuser+x} ]; then
   splunkuser="splunk"
   echo "splunkuser is unset, default to splunk"
 else 
+  sizeuser=${#splunkuser} 
+  sizemin=5
+  if (( sizeuser < sizemin )); then
+    # this may be the case on GCP du to thwe way we get tag, the var exist but is empty like
+    echo "splunk user length too short or empty tag, bad input or extra characters, ignoring tag value and assuming user is splunk"
+    usersplunk="splunk"
+    splunkuser="splunk"
+  fi
   echo "splunkuser='${splunkuser}'" 
   usersplunk=$splunkuser
 fi
@@ -852,6 +861,12 @@ if [ -z ${splunkgroup+x} ]; then
   splunkgroup="splunk"
   echo "splunkgroup is unset, default to splunk"
 else 
+  sizegroup=${#splunkgroup} 
+  sizemin=5
+  if (( sizegroup < sizemin )); then
+    echo "splunk group length too short or empty tag, bad input or extra characters, ignoring tag value and assuming group is splunk"
+    splunkgroup="splunk"
+  fi
   echo "splunkgroup='${splunkgroup}'" 
 fi
 

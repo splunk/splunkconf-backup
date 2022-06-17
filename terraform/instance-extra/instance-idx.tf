@@ -19,37 +19,42 @@ resource "aws_iam_instance_profile" "role-splunk-idx_profile" {
   provider              = aws.region-master
 }
 
-resource "aws_iam_policy_attachment" "idx-attach-splunk-splunkconf-backup" {
-  name       = "idx-attach-splunk-splunkconf-backup"
-  roles      = [aws_iam_role.role-splunk-idx.name]
+resource "aws_iam_role_policy_attachment" "idx-attach-splunk-splunkconf-backup" {
+  #name       = "idx-attach-splunk-splunkconf-backup"
+  role      = aws_iam_role.role-splunk-idx.name
+  #roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
   provider              = aws.region-master
 }
 
-resource "aws_iam_policy_attachment" "idx-attach-splunk-route53-updatednsrecords" {
-  name       = "idx-attach-splunk-route53-updatednsrecords"
-  roles      = [aws_iam_role.role-splunk-idx.name]
+resource "aws_iam_role_policy_attachment" "idx-attach-splunk-route53-updatednsrecords" {
+  #name       = "idx-attach-splunk-route53-updatednsrecords"
+  role      = aws_iam_role.role-splunk-idx.name
+  #roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
   provider              = aws.region-master
 }
 
-resource "aws_iam_policy_attachment" "idx-attach-splunk-ec2" {
-  name       = "idx-attach-splunk-ec2"
-  roles      = [aws_iam_role.role-splunk-idx.name]
+resource "aws_iam_role_policy_attachment" "idx-attach-splunk-ec2" {
+  #name       = "idx-attach-splunk-ec2"
+  role      = aws_iam_role.role-splunk-idx.name
+  #roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
   provider   = aws.region-master
 }
 
-resource "aws_iam_policy_attachment" "idx-attach-splunk-smartstore" {
-  name       = "idx-attach-splunk-smartstore"
-  roles      = [aws_iam_role.role-splunk-idx.name]
+resource "aws_iam_role_policy_attachment" "idx-attach-splunk-smartstore" {
+  #name       = "idx-attach-splunk-smartstore"
+  role      = aws_iam_role.role-splunk-idx.name
+  #roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-smartstore.arn
   provider   = aws.region-master
 }
 
-resource "aws_iam_policy_attachment" "idx-attach-ssm-managedinstance" {
-  name       = "idx-attach-ssm-managedinstance"
-  roles      = [aws_iam_role.role-splunk-idx.name]
+resource "aws_iam_role_policy_attachment" "idx-attach-ssm-managedinstance" {
+  #name       = "idx-attach-ssm-managedinstance"
+  role      = aws_iam_role.role-splunk-idx.name
+  #roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 

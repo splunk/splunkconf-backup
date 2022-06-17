@@ -6,6 +6,7 @@ resource "aws_iam_role" "role-splunk-mc" {
   force_detach_policies = true
   description           = "iam role for splunk mc"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
+  provider = aws.region-master
 
   tags = {
     Name = "splunk"
@@ -15,30 +16,39 @@ resource "aws_iam_role" "role-splunk-mc" {
 resource "aws_iam_instance_profile" "role-splunk-mc_profile" {
   name = "role-splunk-mc_profile"
   role = aws_iam_role.role-splunk-mc.name
+  provider = aws.region-master
 }
 
-resource "aws_iam_policy_attachment" "mc-attach-splunk-splunkconf-backup" {
-  name       = "mc-attach-splunk-splunkconf-backup"
-  roles      = [aws_iam_role.role-splunk-mc.name]
+resource "aws_iam_role_policy_attachment" "mc-attach-splunk-splunkconf-backup" {
+  #name       = "mc-attach-splunk-splunkconf-backup"
+  role      = aws_iam_role.role-splunk-mc.name
+  #roles      = [aws_iam_role.role-splunk-mc.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
+  provider = aws.region-master
 }
 
-resource "aws_iam_policy_attachment" "mc-attach-splunk-route53-updatednsrecords" {
-  name       = "mc-attach-splunk-route53-updatednsrecords"
-  roles      = [aws_iam_role.role-splunk-mc.name]
+resource "aws_iam_role_policy_attachment" "mc-attach-splunk-route53-updatednsrecords" {
+  #name       = "mc-attach-splunk-route53-updatednsrecords"
+  role      = aws_iam_role.role-splunk-mc.name
+  #roles      = [aws_iam_role.role-splunk-mc.name]
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
+  provider = aws.region-master
 }
 
-resource "aws_iam_policy_attachment" "mc-attach-splunk-ec2" {
-  name       = "mc-attach-splunk-ec2"
-  roles      = [aws_iam_role.role-splunk-mc.name]
+resource "aws_iam_role_policy_attachment" "mc-attach-splunk-ec2" {
+#  name       = "mc-attach-splunk-ec2"
+  roles      = [aws_iam_role.role-splunk-mc.name
+  #roles      = [aws_iam_role.role-splunk-mc.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
+  provider = aws.region-master
 }
 
-resource "aws_iam_policy_attachment" "mc-attach-ssm-managedinstance" {
-  name       = "mc-attach-ssm-managedinstance"
-  roles      = [aws_iam_role.role-splunk-mc.name]
+resource "aws_iam_role_policy_attachment" "mc-attach-ssm-managedinstance" {
+#  name       = "mc-attach-ssm-managedinstance"
+  role      = aws_iam_role.role-splunk-mc.name
+  #roles      = [aws_iam_role.role-splunk-mc.name]
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  provider = aws.region-master
 }
 
 resource "aws_security_group_rule" "mc_from_bastion_ssh" {

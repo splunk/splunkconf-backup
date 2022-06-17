@@ -9,7 +9,7 @@ resource "google_compute_instance_template" "splunk-cm" {
 
   disk {
     # use the latest image at instance creation (reduce time to yum update)
-    source_image = "centos-cloud/centos-8"
+    source_image = var.gcposimage
     #source_image = data.google_compute_image.centos_8.id
     auto_delete = true
     boot        = true
@@ -113,9 +113,13 @@ resource "google_compute_instance_template" "splunk-idx" {
 
   disk {
     # use the latest image at instance creation (reduce time to yum update)
-    source_image = "centos-cloud/centos-8"
+
+    source_image = var.gcposimage
     #source_image = data.google_compute_image.centos_8.id
-    disk_name   = "os"
+    #source_image = "centos-cloud/centos-8"
+    #source_image = data.google_compute_image.centos_8.id
+    # no mane here or that will fail when multiple instance per zone as the disk name would be the same
+    #disk_name   = "os"
     auto_delete = true
     boot        = true
   }

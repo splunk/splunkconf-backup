@@ -10,7 +10,8 @@ resource "google_compute_instance_template" "splunk-sh" {
 
   disk {
     # use the latest image at instance creation (reduce time to yum update)
-    source_image = "centos-cloud/centos-8"
+    source_image = var.gcposimage
+    #source_image = "centos-cloud/centos-8"
     #source_image = data.google_compute_image.centos_8.id
     auto_delete = true
     boot        = true

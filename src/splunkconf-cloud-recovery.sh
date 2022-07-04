@@ -154,8 +154,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220611 add condition test to prevent false warning in debug log + add explicit message when old splunkconf-backup in scripts found 
 # 20220615 up to v9.0.0 by default
 # 20220617 add detection for empty tag value for user and group to fallback to splunk values
+# 20220704 move packagelist to var 
 
-VERSION="20220617a"
+VERSION="20220704a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -290,10 +291,11 @@ set_connectedmode () {
   echo "splunkconnectedmode=${splunkconnectedmode}"
 }
 
+PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd"
 get_packages () {
 
   if [ $splunkconnectedmode == 3 ]; then
-    echo "not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd -y"
+    echo "not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True ${PACKAGELIST} -y"
   else 
     # perl needed for swap (regex) and splunkconf-init.pl
     # openjdk not needed by recovery itself but for app that use java such as dbconnect , itsi...
@@ -308,7 +310,7 @@ get_packages () {
     fi
 
     # one yum command so yum can try to download and install in // which will improve recovery time
-    yum install --setopt=skip_missing_names_on_install=True wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd -y
+    yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y
     # disable as scan in permanence and not needed for splunk
     systemctl stop log4j-cve-2021-44228-hotpatch
     systemctl disable log4j-cve-2021-44228-hotpatch

@@ -99,9 +99,20 @@ variable "iuf-nb" {
   default     = 3
 }
 
+variable "instance-type-iuf-min" {
+  type    = string
+  default = "t3a.medium"
+}
+
+variable "instance-type-iuf-default" {
+  type    = string
+  default = "t3a.nano"
+}
+
 locals {
   env                   = var.splunktargetenv
   instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default)
+  instance-type-iuf = (local.env == "min" ? var.instance-type-iuf-min : var.instance-type-iuf-default)
 }
 
 variable "cm" {

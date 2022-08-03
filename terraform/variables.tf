@@ -93,6 +93,12 @@ variable "splunktargetbinaryuf" {
   default     = "auto"
 }
 
+variable "iuf-nb" {
+  description = "target intermediate uf number in ASG"
+  type        = number
+  default     = 3
+}
+
 locals {
   env                   = var.splunktargetenv
   instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default)

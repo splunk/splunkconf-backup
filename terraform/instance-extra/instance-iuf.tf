@@ -106,9 +106,9 @@ resource "aws_security_group_rule" "iuf_from_all_icmpv6" {
 resource "aws_autoscaling_group" "autoscaling-splunk-iuf" {
   name                = "asg-splunk-iuf"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id] : [aws_subnet.subnet_priv_1.id, aws_subnet.subnet_priv_2.id, aws_subnet.subnet_priv_3.id])
-  desired_capacity    = 0
-  max_size            = 0
-  min_size            = 0
+  desired_capacity    = var.iuf-nb
+  max_size            = var.iuf-nb
+  min_size            = var.iud-nb
   mixed_instances_policy {
     launch_template {
       launch_template_specification {
@@ -116,11 +116,32 @@ resource "aws_autoscaling_group" "autoscaling-splunk-iuf" {
         version            = "$Latest"
       }
       override {
-        instance_type = "t3a.nano"
+        instance_type = var.instance-type-iuf
       }
     }
   }
-  depends_on = [null_resource.bucket_sync]
+  tag {
+    key                 = "Type"
+    value               = "Splunk"
+    propagate_at_launch = false
+  }
+  tag {
+    key                 = "splunkdnszone"
+    value               = var.dns-zone-name
+    propagate_at_launch = false
+  }
+  tag {
+    key                 = "splunkdnsnames"
+    value               = "asgiuf"
+    propagate_at_launch = false
+  }
+  tag {
+    key                 = "splunkdnsprefix"
+    value               = local.dns-prefix
+    propagate_at_launch = false
+  }
+
+  depends_on = [null_resource.bucket_sync, aws_lambda_function.lambda_update-route53-tag, time_sleep.wait_asglambda_destroy]
 }
 
 resource "aws_launch_template" "splunk-iuf" {

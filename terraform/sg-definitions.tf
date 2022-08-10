@@ -43,6 +43,15 @@ resource "aws_security_group" "splunk-iuf" {
   }
 }
 
+resource "aws_security_group" "splunk-ihf" {
+  name        = "splunk-ihf"
+  description = "Security group for Splunk IHF"
+  vpc_id      = aws_vpc.vpc_master.id
+  tags = {
+    Name = "splunk-ihf"
+  }
+}
+
 resource "aws_security_group" "splunk-hf" {
   name        = "splunk-hf"
   description = "Security group for Splunk HF"

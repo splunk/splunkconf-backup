@@ -32,13 +32,13 @@ resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-splunk-
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords-forlambda.arn
 }
 
-resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-splunk-ec2" {
-  provider = aws.region-master
-  #name       = "lambda-attach-splunk-ec2"
-  #roles      = [aws_iam_role.role-splunk-lambda-route53-asg-tag.name]
-  role       = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
-  policy_arn = aws_iam_policy.pol-splunk-ec2.arn
-}
+#resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-splunk-ec2" {
+#  provider = aws.region-master
+#  #name       = "lambda-attach-splunk-ec2"
+#  #roles      = [aws_iam_role.role-splunk-lambda-route53-asg-tag.name]
+#  role       = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
+##   policy_arn = aws_iam_policy.pol-splunk-route53-ec2.arn
+#}
 
 resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-splunk-asg" {
   provider = aws.region-master

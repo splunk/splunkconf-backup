@@ -3,7 +3,7 @@
 resource "aws_security_group" "splunk-outbound" {
   name        = "splunk-outbound"
   description = "Outbound Security group"
-  vpc_id      = aws_vpc.vpc_master.id
+  vpc_id      = local.master_vpc_id
   tags = {
     Name = "splunk"
   }

@@ -2,6 +2,11 @@
 
 #  **************** bastion ***************
 
+locals {
+   master_vpc_id = data.terraform_remote_state.network.outputs.master_vpc_id
+}
+
+
 resource "aws_iam_role" "role-splunk-bastion" {
   name                  = "role-splunk-bastion"
   force_detach_policies = true
@@ -29,7 +34,7 @@ resource "aws_iam_role_policy_attachment" "bastion-attach-splunk-ec2" {
 resource "aws_security_group" "splunk-bastion" {
   name        = "splunk-bastion"
   description = "Security group for bastion"
-  vpc_id      = aws_vpc.vpc_master.id
+  vpc_id      = local.master_vpc_id
 
   ingress {
     from_port   = 22
@@ -62,7 +67,7 @@ resource "aws_security_group" "splunk-bastion" {
 resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
   name = "asg-splunk-bastion"
   # note : this has to be on pub network for the bastion to be reachable from outside
-  vpc_zone_identifier = [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id]
+  vpc_zone_identifier = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
   desired_capacity    = 1
   max_size            = 1
   min_size            = 1
@@ -93,7 +98,8 @@ resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
     value               = local.dns-prefix
     propagate_at_launch = false
   }
-  depends_on = [null_resource.bucket_sync, aws_lambda_function.lambda_update-route53-tag, time_sleep.wait_asglambda_destroy, aws_security_group.splunk-bastion, aws_iam_role.role-splunk-bastion]
+  depends_on = [null_resource.bucket_sync, aws_security_group.splunk-bastion, aws_iam_role.role-splunk-bastion]
+  #depends_on = [null_resource.bucket_sync, aws_lambda_function.lambda_update-route53-tag, time_sleep.wait_asglambda_destroy, aws_security_group.splunk-bastion, aws_iam_role.role-splunk-bastion]
 }
 
 

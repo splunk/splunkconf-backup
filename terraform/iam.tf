@@ -53,11 +53,15 @@ resource "aws_iam_policy" "pol-splunk-splunkconf-backup" {
   policy      = data.template_file.pol-splunk-splunkconf-backup.rendered
 }
 
+locals {
+   dnszone_id = data.terraform_remote_state.network.outputs.dnszone_id
+}
+
 data "template_file" "pol-splunk-route53-updatednsrecords" {
   template = file("policy-aws/pol-splunk-route53-updatednsrecords.json.tpl")
 
   vars = {
-    zone-id         = aws_route53_zone.dnszone.id
+    zone-id         = local.dnszone_id
     profile         = var.profile
     splunktargetenv = var.splunktargetenv
   }

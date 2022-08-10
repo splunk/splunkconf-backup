@@ -21,7 +21,7 @@ resource "aws_s3_bucket_versioning" "s3_install_versioning" {
   }
 }
 
-resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle1" {
+resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle" {
   provider = aws.region-master
   bucket   = aws_s3_bucket.s3_install.id
 
@@ -36,17 +36,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle1" {
     abort_incomplete_multipart_upload {
       days_after_initiation = 1
     }
-
     expiration {
       expired_object_delete_marker = true
     }
     status = "Enabled"
   }
-}
-
-resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle2" {
-  provider = aws.region-master
-  bucket   = aws_s3_bucket.s3_install.id
 
   rule {
     id = "purge-old-noncurrent-versionned-packaged"
@@ -65,7 +59,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle2" {
     status = "Enabled"
   }
 }
-
 
 resource "aws_s3_bucket" "s3_backup" {
   provider      = aws.region-master
@@ -89,7 +82,7 @@ resource "aws_s3_bucket_versioning" "s3_backup_versioning" {
   }
 }
 
-resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle1" {
+resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle" {
   provider = aws.region-master
   bucket   = aws_s3_bucket.s3_backup.id
 
@@ -104,15 +97,12 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle1" {
     abort_incomplete_multipart_upload {
       days_after_initiation = 1
     }
-
     expiration {
       expired_object_delete_marker = true
     }
     status = "Enabled"
   }
 }
-
-
 
 resource "aws_s3_bucket" "s3_data" {
   provider      = aws.region-master
@@ -136,7 +126,7 @@ resource "aws_s3_bucket_versioning" "s3_data_versioning" {
   }
 }
 
-resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle1" {
+resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
   provider = aws.region-master
   bucket   = aws_s3_bucket.s3_data.id
 
@@ -151,7 +141,42 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle1" {
     abort_incomplete_multipart_upload {
       days_after_initiation = 1
     }
+    expiration {
+      expired_object_delete_marker = true
+    }
+    status = "Enabled"
+  }
+}
 
+
+# Ingest Action bucket
+resource "aws_s3_bucket" "s3_ia" {
+  provider      = aws.region-master
+  bucket_prefix = "splunkconf-${var.profile}-${var.splunktargetenv}-ia"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_public_access_block" "s3_ia" {
+  bucket = aws_s3_bucket.s3_ia.id
+  block_public_acls   = true
+  block_public_policy = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "s3_ia_lifecycle" {
+  provider = aws.region-master
+  bucket   = aws_s3_bucket.s3_ia.id
+
+  rule {
+    id      = "purge-old-noncurrent-versionned-ia"
+    filter {
+      prefix  = "ia/"
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = var.deleteddata-retention
+    }
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 1
+    }
     expiration {
       expired_object_delete_marker = true
     }

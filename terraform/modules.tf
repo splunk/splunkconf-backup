@@ -5,6 +5,7 @@
 #}
 
 # include module directly
-module "network" {
-  source = "./modules/network"
-}
+# disable calling directly 
+#module "network" {
+#  source = "./modules/network"
+#}

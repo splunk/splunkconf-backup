@@ -109,10 +109,33 @@ variable "instance-type-iuf-default" {
   default = "t3a.nano"
 }
 
+variable "ihf-nb" {
+  description = "target intermediate hf number in ASG"
+  type        = number
+  default     = 3
+}
+
+variable "instance-type-ihf-min" {
+  type    = string
+  default = "t3a.medium"
+}
+
+variable "instance-type-ihf-default" {
+  type    = string
+  default = "t3a.nano"
+}
+
+variable "disk-size-ihf" {
+  description = "disk size in G for ihf"
+  type        = number
+  default     = 35
+}
+
 locals {
   env                   = var.splunktargetenv
   instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default)
   instance-type-iuf = (local.env == "min" ? var.instance-type-iuf-min : var.instance-type-iuf-default)
+  instance-type-ih = (local.env == "min" ? var.instance-type-ihf-min : var.instance-type-ihf-default)
 }
 
 variable "cm" {

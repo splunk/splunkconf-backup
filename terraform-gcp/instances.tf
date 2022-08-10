@@ -60,7 +60,8 @@ resource "google_compute_target_pool" "splunk-cm" {
 resource "google_compute_region_instance_group_manager" "splunk-cm" {
   name                      = "igm-splunk-cm"
   region                    = var.region
-  distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
+  distribution_policy_zones = var.zoneslist
+  #distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
 
   version {
     instance_template = google_compute_instance_template.splunk-cm.id
@@ -179,7 +180,8 @@ resource "google_compute_target_pool" "splunk-idx" {
 resource "google_compute_region_instance_group_manager" "splunk-idx" {
   name                      = "igm-splunk-idx"
   region                    = var.region
-  distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
+  #distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
+  distribution_policy_zones = var.zoneslist
 
   version {
     instance_template = google_compute_instance_template.splunk-idx.id

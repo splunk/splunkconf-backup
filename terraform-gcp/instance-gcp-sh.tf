@@ -62,7 +62,9 @@ resource "google_compute_target_pool" "splunk-sh" {
 resource "google_compute_region_instance_group_manager" "splunk-sh" {
   name                      = "igm-splunk-sh"
   region                    = var.region
-  distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
+  distribution_policy_zones = var.zoneslist
+
+#  distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
 
   version {
     instance_template = google_compute_instance_template.splunk-sh.id

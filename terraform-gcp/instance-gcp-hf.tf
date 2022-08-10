@@ -63,7 +63,9 @@ resource "google_compute_target_pool" "splunk-hf" {
 resource "google_compute_region_instance_group_manager" "splunk-hf" {
   name                      = "igm-splunk-hf"
   region                    = var.region
-  distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
+  distribution_policy_zones = var.zoneslist
+
+#  distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
 
   version {
     instance_template = google_compute_instance_template.splunk-hf.id

@@ -11,6 +11,10 @@ variable zone {
   default = "us-central1-c"
 }
 
+variable zoneslist {
+  default = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
+}
+
 variable "cidr" {
   default = "10.0.0.0/16"
 }
@@ -28,7 +32,9 @@ variable "gcpdnszoneid" {
 }
 
 variable "gcposimage" {
-  default = "projects/centos-cloud/global/images/centos-stream-8-v20220519"
+  #default = "projects/centos-cloud/global/images/centos-stream-8-v20220519"
+# project centos-cloud
+  default = "family/centos-stream-9"
 }
 
 # for Local SSD's

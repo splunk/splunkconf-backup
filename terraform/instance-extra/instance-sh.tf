@@ -216,7 +216,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh" {
 resource "aws_launch_template" "splunk-sh" {
   name          = "splunk-sh"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
-  key_name      = aws_key_pair.master-key.key_name
+  key_name      = data.terraform_remote_state.ssh.aws_key_pair.master-key.key_name
   instance_type = "t3a.nano"
   block_device_mappings {
     device_name = "/dev/xvda"

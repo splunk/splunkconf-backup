@@ -101,7 +101,8 @@ resource "aws_launch_template" "splunk-bastion" {
   #name          = var.bastion
   name_prefix   = "launch-template-splunk-bastion"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
-  key_name      = aws_key_pair.master-key.key_name
+  #key_name      = aws_key_pair.master-key.key_name
+  key_name      = data.terraform_remote_state.ssh.outputs.ssh_key_name
   instance_type = "t3a.nano"
   # just recreate one if needed
   instance_initiated_shutdown_behavior = "terminate"

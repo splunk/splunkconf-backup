@@ -20,6 +20,114 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
+function check_cloud() {
+  cloud_type=0
+  response=$(curl -fs -m 5 -H "Metadata-Flavor: Google" ${METADATA_URL})
+  if [ $? -eq 0 ]; then
+    echo 'GCP instance detected'
+    cloud_type=2
+  # old aws hypervisor
+  elif [ -f /sys/hypervisor/uuid ]; then
+    if [ `head -c 3 /sys/hypervisor/uuid` == "ec2" ]; then
+      echo 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+  # newer aws hypervisor (test require root)
+  if [ -r /sys/devices/virtual/dmi/id/product_uuid ]; then
+    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "EC2" ]; then
+      echo 'AWS instance detected'
+      cloud_type=1
+    fi
+    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "ec2" ]; then
+      echo 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+  # if detection not yet successfull, try fallback method
+  if [[ $cloud_type -eq "0" ]]; then 
+    # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
+    # authoritative, we could follow Amazon's suggestions for cryptographically
+    # verifying their signature, see here:
+    #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
+    # but this is almost certainly overkill for this purpose (and the above
+    # checks of "EC2" prefixes have a higher false positive potential, anyway).
+    #  imdsv2 support : TOKEN should exist if inside AWS even if not enforced   
+    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 3600"`
+    if [ -z ${TOKEN+x} ]; then
+      # TOKEN NOT SET , NOT inside AWS
+      cloud_type=0
+    elif $(curl --silent -m 5 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
+      echo 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+}
+
+# splunkconnectedmode   (tag got from instance)
+# 0 = auto (try to detect connectivity) (default if not set)
+# 1 = connected (set it if auto fail and you think you are connected)
+# 2 = yum only (may be via proxy or local repo if yum configured correctly)
+# 3 = no connection, yum disabled
+
+# why we need this -> cloud context may vary depending on various compliance requirements
+# the full connected world -> easier 
+set_connectedmode () {
+  if [ -z ${splunkconnectedmode+x} ]; then
+     # variable not set -> default is auto
+     splunkconnectedmode=0
+  fi
+  # FIXME here add logic for auto detect 
+  # for now assuming connected
+  if [ $splunkconnectedmode == 0 ]; then
+    echo "switching from auto to fully connected mode"
+    splunkconnectedmode=1
+  elif [ $splunkconnectedmode == 1 ]; then
+    echo "splunkconnectmode was set to fully connected"
+  elif [ $splunkconnectedmode == 2 ]; then
+    echo "splunkconnectmode was set to download via package manager (ie yum,...) only"
+  elif [ $splunkconnectedmode == 3 ]; then
+    echo "splunkconnectmode was set to no connection. Assuming you have deployed all the requirement yourself"
+  else
+    echo "splunkconnectmode=${splunkconnectedmode} is not a expected value, falling back to fully connected"
+    splunkconnectedmode=1
+  fi
+  echo "splunkconnectedmode=${splunkconnectedmode}"
+}
+
+
+
+#PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd"
+PACKAGELIST="aws-cli curl python3-pip zstd"
+get_packages () {
+
+  if [ $splunkconnectedmode == 3 ]; then
+    echo "not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True ${PACKAGELIST} -y"
+  else 
+    # perl needed for swap (regex) and splunkconf-init.pl
+    # openjdk not needed by recovery itself but for app that use java such as dbconnect , itsi...
+    # wget used by recovery
+    # curl to fetch files
+    # gdb provide pstack which may be needed to collect things for Splunk support
+
+    if ! command -v yum &> /dev/null
+    then
+      echo "FAIL yum command could not be found, not RH like distribution , not fully implemented/tested at the moment, stopping here " >> /var/log/splunkconf-cloud-recovery-info.log
+      exit 1
+    fi
+
+    # one yum command so yum can try to download and install in // which will improve recovery time
+    yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y
+    # disable as scan in permanence and not needed for splunk
+    systemctl stop log4j-cve-2021-44228-hotpatch
+    systemctl disable log4j-cve-2021-44228-hotpatch
+  fi #splunkconnectedmode
+}
+
+
+
+
 # disabled as we just want to upgrade splunk here
 #yum update -y
 # just in case the AMI doesn't have it (it is preinstalled on aws ami)

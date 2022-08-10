@@ -6,7 +6,8 @@ resource "aws_iam_role" "role-splunk-bastion" {
   name                  = "role-splunk-bastion"
   force_detach_policies = true
   description           = "iam role for splunk bastion"
-  assume_role_policy    = file("policy-aws/assumerolepolicy.json")
+  assume_role_policy    = file("./policy-aws/assumerolepolicy.json")
+  #assume_role_policy    = file("../../policy-aws/assumerolepolicy.json")
 
   tags = {
     Name = "splunk"

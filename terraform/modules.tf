@@ -2,3 +2,8 @@
 module "variables" {
   source = "./modules/variables"
 }
+
+# include module directly
+module "network" {
+  source = "./modules/network"
+}

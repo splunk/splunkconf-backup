@@ -2,11 +2,6 @@
 resource "aws_s3_bucket" "s3_install" {
   provider      = aws.region-master
   bucket_prefix = "splunkconf-${var.profile}-${var.splunktargetenv}-install"
-  #acl           = "private"
-  #  versioning {
-  #   enabled = true
-  # }
-  # for test
   force_destroy = true
 }
 
@@ -75,11 +70,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle2" {
 resource "aws_s3_bucket" "s3_backup" {
   provider      = aws.region-master
   bucket_prefix = "splunkconf-${var.profile}-${var.splunktargetenv}-backup"
-  #acl           = "private"
-  #versioning {
-  #  enabled = true
-  #}
-  # for test
   force_destroy = true
 }
 
@@ -127,11 +117,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle1" {
 resource "aws_s3_bucket" "s3_data" {
   provider      = aws.region-master
   bucket_prefix = "splunkconf-${var.profile}-${var.splunktargetenv}-data"
-  #acl           = "private"
-  #versioning {
-  #  enabled = true
-  #}
-  # for test
   force_destroy = true
 }
 

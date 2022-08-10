@@ -13,3 +13,10 @@ data "terraform_remote_state" "network" {
     path = "./modules/network/terraform.tfstate"
   }
 }
+
+data "terraform_remote_state" "kms" {
+  backend = "local"
+  config = {
+    path = "./modules/kms/terraform.tfstate"
+  }
+}

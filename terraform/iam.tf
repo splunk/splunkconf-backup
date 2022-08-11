@@ -98,3 +98,25 @@ resource "aws_iam_policy" "pol-splunk-smartstore" {
   policy      = data.template_file.pol-splunk-smartstore.rendered
 }
 
+data "template_file" "pol-splunk-s3ia" {
+  template = file("policy-aws/pol-splunk-s3ia.json.tpl")
+
+  vars = {
+    s3_ia         = aws_s3_bucket.s3_ia.arn
+    s3_iaprefix     = var.s3_iaprefix
+    profile         = var.profile
+    splunktargetenv = var.splunktargetenv
+  }
+}
+
+resource "aws_iam_policy" "pol-splunk-s3ia" {
+  # ... other configuration ...
+  #statement {
+  #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-master}-${var.splunktargetenv}"
+  #}
+  description = "Permissions needed for Splunk S3 IA"
+  provider    = aws.region-master
+  policy      = data.template_file.pol-splunk-s3ia.rendered
+}
+
+

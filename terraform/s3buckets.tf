@@ -169,7 +169,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_ia_lifecycle" {
   rule {
     id      = "purge-old-noncurrent-versionned-ia"
     filter {
-      prefix  = "ia/"
+      prefix  = "${var.s3_iaprefix}/"
     }
     noncurrent_version_expiration {
       noncurrent_days = var.deleteddata-retention

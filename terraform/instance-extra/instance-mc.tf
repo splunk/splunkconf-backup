@@ -37,7 +37,7 @@ resource "aws_iam_role_policy_attachment" "mc-attach-splunk-route53-updatednsrec
 
 resource "aws_iam_role_policy_attachment" "mc-attach-splunk-ec2" {
 #  name       = "mc-attach-splunk-ec2"
-  roles      = aws_iam_role.role-splunk-mc.name
+  role      = aws_iam_role.role-splunk-mc.name
   #roles      = [aws_iam_role.role-splunk-mc.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
   provider = aws.region-master
@@ -166,7 +166,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-mc" {
 resource "aws_launch_template" "splunk-mc" {
   name          = "splunk-mc"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
-  key_name      = data.terraform_remote_state.ssh.ssh_key_name
+  key_name      = data.terraform_remote_state.ssh.outputs.ssh_key_name
   instance_type = "t3a.nano"
   block_device_mappings {
     device_name = "/dev/xvda"

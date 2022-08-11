@@ -141,6 +141,16 @@ resource "aws_security_group_rule" "sh_from_cm_8089" {
   description              = "allow connect to instance on mgt port (rest api)"
 }
 
+resource "aws_security_group_rule" "sh_from_trustedrestapi_8089" {
+  security_group_id        = aws_security_group.splunk-sh.id
+  type                     = "ingress"
+  from_port                = 8089
+  to_port                  = 8089
+  protocol                 = "tcp"
+  source_security_group_id = var.trustedrestapi_to_sh
+  description              = "allow connect to sh on mgt port (rest api) from extra trusted ip(s)"
+}
+
 resource "aws_security_group_rule" "sh_from_lbsh_8000" {
   security_group_id        = aws_security_group.splunk-sh.id
   type                     = "ingress"
@@ -216,7 +226,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh" {
 resource "aws_launch_template" "splunk-sh" {
   name          = "splunk-sh"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
-  key_name      = data.terraform_remote_state.ssh.aws_key_pair.master-key.key_name
+  key_name      = data.terraform_remote_state.ssh.ssh_key_name
   instance_type = "t3a.nano"
   block_device_mappings {
     device_name = "/dev/xvda"

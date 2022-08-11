@@ -193,7 +193,7 @@ resource "aws_security_group_rule" "ds_from_networks_ipv6_8089" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
   name                = "asg-splunk-ds"
-  vpc_zone_identifier = (var.associate_public_ip == "true" ? [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id] : [aws_subnet.subnet_priv_1.id, aws_subnet.subnet_priv_2.id, aws_subnet.subnet_priv_3.id])
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
   desired_capacity    = 1
   max_size            = 1
   min_size            = 1

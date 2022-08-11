@@ -265,7 +265,7 @@ resource "aws_security_group_rule" "idx_from_networks_log" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
   name                = "asg-splunk-idx"
-  vpc_zone_identifier = (var.associate_public_ip == "true" ? [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id] : [aws_subnet.subnet_priv_1.id, aws_subnet.subnet_priv_2.id, aws_subnet.subnet_priv_3.id])
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
   desired_capacity    = var.idx-nb
   max_size            = var.idx-nb
   min_size            = var.idx-nb
@@ -311,7 +311,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
 resource "aws_launch_template" "splunk-idx" {
   name          = "splunk-idx"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
-  key_name      = data.terraform_remote_state.ssh.ssh_key_name
+  key_name      = data.terraform_remote_state.ssh.outputs.ssh_key_name
   instance_type = "t3a.nano"
   block_device_mappings {
     device_name = "/dev/xvda"
@@ -371,7 +371,7 @@ resource "aws_launch_template" "splunk-idx" {
 resource "aws_security_group" "splunk-lbhec" {
   name        = "splunk-lbhec"
   description = "Security group for Splunk LB for HEC to idx"
-  vpc_id      = aws_vpc.vpc_master.id
+  vpc_id      = local.master_vpc_id
   tags = {
     Name = "splunk-lbhec"
   }

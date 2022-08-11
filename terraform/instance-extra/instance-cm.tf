@@ -193,7 +193,7 @@ resource "aws_security_group_rule" "cm_from_iuf_8089" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-cm" {
   name                = "asg-splunk-cm"
-  vpc_zone_identifier = (var.associate_public_ip == "true" ? [aws_subnet.subnet_pub_1.id, aws_subnet.subnet_pub_2.id, aws_subnet.subnet_pub_3.id] : [aws_subnet.subnet_priv_1.id, aws_subnet.subnet_priv_2.id, aws_subnet.subnet_priv_3.id])
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
   desired_capacity    = 1
   max_size            = 1
   min_size            = 1
@@ -236,7 +236,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-cm" {
 resource "aws_launch_template" "splunk-cm" {
   name          = "splunk-cm"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
-  key_name      = data.terraform_remote_state.ssh.ssh_key_name
+  key_name      = data.terraform_remote_state.ssh.outputs.ssh_key_name
   instance_type = "t3a.nano"
   block_device_mappings {
     device_name = "/dev/xvda"

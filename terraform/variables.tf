@@ -292,7 +292,14 @@ variable "splunkadmin-networks" {
 #  default = [""]
 #}
 
+variable "trustedrestapi_to_sh" {
+  description = "List of trusted networks allowed to reach SH REST API"
+  type    = list(string)
+  default = ["127.0.0.12/32"]
+}
+
 variable "hec-in-allowed-networks" {
+  description = "List of trusted networks allowed to send data via hec"
   type    = list(string)
   default = ["127.0.0.12/32"]
 }

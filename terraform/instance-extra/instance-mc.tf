@@ -37,7 +37,7 @@ resource "aws_iam_role_policy_attachment" "mc-attach-splunk-route53-updatednsrec
 
 resource "aws_iam_role_policy_attachment" "mc-attach-splunk-ec2" {
 #  name       = "mc-attach-splunk-ec2"
-  roles      = [aws_iam_role.role-splunk-mc.name
+  roles      = aws_iam_role.role-splunk-mc.name
   #roles      = [aws_iam_role.role-splunk-mc.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
   provider = aws.region-master

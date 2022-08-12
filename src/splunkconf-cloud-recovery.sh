@@ -156,8 +156,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220617 add detection for empty tag value for user and group to fallback to splunk values
 # 20220704 move packagelist to var 
 # 20220812 add auto initial deployment of ds and manager-apps if provided  
+# 20220812 try to handle lm tag replacement for ds
 
-VERSION="20220812a"
+VERSION="20220812b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -468,6 +469,9 @@ tag_replacement () {
       echo "tag splunktargetlm is set to $splunktargetlm and will be used as the short name for master_uri config under [license] in server.conf to ref the LM" >> /var/log/splunkconf-cloud-recovery-info.log
       echo "using splunkdnszone ${splunkdnszone} from instance tags [license] master_uri=${splunktargetlm}.${splunkdnszone}:8089 (lm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
       ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -L 1 sed -i -e "s%^[^#]{1}.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkdnszone}:8089%" 
+      echo "trying also lm replacement for DS"  >> /var/log/splunkconf-cloud-recovery-info.log
+      find ${SPLUNK_HOME}/etc/deployment-apps/org_full_licence_slave/local/server.conf -print  |  xargs -L 1 sed -i -e "s%^[^#]{1}.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkdnszone}:8089%"
+
     fi
   fi
 }

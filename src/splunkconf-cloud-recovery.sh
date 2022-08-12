@@ -155,8 +155,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220615 up to v9.0.0 by default
 # 20220617 add detection for empty tag value for user and group to fallback to splunk values
 # 20220704 move packagelist to var 
+# 20220812 add auto initial deployment of ds and manager-apps if provided  
 
-VERSION="20220704a"
+VERSION="20220812a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1262,7 +1263,26 @@ if [ "$MODE" != "upgrade" ]; then
   else
     echo "${remotepackagedir}/mycerts.tar.gz not found, trying without but this may lead to a non functional splunk if you enabled custom certificates. This should contain the custom certs to configure TLS in order to attach to the rest of infrastructure"
   fi
-
+  if [[ "${instancename}" =~ ds ]]; then
+    echo "remote : ${remotepackagedir} : copying initial ds apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/deployment-apps " >> /var/log/splunkconf-cloud-recovery-info.log
+    # copy to local
+    get_object ${remotepackagedir}/initialdsapps.tar.gz ${localinstalldir} 
+    if [ -f "${localinstalldir}/initialdsapps.tar.gz"  ]; then
+      tar -C "${SPLUNK_HOME}/etc/deployment-apps" -zxf ${localinstalldir}/initialdsapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
+    else
+      echo "${remotepackagedir}/initialdsapps.tar.gz not found, trying without but this may lead to a non functional splunk. This should contain the minimal ds apps deployed to rest of infra and referenced in serverclass configured via deploymentserver app"
+    fi
+  fi
+  if [[ "${instancename}" =~ cm ]]; then
+    echo "remote : ${remotepackagedir} : copying initial manager(ex master) apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/master-apps (for the moment, not the logic to avoid conflict between master-apps and manager-apps) " >> /var/log/splunkconf-cloud-recovery-info.log
+    # copy to local
+    get_object ${remotepackagedir}/initialmanagerapps.tar.gz ${localinstalldir} 
+    if [ -f "${localinstalldir}/initialmanagerapps.tar.gz"  ]; then
+      tar -C "${SPLUNK_HOME}/etc/master-apps" -zxf ${localinstalldir}/initialmanagerapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
+    else
+      echo "${remotepackagedir}/initialmanagerapps.tar.gz not found, trying without but this may lead to a non functional splunk. This should contain the apps push from cm to idx"
+    fi
+  fi
   ## 7.0 no user seed with hashed passwd, first time we have no backup lets put directly passwd 
   #echo "remote : ${remoteinstalldir}/passwd" >> /var/log/splunkconf-cloud-recovery-info.log
   #aws s3 cp ${remoteinstalldir}/passwd ${localinstalldir} --quiet

@@ -153,7 +153,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
         version            = "$Latest"
       }
       override {
-        instance_type = "t3a.nano"
+        instance_type = local.instance-type-hf
       }
     }
   }

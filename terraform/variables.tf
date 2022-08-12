@@ -111,7 +111,11 @@ locals {
   env                   = var.splunktargetenv
   instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default)
   instance-type-iuf = (local.env == "min" ? var.instance-type-iuf-min : var.instance-type-iuf-default)
-  instance-type-ih = (local.env == "min" ? var.instance-type-ihf-min : var.instance-type-ihf-default)
+  instance-type-ihf = (local.env == "min" ? var.instance-type-ihf-min : var.instance-type-ihf-default)
+  instance-type-cm = (local.env == "min" ? var.instance-type-cm-min : var.instance-type-cm-default)
+  instance-type-mc = (local.env == "min" ? var.instance-type-mc-min : var.instance-type-mc-default)
+  instance-type-ds = (local.env == "min" ? var.instance-type-ds-min : var.instance-type-ds-default)
+  instance-type-sh = (local.env == "min" ? var.instance-type-sh-min : var.instance-type-sh-default)
 }
 
 variable "cm" {
@@ -119,7 +123,12 @@ variable "cm" {
   default = "cm3"
 }
 
-variable "instance-type-cm" {
+variable "instance-type-cm-min" {
+  type    = string
+  default = "t3a.medium"
+}
+
+variable "instance-type-cm-default" {
   type    = string
   default = "t3a.nano"
 }
@@ -137,7 +146,12 @@ variable "ds" {
   default = "ds3"
 }
 
-variable "instance-type-ds" {
+variable "instance-type-ds-min" {
+  type    = string
+  default = "t3a.medium"
+}
+
+variable "instance-type-ds-default" {
   type    = string
   default = "t3a.nano"
 }
@@ -174,7 +188,12 @@ variable "sh" {
   default = "sh3"
 }
 
-variable "instance-type-sh" {
+variable "instance-type-sh-min" {
+  type    = string
+  default = "t3a.medium"
+}
+
+variable "instance-type-sh-default" {
   type    = string
   default = "t3a.nano"
 }
@@ -190,7 +209,12 @@ variable "mc" {
   default = "mc3"
 }
 
-variable "instance-type-mc" {
+variable "instance-type-mc-min" {
+  type    = string
+  default = "t3a.medium"
+}
+
+variable "instance-type-mc-default" {
   type    = string
   default = "t3a.nano"
 }
@@ -206,7 +230,12 @@ variable "hf" {
   default = "hf3"
 }
 
-variable "instance-type-hf" {
+variable "instance-type-hf-min" {
+  type    = string
+  default = "t3a.medium"
+}
+
+variable "instance-type-hf-default" {
   type    = string
   default = "t3a.nano"
 }
@@ -220,11 +249,6 @@ variable "disk-size-hf" {
 variable "iuf" {
   type    = string
   default = "iuf3"
-}
-
-variable "instance-type-iuf" {
-  type    = string
-  default = "t3a.nano"
 }
 
 variable "disk-size-iuf" {

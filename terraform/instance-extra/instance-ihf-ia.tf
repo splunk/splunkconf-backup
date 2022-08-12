@@ -115,7 +115,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ihf" {
         version            = "$Latest"
       }
       override {
-        instance_type = var.instance-type-ihf
+        instance_type = local.instance-type-ihf
       }
     }
   }

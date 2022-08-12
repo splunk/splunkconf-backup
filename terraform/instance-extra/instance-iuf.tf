@@ -116,7 +116,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-iuf" {
         version            = "$Latest"
       }
       override {
-        instance_type = var.instance-type-iuf
+        instance_type = local.instance-type-iuf
       }
     }
   }

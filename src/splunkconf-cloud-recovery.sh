@@ -482,7 +482,7 @@ tag_replacement () {
       fi
     fi
     # s2 case (could be run on ds or cm probably)
-    if [ -z ${splunks3databucket+x} ]; then
+    if [ ! -z ${splunks3databucket+x} ]; then
        echo "trying to replace path for smartstore with the one generated and that we got from tags"
        find ${SPLUNK_HOME} -wholename "*s2_indexer_indexes/local/indexes.conf" -exec grep -l path {} \; -exec sed -i -e "s%^path.*=.*$%path=s3://${splunks3databucket}/smartstore%" {} \; 
     else

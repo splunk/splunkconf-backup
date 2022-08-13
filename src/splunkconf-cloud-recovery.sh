@@ -158,8 +158,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220812 add auto initial deployment of ds and manager-apps if provided  
 # 20220812 try to handle lm tag replacement for ds
 # 20220813 add dir creation for ds and cm skeleton creation as splunk not yet started when we copy files into
+# 20220813 change regex to require master_uri at beginning of line for lm
 
-VERSION="20220813a"
+VERSION="20220813b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -469,11 +470,12 @@ tag_replacement () {
     else 
       echo "tag splunktargetlm is set to $splunktargetlm and will be used as the short name for master_uri config under [license] in server.conf to ref the LM" >> /var/log/splunkconf-cloud-recovery-info.log
       echo "using splunkdnszone ${splunkdnszone} from instance tags [license] master_uri=${splunktargetlm}.${splunkdnszone}:8089 (lm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
-      ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -L 1 sed -i -e "s%^[^#]{1}.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkdnszone}:8089%" 
+      ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -L 1 sed -i -e "s%^master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkdnszone}:8089%" 
       echo "trying also lm replacement for DS"  >> /var/log/splunkconf-cloud-recovery-info.log
       FILM="${SPLUNK_HOME}/etc/deployment-apps/${splunkorg}_full_license_slave/local/server.conf"
       if [ -e "$FILM" ]; then
-        find ${FILM} -print  |  xargs -L 1 sed -i -e "s%^[^#]{1}.*master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkdnszone}:8089%"
+        # note : no space allowed before master_uri
+        sed -i -e 's%^master_uri.*=.*$%master_uri=https://lm3.cloud.plouic.com:8089%' ${FILM}
       else 
         echo "$FILM doesnt exist, not trying to replace master_uri for LM in deployment-apps"
       fi

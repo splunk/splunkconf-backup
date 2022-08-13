@@ -157,8 +157,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220704 move packagelist to var 
 # 20220812 add auto initial deployment of ds and manager-apps if provided  
 # 20220812 try to handle lm tag replacement for ds
+# 20220813 add dir creation for ds and cm skeleton creation as splunk not yet started when we copy files into
 
-VERSION="20220812b"
+VERSION="20220813a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1276,6 +1277,7 @@ if [ "$MODE" != "upgrade" ]; then
     # copy to local
     get_object ${remotepackagedir}/initialdsapps.tar.gz ${localinstalldir} 
     if [ -f "${localinstalldir}/initialdsapps.tar.gz"  ]; then
+      mkdir -p "${SPLUNK_HOME}/etc/deployment-apps"
       tar -C "${SPLUNK_HOME}/etc/deployment-apps" -zxf ${localinstalldir}/initialdsapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
     else
       echo "${remotepackagedir}/initialdsapps.tar.gz not found, trying without but this may lead to a non functional splunk. This should contain the minimal ds apps deployed to rest of infra and referenced in serverclass configured via deploymentserver app"
@@ -1283,9 +1285,12 @@ if [ "$MODE" != "upgrade" ]; then
   fi
   if [[ "${instancename}" =~ cm ]]; then
     echo "remote : ${remotepackagedir} : copying initial manager(ex master) apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/master-apps (for the moment, not the logic to avoid conflict between master-apps and manager-apps) " >> /var/log/splunkconf-cloud-recovery-info.log
+    # FIXME : we need to add logic for v9+ new directory and manage conflicts 
+    echo "WARNING ! Assuming master-apps is used , update to newer recovery uf you want to use manager-apps on v9+"
     # copy to local
     get_object ${remotepackagedir}/initialmanagerapps.tar.gz ${localinstalldir} 
     if [ -f "${localinstalldir}/initialmanagerapps.tar.gz"  ]; then
+      mkdir -p "${SPLUNK_HOME}/etc/master-apps"
       tar -C "${SPLUNK_HOME}/etc/master-apps" -zxf ${localinstalldir}/initialmanagerapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
     else
       echo "${remotepackagedir}/initialmanagerapps.tar.gz not found, trying without but this may lead to a non functional splunk. This should contain the apps push from cm to idx"

@@ -159,8 +159,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220812 try to handle lm tag replacement for ds
 # 20220813 add dir creation for ds and cm skeleton creation as splunk not yet started when we copy files into
 # 20220813 change regex to require master_uri at beginning of line for lm
+# 20220813 add tag replacement for s2 tag
 
-VERSION="20220813b"
+VERSION="20220813c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -479,6 +480,13 @@ tag_replacement () {
       else 
         echo "$FILM doesnt exist, not trying to replace master_uri for LM in deployment-apps"
       fi
+    fi
+    # s2 case (could be run on ds or cm probably)
+    if [ -z ${splunks3databucket+x} ]; then
+       echo "trying to replace path for smartstore with the one generated and that we got from tags"
+       find ${SPLUNK_HOME} -wholename "*s2_indexer_indexes/local/indexes.conf" -exec grep -l path {} \; -exec sed -i -e "s%^path.*=.*$%path=s3://${splunks3databucket}/smartstore%" {} \; 
+    else
+      echo "INFO : splunks3databucket not defined not doing any replacement (fine if just using collection layer)"
     fi
   fi
 }
@@ -1701,7 +1709,7 @@ else
   # we dont want to update master_uri=clustermaster:indexer1 in cluster_search_base
   find ${SPLUNK_HOME} -wholename "*cluster_search_base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*https.*$%master_uri=https://${splunktargetcm}.${splunkdnszone}:8089%" {} \; 
   find ${SPLUNK_HOME} -wholename "*cluster_indexer_base/local/server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkdnszone}:8089%" {} \; 
-  # it is also used fo rindexer discovery in outputs.conf
+  # it is also used for indexer discovery in outputs.conf
   find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/deployment-apps ${SPLUNK_HOME}/etc/shcluster/apps ${SPLUNK_HOME}/etc/system/local  -name "outputs.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkdnszone}:8089%" {} \; 
   # $$ echo "master_uri replaced" || echo "master_uri not replaced"
   # this wont work in that form because master_uri could be the one for license find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "server.conf" -exec grep -l master_uri {} \; -exec sed -i -e "s%^.*master_uri.*=.*$%master_uri=https://${splunktargetcm}.${splunkdnszone}:8089%" {} \;  $$ echo "master_uri replaced" || echo "master_uri not replaced"

@@ -60,7 +60,7 @@ else
   echo "ES install file $ESAPP is NOT present in s3 install at $remoteinstalldir: KO Please upload correct ES app version to s3 install or update this script is you want to use a different version"
 fi
 
-ESCU="splunk-es-content-update_3280.tgz"
+ESCU="splunk-es-content-update_3460.tgz"
 
 aws s3 cp $remoteinstalldir/apps/$ESCU  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESCU" ]; then

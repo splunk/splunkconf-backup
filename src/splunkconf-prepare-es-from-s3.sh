@@ -12,8 +12,9 @@
 # 20211104 update for 6.6.2 and add variables for versions
 # 20211217 update for 7.0.0
 # 20220325 update for 7.0.1
+# 20220815 add remoteappsdir var and improve error messages
 
-VERSION="20220325"
+VERSION="20220815"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
@@ -28,6 +29,7 @@ INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" ht
 REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunks3installbucket | cut -f 5`
 remoteinstalldir="s3://$splunks3installbucket/install"
+remoteappsdir="${remoteinstalldir}/apps"
 localinstalldir="/opt/splunk/scripts"
 localappsinstalldir="/opt/splunk/splunkapps"
 mkdir -p $localinstalldir
@@ -53,21 +55,21 @@ fi
 
 ESAPP="splunk-enterprise-security_701.spl"
 
-aws s3 cp $remoteinstalldir/apps/$ESAPP  $localappsinstalldir --quiet
+aws s3 cp $remoteappsdir/$ESAPP  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESAPP" ]; then
   echo "ES install file $ESAPP present : OK"
 else
-  echo "ES install file $ESAPP is NOT present in s3 install at $remoteinstalldir: KO Please upload correct ES app version to s3 install or update this script is you want to use a different version"
+  echo "ES install file $ESAPP is NOT present in s3 install at $remoteappsdir: KO Please upload correct ES app version to s3 install or update this script is you want to use a different version"
 fi
 
 ESCU="splunk-es-content-update_3460.tgz"
 
-aws s3 cp $remoteinstalldir/apps/$ESCU  $localappsinstalldir --quiet
+aws s3 cp $remoteappsdir/$ESCU  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESCU" ]; then
   echo "ES Content update install file $ESCU present : OK"
 else
-  echo "ES Content update file $ESCU is NOT present in s3 install at $remoteinstalldir : KO Please upload correct version to s3 install or update this script to a different version"
+  echo "ES Content update file $ESCU is NOT present in s3 install at $remoteappsdir : KO Please upload correct version to s3 install or update this script to a different version"
 fi
 
-echo "end of script, if everything is ok please run installes.sh from /opt/splunk/scripts directory (sh only)"
+echo "end of script, if everything is ok please run as splunk installes.sh from /opt/splunk/scripts directory (sh only)"
 

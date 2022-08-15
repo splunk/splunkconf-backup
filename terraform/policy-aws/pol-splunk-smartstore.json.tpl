@@ -9,7 +9,7 @@
                 "s3:ListBucketMultipartUploads",
                 "s3:ListBucketVersions",
                 "s3:ListBucket",
-                "s3:GetBucketLocation",
+                "s3:GetBucketLocation"
             ],
             "Resource": [
                 "${s3_data}"
@@ -31,8 +31,7 @@
                 "s3:PutObjectAcl"
             ],
             "Resource": [
-                "${s3_data}/smartstore/*",
-                "${s3_data}/*"
+                "${s3_data}/smartstore/*"
             ]
         }
     ]

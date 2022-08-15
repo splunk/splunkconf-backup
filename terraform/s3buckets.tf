@@ -9,6 +9,7 @@ resource "aws_s3_bucket_public_access_block" "s3_install" {
   bucket = aws_s3_bucket.s3_install.id
   block_public_acls   = true
   block_public_policy = true
+  ignore_public_acls = true
 }
 
 # aws provider change with 4.0 
@@ -70,6 +71,7 @@ resource "aws_s3_bucket_public_access_block" "s3_backup" {
   bucket = aws_s3_bucket.s3_backup.id
   block_public_acls   = true
   block_public_policy = true
+  ignore_public_acls = true
 }
 
 # aws provider change with 4.0 
@@ -114,6 +116,7 @@ resource "aws_s3_bucket_public_access_block" "s3_data" {
   bucket = aws_s3_bucket.s3_data.id
   block_public_acls   = true
   block_public_policy = true
+  ignore_public_acls = true
 }
 
 # aws provider change with 4.0 
@@ -160,6 +163,7 @@ resource "aws_s3_bucket_public_access_block" "s3_ia" {
   bucket = aws_s3_bucket.s3_ia.id
   block_public_acls   = true
   block_public_policy = true
+  ignore_public_acls = true
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "s3_ia_lifecycle" {

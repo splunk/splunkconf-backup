@@ -193,6 +193,9 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh" {
         launch_template_id = aws_launch_template.splunk-sh.id
         version            = "$Latest"
       }
+      override {
+        instance_type = local.instance-type-sh
+      }
     }
   }
   tag {

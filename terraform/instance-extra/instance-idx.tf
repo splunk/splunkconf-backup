@@ -312,7 +312,7 @@ resource "aws_launch_template" "splunk-idx" {
   name          = "splunk-idx"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = data.terraform_remote_state.ssh.outputs.ssh_key_name
-  instance_type = "t3a.nano"
+  instance_type = local.instance-type-indexer
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {

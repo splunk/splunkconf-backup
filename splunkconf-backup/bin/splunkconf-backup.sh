@@ -80,8 +80,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20220327 add also size and duration for kvstore legacy mode
 # 20220327 factor remote copy in order to add duration and size to log
 # 20220409 fix double remote copy issue with kvdump/kvstore 
+# 20220823 fix regression for cm master and manager folders 
 
-VERSION="20220409a"
+VERSION="20220823a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -715,9 +716,9 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
     #debug_log "running tar for etc targeted backup
     # dump exlusion for collection app that store temp huge files in etc instead of a proper dir under var
     if [ "${TARMODE}" = "abs" ]; then
-        FILELIST2="${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/deployment-apps ${SPLUNK_HOME}/etc/shcluster ${SPLUNK_HOME}/etc/passwd ${SPLUNK_HOME}/etc/system/local ${SPLUNK_HOME}/etc/auth ${SPLUNK_HOME}/etc/openldap/ldap.conf ${SPLUNK_HOME}/etc/users ${SPLUNK_HOME}/etc/splunk-launch.conf ${SPLUNK_HOME}/etc/instance.cfg ${SPLUNK_HOME}/etc/.ui_login ${SPLUNK_HOME}/etc/licenses ${SPLUNK_HOME}/etc/*.cfg ${SPLUNK_HOME}/etc/disabled-apps"
+        FILELIST2="${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/deployment-apps ${SPLUNK_HOME}/etc/master-apps ${SPLUNK_HOME}/etc/manager-apps ${SPLUNK_HOME}/etc/shcluster ${SPLUNK_HOME}/etc/passwd ${SPLUNK_HOME}/etc/system/local ${SPLUNK_HOME}/etc/auth ${SPLUNK_HOME}/etc/openldap/ldap.conf ${SPLUNK_HOME}/etc/users ${SPLUNK_HOME}/etc/splunk-launch.conf ${SPLUNK_HOME}/etc/instance.cfg ${SPLUNK_HOME}/etc/.ui_login ${SPLUNK_HOME}/etc/licenses ${SPLUNK_HOME}/etc/*.cfg ${SPLUNK_HOME}/etc/disabled-apps"
     else
-        FILELIST2="./etc/apps ./etc/deployment-apps ./etc/shcluster ./etc/passwd ./etc/system/local ./etc/auth ./etc/openldap/ldap.conf ./etc/users ./etc/splunk-launch.conf ./etc/instance.cfg ./etc/.ui_login ./etc/licenses ./etc/*.cfg ./etc/disabled-apps"
+        FILELIST2="./etc/apps ./etc/deployment-apps ./etc/master-apps ./etc/manager-apps ./etc/shcluster ./etc/passwd ./etc/system/local ./etc/auth ./etc/openldap/ldap.conf ./etc/users ./etc/splunk-launch.conf ./etc/instance.cfg ./etc/.ui_login ./etc/licenses ./etc/*.cfg ./etc/disabled-apps"
     fi
     FILELIST=""
     for file in $FILELIST2;

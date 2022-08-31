@@ -150,7 +150,7 @@ variable "ds" {
 
 variable "ds-enable" {
   type = bool
-  value = true
+  default = true
 }
 
 variable "instance-type-ds-min" {
@@ -218,7 +218,7 @@ variable "mc" {
 
 variable "mc-enable" {
   type = bool
-  value = true
+  default = true
 }
 
 variable "instance-type-mc-min" {

@@ -149,7 +149,7 @@ variable "ds" {
 }
 
 variable "ds-enable" {
-  type = boolean
+  type = bool
   value = true
 }
 
@@ -217,7 +217,7 @@ variable "mc" {
 }
 
 variable "mc-enable" {
-  type = boolean
+  type = bool
   value = true
 }
 

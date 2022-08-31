@@ -107,19 +107,6 @@ variable "disk-size-ihf" {
   default     = 35
 }
 
-locals {
-  env                   = var.splunktargetenv
-  instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default)
-  instance-type-iuf = (local.env == "min" ? var.instance-type-iuf-min : var.instance-type-iuf-default)
-  instance-type-ihf = (local.env == "min" ? var.instance-type-ihf-min : var.instance-type-ihf-default)
-  instance-type-cm = (local.env == "min" ? var.instance-type-cm-min : var.instance-type-cm-default)
-  instance-type-mc = (local.env == "min" ? var.instance-type-mc-min : var.instance-type-mc-default)
-  instance-type-ds = (local.env == "min" ? var.instance-type-ds-min : var.instance-type-ds-default)
-  instance-type-sh = (local.env == "min" ? var.instance-type-sh-min : var.instance-type-sh-default)
-  ds-nb = (var.ds-enable == "true" ? 1 : 0)
-  mc-nb = (var.mc-enable == "true" ? 1 : 0)
-}
-
 variable "cm" {
   type    = string
   default = "cm3"
@@ -267,6 +254,19 @@ variable "disk-size-iuf" {
   description = "disk size in G"
   type        = number
   default     = 35
+}
+
+locals {
+  env                   = var.splunktargetenv
+  instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default)
+  instance-type-iuf = (local.env == "min" ? var.instance-type-iuf-min : var.instance-type-iuf-default)
+  instance-type-ihf = (local.env == "min" ? var.instance-type-ihf-min : var.instance-type-ihf-default)
+  instance-type-cm = (local.env == "min" ? var.instance-type-cm-min : var.instance-type-cm-default)
+  instance-type-mc = (local.env == "min" ? var.instance-type-mc-min : var.instance-type-mc-default)
+  instance-type-ds = (local.env == "min" ? var.instance-type-ds-min : var.instance-type-ds-default)
+  instance-type-sh = (local.env == "min" ? var.instance-type-sh-min : var.instance-type-sh-default)
+  ds-nb = (var.ds-enable == "true" ? 1 : 0)
+  mc-nb = (var.mc-enable == "true" ? 1 : 0)
 }
 
 variable "associate_public_ip" {

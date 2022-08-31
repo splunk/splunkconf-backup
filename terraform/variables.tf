@@ -116,6 +116,8 @@ locals {
   instance-type-mc = (local.env == "min" ? var.instance-type-mc-min : var.instance-type-mc-default)
   instance-type-ds = (local.env == "min" ? var.instance-type-ds-min : var.instance-type-ds-default)
   instance-type-sh = (local.env == "min" ? var.instance-type-sh-min : var.instance-type-sh-default)
+  ds-nb = (ds-enable == "true" ? 1 : 0)
+  mc-nb = (mc-enable == "true" ? 1 : 0)
 }
 
 variable "cm" {
@@ -144,6 +146,11 @@ variable "disk-size-cm" {
 variable "ds" {
   type    = string
   default = "ds3"
+}
+
+variable "ds-enable" {
+  type = boolean
+  value = false
 }
 
 variable "instance-type-ds-min" {
@@ -207,6 +214,11 @@ variable "disk-size-sh" {
 variable "mc" {
   type    = string
   default = "mc3"
+}
+
+variable "mc-enable" {
+  type = boolean
+  value = false
 }
 
 variable "instance-type-mc-min" {

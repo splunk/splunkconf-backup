@@ -224,6 +224,11 @@ variable "disk-size-mc" {
   default     = 35
 }
 
+variable "ihf" {
+  type    = string
+  default = "ihf3"
+}
+
 variable "hf" {
   type    = string
   default = "hf3"

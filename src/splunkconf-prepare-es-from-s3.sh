@@ -13,8 +13,9 @@
 # 20211217 update for 7.0.0
 # 20220325 update for 7.0.1
 # 20220815 add remoteappsdir var and improve error messages
+# 20221009 update for 7.0.2
 
-VERSION="20220815"
+VERSION="20221009"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
@@ -53,7 +54,7 @@ else
   echo "installes.sh is NOT present in s3 install at $remoteinstalldir: KO Please upload scripts to s3 install"
 fi
 
-ESAPP="splunk-enterprise-security_701.spl"
+ESAPP="splunk-enterprise-security_702.spl"
 
 aws s3 cp $remoteappsdir/$ESAPP  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESAPP" ]; then
@@ -62,7 +63,7 @@ else
   echo "ES install file $ESAPP is NOT present in s3 install at $remoteappsdir: KO Please upload correct ES app version to s3 install or update this script is you want to use a different version"
 fi
 
-ESCU="splunk-es-content-update_3460.tgz"
+ESCU="splunk-es-content-update_3500.tgz"
 
 aws s3 cp $remoteappsdir/$ESCU  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESCU" ]; then

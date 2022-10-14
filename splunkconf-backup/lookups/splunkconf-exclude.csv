@@ -57,7 +57,6 @@
 ./etc/apps/splunk_rapid_diag/appserver
 ./etc/apps/splunk_rapid_diag/SampleTasks
 ./etc/apps/splunk_rapid_diag/static
-./etc/apps/simple_xml_examples
 ./etc/apps/user-prefs/default
 ./etc/log-btool-debug.cfg
 ./etc/log-btool.cfg

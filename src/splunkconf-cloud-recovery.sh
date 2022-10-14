@@ -160,8 +160,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220813 add dir creation for ds and cm skeleton creation as splunk not yet started when we copy files into
 # 20220813 change regex to require master_uri at beginning of line for lm
 # 20220813 add tag replacement for s2 tag
+# 20221014 up to 9.0.1
 
-VERSION="20220813c"
+VERSION="20221014a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1012,26 +1013,11 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update at reinstanciation, make sure you know what you do !
-#splbinary="splunk-8.0.5-a1a6394cc5ae-linux-2.6-x86_64.rpm"
-#splbinary="xxxsplunk-8.0.6-152fb4b2bb96-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.0.7-cbe73339abca-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.1.1-08187535c166-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.1.2-545206cc9f70-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.1.3-63079c59e632-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.1.4-17f862b42a7c-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.1.5-9c0c082e4596-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.2.0-e053ef3c985f-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.2.1-ddff1c41e5cf-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm"
-#splbinary="splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm"
-splbinary="splunk-9.0.0-6818ac46f2ec-linux-2.6-x86_64.rpm"
+splbinary="splunk-9.0.1-82c987350fde-linux-2.6-x86_64.rpm"
 
 
 if [ "$splunkmode" == "uf" ]; then 
-  #splbinary="splunkforwarder-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm"
-  splbinary="splunkforwarder-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm"
+  splbinary="splunkforwarder-9.0.1-82c987350fde-linux-2.6-x86_64.rpm"
   echo "switching to uf binary ${splbinary} if not set in tag"
 fi
 
@@ -1059,11 +1045,7 @@ if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
   else
     echo "RPM not present in install, trying to download directly (ent version)"
     ###### change from version on splunk.com : add -q , add ${localinstalldir}/ and add quotes around 
-    #`wget -q -O ${localinstalldir}/splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm 'https://d7wz6hmoaavd0.cloudfront.net/products/splunk/releases/8.2.2/linux/splunk-8.2.2-87344edfcdb4-linux-2.6-x86_64.rpm'`
-    #`wget -q -O ${localinstalldir}/splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm 'https://download.splunk.com/products/splunk/releases/8.2.4/linux/splunk-8.2.4-87e2dda940d1-linux-2.6-x86_64.rpm'`
-    #`wget -q -O ${localinstalldir}/splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/8.2.5/linux/splunk-8.2.5-77015bc7a462-linux-2.6-x86_64.rpm"`
-    #`wget -q -O ${localinstalldir}/splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/8.2.6/linux/splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm"`
-     `wget -q -O ${localinstalldir}/splunk-9.0.0-6818ac46f2ec-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/9.0.0/linux/splunk-9.0.0-6818ac46f2ec-linux-2.6-x86_64.rpm"`
+    `wget -q -O ${localinstalldir}/splunk-9.0.1-82c987350fde-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/9.0.1/linux/splunk-9.0.1-82c987350fde-linux-2.6-x86_64.rpm"`
   fi
   if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install (or fix the wget with wget -q -O ... if you just copied paste wget))  " >> /var/log/splunkconf-cloud-recovery-info.log

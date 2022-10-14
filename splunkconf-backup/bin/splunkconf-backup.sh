@@ -81,8 +81,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20220327 factor remote copy in order to add duration and size to log
 # 20220409 fix double remote copy issue with kvdump/kvstore 
 # 20220823 fix regression for cm master and manager folders 
+# 20221014 remove logging for remote when unconfigured (to reduce logging footprint)
 
-VERSION="20220823a"
+VERSION="20221014a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -546,7 +547,14 @@ fi
 
 if [ -z ${splunks3backupbucket+x} ]; then 
   if [ -z ${s3backupbucket+x} ]; then 
-    warn_log "name=splunks3backupbucket  src=instancetags result=unset "; 
+    if [ "REMOTEBACKUPDIR" -eq "s3://pleaseconfigurenstancetagsorsetdirectlythes3bucketforbackupshere-splunks3splunkbackup/splunkconf-backup" ]; then 
+      ## there is no tag from instance metadata so we are not in a cloud instance or that instance hasnt been configured for doing remote backups
+      DOREMOTEBACKUP=0
+      warn_log "name=splunks3backupbucket  src=instancetags result=unset remotebackup=disabled "; 
+    else
+      # on prem with remote backup configured or static configuration in cloud 
+      debug_log "name=remotebackup src=remotebackup result=configured"
+    fi
   else 
     if [[ "cloud_type" -eq 2 ]]; then
       debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";

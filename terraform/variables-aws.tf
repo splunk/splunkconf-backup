@@ -24,3 +24,8 @@ variable "kmsid" {
   default     = "splunks3kms"
 }
 
+variable "idxasg_cooldown" {
+  description = "time in second after a scaling activity iin asg idx occur before another scaling activity can start ""
+  type        = number
+  default     = 60
+}

@@ -303,6 +303,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
     value               = local.dns-prefix
     propagate_at_launch = false
   }
+  default_cooldown=var.idxasg_cooldown
 
 
   depends_on = [null_resource.bucket_sync]

@@ -220,7 +220,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-cm" {
   }
   tag {
     key                 = "splunkdnsnames"
-    value               = "asgcm"
+    value               = var.cm
     propagate_at_launch = false
   }
   tag {
@@ -281,5 +281,11 @@ resource "aws_launch_template" "splunk-cm" {
     http_put_response_hop_limit = 1
   }
   user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
+}
+
+
+output "cm-dns-name" {
+  value = "${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
+  description = "cm dns name (private ip)"
 }
 

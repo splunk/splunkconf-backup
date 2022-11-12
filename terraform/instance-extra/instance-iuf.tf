@@ -132,7 +132,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-iuf" {
   }
   tag {
     key                 = "splunkdnsnames"
-    value               = "asgiuf"
+    value               = var.iuf
     propagate_at_launch = false
   }
   tag {
@@ -194,4 +194,14 @@ resource "aws_launch_template" "splunk-iuf" {
     http_put_response_hop_limit = 1
   }
   user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
+}
+
+output "iuf-dns-name" {
+  value = "${local.dns-prefix}${var.iuf}.${var.dns-zone-name}"
+  description = "iuf dns name (private ip)"
+}
+
+output "iuf-dns-name-ext" {
+  value = "${local.dns-prefix}${var.iuf}-ext.${var.dns-zone-name}"
+  description = "iuf dns name (pub ip) (if exist)"
 }

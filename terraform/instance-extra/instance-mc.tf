@@ -150,7 +150,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-mc" {
   }
   tag {
     key                 = "splunkdnsnames"
-    value               = "asgmc"
+    value               = var.mc
     propagate_at_launch = false
   }
   tag {
@@ -214,4 +214,9 @@ resource "aws_launch_template" "splunk-mc" {
   user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
 }
 
+
+output "mc-dns-name" {
+  value = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
+  description = "mc dns name (private ip)"
+}
 

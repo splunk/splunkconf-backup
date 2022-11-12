@@ -194,3 +194,9 @@ resource "aws_launch_template" "splunk-ihf" {
   }
   user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
 }
+
+output "ihf-dns-name" {
+  value = "${local.dns-prefix}${var.ihf}.${var.dns-zone-name}"
+  description = "ihf dns name (private ip)"
+}
+

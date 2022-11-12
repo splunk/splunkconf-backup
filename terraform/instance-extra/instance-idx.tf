@@ -295,7 +295,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
   }
   tag {
     key                 = "splunkdnsnames"
-    value               = "asgidx"
+    value               = var.idxdnsnames
     propagate_at_launch = false
   }
   tag {
@@ -417,5 +417,11 @@ resource "aws_security_group_rule" "lbhec_from_networks_8088" {
   protocol          = "tcp"
   cidr_blocks       = var.hec-in-allowed-networks
   description       = "allow hec from authorized networks"
+}
+
+
+output "idx-dns-name" {
+  value = "${local.dns-prefix}${var.idxdnsnames}.${var.dns-zone-name}"
+  description = "idx/inputs dns name (private ip)"
 }
 

@@ -169,7 +169,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
   }
   tag {
     key                 = "splunkdnsnames"
-    value               = "asghf"
+    value               = var.hf
     propagate_at_launch = false
   }
   tag {
@@ -231,5 +231,12 @@ resource "aws_launch_template" "splunk-hf" {
     http_put_response_hop_limit = 1
   }
   user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
+}
+
+
+
+output "hf-dns-name" {
+  value = "${local.dns-prefix}${var.hf}.${var.dns-zone-name}"
+  description = "hf dns name (private ip)"
 }
 

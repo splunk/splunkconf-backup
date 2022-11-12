@@ -222,7 +222,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
   }
   tag {
     key                 = "splunkdnsnames"
-    value               = "asgds"
+    value               = var.ds
     propagate_at_launch = false
   }
   tag {
@@ -290,3 +290,8 @@ resource "aws_launch_template" "splunk-ds" {
 
 
 
+output "ds-dns-name" {
+  value = "${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
+  description = "ds dns name (private ip)"
+}
+ 

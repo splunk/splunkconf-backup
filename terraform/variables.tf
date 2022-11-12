@@ -39,6 +39,12 @@ variable "idx-nb" {
   default     = 3
 }
 
+variable "idxdnsnames" {
+  description = "list of names to create for indexer ips (used by lambda function)"
+  type        = string
+  default     = "idx inputs inputs1 inputs2 inputs3 inputs4 inputs5 inputs6 inputs7 inputs8 inputs9 inputs10 inputs11 inputs12 inputs13 inputs14 inputs15 inputs16 inputs17 inputs18 inputs19""
+}
+
 variable "bastion" {
   description = "bastion / nat instance name"
   type        = string

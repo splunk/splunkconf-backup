@@ -169,3 +169,15 @@ resource "aws_launch_template" "splunk-bastion" {
 #  private_ips     = ["10.0.3.50"]
 #  security_groups = [aws_security_group.splunk-bastion.id]
 #}
+
+
+output "bastion-dns-name-ext" {
+  value = "${local.dns-prefix}${var.bastion}-ext.${var.dns-zone-name}"
+  description = "Bastion dns name (public ip)"
+}
+ 
+output "bastion-dns-name" {
+  value = "${local.dns-prefix}${var.bastion}.${var.dns-zone-name}"
+  description = "Bastion dns name (private ip)"
+}
+  

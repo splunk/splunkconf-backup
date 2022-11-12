@@ -210,7 +210,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh" {
   }
   tag {
     key                 = "splunkdnsnames"
-    value               = "asgsh"
+    value               = var.sh
     propagate_at_launch = false
   }
   tag {
@@ -324,4 +324,9 @@ resource "aws_security_group_rule" "lbsh_from_networks_https" {
   description       = "allow https connection to lb sh from authorized networks"
 }
 
+
+output "sh-dns-name" {
+  value = "${local.dns-prefix}${var.sh}.${var.dns-zone-name}"
+  description = "sh dns name (private ip)"
+}
 

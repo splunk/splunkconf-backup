@@ -305,7 +305,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
   }
   default_cooldown=var.idxasg_cooldown
 
-
+  target_group_arns = [aws_alb_target_group.idxhec.id]
   depends_on = [null_resource.bucket_sync]
 }
 
@@ -419,9 +419,63 @@ resource "aws_security_group_rule" "lbhec_from_networks_8088" {
   description       = "allow hec from authorized networks"
 }
 
+resource "aws_alb_target_group" "idxhec" {
+  name_prefix = "idxhec"
+  port = 8088
+  protocol = var.hec_protocol
+  vpc_id      = local.master_vpc_id
+  load_balancing_algorithm_type = "round_robin"
+  slow_start = 30
+  health_check {
+    path = "/services/collector/health/1.0"
+    port = 8088
+    protocol = var.hec_protocol
+    healthy_threshold = 3
+    unhealthy_threshold = 2
+    timeout = 25
+    interval = 30
+    matcher = "200"  # has to be HTTP 200 or fails
+  }
+}
+
+resource "aws_lb" "idxhec-noack" {
+  #count    = var.use_elb ? 1 : 0
+  name = "idxhec-noack"
+  load_balancer_type= "application"
+  security_groups = [aws_security_group.splunk-lbhec.id]
+  subnets = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
+  tags = {
+    Type = "Splunk"
+  }
+}
+
+
+resource "aws_lb" "idxhec-ack" {
+  #count    = var.use_elb_ack ? 1 : 0
+  name = "idxhec-ack"
+  load_balancer_type= "application"
+  security_groups = [aws_security_group.splunk-lbhec.id]
+  subnets = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
+  tags = {
+    Type = "Splunk"
+  }
+}
+
+
+resource "aws_alb_listener" "idxhec-noack" {
+  load_balancer_arn = aws_lb.idxhec-noack.arn
+  port = 8088
+  # change here for HTTPS
+  protocol = "HTTP"
+  default_action {
+    target_group_arn = aws_alb_target_group.idxhec.arn
+    type = "forward"
+  }
+}
+
 
 output "idx-dns-name" {
-  value = "${local.dns-prefix}${var.idxdnsnames}.${var.dns-zone-name}"
-  description = "idx/inputs dns name (private ip)"
+  value = "${local.dns-prefix}[${var.idxdnsnames}].${var.dns-zone-name}"
+  description = "idx/inputs (multiples) dns name (private ip)"
 }
 

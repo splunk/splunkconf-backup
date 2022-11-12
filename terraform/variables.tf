@@ -39,10 +39,35 @@ variable "idx-nb" {
   default     = 3
 }
 
+variable "idxasg_cooldown" {
+  description = "number of seconds to wait before terminating a second instance when asked for"
+  type        = number
+  default     = 60
+}
+
+variable "hec_protocol" {
+  description = "HTTP or HTTPS depending if the target being ELB listen in HTTP or HTTPS"
+  type        = string
+  default     = "HTTP"
+}
+
+variable "use_elb" {
+  description = "whether to create ELB for HEC"
+  type        = number
+  default     = 1
+}
+
+variable "use_elb_ack" {
+  description = "whether to create ELB for HEC with ACK (required for Kinesis Firehose)"
+  type        = number
+  default     = 0
+}
+
+
 variable "idxdnsnames" {
   description = "list of names to create for indexer ips (used by lambda function)"
   type        = string
-  default     = "idx inputs inputs1 inputs2 inputs3 inputs4 inputs5 inputs6 inputs7 inputs8 inputs9 inputs10 inputs11 inputs12 inputs13 inputs14 inputs15 inputs16 inputs17 inputs18 inputs19""
+  default     = "idx inputs inputs1 inputs2 inputs3 inputs4 inputs5 inputs6 inputs7 inputs8 inputs9 inputs10 inputs11 inputs12 inputs13 inputs14 inputs15 inputs16 inputs17 inputs18 inputs19"
 }
 
 variable "bastion" {
@@ -272,6 +297,7 @@ locals {
   instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default)
   instance-type-iuf = (local.env == "min" ? var.instance-type-iuf-min : var.instance-type-iuf-default)
   instance-type-ihf = (local.env == "min" ? var.instance-type-ihf-min : var.instance-type-ihf-default)
+  instance-type-hf = (local.env == "min" ? var.instance-type-hf-min : var.instance-type-hf-default)
   instance-type-cm = (local.env == "min" ? var.instance-type-cm-min : var.instance-type-cm-default)
   instance-type-mc = (local.env == "min" ? var.instance-type-mc-min : var.instance-type-mc-default)
   instance-type-ds = (local.env == "min" ? var.instance-type-ds-min : var.instance-type-ds-default)

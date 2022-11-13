@@ -12,6 +12,7 @@ then
 else
   # asking to install git if not here via package manager
   if ! command -v yum &> /dev/null
+  then
     echo "not on a RH like system, command yum not found, please install git and terraform and relaunch script (mac brew install git and brew install terraform)"
     exit 1
   else
@@ -35,7 +36,7 @@ else
   # on AWS2 , the release is 2 which confuse the hashicorp.repo -> forcing version 7
   sed -i -e 's%$releasever%7%' /etc/yum.repos.d/hashicorp.repo
   sudo yum -y install terraform
-
+fi
 
 if ! command -v terraform &> /dev/null
 then

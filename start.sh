@@ -2,7 +2,10 @@
 # from the git structure
 
 # asking to install git if not here via package manager
-sudo yum install -y git 
+echo "installing git and terraform via package manager if needed"
+sudo yum install -y git yum-utils
+sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+sudo yum -y install terraform
 
 # cloning repo to local dir
 git clone https://github.com/splunk/splunkconf-backup.git
@@ -73,4 +76,7 @@ chmod a+x terraform-gcp/*.sh
 # policy templates
 \cp -rp ./terraform/policy-aws  "$i/terraform/"
 
+echo "Please go in splunkconf-backup/terraform to continue"
+echo "Please also make sure you set up cloud credentials and customize variables"
+echo "you may also want to use a remote tfstate"
 

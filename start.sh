@@ -1,7 +1,12 @@
 # This Makefile create the local bucket structure to be pushed in cloud bucket via terraform
 # from the git structure
 
-# FIXME add here copy to recreate bucket structure from git
+# asking to install git if not here via package manager
+yum install -Y git 
+
+# cloning repo to local dir
+git clone https://github.com/splunk/splunkconf-backup.git
+
 
 createbuckets:
 i=buckets

@@ -7,6 +7,8 @@ sudo yum install -y git
 # cloning repo to local dir
 git clone https://github.com/splunk/splunkconf-backup.git
 
+cd splunkconf-backup
+
 
 #createbuckets:
 i=buckets
@@ -15,8 +17,9 @@ mkdir -p $i/bucket-install/packaged
 # copying apps for bucket install
 # Event Timeline is to be downloaded from https://splunkbase.splunk.com/app/4370/#/details
 # SHA256 checksum (event-timeline-viz_160.tgz) 8dc7a5cf1faf5d2a64cb2ceae17049070d24f74c381b83f831d0c51ea15a2ffe
+# SHA256 checksum (event-timeline-viz_171.tgz) 7d110b3adbcdb5342d01a42b950f0c10b55dbadc561111fce14afcee16070755
 # you need this on the MC to have the dashboard viz running 
-for j in splunkconf-backup.tar.gz event-timeline-viz_160.tgz
+for j in splunkconf-backup.tar.gz event-timeline-viz_171.tgz
 do
   if [ -e ./install/apps/$j ]; then 
     \cp -p ./install/apps/$j "$i/bucket-install/install/apps/"
@@ -30,7 +33,7 @@ SOURCE="src"
 # user-seed.conf -> to initiate splunk password, you can use splunkconf-init.pl to create it or follow splunk doc 
 # splunkconf-aws-recovery.sh is renamed to splunkconf-cloud-recovery.sh, you dont need it unless you rely on user data that reference the old file name
 # splunktargetenv are optional script to have custom actions on a specific env when moving between prod and test env (like disabling sending emails or alerts)
-for j in splunk.secret user-seed.conf splunkconf-cloud-recovery.sh splunkconf-aws-recovery.sh splunkconf-upgrade-local.sh splunkconf-swapme.pl splunkconf-upgrade-local-precheck.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-prepare-es-from-s3.sh user-data.txt user-data-gcp.txt splunkconf-init.pl installes.sh splunktargetenv-for*.sh splunkconf-ds-lb.sh
+for j in splunk.secret user-seed.conf splunkconf-cloud-recovery.sh splunkconf-upgrade-local.sh splunkconf-swapme.pl splunkconf-upgrade-local-precheck.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-prepare-es-from-s3.sh user-data.txt user-data-gcp.txt splunkconf-init.pl installes.sh splunktargetenv-for*.sh splunkconf-ds-lb.sh
 do
   if [ -e ./$SOURCE/$j ]; then 
     \cp -p ./$SOURCE/$j  "$i/bucket-install/install/"

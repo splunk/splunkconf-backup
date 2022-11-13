@@ -1,3 +1,3 @@
-module "variables" {
-  source = "../variables"
-}
+#module "variables" {
+#  source = "../variables"
+#}

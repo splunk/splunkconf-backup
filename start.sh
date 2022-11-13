@@ -2,13 +2,13 @@
 # from the git structure
 
 # asking to install git if not here via package manager
-yum install -Y git 
+yum install -ryY git 
 
 # cloning repo to local dir
 git clone https://github.com/splunk/splunkconf-backup.git
 
 
-createbuckets:
+#createbuckets:
 i=buckets
 mkdir -p $i/bucket-install/install/apps
 mkdir -p $i/bucket-install/packaged

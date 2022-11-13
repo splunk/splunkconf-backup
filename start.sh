@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# 20221113a
 
 # This script create the local bucket structure to be pushed in cloud bucket via terraform
 # from the git structure
@@ -118,3 +119,16 @@ echo "Please go in splunkconf-backup/terraform to continue"
 echo "Please also make sure you set up cloud credentials and customize variables"
 echo "you may also want to use a remote tfstate"
 
+for i in kms network ssh 
+do
+  echo "initializing module in  ~/splunkconf-backup/terraform/modules/$i "
+  echo "WARNING : you need to run the modules (after setting variables before the main terraform ir that will fail"
+  cd ~/splunkconf-backup/terraform/modules/$i
+  terraform init
+  terraform validate
+done
+
+echo "initializing terraform in  ~/splunkconf-backup/terraform "
+cd ~/splunkconf-backup/terraform
+terraform init
+terraform validate

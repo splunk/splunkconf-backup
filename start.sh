@@ -74,7 +74,7 @@ SOURCE="src"
 # user-seed.conf -> to initiate splunk password, you can use splunkconf-init.pl to create it or follow splunk doc 
 # splunkconf-aws-recovery.sh is renamed to splunkconf-cloud-recovery.sh, you dont need it unless you rely on user data that reference the old file name
 # splunktargetenv are optional script to have custom actions on a specific env when moving between prod and test env (like disabling sending emails or alerts)
-for j in splunk.secret user-seed.conf splunkconf-cloud-recovery.sh splunkconf-upgrade-local.sh splunkconf-swapme.pl splunkconf-upgrade-local-precheck.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-prepare-es-from-s3.sh user-data.txt user-data-gcp.txt splunkconf-init.pl installes.sh splunktargetenv-for*.sh splunkconf-ds-lb.sh
+for j in splunk.secret user-seed.conf splunkconf-cloud-recovery.sh splunkconf-upgrade-local.sh splunkconf-swapme.pl splunkconf-upgrade-local-precheck.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-prepare-es-from-s3.sh user-data.txt user-data-gcp.txt user-data-bastion.txt user-data-withcliinstall.txt splunkconf-init.pl installes.sh splunktargetenv-for*.sh splunkconf-ds-lb.sh
 do
   if [ -e ./$SOURCE/$j ]; then 
     \cp -p ./$SOURCE/$j  "$i/bucket-install/install/"

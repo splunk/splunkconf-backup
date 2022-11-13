@@ -2,7 +2,7 @@
 # from the git structure
 
 # asking to install git if not here via package manager
-yum install -ryY git 
+yum install -y git 
 
 # cloning repo to local dir
 git clone https://github.com/splunk/splunkconf-backup.git

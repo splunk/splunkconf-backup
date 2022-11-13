@@ -34,7 +34,7 @@ else
   sudo yum install -y yum-utils
   sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
   # on AWS2 , the release is 2 which confuse the hashicorp.repo -> forcing version 7
-  sed -i -e 's%$releasever%7%' /etc/yum.repos.d/hashicorp.repo
+  sudo sed -i -e 's%$releasever%7%' /etc/yum.repos.d/hashicorp.repo
   sudo yum -y install terraform
 fi
 

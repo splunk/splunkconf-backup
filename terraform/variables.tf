@@ -39,12 +39,6 @@ variable "idx-nb" {
   default     = 3
 }
 
-variable "idxasg_cooldown" {
-  description = "number of seconds to wait before terminating a second instance when asked for"
-  type        = number
-  default     = 60
-}
-
 variable "hec_protocol" {
   description = "HTTP or HTTPS depending if the target being ELB listen in HTTP or HTTPS"
   type        = string

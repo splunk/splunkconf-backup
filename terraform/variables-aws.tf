@@ -25,7 +25,7 @@ variable "kmsid" {
 }
 
 variable "idxasg_cooldown" {
-  description = "time in second after a scaling activity iin asg idx occur before another scaling activity can start ""
+  description = "time in second after a scaling activity iin asg idx occur before another scaling activity can start "
   type        = number
   default     = 60
 }

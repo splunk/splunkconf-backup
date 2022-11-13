@@ -420,7 +420,7 @@ resource "aws_security_group_rule" "lbhec_from_networks_8088" {
 }
 
 resource "aws_alb_target_group" "idxhec" {
-  name_prefix = "idxhec"
+  name_prefix = "ihec-"
   port = 8088
   protocol = var.hec_protocol
   vpc_id      = local.master_vpc_id
@@ -434,7 +434,36 @@ resource "aws_alb_target_group" "idxhec" {
     unhealthy_threshold = 2
     timeout = 25
     interval = 30
-    matcher = "200"  # has to be HTTP 200 or fails
+    # {"text":"HEC is healthy","code":17}
+    # return code 200
+    matcher = "200"  
+  }
+}
+
+resource "aws_alb_target_group" "idxhec-ack" {
+  name_prefix = "iheca-"
+  port = 8088
+  protocol = var.hec_protocol
+  vpc_id      = local.master_vpc_id
+  load_balancing_algorithm_type = "round_robin"
+  # important for ack to work correctly
+  # alternate would be to rely on cookie 
+  stickiness {
+    enabled = true
+    type = "lb_cookie"
+  }
+  slow_start = 30
+  health_check {
+    path = "/services/collector/health/1.0"
+    port = 8088
+    protocol = var.hec_protocol
+    healthy_threshold = 3
+    unhealthy_threshold = 2
+    timeout = 25
+    interval = 30
+    # {"text":"HEC is healthy","code":17}
+    # return code 200
+    matcher = "200"  
   }
 }
 
@@ -469,6 +498,17 @@ resource "aws_alb_listener" "idxhec-noack" {
   protocol = "HTTP"
   default_action {
     target_group_arn = aws_alb_target_group.idxhec.arn
+    type = "forward"
+  }
+}
+
+resource "aws_alb_listener" "idxhec-ack" {
+  load_balancer_arn = aws_lb.idxhec-ack.arn
+  port = 8088
+  # change here for HTTPS
+  protocol = "HTTP"
+  default_action {
+    target_group_arn = aws_alb_target_group.idxhec-ack.arn
     type = "forward"
   }
 }

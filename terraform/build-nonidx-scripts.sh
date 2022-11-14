@@ -17,4 +17,4 @@ if [ -e "./scripts-template/aws-update-dns.sh" ]; then
   chmod 555 ./build-idx/usr/local/bin/aws-postinstall.sh
 fi
 mkdir -p ../buckets/bucket-backup/splunkconf-backup/${instancetype}
-tar -C"./build-idx" --exclude "._*" --exclude ".DS*" -zcvf ../buckets/bucket-backup/splunkconf-backup/${instancetype}/backupconfsplunk-scripts-initial.tar.gz ./opt/splunk/scripts ./usr/local/bin
+tar -C"./build-nonidx" --exclude "._*" --exclude ".DS*" -zcvf ../buckets/bucket-backup/splunkconf-backup/${instancetype}/backupconfsplunk-scripts-initial.tar.gz ./opt/splunk/scripts ./usr/local/bin

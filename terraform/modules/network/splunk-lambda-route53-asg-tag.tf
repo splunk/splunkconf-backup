@@ -14,7 +14,7 @@ resource "aws_iam_role" "role-splunk-lambda-route53-asg-tag" {
 
 resource "aws_iam_instance_profile" "role-splunk-lambda-route53-asg-tag_profile" {
   provider = aws.region-master
-  namei_prefix     = "role-splunk-lambda-route53-asg-tag_profile"
+  name_prefix     = "role-splunk-lambda-route53-asg-tag_profile"
   role     = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
 }
 

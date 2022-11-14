@@ -2,7 +2,7 @@
 resource "aws_route_table" "private_route_instancegw" {
   count    = var.use_nat_gateway ? 0 : 1
   provider = aws.region-master
-  vpc_id   = aws_vpc.vpc_master.id
+  vpc_id   = local.master_vpc_id
   route {
     cidr_block = "0.0.0.0/0"
     # workaround for bastion in asg

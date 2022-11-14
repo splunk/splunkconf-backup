@@ -2,7 +2,7 @@
 
 resource "aws_iam_role" "role-splunk-lambda-route53-asg-tag" {
   provider              = aws.region-master
-  name                  = "role-splunk-lambda-route53-asg-tags"
+  name_prefix           = "role-splunk-lambda-route53-asg-tags"
   force_detach_policies = true
   description           = "iam role for splunk lambda lambda-route53-asg-tag"
   assume_role_policy    = file("policy-aws/assumerolepolicy-lambda.json")
@@ -14,7 +14,7 @@ resource "aws_iam_role" "role-splunk-lambda-route53-asg-tag" {
 
 resource "aws_iam_instance_profile" "role-splunk-lambda-route53-asg-tag_profile" {
   provider = aws.region-master
-  name     = "role-splunk-lambda-route53-asg-tag_profile"
+  namei_prefix     = "role-splunk-lambda-route53-asg-tag_profile"
   role     = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
 }
 
@@ -96,7 +96,7 @@ resource "aws_cloudwatch_log_group" "splunkconf_asg_logging" {
 
 resource "aws_iam_policy" "lambda_logging" {
   provider    = aws.region-master
-  name        = "lambda_logging"
+  name_prefix        = "lambda_logging"
   path        = "/"
   description = "IAM policy for logging from a lambda"
 
@@ -125,7 +125,7 @@ EOF
 
 resource "aws_cloudwatch_event_rule" "asg" {
   provider    = aws.region-master
-  name        = "capture-aws-asg"
+  name_prefix        = "capture-aws-asg"
   description = "Capture each AWS ASG events"
 
   event_pattern = <<EOF

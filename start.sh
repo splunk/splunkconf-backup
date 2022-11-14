@@ -45,6 +45,12 @@ then
   exit 1
 fi
 
+if [ ! -e "~/.ssh/id_rsa" ]; then
+  echo "no ssh key , creating one for access to basrtion host"
+  echo -ne '\n' | ssh-keygen -q -t rsa -f ~/.ssh/id_rsa
+else
+  echo "ssh key exist"
+fi
 
 # cloning repo to local dir
 git clone https://github.com/splunk/splunkconf-backup.git

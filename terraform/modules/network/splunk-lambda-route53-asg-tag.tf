@@ -90,7 +90,7 @@ resource "aws_lambda_function" "lambda_update-route53-tag" {
 
 resource "aws_cloudwatch_log_group" "splunkconf_asg_logging" {
   provider          = aws.region-master
-  name              = "/aws/lambda/lambda_update-route53-tag"
+  name_prefix              = "/aws/lambda/lambda_update-route53-tag"
   retention_in_days = 14
 }
 

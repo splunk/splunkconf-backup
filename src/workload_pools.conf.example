@@ -1,0 +1,49 @@
+[general]
+enabled = true
+default_pool = Standard
+ingest_pool = ingest
+workload_pool_base_dir_name = splunk
+
+[workload_category:search]
+cpu_weight = 70
+mem_weight = 70
+
+[workload_category:ingest]
+cpu_weight = 20
+mem_weight = 100
+
+[workload_category:misc]
+cpu_weight = 10
+mem_weight = 10
+
+[workload_pool:Standard]
+cpu_weight = 35
+mem_weight = 100
+category = search
+default_category_pool = 1
+
+[workload_pool:ingest]
+cpu_weight = 100
+mem_weight = 100
+category = ingest
+default_category_pool = 1
+
+[workload_pool:misc]
+cpu_weight = 100
+mem_weight = 100
+category = misc
+default_category_pool = 1
+
+[workload_pool:HighPriority]
+cpu_weight = 60
+mem_weight = 90
+category = search
+default_category_pool = 0
+
+[workload_pool:LowPriority]
+cpu_weight = 5
+mem_weight = 90
+category = search
+default_category_pool = 0
+
+

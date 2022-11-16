@@ -134,7 +134,7 @@ variable "disk-size-ihf" {
 
 variable "cm" {
   type    = string
-  default = "cm3"
+  default = "cm"
 }
 
 variable "instance-type-cm-min" {
@@ -157,7 +157,7 @@ variable "disk-size-cm" {
 
 variable "ds" {
   type    = string
-  default = "ds3"
+  default = "ds"
 }
 
 variable "ds-enable" {
@@ -194,7 +194,7 @@ variable "dsnb" {
 
 variable "lm" {
   type    = string
-  default = "lm3"
+  default = "lm"
 }
 
 variable "instance-type-lm" {
@@ -204,7 +204,7 @@ variable "instance-type-lm" {
 
 variable "sh" {
   type    = string
-  default = "sh3"
+  default = "sh"
 }
 
 variable "instance-type-sh-min" {
@@ -225,7 +225,7 @@ variable "disk-size-sh" {
 
 variable "mc" {
   type    = string
-  default = "mc3"
+  default = "mc"
 }
 
 variable "mc-enable" {
@@ -251,12 +251,12 @@ variable "disk-size-mc" {
 
 variable "ihf" {
   type    = string
-  default = "ihf3"
+  default = "ihf"
 }
 
 variable "hf" {
   type    = string
-  default = "hf3"
+  default = "hf"
 }
 
 variable "instance-type-hf-min" {

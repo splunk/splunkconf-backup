@@ -139,7 +139,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ihf" {
   }
   tag {
     key                 = "splunkdnsnames"
-    value               = "asgihf"
+    value               = "ihf"
     propagate_at_launch = false
   }
   tag {

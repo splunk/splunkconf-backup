@@ -52,6 +52,14 @@ resource "aws_iam_role_policy_attachment" "ihf-attach-ssm-managedinstance" {
   provider = aws.region-master
 }
 
+resource "aws_iam_role_policy_attachment" "ihf-attach-s3ia" {
+  #name       = "iuf-attach-s3ia"
+  role      = aws_iam_role.role-splunk-ihf.name
+  #roles      = [aws_iam_role.role-splunk-ihf.name]
+  policy_arn = aws_iam_policy.pol-splunk-s3ia.arn
+  provider = aws.region-master
+}
+
 resource "aws_security_group_rule" "ihf_from_bastion_ssh" {
   security_group_id        = aws_security_group.splunk-ihf.id
   type                     = "ingress"

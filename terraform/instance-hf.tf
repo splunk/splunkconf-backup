@@ -139,6 +139,17 @@ resource "aws_security_group_rule" "hf_from_mc_8089" {
   description              = "allow MC to connect to instance on mgt port (rest api)"
 }
 
+# only when hf used as hec intermediate (instead of direct to idx via LB)
+resource "aws_security_group_rule" "idx_from_networks_8088" {
+  security_group_id = aws_security_group.splunk-hf.id
+  type              = "ingress"
+  from_port         = 8088
+  to_port           = 8088
+  protocol          = "tcp"
+  cidr_blocks       = var.hec-in-allowed-networks
+  description       = "allow HF to receive hec from authorized networks"
+}
+
 resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
   provider            = aws.region-master
   name                = "asg-splunk-hf"

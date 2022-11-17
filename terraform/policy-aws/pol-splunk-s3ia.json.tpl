@@ -17,7 +17,7 @@
                 "s3:PutObjectAcl"
             ],
             "Resource": [
-                "${s3_ia}/$(s3_iaprefix}/*",
+                "${s3_ia}/${s3_iaprefix}/*",
                 "${s3_ia}/*"
             ]
         }

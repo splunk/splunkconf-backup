@@ -191,6 +191,16 @@ resource "aws_security_group_rule" "cm_from_iuf_8089" {
   description              = "allow connect to instance on mgt port (rest api)"
 }
 
+resource "aws_security_group_rule" "cm_from_ihf_8089" {
+  security_group_id        = aws_security_group.splunk-cm.id
+  type                     = "ingress"
+  from_port                = 8089
+  to_port                  = 8089
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.splunk-ihf.id
+  description              = "allow connect to instance on mgt port (rest api)"
+}
+
 resource "aws_autoscaling_group" "autoscaling-splunk-cm" {
   name                = "asg-splunk-cm"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])

@@ -162,8 +162,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20220813 add tag replacement for s2 tag
 # 20221014 up to 9.0.1
 # 20221117 up to 9.0.2
+# 20221117 update regex for bucketname tag s3 replacement to only replace the variable
 
-VERSION="20221117a"
+VERSION="20221117b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -486,7 +487,8 @@ tag_replacement () {
     # s2 case (could be run on ds or cm probably)
     if [ ! -z ${splunks3databucket+x} ]; then
        echo "trying to replace path for smartstore with the one generated and that we got from tags"
-       find ${SPLUNK_HOME} -wholename "*s2_indexer_indexes/local/indexes.conf" -exec grep -l path {} \; -exec sed -i -e "s%^path.*=.*$%path=s3://${splunks3databucket}/smartstore%" {} \; 
+       #find ${SPLUNK_HOME} -wholename "*s2_indexer_indexes/local/indexes.conf" -exec grep -l path {} \; -exec sed -i -e "s%^path.*=.*$%path=s3://${splunks3databucket}/smartstore%" {} \; 
+       find ${SPLUNK_HOME} -wholename "*s2_indexer_indexes/local/indexes.conf" -exec grep -l path {} \; -exec sed -i -e "s%mybucketname%${splunks3databucket}%" {} \; 
     else
       echo "INFO : splunks3databucket not defined not doing any replacement (fine if just using collection layer)"
     fi

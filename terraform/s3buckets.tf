@@ -190,7 +190,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
       storage_class = "STANDARD_IA"
     }
     transition {
-      days = var.s2days-2-glacierir
+      days = var.s2days-2-glacier-ir
       storage_class = "GLACIER_IR"
     }
     status = "Enabled"

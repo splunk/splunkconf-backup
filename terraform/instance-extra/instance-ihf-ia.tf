@@ -52,6 +52,14 @@ resource "aws_iam_role_policy_attachment" "ihf-attach-ssm-managedinstance" {
   provider = aws.region-master
 }
 
+resource "aws_iam_role_policy_attachment" "ihf-attach-splunk-smartstore" {
+  #name       = "ihf-attach-splunk-smartstore"
+  role      = aws_iam_role.role-splunk-ihf.name
+  #roles      = [aws_iam_role.role-splunk-ihf.name]
+  policy_arn = aws_iam_policy.pol-splunk-smartstore.arn
+  provider   = aws.region-master
+}
+
 resource "aws_iam_role_policy_attachment" "ihf-attach-s3ia" {
   #name       = "iuf-attach-s3ia"
   role      = aws_iam_role.role-splunk-ihf.name
@@ -78,6 +86,16 @@ resource "aws_security_group_rule" "ihf_from_splunkadmin-networks_ssh" {
   protocol          = "tcp"
   cidr_blocks       = var.splunkadmin-networks
   description       = "allow SSH connection from splunk admin networks"
+}
+
+resource "aws_security_group_rule" "ihf_from_splunkadmin-networks_webui" {
+  security_group_id = aws_security_group.splunk-ihf.id
+  type              = "ingress"
+  from_port         = 8000
+  to_port           = 8000
+  protocol          = "tcp"
+  cidr_blocks       = var.splunkadmin-networks
+  description       = "allow WEBUI connection from splunk admin networks"
 }
 
 #resource "aws_security_group_rule" "iuf_from_splunkadmin-networks-ipv6_ssh" { 
@@ -110,9 +128,21 @@ resource "aws_security_group_rule" "ihf_from_all_icmpv6" {
   description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
 }
 
+# only when hf used as hec intermediate (instead of direct to idx via LB)
+resource "aws_security_group_rule" "idx_from_networks_8088" {
+  security_group_id = aws_security_group.splunk-ihf.id
+  type              = "ingress"
+  from_port         = 8088
+  to_port           = 8088
+  protocol          = "tcp"
+  cidr_blocks       = var.hec-in-allowed-networks
+  description       = "allow HF to receive hec from authorized networks"
+}
+
 resource "aws_autoscaling_group" "autoscaling-splunk-ihf" {
   name                = "asg-splunk-ihf"
-  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
+#  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
   desired_capacity    = var.ihf-nb
   max_size            = var.ihf-nb
   min_size            = var.ihf-nb

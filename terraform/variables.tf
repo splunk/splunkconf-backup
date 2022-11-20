@@ -345,14 +345,14 @@ variable "s2days-0-ia" {
   default = 30
 }
 
-variable "s2days-0-glaciar-ir" {
+variable "s2days-0-glacier-ir" {
   description = "number of days for data in smartstore prefix (main) before transition to glacier instant retrieval by lifecycle"
   type    = number
   default = 180
 }
 
 # for smartstore1 , we go direct to IR
-variable "s2days-1-glaciar-ir" {
+variable "s2days-1-glacier-ir" {
   description = "number of days for data in smartstore 1 prefix (low search) before transition to glacier instant retrieval by lifecycle"
   type    = number
   default = 0
@@ -364,7 +364,7 @@ variable "s2days-2-ia" {
   default = 7
 }
 
-variable "s2days-2-glaciar-ir" {
+variable "s2days-2-glacier-ir" {
   description = "number of days for data in smartstore 2 prefix before transition to glacier instant retrieval by lifecycle"
   type    = number
   default = 90

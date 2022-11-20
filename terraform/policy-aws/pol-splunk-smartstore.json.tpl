@@ -32,6 +32,15 @@
             ],
             "Resource": [
                 "${s3_data}/smartstore/*"
+                "${s3_data}/smartstore1/*"
+                "${s3_data}/smartstore2/*"
+                "${s3_data}/smartstore3/*"
+                "${s3_data}/smartstore4/*"
+                "${s3_data}/smartstore5/*"
+                "${s3_data}/smartstore6/*"
+                "${s3_data}/smartstore7/*"
+                "${s3_data}/smartstore8/*"
+                "${s3_data}/smartstore9/*"
             ]
         }
     ]

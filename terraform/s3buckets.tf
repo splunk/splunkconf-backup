@@ -160,7 +160,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
       storage_class = "STANDARD_IA"
     }
     transition {
-      days = var.s2days-0-glacierir
+      days = var.s2days-0-glacier-ir
       storage_class = "GLACIER_IR"
     }
     status = "Enabled"
@@ -173,7 +173,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
     }
     # direct to GLACIER_IR
     transition {
-      days = var.s2days-1-glacierir
+      days = var.s2days-1-glacier-ir
       storage_class = "GLACIER_IR"
     }
     status = "Enabled"

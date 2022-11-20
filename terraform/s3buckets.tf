@@ -27,7 +27,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle" {
   bucket   = aws_s3_bucket.s3_install.id
 
   rule {
-    id = "purge-old-noncurrent-versionned-install"
+    id = "s3install-purge-old-noncurrent-versionned-install"
     filter {
       prefix = "install/"
     }
@@ -44,7 +44,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle" {
   }
 
   rule {
-    id = "purge-old-noncurrent-versionned-packaged"
+    id = "s3install-purge-old-noncurrent-versionned-packaged"
     filter {
       prefix = "packaged/"
     }
@@ -134,7 +134,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
   bucket   = aws_s3_bucket.s3_data.id
 
   rule {
-    id = "purge-old-noncurrent-versionned-data"
+    id = "s3data-purge-old-noncurrent-versionned-data"
     filter {
       prefix = "smartstore*/"
     }
@@ -149,6 +149,55 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
     }
     status = "Enabled"
   }
+
+  rule {
+    id = "transition-data-smartstore"
+    filter {
+      prefix = "smartstore/"
+    }
+    transition {
+      days = var.s2days-0-ia
+      storage_class = "STANDARD_IA"
+    }
+    transition {
+      days = var.s2days-0-glacierir
+      storage_class = "GLACIER_IR"
+    }
+    status = "Enabled"
+  }
+
+  rule {
+    id = "transition-data-smartstore1"
+    filter {
+      prefix = "smartstore1/"
+    }
+    # direct to GLACIER_IR
+    transition {
+      days = var.s2days-1-glacierir
+      storage_class = "GLACIER_IR"
+    }
+    status = "Enabled"
+  }
+
+
+  rule {
+    id = "transition-data-smartstore2"
+    filter {
+      prefix = "smartstore2/"
+    }
+    transition {
+      days = var.s2days-2-ia
+      storage_class = "STANDARD_IA"
+    }
+    transition {
+      days = var.s2days-2-glacierir
+      storage_class = "GLACIER_IR"
+    }
+    status = "Enabled"
+  }
+
+# complete here if you need more granularity
+
 }
 
 

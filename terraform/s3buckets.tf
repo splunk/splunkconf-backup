@@ -136,7 +136,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
   rule {
     id = "purge-old-noncurrent-versionned-data"
     filter {
-      prefix = "smartstore/"
+      prefix = "smartstore*/"
     }
     noncurrent_version_expiration {
       noncurrent_days = var.deleteddata-retention

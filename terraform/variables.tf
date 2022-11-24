@@ -339,35 +339,10 @@ variable "deleteddata-retention" {
   default = 7
 }
 
-variable "s2days-0-ia" {
-  description = "number of days for data in smartstore prefix (main) before transition to STANDARD_IA by lifecycle"
+variable "s2days-1-ia" {
+  description = "number of days for data in smartstore prefix (main) before transition to STANDARD_IA by lifecyclei (30 days mini)
   type    = number
   default = 30
-}
-
-variable "s2days-0-glacier-ir" {
-  description = "number of days for data in smartstore prefix (main) before transition to glacier instant retrieval by lifecycle"
-  type    = number
-  default = 180
-}
-
-# for smartstore1 , we go direct to IR
-variable "s2days-1-glacier-ir" {
-  description = "number of days for data in smartstore 1 prefix (low search) before transition to glacier instant retrieval by lifecycle"
-  type    = number
-  default = 0
-}
-
-variable "s2days-2-ia" {
-  description = "number of days for data in smartstore 2 prefix before transition to STANDARD_IA by lifecycle"
-  type    = number
-  default = 7
-}
-
-variable "s2days-2-glacier-ir" {
-  description = "number of days for data in smartstore 2 prefix before transition to glacier instant retrieval by lifecycle"
-  type    = number
-  default = 90
 }
 
 variable "users-networks" {

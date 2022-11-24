@@ -149,49 +149,28 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
     }
     status = "Enabled"
   }
-
+  # auto , use INTELLIGENT_TIERING to let AWS decide
   rule {
     id = "transition-data-smartstore"
     filter {
       prefix = "smartstore/"
     }
     transition {
-      days = var.s2days-0-ia
-      storage_class = "STANDARD_IA"
-    }
-    transition {
-      days = var.s2days-0-glacier-ir
-      storage_class = "GLACIER_IR"
+      days = 0
+      storage_class = "INTELLIGENT_TIERING"
     }
     status = "Enabled"
   }
 
+  # move to IA (setting need to be 30 days mini)
   rule {
     id = "transition-data-smartstore1"
     filter {
       prefix = "smartstore1/"
     }
-    # direct to GLACIER_IR
     transition {
-      days = var.s2days-1-glacier-ir
-      storage_class = "GLACIER_IR"
-    }
-    status = "Enabled"
-  }
-
-
-  rule {
-    id = "transition-data-smartstore2"
-    filter {
-      prefix = "smartstore2/"
-    }
-    transition {
-      days = var.s2days-2-ia
+      days = var.s2days-1-ia
       storage_class = "STANDARD_IA"
-    }
-    transition {
-      days = var.s2days-2-glacier-ir
-      storage_class = "GLACIER_IR"
     }
     status = "Enabled"
   }

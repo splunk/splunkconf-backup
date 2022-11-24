@@ -340,7 +340,7 @@ variable "deleteddata-retention" {
 }
 
 variable "s2days-1-ia" {
-  description = "number of days for data in smartstore prefix (main) before transition to STANDARD_IA by lifecyclei (30 days mini)
+  description = "number of days for data in smartstore prefix (main) before transition to STANDARD_IA by lifecyclei (30 days mini)"
   type    = number
   default = 30
 }

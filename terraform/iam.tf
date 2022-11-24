@@ -93,6 +93,7 @@ resource "aws_iam_policy" "pol-splunk-smartstore" {
   #statement {
   #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-master}-${var.splunktargetenv}"
   #}
+  name_prefix = "splunkconf_s3_smartstore_"
   description = "Permissions needed for Splunk SmartStore"
   provider    = aws.region-master
   policy      = data.template_file.pol-splunk-smartstore.rendered
@@ -114,6 +115,7 @@ resource "aws_iam_policy" "pol-splunk-s3ia" {
   #statement {
   #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-master}-${var.splunktargetenv}"
   #}
+  name_prefix = "splunkconf_s3_ia_"
   description = "Permissions needed for Splunk S3 IA"
   provider    = aws.region-master
   policy      = data.template_file.pol-splunk-s3ia.rendered

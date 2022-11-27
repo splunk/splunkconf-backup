@@ -441,7 +441,7 @@ resource "aws_alb_target_group" "idxhec" {
 }
 
 resource "aws_alb_target_group" "idxhec-ack" {
-  name_prefix = "iheca-"
+  name_prefix = "heca-"
   port = 8088
   protocol = var.hec_protocol
   vpc_id      = local.master_vpc_id

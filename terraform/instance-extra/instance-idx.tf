@@ -420,7 +420,7 @@ resource "aws_security_group_rule" "lbhec_from_networks_8088" {
 }
 
 resource "aws_alb_target_group" "idxhec" {
-  name_prefix = "ihec-"
+  name_prefix = "hec-"
   port = 8088
   protocol = var.hec_protocol
   vpc_id      = local.master_vpc_id

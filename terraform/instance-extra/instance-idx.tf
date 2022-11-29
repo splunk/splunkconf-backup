@@ -2,7 +2,7 @@
 # ******************** IDX ********************
 
 resource "aws_iam_role" "role-splunk-idx" {
-  name                  = "role-splunk-idx-3"
+  name                  = "role-splunk-idx"
   force_detach_policies = true
   description           = "iam role for splunk idx"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")

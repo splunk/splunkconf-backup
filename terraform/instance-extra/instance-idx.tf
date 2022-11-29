@@ -2,7 +2,7 @@
 # ******************** IDX ********************
 
 resource "aws_iam_role" "role-splunk-idx" {
-  name                  = "role-splunk-idx"
+  name_prefix           = "role-splunk-idx"
   force_detach_policies = true
   description           = "iam role for splunk idx"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
@@ -471,7 +471,7 @@ resource "aws_lb" "idxhec-noack" {
   #count    = var.use_elb ? 1 : 0
   name = "idxhec-noack"
   load_balancer_type= "application"
-  security_groups = [aws_security_group.splunk-lbhec.id]
+  security_groups = [aws_security_group.splunk-lb-outbound.id,aws_security_group.splunk-lbhec.id]
   subnets = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
   tags = {
     Type = "Splunk"
@@ -483,7 +483,7 @@ resource "aws_lb" "idxhec-ack" {
   #count    = var.use_elb_ack ? 1 : 0
   name = "idxhec-ack"
   load_balancer_type= "application"
-  security_groups = [aws_security_group.splunk-lbhec.id]
+  security_groups = [aws_security_group.splunk-lb-outbound.id,aws_security_group.splunk-lbhec.id]
   subnets = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
   tags = {
     Type = "Splunk"

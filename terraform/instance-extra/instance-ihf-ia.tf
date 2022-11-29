@@ -3,7 +3,7 @@
 
 
 resource "aws_iam_role" "role-splunk-ihf" {
-  name                  = "role-splunk-ihf-3"
+  name                  = "role-splunk-ihf"
   force_detach_policies = true
   description           = "iam role for splunk ihf"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
@@ -129,7 +129,7 @@ resource "aws_security_group_rule" "ihf_from_all_icmpv6" {
 }
 
 # only when hf used as hec intermediate (instead of direct to idx via LB)
-resource "aws_security_group_rule" "idx_from_networks_8088" {
+resource "aws_security_group_rule" "ihf_from_networks_8088" {
   security_group_id = aws_security_group.splunk-ihf.id
   type              = "ingress"
   from_port         = 8088

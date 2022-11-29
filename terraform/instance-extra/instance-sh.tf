@@ -1,7 +1,7 @@
 # ******************* SH ****************
 
 resource "aws_iam_role" "role-splunk-sh" {
-  name                  = "role-splunk-sh-3"
+  name_prefix           = "role-splunk-sh-"
   force_detach_policies = true
   description           = "iam role for splunk sh"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
@@ -13,7 +13,7 @@ resource "aws_iam_role" "role-splunk-sh" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-sh_profile" {
-  name = "role-splunk-sh_profile"
+  name_prefix = "role-splunk-sh_profile"
   role = aws_iam_role.role-splunk-sh.name
   provider = aws.region-master
 }
@@ -179,6 +179,26 @@ resource "aws_security_group_rule" "sh_from_usersnetworks-ipv6_8000" {
   protocol          = "tcp"
   ipv6_cidr_blocks  = var.users-networks-ipv6
   description       = "allow connect to instance on web ui"
+}
+
+resource "aws_security_group_rule" "sh_from_sh_8080" {
+  security_group_id = aws_security_group.splunk-sh.id
+  type              = "ingress"
+  from_port         = 8080
+  to_port           = 8080
+  protocol          = "tcp"
+  self              = true
+  description       = "allow SH to connect to other SH for inter cluster replication"
+}
+
+resource "aws_security_group_rule" "sh_from_sh_8191" {
+  security_group_id = aws_security_group.splunk-sh.id
+  type              = "ingress"
+  from_port         = 8191
+  to_port           = 8191
+  protocol          = "tcp"
+  self              = true
+  description       = "allow SH to connect to other SH for inter cluster replication (kvstore)"
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-sh" {

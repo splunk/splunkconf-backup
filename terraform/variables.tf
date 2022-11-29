@@ -223,6 +223,13 @@ variable "disk-size-sh" {
   default     = 100
 }
 
+# needed so LB for SHC can know which protocol to use
+variable "sh_protocol" {
+  description = "protocol used on SH (HTTPS or HTTP)"
+  type        = string
+  default     = "HTTPS"
+}
+
 variable "mc" {
   type    = string
   default = "mc"

@@ -4,7 +4,7 @@ resource "aws_iam_role" "role-splunk-ds" {
   force_detach_policies = true
   description           = "iam role for splunk ds"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
-  provider = aws.region-master
+  provider = aws.region-primary
 
   tags = {
     Name = "splunk"
@@ -14,7 +14,7 @@ resource "aws_iam_role" "role-splunk-ds" {
 resource "aws_iam_instance_profile" "role-splunk-ds_profile" {
   name = "role-splunk-ds_profile"
   role = aws_iam_role.role-splunk-ds.name
-  provider = aws.region-master
+  provider = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "ds-attach-splunk-splunkconf-backup" {
@@ -22,7 +22,7 @@ resource "aws_iam_role_policy_attachment" "ds-attach-splunk-splunkconf-backup" {
   role      = aws_iam_role.role-splunk-ds.name
   #roles      = [aws_iam_role.role-splunk-ds.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
-  provider = aws.region-master
+  provider = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "ds-attach-splunk-route53-updatednsrecords" {
@@ -30,7 +30,7 @@ resource "aws_iam_role_policy_attachment" "ds-attach-splunk-route53-updatednsrec
   role      = aws_iam_role.role-splunk-ds.name
   #roles      = [aws_iam_role.role-splunk-ds.name]
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
-  provider = aws.region-master
+  provider = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "ds-attach-splunk-ec2" {
@@ -38,7 +38,7 @@ resource "aws_iam_role_policy_attachment" "ds-attach-splunk-ec2" {
   role      = aws_iam_role.role-splunk-ds.name
   #roles      = [aws_iam_role.role-splunk-ds.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
-  provider = aws.region-master
+  provider = aws.region-primary
 }
 
 #resource "aws_iam_role_policy_attachment" "ds-attach-ssm-managedinstance" {
@@ -46,7 +46,7 @@ resource "aws_iam_role_policy_attachment" "ds-attach-splunk-ec2" {
 #  role      = aws_iam_role.role-splunk-ds.name
 ##  roles      = [aws_iam_role.role-splunk-ds.name]
 #  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-#  provider = aws.region-master
+#  provider = aws.region-primary
 #}
 
 
@@ -193,7 +193,7 @@ resource "aws_security_group_rule" "ds_from_networks_ipv6_8089" {
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
-  provider            = aws.region-master
+  provider            = aws.region-primary
   name                = "asg-splunk-ds"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
   desired_capacity    = local.ds-nb

@@ -8,7 +8,7 @@ data "template_file" "pol-splunk-ec2" {
 }
 
 locals {
-  name-prefix-pol-splunk-ec2 = "pol-splunk-ec2-${var.profile}-$(var.region-master}-${var.splunktargetenv}"
+  name-prefix-pol-splunk-ec2 = "pol-splunk-ec2-${var.profile}-$(var.region-primary}-${var.splunktargetenv}"
 }
 
 #aws --profile ${var.profile} ec2 wait instance-status-ok --region ${var.region-worker} --instance-ids ${self.id}
@@ -28,7 +28,7 @@ resource "aws_iam_policy" "pol-splunk-ec2" {
   # ... other configuration ...
   #name_prefix = local.name-prefix-pol-splunk-ec2
   description = "This policy include shared policy for Splunk EC2 instances"
-  provider    = aws.region-master
+  provider    = aws.region-primary
   policy      = data.template_file.pol-splunk-ec2.rendered
 }
 
@@ -46,10 +46,10 @@ resource "aws_iam_policy" "pol-splunk-splunkconf-backup" {
   name_prefix = "splunkconf_splunkconf-backup_"
   # ... other configuration ...
   #statement {
-  #  sid = "pol-splunk-splunkconf-backup-${var.profile}-$(var.region-master}-${var.splunktargetenv}"
+  #  sid = "pol-splunk-splunkconf-backup-${var.profile}-$(var.region-primary}-${var.splunktargetenv}"
   #}
   description = "This policy allow instance to upload backup and fetch files for restauration in the bucket used for backups. Note that instances cant delete backups as this is completely managed by a lifecycle policy by design"
-  provider    = aws.region-master
+  provider    = aws.region-primary
   policy      = data.template_file.pol-splunk-splunkconf-backup.rendered
 }
 
@@ -71,10 +71,10 @@ resource "aws_iam_policy" "pol-splunk-route53-updatednsrecords" {
   name_prefix = "splunkconf_route53_updatednsrecords_"
   # ... other configuration ...
   #statement {
-  #  sid = "pol-splunk-splunkconf-backup-${var.profile}-$(var.region-master}-${var.splunktargetenv}"
+  #  sid = "pol-splunk-splunkconf-backup-${var.profile}-$(var.region-primary}-${var.splunktargetenv}"
   #}
   description = "Allow to update dns records from ec2 instance at instance creation"
-  provider    = aws.region-master
+  provider    = aws.region-primary
   policy      = data.template_file.pol-splunk-route53-updatednsrecords.rendered
 }
 
@@ -91,11 +91,11 @@ data "template_file" "pol-splunk-smartstore" {
 resource "aws_iam_policy" "pol-splunk-smartstore" {
   # ... other configuration ...
   #statement {
-  #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-master}-${var.splunktargetenv}"
+  #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-primary}-${var.splunktargetenv}"
   #}
   name_prefix = "splunkconf_s3_smartstore_"
   description = "Permissions needed for Splunk SmartStore"
-  provider    = aws.region-master
+  provider    = aws.region-primary
   policy      = data.template_file.pol-splunk-smartstore.rendered
 }
 
@@ -113,11 +113,11 @@ data "template_file" "pol-splunk-s3ia" {
 resource "aws_iam_policy" "pol-splunk-s3ia" {
   # ... other configuration ...
   #statement {
-  #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-master}-${var.splunktargetenv}"
+  #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-primary}-${var.splunktargetenv}"
   #}
   name_prefix = "splunkconf_s3_ia_"
   description = "Permissions needed for Splunk S3 IA"
-  provider    = aws.region-master
+  provider    = aws.region-primary
   policy      = data.template_file.pol-splunk-s3ia.rendered
 }
 

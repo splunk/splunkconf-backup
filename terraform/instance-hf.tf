@@ -6,7 +6,7 @@ resource "aws_iam_role" "role-splunk-hf" {
   force_detach_policies = true
   description           = "iam role for splunk hf"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
-  provider              = aws.region-master
+  provider              = aws.region-primary
 
   tags = {
     Name = "splunk"
@@ -16,7 +16,7 @@ resource "aws_iam_role" "role-splunk-hf" {
 resource "aws_iam_instance_profile" "role-splunk-hf_profile" {
   name     = "role-splunk-hf_profile"
   role     = aws_iam_role.role-splunk-hf.name
-  provider = aws.region-master
+  provider = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "hf-attach-splunk-splunkconf-backup" {
@@ -24,7 +24,7 @@ resource "aws_iam_role_policy_attachment" "hf-attach-splunk-splunkconf-backup" {
   role = aws_iam_role.role-splunk-hf.name
   #roles      = [aws_iam_role.role-splunk-hf.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
-  provider   = aws.region-master
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "hf-attach-splunk-route53-updatednsrecords" {
@@ -32,7 +32,7 @@ resource "aws_iam_role_policy_attachment" "hf-attach-splunk-route53-updatednsrec
   #roles      = [aws_iam_role.role-splunk-hf.name]
   role       = aws_iam_role.role-splunk-hf.name
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
-  provider   = aws.region-master
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "hf-attach-splunk-ec2" {
@@ -40,7 +40,7 @@ resource "aws_iam_role_policy_attachment" "hf-attach-splunk-ec2" {
   #roles      = [aws_iam_role.role-splunk-hf.name]
   role       = aws_iam_role.role-splunk-hf.name
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
-  provider   = aws.region-master
+  provider   = aws.region-primary
 }
 
 #resource "aws_iam_role_policy_attachment" "hf-attach-ssm-managedinstance" {
@@ -48,12 +48,12 @@ resource "aws_iam_role_policy_attachment" "hf-attach-splunk-ec2" {
 #  #roles      = [aws_iam_role.role-splunk-hf.name]
 #  role      = aws_iam_role.role-splunk-hf.name
 #  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-#  provider    = aws.region-master
+#  provider    = aws.region-primary
 #}
 
 
 resource "aws_security_group_rule" "hf_from_bastion_ssh" {
-  provider                 = aws.region-master
+  provider                 = aws.region-primary
   security_group_id        = aws_security_group.splunk-hf.id
   type                     = "ingress"
   from_port                = 22
@@ -64,7 +64,7 @@ resource "aws_security_group_rule" "hf_from_bastion_ssh" {
 }
 
 resource "aws_security_group_rule" "hf_from_splunkadmin-networks_ssh" {
-  provider          = aws.region-master
+  provider          = aws.region-primary
   security_group_id = aws_security_group.splunk-hf.id
   type              = "ingress"
   from_port         = 22
@@ -75,7 +75,7 @@ resource "aws_security_group_rule" "hf_from_splunkadmin-networks_ssh" {
 }
 
 resource "aws_security_group_rule" "hf_from_splunkadmin-networks_webui" {
-  provider          = aws.region-master
+  provider          = aws.region-primary
   security_group_id = aws_security_group.splunk-hf.id
   type              = "ingress"
   from_port         = 8000
@@ -86,7 +86,7 @@ resource "aws_security_group_rule" "hf_from_splunkadmin-networks_webui" {
 }
 
 #resource "aws_security_group_rule" "hf_from_splunkadmin-networks-ipv6_ssh" { 
-#  provider    = aws.region-master
+#  provider    = aws.region-primary
 #  security_group_id = aws_security_group.splunk-hf.id
 #  type      = "ingress"
 #  from_port = 22
@@ -97,7 +97,7 @@ resource "aws_security_group_rule" "hf_from_splunkadmin-networks_webui" {
 #}
 
 resource "aws_security_group_rule" "hf_from_splunkadmin-networks_webui" {
-  provider          = aws.region-master
+  provider          = aws.region-primary
   security_group_id = aws_security_group.splunk-hf.id
   type              = "ingress"
   from_port         = 8000
@@ -118,7 +118,7 @@ resource "aws_security_group_rule" "hf_from_splunkadmin-networks_webui" {
 #}
 
 resource "aws_security_group_rule" "hf_from_all_icmp" {
-  provider          = aws.region-master
+  provider          = aws.region-primary
   security_group_id = aws_security_group.splunk-hf.id
   type              = "ingress"
   from_port         = -1
@@ -129,7 +129,7 @@ resource "aws_security_group_rule" "hf_from_all_icmp" {
 }
 
 resource "aws_security_group_rule" "hf_from_all_icmpv6" {
-  provider          = aws.region-master
+  provider          = aws.region-primary
   security_group_id = aws_security_group.splunk-hf.id
   type              = "ingress"
   from_port         = -1
@@ -140,7 +140,7 @@ resource "aws_security_group_rule" "hf_from_all_icmpv6" {
 }
 
 resource "aws_security_group_rule" "hf_from_mc_8089" {
-  provider                 = aws.region-master
+  provider                 = aws.region-primary
   security_group_id        = aws_security_group.splunk-hf.id
   type                     = "ingress"
   from_port                = 8089
@@ -162,7 +162,7 @@ resource "aws_security_group_rule" "idx_from_networks_8088" {
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
-  provider            = aws.region-master
+  provider            = aws.region-primary
   name                = "asg-splunk-hf"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
   desired_capacity    = 1
@@ -204,7 +204,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
 }
 
 resource "aws_launch_template" "splunk-hf" {
-  provider = aws.region-master
+  provider = aws.region-primary
   #name          = "splunk-hf"
   name_prefix   = "launch-template-splunk-hf"
   image_id      = data.aws_ssm_parameter.linuxAmi.value

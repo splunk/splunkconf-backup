@@ -7,7 +7,7 @@
 
 #Create key-pair for logging into EC2 
 resource "aws_key_pair" "master-key" {
-  provider   = aws.region-master
+  provider   = aws.region-primary
   key_name_prefix   = "mykey"
   public_key = file("~/.ssh/id_rsa.pub")
 }

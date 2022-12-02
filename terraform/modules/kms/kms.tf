@@ -1,5 +1,5 @@
 resource "aws_kms_key" "splunkkms" {
-  provider                = aws.region-master
+  provider                = aws.region-primary
   description             = "Splunk KMS key"
   deletion_window_in_days = 30
   enable_key_rotation     = false
@@ -20,7 +20,7 @@ resource "aws_kms_key" "splunkkms" {
 
 # this fill in the alias seen in AWS Console
 resource "aws_kms_alias" "splunkkms" {
-  provider      = aws.region-master
+  provider      = aws.region-primary
   name_prefix   = "alias/splunkkms"
   target_key_id = aws_kms_key.splunkkms.key_id
 }

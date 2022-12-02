@@ -23,7 +23,7 @@ resource "aws_iam_role_policy_attachment" "cm-attach-splunk-splunkconf-backup" {
   role      = aws_iam_role.role-splunk-cm.name
   #roles      = [aws_iam_role.role-splunk-cm.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
-  provider   = aws.region-master
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "cm-attach-splunk-route53-updatednsrecords" {
@@ -31,7 +31,7 @@ resource "aws_iam_role_policy_attachment" "cm-attach-splunk-route53-updatednsrec
   role      = aws_iam_role.role-splunk-cm.name
   #roles      = [aws_iam_role.role-splunk-cm.name]
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
-  provider   = aws.region-master
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "cm-attach-splunk-ec2" {
@@ -39,7 +39,7 @@ resource "aws_iam_role_policy_attachment" "cm-attach-splunk-ec2" {
   role      = aws_iam_role.role-splunk-cm.name
   #roles      = [aws_iam_role.role-splunk-cm.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
-  provider   = aws.region-master
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "cm-attach-ssm-managedinstance" {
@@ -47,7 +47,7 @@ resource "aws_iam_role_policy_attachment" "cm-attach-ssm-managedinstance" {
   role      = aws_iam_role.role-splunk-cm.name
   #roles      = [aws_iam_role.role-splunk-cm.name]
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-  provider   = aws.region-master
+  provider   = aws.region-primary
 }
 
 

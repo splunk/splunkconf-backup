@@ -12,7 +12,7 @@ resource "aws_iam_policy" "pol-splunk-bastion" {
   # ... other configuration ...
   #name_prefix = local.name-prefix-pol-splunk-bastion
   description = "This policy include shared policy for Splunk EC2 bastion instance"
-  provider    = aws.region-master
+  provider    = aws.region-primary
   policy      = data.template_file.pol-splunk-bastion.rendered
 }
 

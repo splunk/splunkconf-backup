@@ -1,7 +1,7 @@
 
 resource "aws_route_table" "private_route_instancegw" {
   count    = var.use_nat_gateway ? 0 : 1
-  provider = aws.region-master
+  provider = aws.region-primary
   vpc_id   = local.master_vpc_id
   route {
     cidr_block = "0.0.0.0/0"
@@ -20,7 +20,7 @@ resource "aws_route_table" "private_route_instancegw" {
 
 resource "aws_route_table" "private_route_natgw1" {
   count    = var.use_nat_gateway ? 1 : 0
-  provider = aws.region-master
+  provider = aws.region-primary
   vpc_id   = local.master_vpc_id
   route {
     cidr_block     = "0.0.0.0/0"

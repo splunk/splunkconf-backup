@@ -12,10 +12,10 @@ data "template_file" "pol-splunk-kms" {
 resource "aws_iam_policy" "pol-splunk-kms" {
   # ... other configuration ...
   #statement {
-  #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-master}-${var.splunktargetenv}"
+  #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-primary}-${var.splunktargetenv}"
   #}
   description = "Permissions needed for KMS"
-  provider    = aws.region-master
+  provider    = aws.region-primary
   policy      = data.template_file.pol-splunk-kms.rendered
 }
 

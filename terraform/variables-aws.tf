@@ -29,3 +29,27 @@ variable "idxasg_cooldown" {
   type        = number
   default     = 60
 }
+
+variable "objectlock-backup" {
+  description = "Whether to enable object lock feature for S3 backup bucket (need to be choosen at bucket creation time) "
+  type        = bool
+  default     = "true"
+}
+
+variable "objectlock-backup-days" {
+  description = "number of retention days enforced for objectlock backups"
+  type        = number
+  default     = 7
+}
+
+# COMPLIANCE cant be overwritten
+# GOVERNANCE can with special rights, see https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html and https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-overview.html
+variable "objectlock-backup-mode" {
+  description = "objectlock backups mode : COMPLIANCE or GOVERNANCE"
+  type        = string
+  default     = "COMPLIANCE"
+}
+
+
+
+                

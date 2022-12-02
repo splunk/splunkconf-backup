@@ -65,6 +65,19 @@ resource "aws_s3_bucket" "s3_backup" {
   provider      = aws.region-master
   bucket_prefix = "splunkconf-${var.profile}-${var.splunktargetenv}-backup"
   force_destroy = true
+  object_lock_enabled = var.objectlock-backup
+}
+
+resource "aws_s3_bucket_object_lock_configuration" "s3_backup" {
+  count    = var.objectlock-backup ? 1 : 0
+  bucket = aws_s3_bucket.s3_backup.bucket
+
+  rule {
+    default_retention {
+      mode = var.objectlock-backup-mode
+      days = var.objectlock-backup-days
+    }
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "s3_backup" {

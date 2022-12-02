@@ -5,9 +5,15 @@ variable "profile" {
 }
 
 variable "region-primary" {
-  description = "AWS region to use (us-east-1,eu-west-3,...)"
+  description = "primary AWS region to use (us-east-1,eu-west-3,...)"
   type        = string
   default     = "eu-west-3"
+}
+
+variable "region-secondary" {
+  description = "secondary (backup) AWS region to use (us-east-1,eu-west-3,...)"
+  type        = string
+  default     = "eu-west-1"
 }
 
 variable "splunktargetenv" {

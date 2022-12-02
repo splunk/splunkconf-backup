@@ -201,6 +201,42 @@ resource "aws_security_group_rule" "sh_from_sh_8191" {
   description       = "allow SH to connect to other SH for inter cluster replication (kvstore)"
 }
 
+# OUTBOUND 
+
+# LB
+
+resource "aws_security_group" "splunk-lb-shc-outbound" {
+  name_prefix        = "splunk-lb-shc-outbound"
+  description = "Outbound Security group for SHC ELB"
+  vpc_id      = local.master_vpc_id
+  tags = {
+    Name = "splunk"
+  }
+}
+
+resource "aws_security_group_rule" "lb_outbound_hecrest" {
+  security_group_id = aws_security_group.splunk-lb-shc-outbound.id
+  type              = "egress"
+  from_port         = 8089
+  to_port           = 8089
+  protocol          = "tcp"
+  source_security_group_id = aws_security_group.splunk-sh.id
+  description       = "allow outbound traffic for rest api ports to SH"
+}
+
+resource "aws_security_group_rule" "lb_outbound_webui" {
+  security_group_id = aws_security_group.splunk-lb-shc-outbound.id
+  type              = "egress"
+  from_port         = 8000
+  to_port           = 8000
+  protocol          = "tcp"
+  source_security_group_id = aws_security_group.splunk-sh.id
+  description       = "allow outbound traffic for webui port to SH"
+}
+
+# ASG
+
+
 resource "aws_autoscaling_group" "autoscaling-splunk-sh1" {
   name                = "asg-splunk-sh1"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id] : [local.subnet_priv_1_id])
@@ -568,7 +604,7 @@ resource "aws_alb_target_group" "shc-users" {
 resource "aws_lb" "shc-users" {
   name = "shc-users"
   load_balancer_type= "application"
-  security_groups = [aws_security_group.splunk-lb-outbound.id,aws_security_group.splunk-lbsh.id]
+  security_groups = [aws_security_group.splunk-lb-shc-outbound.id,aws_security_group.splunk-lbsh.id]
   subnets = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
   tags = {
     Type = "Splunk"

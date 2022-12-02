@@ -263,6 +263,30 @@ resource "aws_security_group_rule" "idx_from_networks_log" {
   description       = "allow to receive logs via S2S (remote networks)"
 }
 
+# OUTBOUND 
+
+# LB
+
+resource "aws_security_group" "splunk-lb-hecidx-outbound" {
+  name_prefix        = "splunk-lb-hecidx-outbound"
+  description = "Outbound Security group for ELB HEC to IDX"
+  vpc_id      = local.master_vpc_id
+  tags = {
+    Name = "splunk"
+  }
+}
+
+resource "aws_security_group_rule" "lb_outbound_hecidx" {
+  security_group_id = aws_security_group.splunk-lb-hecidx-outbound.id
+  type              = "egress"
+  from_port         = 8088
+  to_port           = 8088
+  protocol          = "tcp"
+  source_security_group_id = aws_security_group.splunk-idx.id
+  description       = "allow outbound traffic for hec to IDX"
+}
+
+# ASG
 resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
   name                = "asg-splunk-idx"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
@@ -471,7 +495,7 @@ resource "aws_lb" "idxhec-noack" {
   #count    = var.use_elb ? 1 : 0
   name = "idxhec-noack"
   load_balancer_type= "application"
-  security_groups = [aws_security_group.splunk-lb-outbound.id,aws_security_group.splunk-lbhec.id]
+  security_groups = [aws_security_group.splunk-lb-hecidx-outbound.id,aws_security_group.splunk-lbhec.id]
   subnets = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
   tags = {
     Type = "Splunk"
@@ -483,7 +507,7 @@ resource "aws_lb" "idxhec-ack" {
   #count    = var.use_elb_ack ? 1 : 0
   name = "idxhec-ack"
   load_balancer_type= "application"
-  security_groups = [aws_security_group.splunk-lb-outbound.id,aws_security_group.splunk-lbhec.id]
+  security_groups = [aws_security_group.splunk-lb-hecidx-outbound.id,aws_security_group.splunk-lbhec.id]
   subnets = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
   tags = {
     Type = "Splunk"

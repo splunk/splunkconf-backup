@@ -384,6 +384,11 @@ variable "hec-in-allowed-networks" {
   default = ["127.0.0.12/32"]
 }
 
+variable "sgoutboundallprotocol" {
+  description = "list of targets networks where all protocols is allowed for instances"
+  type    = list(string)
+  default = ["0.0.0.0/0"]
+}
 
 # from https://docs.aws.amazon.com/firehose/latest/dev/controlling-access.html#using-iam-splunk
 #    18.216.68.160/27, 18.216.170.64/27, 18.216.170.96/27 for US East (Ohio)

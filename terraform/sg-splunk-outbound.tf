@@ -15,8 +15,8 @@ resource "aws_security_group_rule" "idx_outbound_all" {
   from_port         = 0
   to_port           = 0
   protocol          = "-1"
-  cidr_blocks       = ["0.0.0.0/0"]
-  description       = "allow all outbound traffic"
+  cidr_blocks       = var.sgoutboundallprotocol
+  description       = "allow outbound traffic (all protocols)"
 }
 
 

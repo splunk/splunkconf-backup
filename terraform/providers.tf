@@ -18,3 +18,10 @@ provider "aws" {
 #  region = var.region-secondary
 #}
 
+# legacy 
+provider "aws" {
+  profile = var.profile
+  region  = var.region-primary
+  alias   = "region-master"
+}
+

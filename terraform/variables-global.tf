@@ -4,6 +4,13 @@ variable "profile" {
   default     = "default"
 }
 
+# do not use, replaced by region-primary
+variable "region-master" {
+  description = "(legacy, please use region-primary) ) primary AWS region to use (us-east-1,eu-west-3,...)"
+  type        = string
+  default     = "eu-west-3"
+}
+
 variable "region-primary" {
   description = "primary AWS region to use (us-east-1,eu-west-3,...)"
   type        = string

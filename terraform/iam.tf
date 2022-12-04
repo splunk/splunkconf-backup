@@ -53,6 +53,24 @@ resource "aws_iam_policy" "pol-splunk-splunkconf-backup" {
   policy      = data.template_file.pol-splunk-splunkconf-backup.rendered
 }
 
+
+data "template_file" "pol-splunk-s3-replication-backup" {
+  template = file("policy-aws/pol-splunk-s3-replication.tpl")
+
+  vars = {
+    s3_bucket_source_arn       = aws_s3_bucket.s3_backup.arn
+    s3_bucket_destination_arn       = aws_s3_bucket.s3_backup_secondary.arn
+    profile         = var.profile
+    splunktargetenv = var.splunktargetenv
+  }
+}
+
+resource "aws_iam_policy" "pol-splunk-s3-replication-backup" {
+  name_prefix = "splunkconf_s3_replication_backup_"
+  description = "This policy allow replication between s3 backup bucket"
+  policy      = data.template_file.pol-splunk-s3-replication-backup.rendered
+}
+
 locals {
    dnszone_id = data.terraform_remote_state.network.outputs.dnszone_id
 }

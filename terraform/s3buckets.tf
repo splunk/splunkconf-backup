@@ -228,3 +228,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_ia_lifecycle" {
     status = "Enabled"
   }
 }
+
+output "s3_install_arn" {
+  value = "${aws_s3_bucket.s3_install.arn}"
+  description = "s3 install arn"
+}
+
+output "s3_backup_arn" {
+  value = "${aws_s3_bucket.s3_backup.arn}"
+  description = "s3 backup arn"
+}
+
+output "s3_data_arn" {
+  value = "${aws_s3_bucket.s3_data.arn}"
+  description = "s3 data arn"
+}
+

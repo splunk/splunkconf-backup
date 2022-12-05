@@ -202,3 +202,23 @@ resource "aws_s3_bucket_replication_configuration" "backup_secondary_to_primary"
 }
 
 # add data secondary here if needed
+
+
+
+
+
+
+#output "s3_install_arn" {
+#  value = "${aws_s3_bucket.s3_install.arn}"
+#  description = "s3 install arn"
+#}
+
+output "s3_backup_secondary_arn" {
+  value = "${aws_s3_bucket.s3_backup_secondary.arn}"
+  description = "s3 backup secondary arn"
+}
+
+#output "s3_data_arn" {
+#  value = "${aws_s3_bucket.s3_data.arn}"
+#  description = "s3 data arn"
+#}

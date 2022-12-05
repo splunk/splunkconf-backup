@@ -320,6 +320,7 @@ resource "aws_launch_template" "splunk-sh1" {
       splunkcloudmode       = var.splunkcloudmode
       splunkosupdatemode    = var.splunkosupdatemode
       splunkconnectedmode   = var.splunkconnectedmode
+      splunkacceptlicense   = var.splunkacceptlicense
     }
   }
   metadata_options {
@@ -414,6 +415,7 @@ resource "aws_launch_template" "splunk-sh2" {
       splunkcloudmode       = var.splunkcloudmode
       splunkosupdatemode    = var.splunkosupdatemode
       splunkconnectedmode   = var.splunkconnectedmode
+      splunkacceptlicense   = var.splunkacceptlicense
     }
   }
   metadata_options {
@@ -510,6 +512,7 @@ resource "aws_launch_template" "splunk-sh3" {
       splunkcloudmode       = var.splunkcloudmode
       splunkosupdatemode    = var.splunkosupdatemode
       splunkconnectedmode   = var.splunkconnectedmode
+      splunkacceptlicense   = var.splunkacceptlicense
     }
   }
   metadata_options {

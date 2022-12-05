@@ -164,8 +164,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20221117 up to 9.0.2
 # 20221117 update regex for bucketname tag s3 replacement to only replace the variable
 # 20221123 update tag replacement logic for enabling ds tag replace to work indeoendently of cm tag
+# 20221205 add support for splunkacceptlicense tag and pass it along to splunkconf-init
 
-VERSION="20221123a"
+VERSION="20221205b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -625,6 +626,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkgroup=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkgroup`
   splunkmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkmode`
   splunkdnsmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnsmode`
+  splunkacceptlicense=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkacceptlicense`
   #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
@@ -649,7 +651,6 @@ else
   echo "unsupported/unknown value for splunksystemd:${splunksystemd} , falling back to default"
 fi
 
-
 if [ -e "$INSTANCEFILE" ]; then
   chmod 644 $INSTANCEFILE
   # including the tags for use in this script
@@ -657,6 +658,19 @@ if [ -e "$INSTANCEFILE" ]; then
 else
   echo "WARNING : no instance tags file at $INSTANCEFILE"
 fi
+
+if [ -z ${splunkacceptlicense+x} ]; then 
+  echo "splunkacceptlicense is unset, assuming no, please read description in variables.tf and fix there as Splunk init will fail later on and please define this tag at intance level"
+  splunkacceptlicense="no"
+elif [ "${splunkacceptlicense}" == "yes" ]; then 
+  echo "OK got tag splunkacceptlicense=yes"
+elif [ "${splunkacceptlicense}" == "no" ]; then 
+  echo "WARNING got tag splunkacceptlicense=no , please read description in variables.tf and fix there as Splunk init will fail later on ! "
+else 
+  echo "ERROR unknown value for splunkacceptlicense (${splunkacceptlicense} ), please fix and relaunch, Exiting"
+  exit 1
+fi
+SPLUNKINITOPTIONS+=" --splunkacceptlicense=${splunkacceptlicense}"
 
 # set the mode based on tag and test logic
 set_connectedmode

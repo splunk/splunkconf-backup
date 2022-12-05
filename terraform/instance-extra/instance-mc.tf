@@ -204,6 +204,7 @@ resource "aws_launch_template" "splunk-mc" {
       splunkcloudmode       = var.splunkcloudmode
       splunkosupdatemode    = var.splunkosupdatemode
       splunkconnectedmode   = var.splunkconnectedmode
+      splunkacceptlicense   = var.splunkacceptlicense
     }
   }
   metadata_options {

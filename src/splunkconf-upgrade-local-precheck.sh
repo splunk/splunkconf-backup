@@ -11,8 +11,9 @@
 # 20210202 add fallback to /etc/instance-tags
 # 20210706 use cloud version when existing to avoid outdated aws version kept on s3
 # 20220326 add zstd package install
+# 20221205 check for splunkacceptlicense tag and ask for it if not present
 
-VERSION="20220326"
+VERSION="20221205"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -143,6 +144,7 @@ INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" ht
 REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunks3installbucket | cut -f 5`
 splunktargetbinary=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunktargetbinary | cut -f 5`
+splunkacceptlicense=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunkacceptlicense | cut -f 5`
 if [ -z "$splunks3installbucket" ]; then
   echo "ATTENTION TAGS NOT SET in instance tags, please correct and relaunch"
   INSTANCEFILE="/etc/instance-tags"
@@ -154,6 +156,9 @@ if [ -z "$splunks3installbucket" ]; then
     echo "ERROR : no instance tags file at $INSTANCEFILE"
     exit 1
   fi
+elsif [ -z "$splunkacceptlicense" ]; then
+  echo "ATTENTION please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add splunkaccceptlicense tag to this instance and relaunch"f 
+  exit 1
 else
   echo "Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
 fi

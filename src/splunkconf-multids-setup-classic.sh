@@ -29,8 +29,14 @@
 # History
 # 20211120 initial extract to distinct file
 # 20220129 add fake structure to make splunkconf-backup happy
+# 20221205 add variable and support for passing splunkacceptlicense option to splunkconf-init
 
-VERSION="20220129"
+VERSION="20221205"
+
+SPLUNKACCEPTLICENSE="no"
+#
+# please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html
+# then change this variable to yes as this is required to setup Splunk software
 
 INSTALLMODE="tgz"
 localrootscriptdir="/usr/local/bin"
@@ -95,7 +101,7 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   do
     SERVICENAME="${instancename}_$i"
     echo "setting up instance $i/$NBINSTANCES with SERVICENAME=$SERVICENAME"
-    ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS}
+    ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkacceptlicense=$SPLUNKACCEPTLICENSE --splunkorg=$splunkorg --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS}
   done
 fi
 

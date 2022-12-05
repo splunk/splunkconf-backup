@@ -1,4 +1,12 @@
 
+
+variable "splunkacceptlicense" {
+  description = "please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then change this variable to yes  (the license flag is passed along to Splunk Software which wont start without this)"
+  type        = string
+  default     = "no"
+}
+
+
 variable "splunkcloudmode" {
   description = "1 = send to splunkcloud only with provided configuration, 2 = clone to splunkcloud with provided configuration (partially implemeted -> behave like 1 at the moment, 3 = byol or manual config to splunkcloud(default)"
   type        = string

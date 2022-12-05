@@ -258,7 +258,8 @@ resource "aws_launch_template" "splunk-sh" {
   #  ebs_optimized = true
   #  vpc_security_group_ids = [aws_security_group.splunk-cm.id]
   iam_instance_profile {
-    name = "role-splunk-sh_profile"
+    #name = "role-splunk-sh_profile"
+    name = aws_iam_instance_profile.role-splunk-sh_profile.name
   }
   network_interfaces {
     device_index                = 0
@@ -284,6 +285,7 @@ resource "aws_launch_template" "splunk-sh" {
       splunkcloudmode       = var.splunkcloudmode
       splunkosupdatemode    = var.splunkosupdatemode
       splunkconnectedmode   = var.splunkconnectedmode
+      splunkacceptlicense   = var.splunkacceptlicense
     }
   }
   metadata_options {

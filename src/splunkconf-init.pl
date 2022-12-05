@@ -89,6 +89,8 @@
 # 20220203 fix warning in test condition
 # 20220316 add logic for splunktar without DS
 # 20220611 fix test condition "generated"
+# 20221205 add support for splunkacceptlicense tag 
+# 20221205 add extra chown before first version detection
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -98,7 +100,9 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20220611a";
+$VERSION="20221205d";
+
+print "Using splunkconf-init version $VERSION\n";
 
 # this part moved to user seed
 # YOU NEED TO SET THE TARGET PASSWORD !
@@ -152,6 +156,7 @@ my $instancenumber="";
 # only for multids, otherwise it has been deployed before (usually via rpm)
 my $splunktar="";
 my $usedefaultunitfile="";
+my $splunkacceptlicense="no";
 my $dsetcapps="org_all_deploymentserverbase,org_full_license_slave,org_to-site_forwarder_central_outputs,org_search_outputs-disableindexing,org_dsmanaged_disablewebserver";
 
 
@@ -172,6 +177,7 @@ GetOptions (
      'dsetcappss=s' => \$dsetcapps,
      'instancenumber=i' => \$instancenumber,
      'splunktar=s' => \$splunktar,
+     'splunkacceptlicense=s' => \$splunkacceptlicense,
      'with-default-service-file|with-default-systemd-service-file' => \$usedefaultunitfile,
      'service-name=s' => \$servicename
 
@@ -180,7 +186,7 @@ GetOptions (
 if ($help) {
 	print "splunkconf-initsplunk.pl [options]
 This script will initialize Splunk software after package installation or upgrade (tar or RPM)
-This version works with Splunk 7.1,7.2,7.3,8.0,8.1,8.2 and 8.3 (it would only work for upgrade for previous versions as the admin user creation changed)
+This version works with Splunk 7.1,7.2,7.3,8.0,8.1,8.2,8.3 and 9.0(it would only work for upgrade for previous versions as the admin user creation changed)
 This version will work for full Splunk Enterprise or UF
 The behavior will change depending on type
 admin password creation (Full, required existing or via user-seed.conf, UF no account creation required (unless you provide user-seed.conf file)
@@ -204,12 +210,43 @@ admin password creation (Full, required existing or via user-seed.conf, UF no ac
         --dsetcapps=\"app1,app2,app3,....\" to automatically set up the etc app versions of these apps from deployment-apps on a DS (short name, apps need to be defined in deployment-apps BEFORE) (example(replace org with your org): $dsetcapps)
 rg_all_tls
         --splunktar=splunkxxxx.tar.gz required for multids 
+        --splunkacceptlicense=\"yes|no\" pass the setting along  (obviously if no, you wont go far)
         --dry-run  dont really do it (but run the checks)
         --no-prompt   disable prompting (for scripts) (will disable ask for user seed creation for example)
 ";
 	exit 0;
 } else {
   print "please run splunkconf-initsplunk.pl --help for script explanation and options\n";
+}
+
+if ( !defined($splunkacceptlicense) ) {
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add --splunkacceptlicense=yes|no as parameter to this script and relaunch\n";
+  print "FAIL : if running in cloud env, that should come from instance tag splunbkacceptlicense . If the env is created by terraform, that is configured via variables.tf and you didnt set it up if you read this\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  exit 1 unless ($dry_run);
+}
+if ($splunkacceptlicense ne "yes" ) {
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html as this is needed to setup Splunk via this script\n";
+  print "FAIL : if running in cloud env, that should come from instance tag splunbkacceptlicense . If the env is created by terraform, that is configured via variables.tf and you didnt set it up if you read this\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  print "FAIL : *************************************************************************************\n";
+  exit 1 unless ($dry_run);
+} else {
+  print "OK got splunkacceptlicense=yes option passed along\n";
 }
 
 if ($SPLUNK_SUBSYS =~/forwarder/) {
@@ -473,7 +510,7 @@ EOF
 
 
 
-my $VERSIONFULL=`su - $USERSPLUNK -c "$SPLSPLUNKBIN --version --accept-license --answer-yes --no-prompt| grep build | tail -1"`;
+my $VERSIONFULL=`chown -R $USERSPLUNK. $SPLUNK_HOME;su - $USERSPLUNK -c "$SPLSPLUNKBIN --version --accept-license --answer-yes --no-prompt| grep build | tail -1"`;
 my $SPLVERSIONMAJ="0";
 my $SPLVERSIONMIN="0";
 my $SPLVERSIONMAINT="0";

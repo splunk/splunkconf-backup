@@ -382,6 +382,7 @@ resource "aws_launch_template" "splunk-idx" {
       splunkcloudmode     = "3"
       splunkosupdatemode  = var.splunkosupdatemode
       splunkconnectedmode = var.splunkconnectedmode
+      splunkacceptlicense   = var.splunkacceptlicense
     }
   }
   metadata_options {

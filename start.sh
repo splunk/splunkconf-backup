@@ -6,6 +6,9 @@
 # from the git structure
 # do not try to run the terraform as is without creating the structure, it would not work correctly
 
+echo "************************** git and terraform installation (if needeed)   "
+
+
 # checking git command
 if command -v git &> /dev/null
 then
@@ -45,6 +48,8 @@ then
   exit 1
 fi
 
+echo "************************** SSH key check "
+
 if [ ! -e "~/.ssh/id_rsa" ]; then
   echo "no ssh key , creating one for access to basrtion host"
   echo -ne '\n' | ssh-keygen -q -t rsa -f ~/.ssh/id_rsa
@@ -52,12 +57,14 @@ else
   echo "ssh key exist"
 fi
 
+echo "************************** GIT CLONE "
 # cloning repo to local dir
 git clone https://github.com/splunk/splunkconf-backup.git
 
 cd splunkconf-backup
 
 
+echo "************************** directory structure creation "
 #createbuckets:
 i=buckets
 mkdir -p $i/bucket-install/install/apps
@@ -72,7 +79,7 @@ do
   if [ -e ./install/apps/$j ]; then 
     \cp -p ./install/apps/$j "$i/bucket-install/install/apps/"
   else
-    echo "ERROR : missing file ./install/apps/$j, please add it and relaunch"
+    echo "ERROR : missing file ./install/apps/$j, please add it and relaunch (read comments to understand how to get file)"
   fi
 done
 SOURCE="src"
@@ -89,6 +96,9 @@ do
     echo "ERROR : missing file ./$SOURCE/$j, please read comment in script and evaluate if you need it then relaunch if necessary"
   fi
 done
+# splunk.secret is a file generated first time by Splunk . If you provide one, it will be deployed which ease deploying already obfuscated config in a distributed env (it may e less necessary with v9+ that automatically handle different splunk.secret in a indexer  cluster
+# user-seed.conf contains hashed splunk admin password. it avoid to have aadmin passord in clear format here. If you dont provide one, installation will proceed and either you already had one from backups or yopu can always add this later
+
 # same for system files
 SOURCE="system"
 for j in package-systemaws1-for-splunk.tar.gz package-system7-for-splunk.tar.gz package-systemdebian-for-splunk.tar.gz 

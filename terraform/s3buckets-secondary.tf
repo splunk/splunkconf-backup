@@ -80,15 +80,15 @@ resource "aws_iam_role_policy_attachment" "splunk-s3-replication" {
 resource "aws_s3_bucket" "s3_backup_secondary" {
   provider = aws.region-secondary
   # limited to 37 char here, suffix with b as the date will be added after
-  bucket_prefix = "splunkconf-${var.profile}-${var.splunktargetenv}-backupb"
-  force_destroy = true
+  bucket_prefix       = "splunkconf-${var.profile}-${var.splunktargetenv}-backupb"
+  force_destroy       = true
   object_lock_enabled = var.objectlock-backup
 }
 
 resource "aws_s3_bucket_object_lock_configuration" "s3_backup-secondary" {
   count    = var.objectlock-backup ? 1 : 0
   provider = aws.region-secondary
-  bucket = aws_s3_bucket.s3_backup_secondary.bucket
+  bucket   = aws_s3_bucket.s3_backup_secondary.bucket
 
   rule {
     default_retention {
@@ -99,11 +99,11 @@ resource "aws_s3_bucket_object_lock_configuration" "s3_backup-secondary" {
 }
 
 resource "aws_s3_bucket_public_access_block" "s3_backup_secondary" {
-  provider = aws.region-secondary
-  bucket = aws_s3_bucket.s3_backup_secondary.id
+  provider            = aws.region-secondary
+  bucket              = aws_s3_bucket.s3_backup_secondary.id
   block_public_acls   = true
   block_public_policy = true
-  ignore_public_acls = true
+  ignore_public_acls  = true
 }
 
 # aws provider change with 4.0 
@@ -149,7 +149,7 @@ resource "aws_s3_bucket_replication_configuration" "backup_primary_to_secondary"
   provider = aws.region-primary
   count    = var.enable-s3-normal-replication-backup ? 1 : 0
   # Must have bucket versioning enabled first
-  depends_on = [aws_s3_bucket_versioning.s3_backup_versioning,aws_s3_bucket_versioning.s3_backup_secondary_versioning,aws_s3_bucket_lifecycle_configuration.s3_backup_lifecycle,aws_s3_bucket_lifecycle_configuration.s3_backup_secondary_lifecycle]
+  depends_on = [aws_s3_bucket_versioning.s3_backup_versioning, aws_s3_bucket_versioning.s3_backup_secondary_versioning, aws_s3_bucket_lifecycle_configuration.s3_backup_lifecycle, aws_s3_bucket_lifecycle_configuration.s3_backup_secondary_lifecycle]
 
   role   = aws_iam_role.role-splunk-s3-replication.arn
   bucket = aws_s3_bucket.s3_backup.id
@@ -177,7 +177,7 @@ resource "aws_s3_bucket_replication_configuration" "backup_secondary_to_primary"
   provider = aws.region-secondary
   count    = var.enable-s3-reverse-replication-backup ? 1 : 0
   # Must have bucket versioning enabled first
-  depends_on = [aws_s3_bucket_versioning.s3_backup_versioning,aws_s3_bucket_versioning.s3_backup_secondary_versioning,aws_s3_bucket_lifecycle_configuration.s3_backup_lifecycle,aws_s3_bucket_lifecycle_configuration.s3_backup_secondary_lifecycle]
+  depends_on = [aws_s3_bucket_versioning.s3_backup_versioning, aws_s3_bucket_versioning.s3_backup_secondary_versioning, aws_s3_bucket_lifecycle_configuration.s3_backup_lifecycle, aws_s3_bucket_lifecycle_configuration.s3_backup_secondary_lifecycle]
 
   role   = aws_iam_role.role-splunk-s3-replication.arn
   bucket = aws_s3_bucket.s3_backup_secondary.id
@@ -214,7 +214,7 @@ resource "aws_s3_bucket_replication_configuration" "backup_secondary_to_primary"
 #}
 
 output "s3_backup_secondary_arn" {
-  value = "${aws_s3_bucket.s3_backup_secondary.arn}"
+  value       = aws_s3_bucket.s3_backup_secondary.arn
   description = "s3 backup secondary arn"
 }
 

@@ -19,32 +19,32 @@ resource "aws_iam_instance_profile" "role-splunk-cm_profile" {
 }
 
 resource "aws_iam_role_policy_attachment" "cm-attach-splunk-splunkconf-backup" {
-#  name       = "cm-attach-splunk-splunkconf-backup"
-  role      = aws_iam_role.role-splunk-cm.name
+  #  name       = "cm-attach-splunk-splunkconf-backup"
+  role = aws_iam_role.role-splunk-cm.name
   #roles      = [aws_iam_role.role-splunk-cm.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
   provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "cm-attach-splunk-route53-updatednsrecords" {
-#  name       = "cm-attach-splunk-route53-updatednsrecords"
-  role      = aws_iam_role.role-splunk-cm.name
+  #  name       = "cm-attach-splunk-route53-updatednsrecords"
+  role = aws_iam_role.role-splunk-cm.name
   #roles      = [aws_iam_role.role-splunk-cm.name]
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
   provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "cm-attach-splunk-ec2" {
-#  name       = "cm-attach-splunk-ec2"
-  role      = aws_iam_role.role-splunk-cm.name
+  #  name       = "cm-attach-splunk-ec2"
+  role = aws_iam_role.role-splunk-cm.name
   #roles      = [aws_iam_role.role-splunk-cm.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
   provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "cm-attach-ssm-managedinstance" {
-#  name       = "cm-attach-ssm-managedinstance"
-  role      = aws_iam_role.role-splunk-cm.name
+  #  name       = "cm-attach-ssm-managedinstance"
+  role = aws_iam_role.role-splunk-cm.name
   #roles      = [aws_iam_role.role-splunk-cm.name]
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   provider   = aws.region-primary
@@ -203,7 +203,7 @@ resource "aws_security_group_rule" "cm_from_ihf_8089" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-cm" {
   name                = "asg-splunk-cm"
-  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = 1
   max_size            = 1
   min_size            = 1
@@ -296,7 +296,7 @@ resource "aws_launch_template" "splunk-cm" {
 
 
 output "cm-dns-name" {
-  value = "${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
+  value       = "${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
   description = "cm dns name (private ip)"
 }
 

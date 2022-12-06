@@ -3,7 +3,7 @@
 #  **************** bastion ***************
 
 locals {
-   master_vpc_id = data.terraform_remote_state.network.outputs.master_vpc_id
+  master_vpc_id = data.terraform_remote_state.network.outputs.master_vpc_id
 }
 
 
@@ -67,7 +67,7 @@ resource "aws_security_group" "splunk-bastion" {
 resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
   name = "asg-splunk-bastion"
   # note : this has to be on pub network for the bastion to be reachable from outside
-  vpc_zone_identifier = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
+  vpc_zone_identifier = [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id]
   desired_capacity    = 1
   max_size            = 1
   min_size            = 1
@@ -106,8 +106,8 @@ resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
 
 resource "aws_launch_template" "splunk-bastion" {
   #name          = var.bastion
-  name_prefix   = "launch-template-splunk-bastion"
-  image_id      = data.aws_ssm_parameter.linuxAmi.value
+  name_prefix = "launch-template-splunk-bastion"
+  image_id    = data.aws_ssm_parameter.linuxAmi.value
   #key_name      = aws_key_pair.master-key.key_name
   key_name      = data.terraform_remote_state.ssh.outputs.ssh_key_name
   instance_type = "t3a.nano"
@@ -172,12 +172,12 @@ resource "aws_launch_template" "splunk-bastion" {
 
 
 output "bastion-dns-name-ext" {
-  value = "${local.dns-prefix}${var.bastion}-ext.${var.dns-zone-name}"
+  value       = "${local.dns-prefix}${var.bastion}-ext.${var.dns-zone-name}"
   description = "Bastion dns name (public ip)"
 }
- 
+
 output "bastion-dns-name" {
-  value = "${local.dns-prefix}${var.bastion}.${var.dns-zone-name}"
+  value       = "${local.dns-prefix}${var.bastion}.${var.dns-zone-name}"
   description = "Bastion dns name (private ip)"
 }
-  
+

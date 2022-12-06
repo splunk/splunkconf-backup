@@ -5,7 +5,7 @@ resource "aws_iam_role" "role-splunk-sh" {
   force_detach_policies = true
   description           = "iam role for splunk sh"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
-  provider = aws.region-primary
+  provider              = aws.region-primary
 
   tags = {
     Name = "splunk"
@@ -14,40 +14,40 @@ resource "aws_iam_role" "role-splunk-sh" {
 
 resource "aws_iam_instance_profile" "role-splunk-sh_profile" {
   name_prefix = "role-splunk-sh_profile"
-  role = aws_iam_role.role-splunk-sh.name
-  provider = aws.region-primary
+  role        = aws_iam_role.role-splunk-sh.name
+  provider    = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "sh-attach-splunk-splunkconf-backup" {
   #name       = "sh-attach-splunk-splunkconf-backup"
-  role      = aws_iam_role.role-splunk-sh.name
+  role = aws_iam_role.role-splunk-sh.name
   #roles      = [aws_iam_role.role-splunk-sh.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "sh-attach-splunk-route53-updatednsrecords" {
   #name       = "sh-attach-splunk-route53-updatednsrecords"
-  role      = aws_iam_role.role-splunk-sh.name
+  role = aws_iam_role.role-splunk-sh.name
   #roles      = [aws_iam_role.role-splunk-sh.name]
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "sh-attach-splunk-ec2" {
   #name       = "sh-attach-splunk-ec2"
-  role      = aws_iam_role.role-splunk-sh.name
+  role = aws_iam_role.role-splunk-sh.name
   #roles      = [aws_iam_role.role-splunk-sh.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "sh-attach-ssm-managedinstance" {
   #name       = "sh-attach-ssm-managedinstance"
-  role      = aws_iam_role.role-splunk-sh.name
+  role = aws_iam_role.role-splunk-sh.name
   #roles      = [aws_iam_role.role-splunk-sh.name]
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 
@@ -142,13 +142,13 @@ resource "aws_security_group_rule" "sh_from_cm_8089" {
 }
 
 resource "aws_security_group_rule" "sh_from_trustedrestapi_8089" {
-  security_group_id        = aws_security_group.splunk-sh.id
-  type                     = "ingress"
-  from_port                = 8089
-  to_port                  = 8089
-  protocol                 = "tcp"
-  cidr_blocks              = var.trustedrestapi_to_sh
-  description              = "allow connect to sh on mgt port (rest api) from extra trusted ip(s)"
+  security_group_id = aws_security_group.splunk-sh.id
+  type              = "ingress"
+  from_port         = 8089
+  to_port           = 8089
+  protocol          = "tcp"
+  cidr_blocks       = var.trustedrestapi_to_sh
+  description       = "allow connect to sh on mgt port (rest api) from extra trusted ip(s)"
 }
 
 resource "aws_security_group_rule" "sh_from_lbsh_8000" {
@@ -203,7 +203,7 @@ resource "aws_security_group_rule" "sh_from_sh_8191" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-sh" {
   name                = "asg-splunk-sh"
-  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = 1
   max_size            = 1
   min_size            = 1
@@ -348,7 +348,7 @@ resource "aws_security_group_rule" "lbsh_from_networks_https" {
 
 
 output "sh-dns-name" {
-  value = "${local.dns-prefix}${var.sh}.${var.dns-zone-name}"
+  value       = "${local.dns-prefix}${var.sh}.${var.dns-zone-name}"
   description = "sh dns name (private ip)"
 }
 

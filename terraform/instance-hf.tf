@@ -164,7 +164,7 @@ resource "aws_security_group_rule" "idx_from_networks_8088" {
 resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
   provider            = aws.region-primary
   name                = "asg-splunk-hf"
-  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = 1
   max_size            = 1
   min_size            = 1
@@ -259,7 +259,7 @@ resource "aws_launch_template" "splunk-hf" {
 
 
 output "hf-dns-name" {
-  value = "${local.dns-prefix}${var.hf}.${var.dns-zone-name}"
+  value       = "${local.dns-prefix}${var.hf}.${var.dns-zone-name}"
   description = "hf dns name (private ip)"
 }
 

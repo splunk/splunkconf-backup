@@ -58,10 +58,10 @@ data "template_file" "pol-splunk-s3-replication-backup" {
   template = file("policy-aws/pol-splunk-s3-replication.tpl")
 
   vars = {
-    s3_bucket_source_arn       = aws_s3_bucket.s3_backup.arn
-    s3_bucket_destination_arn       = aws_s3_bucket.s3_backup_secondary.arn
-    profile         = var.profile
-    splunktargetenv = var.splunktargetenv
+    s3_bucket_source_arn      = aws_s3_bucket.s3_backup.arn
+    s3_bucket_destination_arn = aws_s3_bucket.s3_backup_secondary.arn
+    profile                   = var.profile
+    splunktargetenv           = var.splunktargetenv
   }
 }
 
@@ -72,7 +72,7 @@ resource "aws_iam_policy" "pol-splunk-s3-replication-backup" {
 }
 
 locals {
-   dnszone_id = data.terraform_remote_state.network.outputs.dnszone_id
+  dnszone_id = data.terraform_remote_state.network.outputs.dnszone_id
 }
 
 data "template_file" "pol-splunk-route53-updatednsrecords" {
@@ -121,7 +121,7 @@ data "template_file" "pol-splunk-s3ia" {
   template = file("policy-aws/pol-splunk-s3ia.json.tpl")
 
   vars = {
-    s3_ia         = aws_s3_bucket.s3_ia.arn
+    s3_ia           = aws_s3_bucket.s3_ia.arn
     s3_iaprefix     = var.s3_iaprefix
     profile         = var.profile
     splunktargetenv = var.splunktargetenv

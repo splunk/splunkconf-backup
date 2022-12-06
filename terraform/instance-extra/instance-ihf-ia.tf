@@ -7,7 +7,7 @@ resource "aws_iam_role" "role-splunk-ihf" {
   force_detach_policies = true
   description           = "iam role for splunk ihf"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
-  provider = aws.region-primary
+  provider              = aws.region-primary
 
   tags = {
     Name = "splunk"
@@ -15,46 +15,46 @@ resource "aws_iam_role" "role-splunk-ihf" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-ihf_profile" {
-  name = "role-splunk-ihf_profile"
-  role = aws_iam_role.role-splunk-ihf.name
+  name     = "role-splunk-ihf_profile"
+  role     = aws_iam_role.role-splunk-ihf.name
   provider = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "ihf-attach-splunk-splunkconf-backup" {
   #name       = "ihf-attach-splunk-splunkconf-backup"
-  role      = aws_iam_role.role-splunk-ihf.name
+  role = aws_iam_role.role-splunk-ihf.name
   #roles      = [aws_iam_role.role-splunk-ihf.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "ihf-attach-splunk-route53-updatednsrecords" {
   #name       = "ihf-attach-splunk-route53-updatednsrecords"
-  role      = aws_iam_role.role-splunk-ihf.name
+  role = aws_iam_role.role-splunk-ihf.name
   #roles      = [aws_iam_role.role-splunk-ihf.name]
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "ihf-attach-splunk-ec2" {
   #name       = "ihf-attach-splunk-ec2"
-  role      = aws_iam_role.role-splunk-ihf.name
+  role = aws_iam_role.role-splunk-ihf.name
   #roles      = [aws_iam_role.role-splunk-ihf.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "ihf-attach-ssm-managedinstance" {
   #name       = "iuf-attach-ssm-managedinstance"
-  role      = aws_iam_role.role-splunk-ihf.name
+  role = aws_iam_role.role-splunk-ihf.name
   #roles      = [aws_iam_role.role-splunk-ihf.name]
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "ihf-attach-splunk-smartstore" {
   #name       = "ihf-attach-splunk-smartstore"
-  role      = aws_iam_role.role-splunk-ihf.name
+  role = aws_iam_role.role-splunk-ihf.name
   #roles      = [aws_iam_role.role-splunk-ihf.name]
   policy_arn = aws_iam_policy.pol-splunk-smartstore.arn
   provider   = aws.region-primary
@@ -62,10 +62,10 @@ resource "aws_iam_role_policy_attachment" "ihf-attach-splunk-smartstore" {
 
 resource "aws_iam_role_policy_attachment" "ihf-attach-s3ia" {
   #name       = "iuf-attach-s3ia"
-  role      = aws_iam_role.role-splunk-ihf.name
+  role = aws_iam_role.role-splunk-ihf.name
   #roles      = [aws_iam_role.role-splunk-ihf.name]
   policy_arn = aws_iam_policy.pol-splunk-s3ia.arn
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_security_group_rule" "ihf_from_bastion_ssh" {
@@ -140,9 +140,9 @@ resource "aws_security_group_rule" "ihf_from_networks_8088" {
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-ihf" {
-  name                = "asg-splunk-ihf"
-#  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
-  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
+  name = "asg-splunk-ihf"
+  #  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = var.ihf-nb
   max_size            = var.ihf-nb
   min_size            = var.ihf-nb
@@ -223,7 +223,7 @@ resource "aws_launch_template" "splunk-ihf" {
       splunkcloudmode     = var.splunkcloudmode
       splunkosupdatemode  = var.splunkosupdatemode
       splunkconnectedmode = var.splunkconnectedmode
-      splunkacceptlicense   = var.splunkacceptlicense
+      splunkacceptlicense = var.splunkacceptlicense
     }
   }
   metadata_options {
@@ -235,7 +235,7 @@ resource "aws_launch_template" "splunk-ihf" {
 }
 
 output "ihf-dns-name" {
-  value = "${local.dns-prefix}${var.ihf}.${var.dns-zone-name}"
+  value       = "${local.dns-prefix}${var.ihf}.${var.dns-zone-name}"
   description = "ihf dns name (private ip)"
 }
 

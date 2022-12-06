@@ -169,7 +169,7 @@ variable "ds" {
 }
 
 variable "ds-enable" {
-  type = bool
+  type    = bool
   default = true
 }
 
@@ -244,7 +244,7 @@ variable "mc" {
 }
 
 variable "mc-enable" {
-  type = bool
+  type    = bool
   default = true
 }
 
@@ -304,15 +304,15 @@ variable "disk-size-iuf" {
 locals {
   env                   = var.splunktargetenv
   instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default)
-  instance-type-iuf = (local.env == "min" ? var.instance-type-iuf-min : var.instance-type-iuf-default)
-  instance-type-ihf = (local.env == "min" ? var.instance-type-ihf-min : var.instance-type-ihf-default)
-  instance-type-hf = (local.env == "min" ? var.instance-type-hf-min : var.instance-type-hf-default)
-  instance-type-cm = (local.env == "min" ? var.instance-type-cm-min : var.instance-type-cm-default)
-  instance-type-mc = (local.env == "min" ? var.instance-type-mc-min : var.instance-type-mc-default)
-  instance-type-ds = (local.env == "min" ? var.instance-type-ds-min : var.instance-type-ds-default)
-  instance-type-sh = (local.env == "min" ? var.instance-type-sh-min : var.instance-type-sh-default)
-  ds-nb = (var.ds-enable == "true" ? 1 : 0)
-  mc-nb = (var.mc-enable == "true" ? 1 : 0)
+  instance-type-iuf     = (local.env == "min" ? var.instance-type-iuf-min : var.instance-type-iuf-default)
+  instance-type-ihf     = (local.env == "min" ? var.instance-type-ihf-min : var.instance-type-ihf-default)
+  instance-type-hf      = (local.env == "min" ? var.instance-type-hf-min : var.instance-type-hf-default)
+  instance-type-cm      = (local.env == "min" ? var.instance-type-cm-min : var.instance-type-cm-default)
+  instance-type-mc      = (local.env == "min" ? var.instance-type-mc-min : var.instance-type-mc-default)
+  instance-type-ds      = (local.env == "min" ? var.instance-type-ds-min : var.instance-type-ds-default)
+  instance-type-sh      = (local.env == "min" ? var.instance-type-sh-min : var.instance-type-sh-default)
+  ds-nb                 = (var.ds-enable == "true" ? 1 : 0)
+  mc-nb                 = (var.mc-enable == "true" ? 1 : 0)
 }
 
 variable "associate_public_ip" {
@@ -356,8 +356,8 @@ variable "deleteddata-retention" {
 
 variable "s2days-1-ia" {
   description = "number of days for data in smartstore prefix (main) before transition to STANDARD_IA by lifecyclei (30 days mini)"
-  type    = number
-  default = 30
+  type        = number
+  default     = 30
 }
 
 variable "users-networks" {
@@ -382,20 +382,20 @@ variable "splunkadmin-networks" {
 
 variable "trustedrestapi_to_sh" {
   description = "List of trusted networks allowed to reach SH REST API"
-  type    = list(string)
-  default = ["127.0.0.12/32"]
+  type        = list(string)
+  default     = ["127.0.0.12/32"]
 }
 
 variable "hec-in-allowed-networks" {
   description = "List of trusted networks allowed to send data via hec"
-  type    = list(string)
-  default = ["127.0.0.12/32"]
+  type        = list(string)
+  default     = ["127.0.0.12/32"]
 }
 
 variable "sgoutboundallprotocol" {
   description = "list of targets networks where all protocols is allowed for instances"
-  type    = list(string)
-  default = ["0.0.0.0/0"]
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
 }
 
 # from https://docs.aws.amazon.com/firehose/latest/dev/controlling-access.html#using-iam-splunk
@@ -449,7 +449,7 @@ variable "hec-in-allowed-firehose-networks" {
 }
 
 variable "s3_iaprefix" {
-  type = string
+  type        = string
   description = "prefix used withing s3 ia bucket (default is ia)"
-  default = "ia"
+  default     = "ia"
 }

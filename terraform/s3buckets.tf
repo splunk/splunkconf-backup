@@ -6,10 +6,10 @@ resource "aws_s3_bucket" "s3_install" {
 }
 
 resource "aws_s3_bucket_public_access_block" "s3_install" {
-  bucket = aws_s3_bucket.s3_install.id
+  bucket              = aws_s3_bucket.s3_install.id
   block_public_acls   = true
   block_public_policy = true
-  ignore_public_acls = true
+  ignore_public_acls  = true
 }
 
 # aws provider change with 4.0 
@@ -62,14 +62,14 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_install_lifecycle" {
 }
 
 resource "aws_s3_bucket" "s3_backup" {
-  provider      = aws.region-primary
-  bucket_prefix = "splunkconf-${var.profile}-${var.splunktargetenv}-backup"
-  force_destroy = true
+  provider            = aws.region-primary
+  bucket_prefix       = "splunkconf-${var.profile}-${var.splunktargetenv}-backup"
+  force_destroy       = true
   object_lock_enabled = var.objectlock-backup
 }
 
 resource "aws_s3_bucket_object_lock_configuration" "s3_backup" {
-  count    = var.objectlock-backup ? 1 : 0
+  count  = var.objectlock-backup ? 1 : 0
   bucket = aws_s3_bucket.s3_backup.bucket
 
   rule {
@@ -81,10 +81,10 @@ resource "aws_s3_bucket_object_lock_configuration" "s3_backup" {
 }
 
 resource "aws_s3_bucket_public_access_block" "s3_backup" {
-  bucket = aws_s3_bucket.s3_backup.id
+  bucket              = aws_s3_bucket.s3_backup.id
   block_public_acls   = true
   block_public_policy = true
-  ignore_public_acls = true
+  ignore_public_acls  = true
 }
 
 # aws provider change with 4.0 
@@ -126,10 +126,10 @@ resource "aws_s3_bucket" "s3_data" {
 }
 
 resource "aws_s3_bucket_public_access_block" "s3_data" {
-  bucket = aws_s3_bucket.s3_data.id
+  bucket              = aws_s3_bucket.s3_data.id
   block_public_acls   = true
   block_public_policy = true
-  ignore_public_acls = true
+  ignore_public_acls  = true
 }
 
 # aws provider change with 4.0 
@@ -169,7 +169,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
       prefix = "smartstore/"
     }
     transition {
-      days = 0
+      days          = 0
       storage_class = "INTELLIGENT_TIERING"
     }
     status = "Enabled"
@@ -182,13 +182,13 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
       prefix = "smartstore1/"
     }
     transition {
-      days = var.s2days-1-ia
+      days          = var.s2days-1-ia
       storage_class = "STANDARD_IA"
     }
     status = "Enabled"
   }
 
-# complete here if you need more granularity
+  # complete here if you need more granularity
 
 }
 
@@ -201,10 +201,10 @@ resource "aws_s3_bucket" "s3_ia" {
 }
 
 resource "aws_s3_bucket_public_access_block" "s3_ia" {
-  bucket = aws_s3_bucket.s3_ia.id
+  bucket              = aws_s3_bucket.s3_ia.id
   block_public_acls   = true
   block_public_policy = true
-  ignore_public_acls = true
+  ignore_public_acls  = true
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "s3_ia_lifecycle" {
@@ -212,9 +212,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_ia_lifecycle" {
   bucket   = aws_s3_bucket.s3_ia.id
 
   rule {
-    id      = "purge-old-noncurrent-versionned-ia"
+    id = "purge-old-noncurrent-versionned-ia"
     filter {
-      prefix  = "${var.s3_iaprefix}/"
+      prefix = "${var.s3_iaprefix}/"
     }
     noncurrent_version_expiration {
       noncurrent_days = var.deleteddata-retention
@@ -230,17 +230,17 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_ia_lifecycle" {
 }
 
 output "s3_install_arn" {
-  value = "${aws_s3_bucket.s3_install.arn}"
+  value       = aws_s3_bucket.s3_install.arn
   description = "s3 install arn"
 }
 
 output "s3_backup_arn" {
-  value = "${aws_s3_bucket.s3_backup.arn}"
+  value       = aws_s3_bucket.s3_backup.arn
   description = "s3 backup arn"
 }
 
 output "s3_data_arn" {
-  value = "${aws_s3_bucket.s3_data.arn}"
+  value       = aws_s3_bucket.s3_data.arn
   description = "s3 data arn"
 }
 

@@ -5,7 +5,7 @@ resource "aws_iam_role" "role-splunk-sh" {
   force_detach_policies = true
   description           = "iam role for splunk sh"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
-  provider = aws.region-primary
+  provider              = aws.region-primary
 
   tags = {
     Name = "splunk"
@@ -13,41 +13,41 @@ resource "aws_iam_role" "role-splunk-sh" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-sh_profile" {
-  name = "role-splunk-sh_profile"
-  role = aws_iam_role.role-splunk-sh.name
+  name     = "role-splunk-sh_profile"
+  role     = aws_iam_role.role-splunk-sh.name
   provider = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "sh-attach-splunk-splunkconf-backup" {
   #name       = "sh-attach-splunk-splunkconf-backup"
-  role      = aws_iam_role.role-splunk-sh.name
+  role = aws_iam_role.role-splunk-sh.name
   #roles      = [aws_iam_role.role-splunk-sh.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "sh-attach-splunk-route53-updatednsrecords" {
   #name       = "sh-attach-splunk-route53-updatednsrecords"
-  role      = aws_iam_role.role-splunk-sh.name
+  role = aws_iam_role.role-splunk-sh.name
   #roles      = [aws_iam_role.role-splunk-sh.name]
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "sh-attach-splunk-ec2" {
   #name       = "sh-attach-splunk-ec2"
-  role      = aws_iam_role.role-splunk-sh.name
+  role = aws_iam_role.role-splunk-sh.name
   #roles      = [aws_iam_role.role-splunk-sh.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "sh-attach-ssm-managedinstance" {
   #name       = "sh-attach-ssm-managedinstance"
-  role      = aws_iam_role.role-splunk-sh.name
+  role = aws_iam_role.role-splunk-sh.name
   #roles      = [aws_iam_role.role-splunk-sh.name]
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-  provider = aws.region-primary
+  provider   = aws.region-primary
 }
 
 
@@ -122,13 +122,13 @@ resource "aws_security_group_rule" "sh_from_cm_8089" {
 }
 
 resource "aws_security_group_rule" "sh_from_trustedrestapi_8089" {
-  security_group_id        = aws_security_group.splunk-sh.id
-  type                     = "ingress"
-  from_port                = 8089
-  to_port                  = 8089
-  protocol                 = "tcp"
-  cidr_blocks              = var.trustedrestapi_to_sh
-  description              = "allow connect to sh on mgt port (rest api) from extra trusted ip(s)"
+  security_group_id = aws_security_group.splunk-sh.id
+  type              = "ingress"
+  from_port         = 8089
+  to_port           = 8089
+  protocol          = "tcp"
+  cidr_blocks       = var.trustedrestapi_to_sh
+  description       = "allow connect to sh on mgt port (rest api) from extra trusted ip(s)"
 }
 
 resource "aws_security_group_rule" "sh_from_lbsh_8000" {
@@ -206,7 +206,7 @@ resource "aws_security_group_rule" "sh_from_sh_8191" {
 # LB
 
 resource "aws_security_group" "splunk-lb-shc-outbound" {
-  name_prefix        = "splunk-lb-shc-outbound"
+  name_prefix = "splunk-lb-shc-outbound"
   description = "Outbound Security group for SHC ELB"
   vpc_id      = local.master_vpc_id
   tags = {
@@ -215,23 +215,23 @@ resource "aws_security_group" "splunk-lb-shc-outbound" {
 }
 
 resource "aws_security_group_rule" "lb_outbound_hecrest" {
-  security_group_id = aws_security_group.splunk-lb-shc-outbound.id
-  type              = "egress"
-  from_port         = 8089
-  to_port           = 8089
-  protocol          = "tcp"
+  security_group_id        = aws_security_group.splunk-lb-shc-outbound.id
+  type                     = "egress"
+  from_port                = 8089
+  to_port                  = 8089
+  protocol                 = "tcp"
   source_security_group_id = aws_security_group.splunk-sh.id
-  description       = "allow outbound traffic for rest api ports to SH"
+  description              = "allow outbound traffic for rest api ports to SH"
 }
 
 resource "aws_security_group_rule" "lb_outbound_webui" {
-  security_group_id = aws_security_group.splunk-lb-shc-outbound.id
-  type              = "egress"
-  from_port         = 8000
-  to_port           = 8000
-  protocol          = "tcp"
+  security_group_id        = aws_security_group.splunk-lb-shc-outbound.id
+  type                     = "egress"
+  from_port                = 8000
+  to_port                  = 8000
+  protocol                 = "tcp"
   source_security_group_id = aws_security_group.splunk-sh.id
-  description       = "allow outbound traffic for webui port to SH"
+  description              = "allow outbound traffic for webui port to SH"
 }
 
 # ASG
@@ -276,7 +276,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh1" {
   }
 
   target_group_arns = [aws_alb_target_group.shc-users.id]
-  depends_on = [null_resource.bucket_sync]
+  depends_on        = [null_resource.bucket_sync]
 }
 
 resource "aws_launch_template" "splunk-sh1" {
@@ -370,7 +370,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh2" {
   }
 
   target_group_arns = [aws_alb_target_group.shc-users.id]
-  depends_on = [null_resource.bucket_sync]
+  depends_on        = [null_resource.bucket_sync]
 }
 
 
@@ -466,7 +466,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh3" {
   }
 
   target_group_arns = [aws_alb_target_group.shc-users.id]
-  depends_on = [null_resource.bucket_sync]
+  depends_on        = [null_resource.bucket_sync]
 }
 
 
@@ -576,16 +576,16 @@ resource "aws_security_group_rule" "lbsh_from_networks_https" {
 
 resource "aws_alb_target_group" "shc-users" {
   name_prefix = "shcu-"
-  port = 8000
-  protocol = "HTTP"
+  port        = 8000
+  protocol    = "HTTP"
   #protocol = var.sh_protocol
-  vpc_id      = local.master_vpc_id
+  vpc_id                        = local.master_vpc_id
   load_balancing_algorithm_type = "round_robin"
   # important : use round robin here, sessions will spread over time better than with a theorical clever algo
   # could also be stick on src_ip here 
   stickiness {
     enabled = true
-    type = "lb_cookie"
+    type    = "lb_cookie"
   }
   slow_start = 30
   health_check {
@@ -594,21 +594,21 @@ resource "aws_alb_target_group" "shc-users" {
     port = 8000
     #protocol = "HTTP"
     #protocol = "HTTPS"
-    protocol = var.sh_protocol
-    healthy_threshold = 3
+    protocol            = var.sh_protocol
+    healthy_threshold   = 3
     unhealthy_threshold = 2
-    timeout = 25
-    interval = 30
+    timeout             = 25
+    interval            = 30
     # return code 200
     matcher = "200"
   }
 }
 
 resource "aws_lb" "shc-users" {
-  name = "shc-users"
-  load_balancer_type= "application"
-  security_groups = [aws_security_group.splunk-lb-shc-outbound.id,aws_security_group.splunk-lbsh.id]
-  subnets = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
+  name               = "shc-users"
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.splunk-lb-shc-outbound.id, aws_security_group.splunk-lbsh.id]
+  subnets            = [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id]
   tags = {
     Type = "Splunk"
   }
@@ -616,13 +616,13 @@ resource "aws_lb" "shc-users" {
 
 resource "aws_alb_listener" "shc-users" {
   load_balancer_arn = aws_lb.shc-users.arn
-  port = 8000
-  protocol = "HTTP"
+  port              = 8000
+  protocol          = "HTTP"
   #port = 443
   #protocol = "HTTPS"
   default_action {
     target_group_arn = aws_alb_target_group.shc-users.arn
-    type = "forward"
+    type             = "forward"
   }
 }
 
@@ -639,22 +639,22 @@ resource "aws_alb_listener" "shc-users" {
 #}
 
 output "shc-dns-name-1" {
-  value = "${local.dns-prefix}${var.sh}1.${var.dns-zone-name}"
+  value       = "${local.dns-prefix}${var.sh}1.${var.dns-zone-name}"
   description = "sh dns name 1 (private ip)"
 }
 
 output "shc-dns-name-2" {
-  value = "${local.dns-prefix}${var.sh}2.${var.dns-zone-name}"
+  value       = "${local.dns-prefix}${var.sh}2.${var.dns-zone-name}"
   description = "sh dns name 2 (private ip)"
 }
 
 output "shc-dns-name-3" {
-  value = "${local.dns-prefix}${var.sh}3.${var.dns-zone-name}"
+  value       = "${local.dns-prefix}${var.sh}3.${var.dns-zone-name}"
   description = "sh dns name 3 (private ip)"
 }
 
 output "shc-dns-name-lbusers" {
-  value = aws_lb.shc-users.dns_name
+  value       = aws_lb.shc-users.dns_name
   description = "dns name for shc users (not used directly, alias in route53)"
 }
 

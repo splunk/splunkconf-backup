@@ -14,30 +14,30 @@ resource "aws_iam_role" "role-splunk-idx" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-idx_profile" {
-  name = "role-splunk-idx_profile"
-  role = aws_iam_role.role-splunk-idx.name
-  provider              = aws.region-primary
+  name     = "role-splunk-idx_profile"
+  role     = aws_iam_role.role-splunk-idx.name
+  provider = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "idx-attach-splunk-splunkconf-backup" {
   #name       = "idx-attach-splunk-splunkconf-backup"
-  role      = aws_iam_role.role-splunk-idx.name
+  role = aws_iam_role.role-splunk-idx.name
   #roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
-  provider              = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "idx-attach-splunk-route53-updatednsrecords" {
   #name       = "idx-attach-splunk-route53-updatednsrecords"
-  role      = aws_iam_role.role-splunk-idx.name
+  role = aws_iam_role.role-splunk-idx.name
   #roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-route53-updatednsrecords.arn
-  provider              = aws.region-primary
+  provider   = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "idx-attach-splunk-ec2" {
   #name       = "idx-attach-splunk-ec2"
-  role      = aws_iam_role.role-splunk-idx.name
+  role = aws_iam_role.role-splunk-idx.name
   #roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-ec2.arn
   provider   = aws.region-primary
@@ -45,7 +45,7 @@ resource "aws_iam_role_policy_attachment" "idx-attach-splunk-ec2" {
 
 resource "aws_iam_role_policy_attachment" "idx-attach-splunk-smartstore" {
   #name       = "idx-attach-splunk-smartstore"
-  role      = aws_iam_role.role-splunk-idx.name
+  role = aws_iam_role.role-splunk-idx.name
   #roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = aws_iam_policy.pol-splunk-smartstore.arn
   provider   = aws.region-primary
@@ -53,7 +53,7 @@ resource "aws_iam_role_policy_attachment" "idx-attach-splunk-smartstore" {
 
 resource "aws_iam_role_policy_attachment" "idx-attach-ssm-managedinstance" {
   #name       = "idx-attach-ssm-managedinstance"
-  role      = aws_iam_role.role-splunk-idx.name
+  role = aws_iam_role.role-splunk-idx.name
   #roles      = [aws_iam_role.role-splunk-idx.name]
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
@@ -268,7 +268,7 @@ resource "aws_security_group_rule" "idx_from_networks_log" {
 # LB
 
 resource "aws_security_group" "splunk-lb-hecidx-outbound" {
-  name_prefix        = "splunk-lb-hecidx-outbound"
+  name_prefix = "splunk-lb-hecidx-outbound"
   description = "Outbound Security group for ELB HEC to IDX"
   vpc_id      = local.master_vpc_id
   tags = {
@@ -277,19 +277,19 @@ resource "aws_security_group" "splunk-lb-hecidx-outbound" {
 }
 
 resource "aws_security_group_rule" "lb_outbound_hecidx" {
-  security_group_id = aws_security_group.splunk-lb-hecidx-outbound.id
-  type              = "egress"
-  from_port         = 8088
-  to_port           = 8088
-  protocol          = "tcp"
+  security_group_id        = aws_security_group.splunk-lb-hecidx-outbound.id
+  type                     = "egress"
+  from_port                = 8088
+  to_port                  = 8088
+  protocol                 = "tcp"
   source_security_group_id = aws_security_group.splunk-idx.id
-  description       = "allow outbound traffic for hec to IDX"
+  description              = "allow outbound traffic for hec to IDX"
 }
 
 # ASG
 resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
   name                = "asg-splunk-idx"
-  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
+  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = var.idx-nb
   max_size            = var.idx-nb
   min_size            = var.idx-nb
@@ -327,10 +327,10 @@ resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
     value               = local.dns-prefix
     propagate_at_launch = false
   }
-  default_cooldown=var.idxasg_cooldown
+  default_cooldown = var.idxasg_cooldown
 
   target_group_arns = [aws_alb_target_group.idxhec.id]
-  depends_on = [null_resource.bucket_sync]
+  depends_on        = [null_resource.bucket_sync]
 }
 
 resource "aws_launch_template" "splunk-idx" {
@@ -382,7 +382,7 @@ resource "aws_launch_template" "splunk-idx" {
       splunkcloudmode     = "3"
       splunkosupdatemode  = var.splunkosupdatemode
       splunkconnectedmode = var.splunkconnectedmode
-      splunkacceptlicense   = var.splunkacceptlicense
+      splunkacceptlicense = var.splunkacceptlicense
     }
   }
   metadata_options {
@@ -445,59 +445,59 @@ resource "aws_security_group_rule" "lbhec_from_networks_8088" {
 }
 
 resource "aws_alb_target_group" "idxhec" {
-  name_prefix = "hec-"
-  port = 8088
-  protocol = var.hec_protocol
-  vpc_id      = local.master_vpc_id
+  name_prefix                   = "hec-"
+  port                          = 8088
+  protocol                      = var.hec_protocol
+  vpc_id                        = local.master_vpc_id
   load_balancing_algorithm_type = "round_robin"
-  slow_start = 30
+  slow_start                    = 30
   health_check {
-    path = "/services/collector/health/1.0"
-    port = 8088
-    protocol = var.hec_protocol
-    healthy_threshold = 3
+    path                = "/services/collector/health/1.0"
+    port                = 8088
+    protocol            = var.hec_protocol
+    healthy_threshold   = 3
     unhealthy_threshold = 2
-    timeout = 25
-    interval = 30
+    timeout             = 25
+    interval            = 30
     # {"text":"HEC is healthy","code":17}
     # return code 200
-    matcher = "200"  
+    matcher = "200"
   }
 }
 
 resource "aws_alb_target_group" "idxhec-ack" {
-  name_prefix = "heca-"
-  port = 8088
-  protocol = var.hec_protocol
-  vpc_id      = local.master_vpc_id
+  name_prefix                   = "heca-"
+  port                          = 8088
+  protocol                      = var.hec_protocol
+  vpc_id                        = local.master_vpc_id
   load_balancing_algorithm_type = "round_robin"
   # important for ack to work correctly
   # alternate would be to rely on cookie 
   stickiness {
     enabled = true
-    type = "lb_cookie"
+    type    = "lb_cookie"
   }
   slow_start = 30
   health_check {
-    path = "/services/collector/health/1.0"
-    port = 8088
-    protocol = var.hec_protocol
-    healthy_threshold = 3
+    path                = "/services/collector/health/1.0"
+    port                = 8088
+    protocol            = var.hec_protocol
+    healthy_threshold   = 3
     unhealthy_threshold = 2
-    timeout = 25
-    interval = 30
+    timeout             = 25
+    interval            = 30
     # {"text":"HEC is healthy","code":17}
     # return code 200
-    matcher = "200"  
+    matcher = "200"
   }
 }
 
 resource "aws_lb" "idxhec-noack" {
   #count    = var.use_elb ? 1 : 0
-  name = "idxhec-noack"
-  load_balancer_type= "application"
-  security_groups = [aws_security_group.splunk-lb-hecidx-outbound.id,aws_security_group.splunk-lbhec.id]
-  subnets = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
+  name               = "idxhec-noack"
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhec.id]
+  subnets            = [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id]
   tags = {
     Type = "Splunk"
   }
@@ -506,10 +506,10 @@ resource "aws_lb" "idxhec-noack" {
 
 resource "aws_lb" "idxhec-ack" {
   #count    = var.use_elb_ack ? 1 : 0
-  name = "idxhec-ack"
-  load_balancer_type= "application"
-  security_groups = [aws_security_group.splunk-lb-hecidx-outbound.id,aws_security_group.splunk-lbhec.id]
-  subnets = [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id]
+  name               = "idxhec-ack"
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhec.id]
+  subnets            = [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id]
   tags = {
     Type = "Splunk"
   }
@@ -518,29 +518,29 @@ resource "aws_lb" "idxhec-ack" {
 
 resource "aws_alb_listener" "idxhec-noack" {
   load_balancer_arn = aws_lb.idxhec-noack.arn
-  port = 8088
+  port              = 8088
   # change here for HTTPS
   protocol = "HTTP"
   default_action {
     target_group_arn = aws_alb_target_group.idxhec.arn
-    type = "forward"
+    type             = "forward"
   }
 }
 
 resource "aws_alb_listener" "idxhec-ack" {
   load_balancer_arn = aws_lb.idxhec-ack.arn
-  port = 8088
+  port              = 8088
   # change here for HTTPS
   protocol = "HTTP"
   default_action {
     target_group_arn = aws_alb_target_group.idxhec-ack.arn
-    type = "forward"
+    type             = "forward"
   }
 }
 
 
 output "idx-dns-name" {
-  value = "${local.dns-prefix}[${var.idxdnsnames}].${var.dns-zone-name}"
+  value       = "${local.dns-prefix}[${var.idxdnsnames}].${var.dns-zone-name}"
   description = "idx/inputs (multiples) dns name (private ip)"
 }
 

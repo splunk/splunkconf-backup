@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 20221113a
+# 20221207a
 
 # This script create the local bucket structure to be pushed in cloud bucket via terraform
 # from the git structure
@@ -101,6 +101,7 @@ done
 
 # same for system files
 SOURCE="system"
+# Note : you only need the file that match your AMI, package-system7-for-splunk.tar.gz gfor RH like and AWS2
 for j in package-systemaws1-for-splunk.tar.gz package-system7-for-splunk.tar.gz package-systemdebian-for-splunk.tar.gz 
 do
   if [ -e ./$SOURCE/$j ]; then 
@@ -117,8 +118,11 @@ mkdir -p $i/terraform/policy-aws
 mkdir -p $i/terraform/scripts-template
 mkdir -p $i/terraform-gcp/scripts-template
 # scripts template
-\cp -fp ../src/splunkconf-aws-terminate-idx.sh $i/terraform/scripts-template/
-\cp -fp ../src/splunkconf-aws-terminate-idx.sh $i/terraform-gcp/scripts-template/
+# optional 
+if [ -e "../src/splunkconf-aws-terminate-idx.sh" ]; then 
+  \cp -fp ../src/splunkconf-aws-terminate-idx.sh $i/terraform/scripts-template/
+  \cp -fp ../src/splunkconf-aws-terminate-idx.sh $i/terraform-gcp/scripts-template/
+fi
 # inlined \cp -fp ../splunkconf-backup/aws-update-dns.sh $i/terraform/scripts-template/
 # inlined \cp -fp ../splunkconf-backup/gcp-update-dns.sh $i/terraform-gcp/scripts-template/
 # terraform tf
@@ -126,14 +130,18 @@ chmod a+x terraform/*.sh
 chmod a+x terraform-gcp/*.sh
 \cp -p ./terraform/*.tf terraform/build-idx-scripts.sh terraform/build-nonidx-scripts.sh terraform/debugtf.sh  "$i/terraform/"
 \cp -p ./terraform-gcp/*.tf terraform-gcp/build-idx-scripts.sh terraform-gcp/build-nonidx-scripts.sh terraform-gcp/debugtf.sh  "$i/terraform-gcp/"
-#rm "$i/terraform/gitlabsplunk.tf"
-#rm "$i/terraform-gcp/gitlabsplunk.tf"
 # policy templates
 \cp -rp ./terraform/policy-aws  "$i/terraform/"
 
 echo "Please go in splunkconf-backup/terraform to continue"
 echo "Please also make sure you set up cloud credentials and customize variables"
 echo "you may also want to use a remote tfstate"
+
+
+# 2 options here 
+# either normal modules then use loca-preparation-withmodules.tf
+# either with remotestate (as below) so we can partially destroy without destroying bastion, ssh key declaration (AWS API is limited on this part, which doesnt help terraform knows what to do) and kms (if we want to reusae data in bucket later on)   (file local-preparation-withremotestate.tf)
+# at the moment , below logic is with remotestate which match files in git
 
 for i in kms network ssh 
 do
@@ -142,9 +150,14 @@ do
   cd ~/splunkconf-backup/terraform/modules/$i
   terraform init
   terraform validate
+  # terraform plan
+  # terraform apply
 done
 
 echo "initializing terraform in  ~/splunkconf-backup/terraform "
 cd ~/splunkconf-backup/terraform
 terraform init
 terraform validate
+# terraform plan
+# terraform apply
+

@@ -1,0 +1,8 @@
+# This file contain list of tf templates to use
+# instance tf templates used  will be moved from instances-extra directory
+# instance tf templates not used will be moved (if necessary) to instances-extra directory
+# this is done autmatically via github action 
+# in case you dont use github action, you may call directly tftopology.sh script from top git directory
+# changing this file content could have big consequence in what is deployed so be careful when changing it
+ds
+hf

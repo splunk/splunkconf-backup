@@ -32,7 +32,7 @@ jobs:
         run: |
           echo Running tftopology.sh
           echo  to only use the instance tf files needed as describe in topology inventory
-          ./tftopology.sh
+          ./src/tftopology.sh
       - name: Commit & Push changes
         uses: actions-js/push@master
         with:

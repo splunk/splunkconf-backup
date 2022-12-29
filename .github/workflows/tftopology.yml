@@ -4,7 +4,7 @@ name: TFTopologyCI
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
+  # Triggers the workflow on push or pull request events but only for the "main" or "master" branch
   push:
     branches: [ "main", "master" ]
   pull_request:
@@ -28,15 +28,14 @@ jobs:
           persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
           fetch-depth: 0 # otherwise, you will failed to push refs to dest repo
       # Runs a set of commands using the runners shell
-      - name: Run a multi-line script update git files
+      - name: updating instance-xxx.tf files in terraform directory to match topology file
         run: |
           echo Running tftopology.sh
-          echo  to only use the instance tf files needed as describe in topology inventory
           ./src/tftopology.sh
-      - name: Commit & Push changes
+      - name: Commit & Push changes back to repo
         uses: actions-js/push@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: master
-          message: "topology update via github action to only use instancexxx.tf files needed"
+          message: "topology update via github action to only use instance-xxx.tf files needed"
 

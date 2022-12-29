@@ -18,6 +18,9 @@
 #
 # Matthieu Araman, Splunk
 #
+# 20221229 initial version
+
+VERSION="20221219a"
 
 # This script move instance tf files from and to instances-extra based on the content of topology.txt
 # This simplify terraform by only populating with the files to be used and reducing creation of unused objects
@@ -33,17 +36,28 @@ trim() {
 
 
 filename='terraform/topology.txt'
+# if this file exist, it will be used instead of default 
+# the local file will never exist in original git repo 
+# so it is safer to use a local version to avoid overwriting by error when syncing git
+filenamelocal='terraform/topology-local.txt'
+
 # success by default
 status=0
 
-if [ -e "$filename" ]; then
-  echo "OK topology file found at $filename"
-  # removing terraform dir as we are goign to cd into it
+if [ -e "$filenamelocal" ]; then
+  echo "OK local topology file found at $filename"
+  # removing terraform dir as we are going to cd into it
+  filename='topology-local.txt'
+elif [ -e "$filename" ]; then
+  echo "OK topology file found at $filename, please consider using a local version by creating ${filename-local} to prevent conflict when updating git files later on"
+  # removing terraform dir as we are going to cd into it
   filename='topology.txt'
 else
   echo "FAIL topology file NOT found at $filename, please check and fix. Disabling topology feature for now, assuming you have done it manually"
   exit 1
 fi
+
+
 
 # moving out all instance files, will readd in second step if necessary
 # this is necessary in order to make sure the end list match the topology file

@@ -37,5 +37,6 @@ jobs:
         uses: actions-js/push@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: master
           message: "topology update via github action to only use instancexxx.tf files needed"
 

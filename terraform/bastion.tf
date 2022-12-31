@@ -2,9 +2,10 @@
 
 #  **************** bastion ***************
 
-locals {
-  master_vpc_id = data.terraform_remote_state.network.outputs.master_vpc_id
-}
+# moved to local preparation
+#locals {
+#  master_vpc_id = data.terraform_remote_state.network.outputs.master_vpc_id
+#}
 
 
 resource "aws_iam_role" "role-splunk-bastion" {
@@ -48,7 +49,7 @@ resource "aws_security_group" "splunk-bastion" {
     from_port       = 0
     to_port         = 0
     protocol        = -1
-    security_groups = [aws_security_group.splunk-hf.id, aws_security_group.splunk-cm.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-idx.id, aws_security_group.splunk-sh.id, aws_security_group.splunk-iuf.id, aws_security_group.splunk-mc.id]
+    security_groups = [aws_security_group.splunk-hf.id, aws_security_group.splunk-cm.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-idx.id, aws_security_group.splunk-sh.id, aws_security_group.splunk-iuf.id, aws_security_group.splunk-mc.id,aws_security_group.splunk-worker.id]
     self            = true
   }
 
@@ -147,7 +148,7 @@ resource "aws_launch_template" "splunk-bastion" {
     http_tokens                 = (var.imdsv2 == "required" ? "required" : "optional")
     http_put_response_hop_limit = 1
   }
-  user_data = filebase64("../buckets/bucket-install/install/user-data-bastion.txt")
+  user_data = filebase64("../install/user-data-bastion.txt")
 }
 
 #resource "aws_network_interface" "bastion_1" {

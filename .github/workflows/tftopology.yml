@@ -33,9 +33,9 @@ jobs:
           echo Running tftopology.sh
           ./src/tftopology.sh
       - name: Commit & Push changes back to repo
-        uses: actions-js/push@master
+        uses: actions-js/push@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: master
+          branch: main
           message: "topology update via github action to only use instance-xxx.tf files needed"
 

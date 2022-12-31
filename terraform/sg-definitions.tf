@@ -78,3 +78,14 @@ resource "aws_security_group" "splunk-mc" {
     Name = "splunk-mc"
   }
 }
+
+resource "aws_security_group" "splunk-worker" {
+  name        = "splunk-worker"
+  description = "Security group for Splunk Worker"
+  vpc_id      = local.master_vpc_id
+  tags = {
+    Name = "splunk-worker"
+  }
+}
+
+

@@ -33,7 +33,7 @@ jobs:
           echo Running tftopology.sh
           ./src/tftopology.sh
       - name: Commit & Push changes back to repo
-        uses: actions-js/push@main
+        uses: actions-js/push@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: main

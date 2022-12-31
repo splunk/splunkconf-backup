@@ -31,7 +31,7 @@ jobs:
       - name: updating instance-xxx.tf files in terraform directory to match topology file
         run: |
           echo Running tftopology.sh
-          ./src/tftopology.sh
+          ./helpers/tftopology.sh
       - name: Commit & Push changes back to repo
         uses: actions-js/push@master
         with:

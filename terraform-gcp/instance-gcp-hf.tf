@@ -22,7 +22,7 @@ resource "google_compute_instance_template" "splunk-hf" {
     access_config {
     }
   }
-  metadata_startup_script = file("../buckets/bucket-install/install/user-data-gcp.txt")
+  metadata_startup_script = file("./user-data/user-data-gcp.txt")
   scheduling {
     automatic_restart = false
     preemptible       = local.env == "test" ? true : false

@@ -96,17 +96,6 @@ resource "aws_security_group_rule" "hf_from_splunkadmin-networks_webui" {
 #  description = "allow SSH connection from splunk admin networks"
 #}
 
-resource "aws_security_group_rule" "hf_from_splunkadmin-networks_webui" {
-  provider          = aws.region-primary
-  security_group_id = aws_security_group.splunk-hf.id
-  type              = "ingress"
-  from_port         = 8000
-  to_port           = 8000
-  protocol          = "tcp"
-  cidr_blocks       = var.splunkadmin-networks
-  description       = "allow Webui connection from splunk admin networks"
-}
-
 #resource "aws_security_group_rule" "hf_from_splunkadmin-networks-ipv6_webui" { 
 #  security_group_id = aws_security_group.splunk-hf.id
 #  type      = "ingress"

@@ -1,3 +1,12 @@
+resource "aws_security_group" "splunk-bastion" {
+  name        = "splunk-bastion"
+  description = "Security group for bastion"
+  vpc_id      = local.master_vpc_id
+  tags = {
+    Name = "splunk-bastion"
+  }
+}
+
 resource "aws_security_group" "splunk-cm" {
   name        = "splunk-cm"
   description = "Security group for Splunk CM(MN)"

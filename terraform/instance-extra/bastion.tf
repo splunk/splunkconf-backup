@@ -1,12 +1,5 @@
 
-
 #  **************** bastion ***************
-
-# moved to local preparation
-#locals {
-#  master_vpc_id = data.terraform_remote_state.network.outputs.master_vpc_id
-#}
-
 
 resource "aws_iam_role" "role-splunk-bastion" {
   name                  = "role-splunk-bastion"
@@ -32,37 +25,48 @@ resource "aws_iam_role_policy_attachment" "bastion-attach-splunk-ec2" {
   policy_arn = aws_iam_policy.pol-splunk-bastion.arn
 }
 
+
+resource "aws_security_group_rule" "hf_from_bastion_ssh" {
+  provider                 = aws.region-primary
+  security_group_id        = aws_security_group.splunk-hf.id
+  type                     = "ingress"
+  from_port                = 22
+  to_port                  = 22
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.splunk-bastion.id
+  description              = "allow SSH connection from bastion host"
+}
+
+resource "aws_security_group_rule" "bastion_from_splunkadmin-networks_ssh" {
+  provider          = aws.region-primary
+  security_group_id = aws_security_group.splunk-bastion.id
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = var.splunkadmin-networks
+  description       = "allow SSH connection from splunk admin networks"
+}
+
+# this is only used when not using a nat gateway (lab)
+# no harm if present otherwise
+# 
+resource "aws_security_group_rule" "bastion_natinstance" {
+  provider          = aws.region-primary
+  security_group_id = aws_security_group.splunk-bastion.id
+  type              = "ingress"
+  from_port       = 0
+  to_port         = 0
+  protocol        = -1
+  security_groups = [aws_security_group.splunk-hf.id, aws_security_group.splunk-cm.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-idx.id, aws_security_group.splunk-sh.id, aws_security_group.splunk-iuf.id, aws_security_group.splunk-mc.id,aws_security_group.splunk-worker.id]
+  self            = true
+  description       = "allow instance to be used as instance gateway from internal hosts only"
+}
+
 resource "aws_security_group" "splunk-bastion" {
   name        = "splunk-bastion"
   description = "Security group for bastion"
   vpc_id      = local.master_vpc_id
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    self        = false
-    cidr_blocks = var.splunkadmin-networks
-  }
-
-  ingress {
-    from_port       = 0
-    to_port         = 0
-    protocol        = -1
-    security_groups = [aws_security_group.splunk-hf.id, aws_security_group.splunk-cm.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-idx.id, aws_security_group.splunk-sh.id, aws_security_group.splunk-iuf.id, aws_security_group.splunk-mc.id,aws_security_group.splunk-worker.id]
-    self            = true
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "splunk-bastion"
-  }
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
@@ -109,8 +113,7 @@ resource "aws_launch_template" "splunk-bastion" {
   #name          = var.bastion
   name_prefix = "launch-template-splunk-bastion"
   image_id    = data.aws_ssm_parameter.linuxAmi.value
-  #key_name      = aws_key_pair.master-key.key_name
-  key_name      = data.terraform_remote_state.ssh.outputs.ssh_key_name
+  key_name      = local.ssh_key_name
   instance_type = "t3a.nano"
   # just recreate one if needed
   instance_initiated_shutdown_behavior = "terminate"
@@ -128,7 +131,7 @@ resource "aws_launch_template" "splunk-bastion" {
   network_interfaces {
     device_index                = 0
     associate_public_ip_address = true
-    security_groups             = [aws_security_group.splunk-bastion.id, aws_security_group.splunk-bastion.id]
+    security_groups             = [aws_security_group.splunk-outbound.id, aws_security_group.splunk-bastion.id]
     # nat instance
     # not possible here, moved to user-data
     #source_dest_check = false

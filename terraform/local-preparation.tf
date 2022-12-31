@@ -33,15 +33,3 @@ resource "null_resource" "bucket_sync" {
   depends_on = [null_resource.build-idx-scripts, null_resource.build-cm-scripts, aws_s3_bucket_lifecycle_configuration.s3_install_lifecycle, aws_s3_bucket_lifecycle_configuration.s3_backup_lifecycle, aws_s3_bucket_versioning.s3_install_versioning, aws_s3_bucket_versioning.s3_backup_versioning]
 }
 
-locals {
-  subnet_pub_1_id = data.terraform_remote_state.network.outputs.subnet_pub_1_id
-  subnet_pub_2_id = data.terraform_remote_state.network.outputs.subnet_pub_2_id
-  subnet_pub_3_id = data.terraform_remote_state.network.outputs.subnet_pub_3_id
-  subnet_priv_1_id = data.terraform_remote_state.network.outputs.subnet_priv_1_id
-  subnet_priv_2_id = data.terraform_remote_state.network.outputs.subnet_priv_2_id
-  subnet_priv_3_id = data.terraform_remote_state.network.outputs.subnet_priv_3_id
-  nat_gateway_1_id = data.terraform_remote_state.network.outputs.nat_gateway_1_id
-
-
-
-}

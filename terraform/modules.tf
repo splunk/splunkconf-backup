@@ -1,11 +1,14 @@
-# variables moves to a module so other modules can easily import , including when launched independently
-# commented as require more abstraction to work
-#module "variables" {
-#  source = "./modules/variables"
-#}
 
-# include module directly
-# disable calling directly 
-#module "network" {
-#  source = "./modules/network"
-#}
+# include modules
+
+module "network" {
+  source = "./modules/network"
+}
+
+module "ssh" {
+  source = "./modules/ssh"
+}
+
+module "kms" {
+  source = "./modules/kms"
+}

@@ -16,7 +16,7 @@ resource "aws_iam_policy" "pol-splunk-route53-updatednsrecords-forlambda" {
   #  sid = "pol-splunk-splunkconf-backup-${var.profile}-$(var.region-primary}-${var.splunktargetenv}"
   #}
   description = "Allow to update dns records from lambda at instance creation"
-  provider    = aws.region-primary
+  #provider    = aws.region-primary
   policy      = data.template_file.pol-splunk-route53-updatednsrecords-forlambda.rendered
 }
 
@@ -26,7 +26,7 @@ data "template_file" "pol-splunk-lambda-asg" {
 
 resource "aws_iam_policy" "pol-splunk-lambda-asg" {
   description = "Permissions needed specific for ASG Lambda execution"
-  provider    = aws.region-primary
+  #provider    = aws.region-primary
   policy      = data.template_file.pol-splunk-lambda-asg.rendered
 }
 
@@ -42,7 +42,7 @@ resource "aws_iam_policy" "pol-splunk-cloudwatch-write" {
   #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-primary}-${var.splunktargetenv}"
   #}
   description = "Permissions needed for writing logs "
-  provider    = aws.region-primary
+  #provider    = aws.region-primary
   policy      = data.template_file.pol-splunk-cloudwatch-write.rendered
 }
 

@@ -77,7 +77,7 @@ data "archive_file" "zip_lambda_asg_updateroute53_tag" {
 # we get current time to add to function name
 # this is to create different name 
 
-ressource "time_static" "lambda" {
+resource "time_static" "lambda" {
 } 
 
 

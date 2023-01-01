@@ -15,5 +15,5 @@ locals {
 
   ssh_key_name      = module.ssh.ssh_key_name
 
-  kmsarn = module.kms.splunkkmsarn
+  splunkkmsarn = module.kms.splunkkmsarn
 }

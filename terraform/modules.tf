@@ -15,6 +15,7 @@ module "network" {
   use_nat_gateway=var.use_nat_gateway
   nat_gateway_ha=var.nat_gateway_ha
   dns-zone-name=var.dns-zone-name
+  enable_lambda_route53=var.enable_lambda_route53
 
   providers = {
     aws.nested_provider_alias = aws.region-primary

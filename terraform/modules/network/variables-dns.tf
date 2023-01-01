@@ -4,3 +4,8 @@ variable "dns-zone-name" {
   type        = string
   default     = "splunk.acme.com"
 }
+
+variable "enable_lambda_route53" {
+  type        = bool
+  default     = "true"
+}

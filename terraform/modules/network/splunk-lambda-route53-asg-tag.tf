@@ -94,6 +94,7 @@ locals {
 
 
 resource "aws_lambda_function" "lambda_update-route53-tag" {
+  count    = var.enable_lambda_route53 ? 1 : 0
   #provider         = aws.region-primary
   filename         = data.archive_file.zip_lambda_asg_updateroute53_tag.output_path
   source_code_hash = data.archive_file.zip_lambda_asg_updateroute53_tag.output_base64sha256

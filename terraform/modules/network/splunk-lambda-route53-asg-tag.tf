@@ -167,6 +167,7 @@ EOF
 }
 
 resource "aws_cloudwatch_event_target" "lambda_route53asg" {
+  count    = var.enable_lambda_route53 ? 1 : 0
   #provider  = aws.region-primary
   rule      = aws_cloudwatch_event_rule.asg.name
   target_id = "SendTolambdaroute53asg"
@@ -174,6 +175,7 @@ resource "aws_cloudwatch_event_target" "lambda_route53asg" {
 }
 
 resource "aws_lambda_alias" "route53asg_alias" {
+  count    = var.enable_lambda_route53 ? 1 : 0
   #provider         = aws.region-primary
   name             = "route53asg"
   description      = "lambda route53 asg alias"
@@ -183,6 +185,7 @@ resource "aws_lambda_alias" "route53asg_alias" {
 
 
 resource "aws_lambda_permission" "allow_cloudwatch_route53asg" {
+  count    = var.enable_lambda_route53 ? 1 : 0
   #provider      = aws.region-primary
   statement_id  = "AllowExecutionFromCloudWatchroute53asg"
   action        = "lambda:InvokeFunction"
@@ -194,6 +197,7 @@ resource "aws_lambda_permission" "allow_cloudwatch_route53asg" {
 
 # this is used to not destroy lambda immediately after asg as we need some time for eventbridge event to fire the lambda that will remove dsn entries in route53
 resource "time_sleep" "wait_asglambda_destroy" {
+  count    = var.enable_lambda_route53 ? 1 : 0
   # timer for lambda is currently 60s
   # high value for test only
   destroy_duration = "1m"

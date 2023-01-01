@@ -146,7 +146,7 @@ EOF
 resource "aws_cloudwatch_event_rule" "asg" {
   #provider    = aws.region-primary
   name_prefix        = "capture-aws-asg"
-  description = "Capture each AWS ASG events"
+  description = "Capture each AWS ASG events in order to launch lambda asg route53 tag"
 
   event_pattern = <<EOF
 {

@@ -84,9 +84,12 @@ resource "time_static" "lambda" {
 locals {
 #    current_timestamp  = timestamp()
 #    ti        = formatdate("YYYY-MM-DD-hh:mm:ss", local.current_timestamp)
-  function_name="aws_lambda_autoscale_route53_tags${time_static.lambda.rfc3339}"
-  handler="lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.lambda_handler"
-  output_path = "lambda/lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.zip"
+#  function_name="aws_lambda_autoscale_route53_tags${time_static.lambda.rfc3339}"
+#  handler="lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.lambda_handler"
+#  output_path = "lambda/lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.zip"
+  function_name="aws_lambda_autoscale_route53_tags"
+  handler="lambda_asg_updateroute53_tag.lambda_handler"
+  output_path = "lambda/lambda_asg_updateroute53_tag.zip"
 }
 
 

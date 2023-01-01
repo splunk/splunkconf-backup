@@ -19,7 +19,7 @@ resource "tls_private_key" "mykey" {
 }
 
 resource "aws_key_pair" "mykey" {
-  provider   = aws.region-primary
+  #provider   = aws.region-primary
   key_name_prefix   = "mykey"
   public_key = tls_private_key.mykey.public_key_openssh
 }

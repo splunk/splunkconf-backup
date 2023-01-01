@@ -16,16 +16,22 @@ module "network" {
   nat_gateway_ha=var.nat_gateway_ha
   dns-zone-name=var.dns-zone-name
 
- providers = {
-   aws.nested_provider_alias = aws.region-primary
- }
+  providers = {
+    aws.nested_provider_alias = aws.region-primary
+  }
 }
 
 
 module "ssh" {
   source = "./modules/ssh"
+  providers = {
+    aws.nested_provider_alias = aws.region-primary
+  }
 }
 
 module "kms" {
   source = "./modules/kms"
+  providers = {
+    aws.nested_provider_alias = aws.region-primary
+  }
 }

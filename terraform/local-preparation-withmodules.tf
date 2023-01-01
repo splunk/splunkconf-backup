@@ -11,7 +11,9 @@ locals {
   subnet_priv_2_id = module.network.subnet_priv_2_id
   subnet_priv_3_id = module.network.subnet_priv_3_id
   nat_gateway_1_id = module.network.nat_gateway_1_id
+  dnszone_id = module.network.dnszone_id
 
   ssh_key_name      = module.ssh.ssh_key_name
 
+  kmsarn = module.kms.splunkkmsarn
 }

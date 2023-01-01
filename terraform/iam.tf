@@ -32,6 +32,24 @@ resource "aws_iam_policy" "pol-splunk-ec2" {
   policy      = data.template_file.pol-splunk-ec2.rendered
 }
 
+data "template_file" "pol-splunk-ec2worker" {
+  template = file("policy-aws/pol-splunk-ec2worker.json.tpl")
+  vars = {
+    s3_install      = aws_s3_bucket.s3_install.arn
+    profile         = var.profile
+    splunktargetenv = var.splunktargetenv
+  }
+}
+
+resource "aws_iam_policy" "pol-splunk-ec2worker" {
+  name_prefix = "splunkconf_ec2worker_"
+  # ... other configuration ...
+  #name_prefix = local.name-prefix-pol-splunk-ec2
+  description = "This policy include shared policy for Splunk EC2 Worker instances"
+  provider    = aws.region-primary
+  policy      = data.template_file.pol-splunk-ec2worker.rendered
+}
+
 data "template_file" "pol-splunk-splunkconf-backup" {
   template = file("policy-aws/pol-splunk-splunkconf-backup.json.tpl")
 
@@ -69,10 +87,6 @@ resource "aws_iam_policy" "pol-splunk-s3-replication-backup" {
   name_prefix = "splunkconf_s3_replication_backup_"
   description = "This policy allow replication between s3 backup bucket"
   policy      = data.template_file.pol-splunk-s3-replication-backup.rendered
-}
-
-locals {
-  dnszone_id = data.terraform_remote_state.network.outputs.dnszone_id
 }
 
 data "template_file" "pol-splunk-route53-updatednsrecords" {

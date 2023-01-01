@@ -67,7 +67,7 @@ resource "aws_iam_role_policy_attachment" "lambda-route53-asg-tag-attach-splunk-
 
 data "archive_file" "zip_lambda_asg_updateroute53_tag" {
   type        = "zip"
-  output_path = "lambda/lambda_asg_updateroute53_tag.zip"
+  output_path = local.output_path
   source {
     content  = file("lambda/lambda_asg_updateroute53_tag.py")
     filename = "lambda_asg_updateroute53_tag.py"
@@ -86,6 +86,7 @@ locals {
 #    ti        = formatdate("YYYY-MM-DD-hh:mm:ss", local.current_timestamp)
   function_name="aws_lambda_autoscale_route53_tags${time_static.lambda.rfc3339}"
   handler="lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.lambda_handler"
+  output_path = "lambda/lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.zip"
 }
 
 

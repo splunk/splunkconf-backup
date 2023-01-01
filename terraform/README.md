@@ -3,6 +3,48 @@ Quick and fast guide for deploying a env
 
 by default the terraform is configured for a test env (with minimal cloud cost)  
 
+There are multiple ways of using this :
+A) download  and run terraform locally after configuration and directories setup 
+B) run in partial VCS mode with only github actions but local terraform
+C) run in full VCS mode with github actions and terraform cloud  
+
+Note : the VCS mode is only tested for AWS at the moment but it should work with a few modifications for GCP
+
+VCS mode :
+--------
+
+1) log in github with your account
+2) clone https://github.com/splunk/splunkconf-backup
+3) customize topology
+     - go to terraform directory
+     - copy topology.txt to topology-local.txt 
+     - edit the file with the roles that fit you (the roles need to exist in current dir or instances-extra) (do NOT copy manually the instances file as it would break the github workflow)
+     - commit your change to the main branch -> that will automatically position the appropriate instance-xxx.tf files in terraforn directory and the unused in instances-extra directory   (if you run outside github , you may want to call helpers/tftopology.sh manually from top directory)
+4) login to terraform cloud
+5) create a organization if necessary
+6) create a workspace , choose github and give your github cloned repo name here
+7) autorize terraform cloud from github (that will prompt you and configure a terraform cloud app inside github where you can restrict access to your repo of choice)
+8) create a automation user for terraform cloud in AWS
+9) choose a dns subzone (public) that you control (you will delegate the NS record to the ones in AWS) (that is needed so certificate manager will be able to create certificates that belong to you 
+10) create global variable configuration (ie variable set) and apply it to workspace with at least the following 
+        AWS_ACCESS_KEY_ID (sensitive)
+        AWS_SECRET_ACCESS_KEY (sensitive)
+        AWS_DEFAULT_REGION   where you want to deploy (like eu-west-3,....) 
+        region-primary   (set to the same region as AWS_DEFAULT_REGION)
+        splunkacceptlicense    (see variables.tf) 
+
+        dns-zone-name to the zone name from step above
+
+this is probably enough for testing but you may want to review every variable and customize more here in a second step
+
+11) go to run in terraform and launch a manual run
+12) if you are satisfied with the plan , run apply
+
+this will setup all the cloud configuration and deploy splunk with backup and recovery 
+however this will not do full provisioning of splunk env itself, jump below for explanation on how to do this 
+
+for local mode :
+
 1) Download the bucket content either to your location (macosx) or to a custom folder on a linux instance
 
 2)
@@ -10,6 +52,7 @@ AWS : install AWS SDK for your os  , create a access key from AWS console and co
 GCP : install GCP SDK for your os  , create a service account and key to be configured in it and also set your default region
 
 install terraform
+(you could run helper/installrequirement.sh to do it for you under linux)
 
 3) 
 AWS : use terrafom directory

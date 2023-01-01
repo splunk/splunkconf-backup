@@ -12,7 +12,7 @@ resource "null_resource" "build-idx-scripts" {
     always_run = "${timestamp()}"
   }
   provisioner "local-exec" {
-    command = "./scripts/build-idx-scripts.sh idx-site;./build-idx-scripts.sh idx-site1;./build-idx-scripts.sh idx-site2;./build-idx-scripts.sh idx-site3"
+    command = "./scripts/build-idx-scripts.sh idx-site;./scripts/build-idx-scripts.sh idx-site1;./scripts/build-idx-scripts.sh idx-site2;./scripts/build-idx-scripts.sh idx-site3"
   }
   depends_on = [null_resource.createbuckets-directories]
 }

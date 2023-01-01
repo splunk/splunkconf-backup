@@ -3,6 +3,8 @@
 
 module "network" {
   source = "./modules/network"
+  profile=var.profile
+  splunktargetenv=var.splunktargetenv
   vpc_cidr_block=var.vpc_cidr_block
   cidr_subnet_pub_1=var.cidr_subnet_pub_1
   cidr_subnet_pub_2=var.cidr_subnet_pub_2

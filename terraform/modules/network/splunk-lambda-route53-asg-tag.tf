@@ -81,19 +81,21 @@ resource "time_static" "lambda" {
 } 
 
 
-#locals {
+locals {
 #    current_timestamp  = timestamp()
 #    ti        = formatdate("YYYY-MM-DD-hh:mm:ss", local.current_timestamp)
-#}
+  function_name="aws_lambda_autoscale_route53_tags${time_static.lambda.rfc3339}"
+  handler="lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.lambda_handler"
+}
 
 
 resource "aws_lambda_function" "lambda_update-route53-tag" {
   #provider         = aws.region-primary
   filename         = data.archive_file.zip_lambda_asg_updateroute53_tag.output_path
   source_code_hash = data.archive_file.zip_lambda_asg_updateroute53_tag.output_base64sha256
-  function_name    = "aws_lambda_autoscale_route53_tags${time_static.lambda.rfc3339}"
+  function_name    = local.function_name
   #function_name         = "lambda_handler"
-  handler = "lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.lambda_handler"
+  handler = local.handler
   role    = aws_iam_role.role-splunk-lambda-route53-asg-tag.arn
   runtime = "python3.9"
   timeout = 60

@@ -1,6 +1,6 @@
 
 resource "aws_iam_role" "role-splunk-s3-replication" {
-  name                  = "role-splunk-s3-replication"
+  name_prefix           = "role-splunk-s3-replication"
   force_detach_policies = true
   description           = "iam role for splunk s3 replication"
   assume_role_policy    = file("./policy-aws/assumerolepolicy-s3.json")

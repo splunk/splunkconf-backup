@@ -170,14 +170,14 @@ resource "aws_cloudwatch_event_target" "lambda_route53asg" {
   #provider  = aws.region-primary
   rule      = aws_cloudwatch_event_rule.asg.name
   target_id = "SendTolambdaroute53asg"
-  arn       = aws_lambda_function.lambda_update-route53-tag.arn
+  arn       = aws_lambda_function.lambda_update-route53-tag[0].arn
 }
 
 resource "aws_lambda_alias" "route53asg_alias" {
   #provider         = aws.region-primary
   name             = "route53asg"
   description      = "lambda route53 asg alias"
-  function_name    = aws_lambda_function.lambda_update-route53-tag.function_name
+  function_name    = aws_lambda_function.lambda_update-route53-tag[0].function_name
   function_version = "$LATEST"
 }
 
@@ -186,7 +186,7 @@ resource "aws_lambda_permission" "allow_cloudwatch_route53asg" {
   #provider      = aws.region-primary
   statement_id  = "AllowExecutionFromCloudWatchroute53asg"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.lambda_update-route53-tag.function_name
+  function_name = aws_lambda_function.lambda_update-route53-tag[0].function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.asg.arn
   #qualifier     = aws_lambda_alias.route53asg_alias.name
@@ -197,5 +197,5 @@ resource "time_sleep" "wait_asglambda_destroy" {
   # timer for lambda is currently 60s
   # high value for test only
   destroy_duration = "1m"
-  depends_on       = [aws_lambda_function.lambda_update-route53-tag, aws_cloudwatch_event_rule.asg, aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-assume-role, aws_cloudwatch_log_group.splunkconf_asg_logging, aws_route_table.internet_route, aws_main_route_table_association.set-master-default-rt-assoc, aws_cloudwatch_event_target.lambda_route53asg, aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-splunk-route53-updatednsrecords-forlambda, aws_iam_policy.lambda_logging, aws_lambda_alias.route53asg_alias, aws_lambda_permission.allow_cloudwatch_route53asg, aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-splunk-cloudwatch-write, aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-splunk-asg]
+  depends_on       = [aws_lambda_function.lambda_update-route53-tag[0], aws_cloudwatch_event_rule.asg, aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-assume-role, aws_cloudwatch_log_group.splunkconf_asg_logging, aws_route_table.internet_route, aws_main_route_table_association.set-master-default-rt-assoc, aws_cloudwatch_event_target.lambda_route53asg, aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-splunk-route53-updatednsrecords-forlambda, aws_iam_policy.lambda_logging, aws_lambda_alias.route53asg_alias, aws_lambda_permission.allow_cloudwatch_route53asg, aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-splunk-cloudwatch-write, aws_iam_role_policy_attachment.lambda-route53-asg-tag-attach-splunk-asg]
 }

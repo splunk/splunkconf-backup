@@ -453,3 +453,9 @@ variable "s3_iaprefix" {
   description = "prefix used withing s3 ia bucket (default is ia)"
   default     = "ia"
 }
+
+variable "worker" {
+  type        = string
+  description = "worker name"
+  default     = "worker"
+}

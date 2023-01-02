@@ -18,6 +18,10 @@
 #
 # Matthieu Araman, Splunk
 
+# 20230102 fix regression : path for apps
+
+VERSION="20230102a"
+
 # This script create the local bucket structure to be pushed in cloud bucket via terraform
 # from the git structure
 
@@ -26,6 +30,7 @@
 # buckets
 #   buckets-install
 #     install
+#       apps
 #     packaged
 #   buckets-backup
 # terraform
@@ -47,12 +52,13 @@ mkdir -p $i/bucket-install/packaged
 #for j in splunkconf-backup.tar.gz event-timeline-viz_171.tgz
 # commenting viz from here, to be deployed via normal mechanism on MC
 
+SOURCE="src/apps"
 for j in splunkconf-backup.tar.gz 
 do
-  if [ -e ./install/apps/$j ]; then 
-    \cp -p ./install/apps/$j "$i/bucket-install/install/apps/"
+  if [ -e ./$SOURCE/$j ]; then 
+    \cp -p ./$SOURCE/$j "$i/bucket-install/install/apps/"
   else
-    echo "ERROR : missing file ./install/apps/$j, please add it and relaunch (read comments to understand how to get file)"
+    echo "ERROR : missing file ./$SOURCE/$j, please add it and relaunch (read comments to understand how to get file)"
   fi
 done
 

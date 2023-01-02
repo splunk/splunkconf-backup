@@ -53,7 +53,7 @@ variable "objectlock-backup-mode" {
 variable "enable-s3-normal-replication-backup" {
   description = "Whether to replicate s3 backup from primary to secondary region (you may want to disable if failed over and secondary is more fresh)"
   type        = bool
-  default     = "true"
+  default     = "false"
 }
 
 variable "enable-s3-reverse-replication-backup" {

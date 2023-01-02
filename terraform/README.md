@@ -27,9 +27,11 @@ VCS mode :
 8) create a automation user for terraform cloud in AWS
 9) choose a dns subzone (public) that you control (you will delegate the NS record to the ones in AWS) (that is needed so certificate manager will be able to create certificates that belong to you 
 10) create global variable configuration (ie variable set) and apply it to workspace with at least the following 
+as environment variables
         AWS_ACCESS_KEY_ID (sensitive)
         AWS_SECRET_ACCESS_KEY (sensitive)
         AWS_DEFAULT_REGION   where you want to deploy (like eu-west-3,....) 
+as terraform variables
         region-primary   (set to the same region as AWS_DEFAULT_REGION)
         splunkacceptlicense    (see variables.tf) 
 

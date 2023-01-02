@@ -30,6 +30,6 @@ resource "aws_secretsmanager_secret" "mykey" {
 
 resource "aws_secretsmanager_secret_version" "mykey" {
   secret_id     = aws_secretsmanager_secret.mykey.id
-  secret_string = tls_private_key.mykey.private_key_pem
+  secret_string = tls_private_key.mykey.private_key_openssh
 }
 

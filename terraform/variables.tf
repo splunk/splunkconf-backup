@@ -3,7 +3,13 @@
 variable "splunkacceptlicense" {
   description = "please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then change this variable to yes  (the license flag is passed along to Splunk Software which wont start without this)"
   type        = string
-  default     = "no"
+  default     = "unset-assumedno"
+  validation {
+    # regex(...) fails if it cannot find a match
+    condition     = can(regex("^(yes|no)", var.splunkacceptlicense))
+    error_message = "please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then change this variable to yes  (the license flag is passed along to Splunk Software which wont start without this)"
+    # note : if explicitely set to no, the cloud pieces will be deployed but Splunk wont be configured/setup
+  }
 }
 
 

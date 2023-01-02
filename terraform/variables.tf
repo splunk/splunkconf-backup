@@ -359,7 +359,7 @@ variable "splunkadmin-networks" {
   default = ["notset127.0.0.1/32"]
   validation {
     # regex(...) fails if it cannot find a match
-    condition     = can(not regex("notset", var.splunkadmin-networks))
+    condition     = can(!regex("notset", var.splunkadmin-networks))
     error_message = "you may want to configure splunkadmin-networks variable in order to be able to connect as admin to your instances ! If you really sure you dont need this , please use value [\"127.0.0.1/32\"]"
     # note : this is also used if going through bastion
   }

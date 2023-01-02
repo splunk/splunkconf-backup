@@ -112,8 +112,7 @@ resource "aws_secretsmanager_secret_version" "splunk_pass4symmkeyshc" {
 
 
 locals {
-  count    = var.generateuserseed ? 1 : 0
-  splunk_admin_pwd=aws_secretsmanager_secret_version.splunk_admin[0].secret_string
+  splunk_admin_pwd=var.generateuserseed ? aws_secretsmanager_secret_version.splunk_admin[0].secret_string : "disabledhere"
 }
 
 locals {
@@ -134,8 +133,7 @@ resource "null_resource" "generate-user-seed" {
 
 
 output "splunk_admin_password" {
-  #count    = var.generateuserseed ? 1 : 0
-  value = "${local.splunk_admin_pwd[0]}"
+  value = var.generateuserseed ? "${local.splunk_admin_pwd[0]}" : "user seed generation disabled here"
   description = "splunk admin password"
   sensitive = true
 }

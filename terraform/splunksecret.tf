@@ -134,7 +134,7 @@ resource "null_resource" "generate-user-seed" {
 
 
 output "splunk_admin_password" {
-  count    = var.generateuserseed ? 1 : 0
+  #count    = var.generateuserseed ? 1 : 0
   value = "${local.splunk_admin_pwd[0]}"
   description = "splunk admin password"
   sensitive = true

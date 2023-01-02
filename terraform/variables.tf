@@ -449,3 +449,9 @@ variable "worker" {
   description = "worker name"
   default     = "worker"
 }
+
+variable "generateuserseed" {
+  type        = bool
+  description = "whether to generate user seed from terraform (default to false as require external helper for the moment) "
+  default     = false
+}

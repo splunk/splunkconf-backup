@@ -33,5 +33,11 @@ variable "splunkorg" {
   description = "prefix for apps (organization prefix)"
   type        = string
   default     = "org"
+  validation {
+    # regex(...) fails if it cannot find a match
+    # 2 lowercase characters mini
+    condition     = can(regex("^[a-z]{2,}", var.splunkorg))
+    error_message = "please specify a org (lowercase characters only, minimum 2)"
+  }
 }
 

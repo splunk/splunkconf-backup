@@ -91,6 +91,7 @@
 # 20220611 fix test condition "generated"
 # 20221205 add support for splunkacceptlicense tag 
 # 20221205 add extra chown before first version detection
+@ 20230104 fix typo in text
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -100,7 +101,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20221205d";
+$VERSION="20230104a";
 
 print "Using splunkconf-init version $VERSION\n";
 
@@ -226,7 +227,7 @@ if ( !defined($splunkacceptlicense) ) {
   print "FAIL : *************************************************************************************\n";
   print "FAIL : *************************************************************************************\n";
   print "FAIL : please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add --splunkacceptlicense=yes|no as parameter to this script and relaunch\n";
-  print "FAIL : if running in cloud env, that should come from instance tag splunbkacceptlicense . If the env is created by terraform, that is configured via variables.tf and you didnt set it up if you read this\n";
+  print "FAIL : if running in cloud env, that should come from instance tag splunkacceptlicense . If the env is created by terraform, that is configured via variables.tf and you didnt set it up if you read this\n";
   print "FAIL : *************************************************************************************\n";
   print "FAIL : *************************************************************************************\n";
   print "FAIL : *************************************************************************************\n";
@@ -239,7 +240,7 @@ if ($splunkacceptlicense ne "yes" ) {
   print "FAIL : *************************************************************************************\n";
   print "FAIL : *************************************************************************************\n";
   print "FAIL : please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html as this is needed to setup Splunk via this script\n";
-  print "FAIL : if running in cloud env, that should come from instance tag splunbkacceptlicense . If the env is created by terraform, that is configured via variables.tf and you didnt set it up if you read this\n";
+  print "FAIL : if running in cloud env, that should come from instance tag splunkacceptlicense . If the env is created by terraform, that is configured via variables.tf and you didnt set it up if you read this\n";
   print "FAIL : *************************************************************************************\n";
   print "FAIL : *************************************************************************************\n";
   print "FAIL : *************************************************************************************\n";

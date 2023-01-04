@@ -91,7 +91,7 @@
 # 20220611 fix test condition "generated"
 # 20221205 add support for splunkacceptlicense tag 
 # 20221205 add extra chown before first version detection
-@ 20230104 fix typo in text
+# 20230104 fix typo in text
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)

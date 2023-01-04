@@ -166,8 +166,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20221123 update tag replacement logic for enabling ds tag replace to work indeoendently of cm tag
 # 20221205 add support for splunkacceptlicense tag and pass it along to splunkconf-init
 # 20230102 up to 9.0.3
+# 20230104 change way of calling swapme to remove false error message
 
-VERSION="20230102a"
+VERSION="20230104a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1022,7 +1023,7 @@ if [ "$MODE" != "upgrade" ]; then
       echo "disabling swapme support as uf detected" >> /var/log/splunkconf-cloud-recovery-info.log
     else
       # launching script and providing it info about the main partition that should be SSD like and have some room
-      `${localrootscriptdir}/${swapme} $PARTITIONFAST`
+      ${localrootscriptdir}/${swapme} $PARTITIONFAST
     fi
   fi
 fi # if not upgrade

@@ -582,7 +582,7 @@ if (-d $INITIALSPLAPPSDIR) {
 
 # if splunkforwarder then it is normal to not create a admin account to reduce attack surface
 unless (-e $SPLUSERSEED || -e $SPLPASSWDFILE || $SPLUNK_SUBSYS eq "splunkforwarder") {
-  if (($cloud_type == 1) && $splunkpwdinit == "yes") {
+  if (($cloud_type == 1) && $splunkpwdinit eq "yes") {
     print "running in AWS with splunkpwdinit set and no passwd defined or provided by user-seed -> trying to get one or generate \n";
     # complete here
   } elsif ($no_prompt) {

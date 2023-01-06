@@ -117,7 +117,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20230104a";
+$VERSION="20230106a";
 
 print "Using splunkconf-init version $VERSION\n";
 
@@ -174,6 +174,8 @@ my $instancenumber="";
 my $splunktar="";
 my $usedefaultunitfile="";
 my $splunkacceptlicense="no";
+my $cloud_type="";
+my $splunkpwdinit="no";
 my $dsetcapps="org_all_deploymentserverbase,org_full_license_slave,org_to-site_forwarder_central_outputs,org_search_outputs-disableindexing,org_dsmanaged_disablewebserver";
 
 

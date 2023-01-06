@@ -585,7 +585,7 @@ unless (-e $SPLUSERSEED || -e $SPLPASSWDFILE || $SPLUNK_SUBSYS eq "splunkforward
   if (($cloud_type == 1) && $splunkpwdinit == "yes") {
     print "running in AWS with splunkpwdinit set and no passwd defined or provided by user-seed -> trying to get one or generate \n";
     # complete here
-  } elif ($no_prompt) {
+  } elsif ($no_prompt) {
     print "this is a new installation of splunk. Please provide a user-seed.conf with the initial admin password as described in https://docs.splunk.com/Documentation/Splunk/latest/Admin/User-seedconf you should probably use splunk hash-passwd commend to generate directly the hashed version  \n";
     #die("") unless ($dry_run);
   } else {

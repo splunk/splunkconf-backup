@@ -236,6 +236,7 @@ resource "aws_launch_template" "splunk-hf" {
       splunkosupdatemode    = var.splunkosupdatemode
       splunkconnectedmode   = var.splunkconnectedmode
       splunkacceptlicense   = var.splunkacceptlicense
+      splunkpwdinit         = var.splunkpwdinit
     }
   }
   metadata_options {

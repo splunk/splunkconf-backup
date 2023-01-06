@@ -455,3 +455,9 @@ variable "generateuserseed" {
   description = "whether to generate user seed from terraform (default to false as require external helper for the moment) "
   default     = false
 }
+
+variable "splunkpwdinit" {
+  type        = string
+  description = "whether to generate user seed from splunkconf-init when not present(default to yes) "
+  default     = "yes"
+}

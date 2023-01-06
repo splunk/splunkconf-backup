@@ -167,8 +167,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20221205 add support for splunkacceptlicense tag and pass it along to splunkconf-init
 # 20230102 up to 9.0.3
 # 20230104 change way of calling swapme to remove false error message
+# 20230106 add more arguments to splunkconf-init so it knows it is running in cloud and new tag splunkpwdinit
 
-VERSION="20230104a"
+VERSION="20230106a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -506,7 +507,7 @@ check_sysver
 
 echo "cloud_type=$cloud_type, sysver=$SYSVER"
 
-if [ $cloud_type == 2 ]; then
+if [[ $cloud_type == 2 ]]; then
   # GCP
   if [ $# -eq 0 ]; then
     # not in upgrade mode
@@ -629,6 +630,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkmode`
   splunkdnsmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnsmode`
   splunkacceptlicense=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkacceptlicense`
+  splunkpwdinit=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdinit`
   #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
@@ -653,6 +655,15 @@ else
   echo "unsupported/unknown value for splunksystemd:${splunksystemd} , falling back to default"
 fi
 
+if [[ "cloud_type" -eq 1 ]]; then
+  # AWS
+  # tell splunkconfinit we are running in AWS 
+  SPLUNKINITOPTIONS+=" --cloud_type=${cloud_type}"
+  if [ "${splunkpwdinit}" == "yes" ]; then
+    # tell splunkconfinit (in AWS context) that if user seed was not provided and pwd is not present from backup to create one and store it via AWS secrets
+    SPLUNKINITOPTIONS+=" --splunkpwdinit=yes"
+fi
+  
 if [ -e "$INSTANCEFILE" ]; then
   chmod 644 $INSTANCEFILE
   # including the tags for use in this script

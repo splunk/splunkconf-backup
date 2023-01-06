@@ -662,6 +662,8 @@ if [[ "cloud_type" -eq 1 ]]; then
   if [ "${splunkpwdinit}" == "yes" ]; then
     # tell splunkconfinit (in AWS context) that if user seed was not provided and pwd is not present from backup to create one and store it via AWS secrets
     SPLUNKINITOPTIONS+=" --splunkpwdinit=yes"
+  else
+    echo "splunkpwdinit tag not present"
 fi
   
 if [ -e "$INSTANCEFILE" ]; then

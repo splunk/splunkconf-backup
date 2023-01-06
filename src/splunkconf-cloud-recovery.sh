@@ -169,7 +169,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230104 change way of calling swapme to remove false error message
 # 20230106 add more arguments to splunkconf-init so it knows it is running in cloud and new tag splunkpwdinit
 
-VERSION="20230106a"
+VERSION="20230106b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -664,6 +664,7 @@ if [[ "cloud_type" -eq 1 ]]; then
     SPLUNKINITOPTIONS+=" --splunkpwdinit=yes"
   else
     echo "splunkpwdinit tag not present"
+  fi
 fi
   
 if [ -e "$INSTANCEFILE" ]; then

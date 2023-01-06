@@ -92,6 +92,7 @@
 # 20221205 add support for splunkacceptlicense tag 
 # 20221205 add extra chown before first version detection
 # 20230104 fix typo in text
+# 20230106 add more arguments to splunkconf-init so it knows it is running in cloud and new tag splunkpwdinit
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -180,7 +181,9 @@ GetOptions (
      'splunktar=s' => \$splunktar,
      'splunkacceptlicense=s' => \$splunkacceptlicense,
      'with-default-service-file|with-default-systemd-service-file' => \$usedefaultunitfile,
-     'service-name=s' => \$servicename
+     'service-name=s' => \$servicename,
+     'cloud_type=s' => \$cloud_type,
+     'splunkpwdinit=s' => \$splunkpwdinit
 
   );
 
@@ -562,7 +565,10 @@ if (-d $INITIALSPLAPPSDIR) {
 
 # if splunkforwarder then it is normal to not create a admin account to reduce attack surface
 unless (-e $SPLUSERSEED || -e $SPLPASSWDFILE || $SPLUNK_SUBSYS eq "splunkforwarder") {
-  if ($no_prompt) {
+  if (($cloud_type == 1) && $splunkpwdinit == "yes") {
+    print "running in AWS with splunkpwdinit set and no passwd defined or provided by user-seed -> trying to get one or generate \n";
+    # complete here
+  } elif ($no_prompt) {
     print "this is a new installation of splunk. Please provide a user-seed.conf with the initial admin password as described in https://docs.splunk.com/Documentation/Splunk/latest/Admin/User-seedconf you should probably use splunk hash-passwd commend to generate directly the hashed version  \n";
     #die("") unless ($dry_run);
   } else {

@@ -18,7 +18,8 @@ module "network" {
   enable_lambda_route53=var.enable_lambda_route53
 
   providers = {
-    aws.nested_provider_alias = aws.region-primary
+    aws = aws.region-primary
+    #aws.nested_provider_alias = aws.region-primary
   }
 }
 
@@ -26,13 +27,13 @@ module "network" {
 module "ssh" {
   source = "./modules/ssh"
   providers = {
-    aws.nested_provider_alias = aws.region-primary
+    aws = aws.region-primary
   }
 }
 
 module "kms" {
   source = "./modules/kms"
   providers = {
-    aws.nested_provider_alias = aws.region-primary
+    aws = aws.region-primary
   }
 }

@@ -27,7 +27,7 @@ resource "random_password" "splunksalt" {
 }
   
 resource "aws_secretsmanager_secret" "splunk_admin" {
-  count    = var.generateuserseed ? 1 : 0
+  #count    = var.generateuserseed ? 1 : 0
   name_prefix = "splunk_admin_pwd"
   description = " Splunk admin password"
 }

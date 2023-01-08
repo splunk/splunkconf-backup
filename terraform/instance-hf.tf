@@ -245,6 +245,7 @@ resource "aws_launch_template" "splunk-hf" {
       splunkconnectedmode   = var.splunkconnectedmode
       splunkacceptlicense   = var.splunkacceptlicense
       splunkpwdinit         = var.splunkpwdinit
+      splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
     }
   }
   metadata_options {

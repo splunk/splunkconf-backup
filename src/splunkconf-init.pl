@@ -324,7 +324,7 @@ if ($splunkrole =~/ds|deployment/ ) {
   `mkdir -p $SPLUNK_HOME;cd $SPLUNK_HOME;tar --strip-components=1 -zxvf $splunktar; chown -R $USERSPLUNK. $SPLUNK_HOME` unless ($dry_run);
 }
 
-my $res;
+#my $res;
 $res = $dsetcapps =~ s/org/$splunkorg/ge;
 
 

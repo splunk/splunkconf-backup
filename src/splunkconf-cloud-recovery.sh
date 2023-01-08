@@ -168,8 +168,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230102 up to 9.0.3
 # 20230104 change way of calling swapme to remove false error message
 # 20230106 add more arguments to splunkconf-init so it knows it is running in cloud and new tag splunkpwdinit
+# 20230108 add tag splunkpwdarn and transfer it to splunkconfi-init with region also 
 
-VERSION="20230106b"
+VERSION="20230108b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -631,6 +632,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkdnsmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnsmode`
   splunkacceptlicense=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkacceptlicense`
   splunkpwdinit=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdinit`
+  splunkpwdarn=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdarn`
   #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
@@ -662,6 +664,16 @@ if [[ "cloud_type" -eq 1 ]]; then
   if [ "${splunkpwdinit}" == "yes" ]; then
     # tell splunkconfinit (in AWS context) that if user seed was not provided and pwd is not present from backup to create one and store it via AWS secrets
     SPLUNKINITOPTIONS+=" --splunkpwdinit=yes"
+    if [ -z ${REGION+x} ]; then
+      echo "REGION is not set ! unexpected here , please fix";
+    else
+      SPLUNKINITOPTIONS+=" --region=$REGION" 
+    fi
+    if [ -z ${splunkpwdarn+x} ]; then
+      echo "tag splunkpwdarn is not set ! Please add it when having tag splunkpwdinit so we can update the secret or you will know the pasword !";
+    else
+      SPLUNKINITOPTIONS+=" --splunkpwdarn=$splunkpwdarn" 
+    fi
   else
     echo "splunkpwdinit tag not present"
   fi

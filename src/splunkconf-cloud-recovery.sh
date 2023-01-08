@@ -169,8 +169,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230104 change way of calling swapme to remove false error message
 # 20230106 add more arguments to splunkconf-init so it knows it is running in cloud and new tag splunkpwdinit
 # 20230108 add tag splunkpwdarn and transfer it to splunkconfi-init with region also 
+# 20230108 fix order of tag inclusion and splunkconfinit option
 
-VERSION="20230108b"
+VERSION="20230108c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -637,6 +638,14 @@ elif [[ "cloud_type" -eq 2 ]]; then
   
 fi
 
+if [ -e "$INSTANCEFILE" ]; then
+  chmod 644 $INSTANCEFILE
+  # including the tags for use in this script
+  . $INSTANCEFILE
+else
+  echo "WARNING : no instance tags file at $INSTANCEFILE"
+fi
+
 
 # additional options to splunkconf-init
 # default to empty
@@ -679,14 +688,6 @@ if [[ "cloud_type" -eq 1 ]]; then
   fi
 fi
   
-if [ -e "$INSTANCEFILE" ]; then
-  chmod 644 $INSTANCEFILE
-  # including the tags for use in this script
-  . $INSTANCEFILE
-else
-  echo "WARNING : no instance tags file at $INSTANCEFILE"
-fi
-
 if [ -z ${splunkacceptlicense+x} ]; then 
   echo "splunkacceptlicense is unset, assuming no, please read description in variables.tf and fix there as Splunk init will fail later on and please define this tag at intance level"
   splunkacceptlicense="no"

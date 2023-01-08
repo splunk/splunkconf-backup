@@ -34,7 +34,8 @@ resource "aws_secretsmanager_secret" "splunk_admin" {
 
 resource "aws_secretsmanager_secret_version" "splunk_admin" {
   count    = var.generateuserseed ? 1 : 0
-  secret_id     = aws_secretsmanager_secret.splunk_admin[0].id
+  secret_id     = aws_secretsmanager_secret.splunk_admin.id
+  #secret_id     = aws_secretsmanager_secret.splunk_admin[0].id
   secret_string = random_password.splunkpassword[0].result
 }
 

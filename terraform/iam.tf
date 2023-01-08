@@ -54,7 +54,7 @@ resource "aws_iam_policy" "pol-splunk-ec2worker" {
 data "template_file" "pol-splunk-writesecret" {
   template = file("policy-aws/pol-splunk-writesecret.json.tpl")
   vars = {
-    secret          = aws_secretsmanager_secret.splunk_admin[0].id 
+    secret          = aws_secretsmanager_secret.splunk_admin.id 
     profile         = var.profile
     splunktargetenv = var.splunktargetenv
   }

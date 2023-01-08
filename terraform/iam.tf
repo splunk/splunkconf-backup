@@ -50,6 +50,27 @@ resource "aws_iam_policy" "pol-splunk-ec2worker" {
   policy      = data.template_file.pol-splunk-ec2worker.rendered
 }
 
+# warning this force splunksecrets.tf to be present as it define this
+data "template_file" "pol-splunk-writesecret" {
+  template = file("policy-aws/pol-splunk-writesecret.json.tpl")
+  vars = {
+    secret          = aws_secretsmanager_secret.splunk_admin[0].id 
+    profile         = var.profile
+    splunktargetenv = var.splunktargetenv
+  }
+}
+
+resource "aws_iam_policy" "pol-splunk-writesecret" {
+  name_prefix = "splunkconf_writesecret_"
+  # ... other configuration ...
+  #name_prefix = local.name-prefix-pol-splunk-ec2
+  description = "This policy only allow to write secret for splunk admin (but not retrieve it) It is only used at creation time"
+  provider    = aws.region-primary
+  policy      = data.template_file.pol-splunk-writesecret.rendered
+}
+
+
+
 data "template_file" "pol-splunk-splunkconf-backup" {
   template = file("policy-aws/pol-splunk-splunkconf-backup.json.tpl")
 

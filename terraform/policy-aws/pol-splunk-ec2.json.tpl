@@ -21,6 +21,15 @@
                 "${s3_install}/packaged/*",
                 "${s3_install}/*"
             ]
+        },
+       {
+            "Sid": "VisualEditor2",
+            "Effect": "Allow",
+            "Action": [
+                "ssm:PutParameter",
+                "ssm:GetParameter"
+            ],
+            "Resource": "arn:aws:ssm:eu-central-1:*:parameter/splunk-user-seed"
         }
     ]
 }

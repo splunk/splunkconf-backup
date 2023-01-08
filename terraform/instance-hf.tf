@@ -43,6 +43,14 @@ resource "aws_iam_role_policy_attachment" "hf-attach-splunk-ec2" {
   provider   = aws.region-primary
 }
 
+resource "aws_iam_role_policy_attachment" "hf-attach-splunk-writesecret" {
+  #name       = "hf-attach-splunk-ec2"
+  #roles      = [aws_iam_role.role-splunk-hf.name]
+  role       = aws_iam_role.role-splunk-hf.name
+  policy_arn = aws_iam_policy.pol-splunk-writesecret.arn
+  provider   = aws.region-primary
+}
+
 #resource "aws_iam_role_policy_attachment" "hf-attach-ssm-managedinstance" {
 #  #name       = "hf-attach-ssm-managedinstance"
 #  #roles      = [aws_iam_role.role-splunk-hf.name]

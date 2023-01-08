@@ -41,6 +41,14 @@ resource "aws_iam_role_policy_attachment" "ds-attach-splunk-ec2" {
   provider   = aws.region-primary
 }
 
+resource "aws_iam_role_policy_attachment" "ds-attach-splunk-writesecret" {
+  #name       = "ds-attach-splunk-ec2"
+  role = aws_iam_role.role-splunk-ds.name
+  #roles      = [aws_iam_role.role-splunk-ds.name]
+  policy_arn = aws_iam_policy.pol-splunk-writesecret.arn
+  provider   = aws.region-primary
+}
+
 #resource "aws_iam_role_policy_attachment" "ds-attach-ssm-managedinstance" {
 ##  name       = "ds-attach-ssm-managedinstance"
 #  role      = aws_iam_role.role-splunk-ds.name

@@ -108,6 +108,8 @@
 # 20221205 add extra chown before first version detection
 # 20230104 fix typo in text
 # 20230106 add more arguments to splunkconf-init so it knows it is running in cloud and new tag splunkpwdinit
+# 20230108 add more arguments region and splunkpwdarn
+# 20230108 add splunkpwdinit support (aws specific)
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -117,7 +119,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20230106a";
+$VERSION="20230108b";
 
 print "Using splunkconf-init version $VERSION\n";
 
@@ -145,6 +147,17 @@ my $GROUPSPLUNK='splunk';
 
 my $SPLUNK_SUBSYS="splunk";
 my $SPLUNK_HOME="/opt/splunk";
+
+# for splunkpwdinit
+# multiple of 3 or padding with = occur
+# https://en.wikipedia.org/wiki/Base64#Output_padding
+my $length=20;
+my $valid=0;
+my $res="";
+my $maxgen=1000;
+my $gen=0;
+my $hash="";
+my $newhash=1;
 
 my $str="";
 
@@ -177,6 +190,8 @@ my $splunkacceptlicense="no";
 my $cloud_type="";
 my $splunkpwdinit="no";
 my $dsetcapps="org_all_deploymentserverbase,org_full_license_slave,org_to-site_forwarder_central_outputs,org_search_outputs-disableindexing,org_dsmanaged_disablewebserver";
+my $region="missing";
+my $splunkpwdarn="notset";
 
 
 GetOptions (
@@ -200,7 +215,9 @@ GetOptions (
      'with-default-service-file|with-default-systemd-service-file' => \$usedefaultunitfile,
      'service-name=s' => \$servicename,
      'cloud_type=s' => \$cloud_type,
-     'splunkpwdinit=s' => \$splunkpwdinit
+     'splunkpwdinit=s' => \$splunkpwdinit,
+     'region=s' => \$region,
+     'splunkpwdarn=s' => \$splunkpwdarn
 
   );
 
@@ -232,18 +249,21 @@ admin password creation (Full, required existing or via user-seed.conf, UF no ac
 rg_all_tls
         --splunktar=splunkxxxx.tar.gz required for multids 
         --splunkacceptlicense=\"yes|no\" pass the setting along  (obviously if no, you wont go far)
+        --splunkpwdinit=\"yes|no\" tell if this instance is supposed to generate a pawssword and user seed if needed (no admin set from backup and no user-seed provided) 
+        --region=xxx cloud region (needed for pwdinit)
+        --splunkpwdarn=xxxxx  splunkadminpwd AWS secretsmanager arn  (only for splunkpwdinit)
         --dry-run  dont really do it (but run the checks)
         --no-prompt   disable prompting (for scripts) (will disable ask for user seed creation for example)
 ";
 	exit 0;
 } else {
-  print "please run splunkconf-initsplunk.pl --help for script explanation and options\n";
+  print "splunkconf-initsplunk.pl : use --help for script explanation and options\n";
 }
 
 if ( !defined($splunkacceptlicense) ) {
   print "FAIL : *************************************************************************************\n";
   print "FAIL : *************************************************************************************\n";
-  print "FAIL : *************************************************************************************\n";
+  print "FAIL : ***************** A T T E N T I O N *************************************************\n";
   print "FAIL : *************************************************************************************\n";
   print "FAIL : *************************************************************************************\n";
   print "FAIL : please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add --splunkacceptlicense=yes|no as parameter to this script and relaunch\n";
@@ -256,7 +276,7 @@ if ( !defined($splunkacceptlicense) ) {
 }
 if ($splunkacceptlicense ne "yes" ) {
   print "FAIL : *************************************************************************************\n";
-  print "FAIL : *************************************************************************************\n";
+  print "FAIL : ***************** A T T E N T I O N *************************************************\n";
   print "FAIL : *************************************************************************************\n";
   print "FAIL : *************************************************************************************\n";
   print "FAIL : please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html as this is needed to setup Splunk via this script\n";
@@ -584,7 +604,59 @@ if (-d $INITIALSPLAPPSDIR) {
 unless (-e $SPLUSERSEED || -e $SPLPASSWDFILE || $SPLUNK_SUBSYS eq "splunkforwarder") {
   if (($cloud_type == 1) && $splunkpwdinit eq "yes") {
     print "running in AWS with splunkpwdinit set and no passwd defined or provided by user-seed -> trying to get one or generate \n";
-    # complete here
+    do {
+      $gen++;
+      $res=`openssl rand -base64 $length`;
+      print "$res";
+      $res =~ s/^([^=]+)[=]*$/$1/;
+      print "$res";
+
+      if (($res =~ /\d/) && ($res =~/[\\\/\+\-\,\.\%\$]+[=]*/)) {
+        print "res looks ok\n";
+        $valid=1;
+        $hash=`$SPLUNK_HOME/bin/splunk hash-passwd $res`;
+        if ($hash =~ /^\$6\$/) {
+          chomp($hash);
+          print "ok hash $hash\n";
+          my $ssmhash=`aws ssm get-parameter --name splunk-user-seed --query "Parameter.Value" --output text --region $region`;
+          if ($ssmhash) {
+            chomp ($ssmhash);
+            print "existing hash $ssmhash, reusing it\n";
+            $hash=$ssmhash;
+            $newhash=0;
+          } else {
+            print "no ssm param detected, either dont exist or there is a issue\n";
+            print "writing hash=$hash to SSM param splunk-user-seed in region $region\n";
+            my $ssmputres=`  aws ssm put-parameter --name splunk-user-seed --value '$hash' --type String  --region $region`;
+            print "result of ssm put-parameters : $ssmputres\n";
+            my $secres=`aws secretsmanager put-secret-value --secret-id $splunkpwdarn --secret-string '$res' --region $region`;
+            print "result of secretsmanager put-secret-value : $secres\n";
+          }
+          open(FH, '>', ${SPLUSERSEED}) or die $!;
+          $str= <<EOF;
+# this file was generated by splunkconf-init
+[user_info]
+USERNAME = admin
+HASHED_PASSWORD = $hash
+
+EOF
+          print "Writing to file $SPLUSERSEED with content \n $str\n";
+          print FH $str;
+          close(FH);
+          `chown $USERSPLUNK. $SPLUSERSEED`;
+        } else {
+          print "ko hash $hash\n";
+          $valid=0;
+        };
+      } else {
+        print "KO\n";
+      }
+    } until ($valid==1 || $gen>=$maxgen );
+    if ($valid==1) {
+      print "pwd gen ok in $gen attempts\n";
+    } else {
+      print "pwd gen ko after $gen attempts. Impossible to generate a valid pwd, check complexity requirement versus length are aligned\n";
+    }
   } elsif ($no_prompt) {
     print "this is a new installation of splunk. Please provide a user-seed.conf with the initial admin password as described in https://docs.splunk.com/Documentation/Splunk/latest/Admin/User-seedconf you should probably use splunk hash-passwd commend to generate directly the hashed version  \n";
     #die("") unless ($dry_run);
@@ -899,6 +971,7 @@ default_category_pool = 0
 EOF
   print FH $wlmconf;
   close(FH);
+  `/bin/chown $USERSPLUNK. ${WLMCONF}`;
 } elsif ($enablesystemd==1 ) {
   print "systemd but disablewlm was set -> not setting wlm\n";
 }

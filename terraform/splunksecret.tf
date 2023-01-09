@@ -139,6 +139,11 @@ output "splunk_admin_password" {
   sensitive = true
 }
 
+output "splunk_admin_arn" {
+  value = aws_secretsmanager_secret.splunk_admin.id
+  description = "splunk_admin awssecretsmanager arn (to be used to get the password if authorized)"
+}
+
 output "splunk_pass4symmkeyidx" {
   value = "${local.splunkpass4symmkeyidx}"
   description = "splunk pass4symmkey for idx clustering"

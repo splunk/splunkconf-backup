@@ -19,19 +19,27 @@
 # Matthieu Araman, Splunk
 #
 # 20230102 initial version
+# 20230109 rename to getmycredentials and add splunk admin pwd get from aws secrets 
+# 20230109 add query param to only print value
 
-VERSION="20230102a"
+VERSION="20230109b"
 
 # this is to get ssh key from aws secret manager so you can connect to your instance(s)
 # obviously you need to have the appropriate credentials to do this
 
-if [ $# -ne 1 ]; then
-  echo "Please provide region as argument"
+
+echo "This helper is used to get credentials from AWS so that you can connect to your instances."
+echo " It is obviously and absolutitely necessary that you have the appropriate credentials or that will fail"
+echo "region and splunk_admin_arn are variables / output of terraform run that you need to provide as inputs (as this is the only way to sort out things if multiple tf have been run in //"
+
+if [ $# -ne 2 ]; then
+  echo "Please provide region and splunk_admin_arn as arguments"
   exit 1
 fi
 
 KEY="mykey"
 REGION=$1
+SPLUNK_ADMIN_ARN=$2
 FI="mykey-${REGION}.priv"
 
 if [ -e "$FI" ]; then
@@ -44,3 +52,8 @@ else
   # setting permission to protect key
   chmod u=r $FI
 fi
+echo "get user-seed"
+aws ssm get-parameter --name splunk-user-seed --region $REGION --query "Parameter.Value" --output text
+
+echo "Getting splunk admin pwd from AWS SecretsManager with arn $SPLUNK_ADMIN_ARN in region $REGION"
+aws secretsmanager  get-secret-value --secret-id $SPLUNK_ADMIN_ARN --region $REGION  --query "SecretString" --output text

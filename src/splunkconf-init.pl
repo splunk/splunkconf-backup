@@ -110,6 +110,7 @@
 # 20230106 add more arguments to splunkconf-init so it knows it is running in cloud and new tag splunkpwdinit
 # 20230108 add more arguments region and splunkpwdarn
 # 20230108 add splunkpwdinit support (aws specific)
+# 20230109 remove potential extra line output from rand command
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -119,7 +120,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20230108b";
+$VERSION="20230109a";
 
 print "Using splunkconf-init version $VERSION\n";
 
@@ -607,6 +608,7 @@ unless (-e $SPLUSERSEED || -e $SPLPASSWDFILE || $SPLUNK_SUBSYS eq "splunkforward
     do {
       $gen++;
       $res=`openssl rand -base64 $length`;
+      chomp($res);
       print "$res";
       $res =~ s/^([^=]+)[=]*$/$1/;
       print "$res";

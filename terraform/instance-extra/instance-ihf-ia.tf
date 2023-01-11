@@ -239,3 +239,7 @@ output "ihf-dns-name" {
   description = "ihf dns name (private ip)"
 }
 
+output "ihf-dns-name-ext" {
+  value       = "${local.dns-prefix}${var.ihf}-ext.${var.dns-zone-name}"
+  description = "ihf dns name (pub ip) (if exist)"
+}

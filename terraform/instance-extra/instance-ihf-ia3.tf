@@ -41,8 +41,8 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ihf3" {
   depends_on = [null_resource.bucket_sync]
 }
 
-resource "aws_launch_template" "splunk-ihf2" {
-  name          = "splunk-ihf2"
+resource "aws_launch_template" "splunk-ihf3" {
+  name          = "splunk-ihf3"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"

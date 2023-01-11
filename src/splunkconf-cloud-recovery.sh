@@ -170,8 +170,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230106 add more arguments to splunkconf-init so it knows it is running in cloud and new tag splunkpwdinit
 # 20230108 add tag splunkpwdarn and transfer it to splunkconfi-init with region also 
 # 20230108 fix order of tag inclusion and splunkconfinit option
+# 20230111 change form logic to set hosts for hf and uf except when containing -farm
 
-VERSION="20230108c"
+VERSION="20230111a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -240,7 +241,7 @@ function check_sysver() {
 
 function set_hostname() {
   # set the hostname except if this is auto or contain idx or generic name
-  if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
+  if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf-farm|uf-farm|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
     echo "specific instance name : changing hostname to ${instancename} at system level"
     if [ $SYSVER -eq "6" ]; then
       echo "Using legacy method" >> /var/log/splunkconf-cloud-recovery-info.log

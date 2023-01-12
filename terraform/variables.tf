@@ -296,6 +296,27 @@ variable "disk-size-hf" {
   default     = 35
 }
 
+variable "std" {
+  type    = string
+  default = "std"
+}
+
+variable "instance-type-std-min" {
+  type    = string
+  default = "t3a.medium"
+}
+
+variable "instance-type-std-default" {
+  type    = string
+  default = "t3a.medium"
+}
+
+variable "disk-size-std" {
+  description = "disk size in G"
+  type        = number
+  default     = 300
+}
+
 variable "iuf" {
   type    = string
   default = "iuf3"
@@ -313,6 +334,7 @@ locals {
   instance-type-iuf     = (local.env == "min" ? var.instance-type-iuf-min : var.instance-type-iuf-default)
   instance-type-ihf     = (local.env == "min" ? var.instance-type-ihf-min : var.instance-type-ihf-default)
   instance-type-hf      = (local.env == "min" ? var.instance-type-hf-min : var.instance-type-hf-default)
+  instance-type-std     = (local.env == "min" ? var.instance-type-std-min : var.instance-type-std-default)
   instance-type-cm      = (local.env == "min" ? var.instance-type-cm-min : var.instance-type-cm-default)
   instance-type-mc      = (local.env == "min" ? var.instance-type-mc-min : var.instance-type-mc-default)
   instance-type-ds      = (local.env == "min" ? var.instance-type-ds-min : var.instance-type-ds-default)

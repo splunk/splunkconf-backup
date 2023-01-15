@@ -29,8 +29,8 @@ jobs:
           fetch-depth: 0 # otherwise, you will failed to push refs to dest repo
       # Runs a set of commands using the runners shell
       - name: updating instance-xxx.tf files in terraform directory to match topology file
-        env: #use topology secret as env
-          topology: ${{ secrets.topology }}
+        env: #use topology varaible as env
+          TOPOLOGY: ${{ env.TOPOLOGY }}
         run: |
           echo Running tftopology.sh
           ./helpers/tftopology.sh

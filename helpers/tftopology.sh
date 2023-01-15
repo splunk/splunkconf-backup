@@ -19,9 +19,10 @@
 # Matthieu Araman, Splunk
 #
 # 20221229 initial version
-# 20230115 add support for env variable as input to allow store inout via GH secret
+# 20230115 add support for env variable as input to allow store input via GH secret
+# 20230115 using upper case as GH automatically move to uppercase 
 
-VERSION="20230115a"
+VERSION="20230115b"
 
 # This script move instance tf files from and to instances-extra based on the content of topology.txt
 # This simplify terraform by only populating with the files to be used and reducing creation of unused objects
@@ -37,8 +38,8 @@ trim() {
 
 MODE=0
 
-if [[ -z "${topology}" ]]; then
-  echo "topology was not provided by env variable topology. When running via GH action, please create topology as secrets and allow tftopology.yml access to it"
+if [[ -z "${TOPOLOGY}" ]]; then
+  echo "TOPOLOGY was not provided by env variable topology. When running via GH action, please create topology as GH variable and allow tftopology.yml access to it"
   echo "you have to do this by yourself when creating a fork"
   echo "Falling back on using topology file"
   MODE=1
@@ -64,7 +65,7 @@ if [[ -z "${topology}" ]]; then
     exit 1
   fi
 else
-  topo="${topology}"
+  topo="${TOPOLOGY}"
   echo "will use topo=$topo"
   MODE=2
 fi

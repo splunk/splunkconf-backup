@@ -64,7 +64,7 @@ if [[ -z "${topology}" ]]; then
     exit 1
   fi
 else
-  topo="${topology}
+  topo="${topology}"
   echo "will use topo=$topo"
   MODE=2
 fi
@@ -94,8 +94,8 @@ done
 
 if [[ $MODE -eq "2" ]]; then 
   # env mode
-  for var in `echo "$topo" | grep -o -e "[^;,\s]*"`; do
-    echo "using : \"$var\"";
+  for var in `echo "$topo" | grep -o -e "[^;,]*"`; do
+    echo "using : $var";
     # ignoring comments
     [[ "$var" =~ ^#.* ]] && continue
    if [[ ${#var} -lt 2 ]] ; then

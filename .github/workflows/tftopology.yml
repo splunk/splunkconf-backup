@@ -30,7 +30,7 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: updating instance-xxx.tf files in terraform directory to match topology file
         env: #use topology varaible as env
-          TOPOLOGY: ${{ env.TOPOLOGY }}
+          TOPOLOGY: ${{ vars.TOPOLOGY }}
         run: |
           echo Running tftopology.sh
           ./helpers/tftopology.sh

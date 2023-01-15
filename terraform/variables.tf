@@ -170,6 +170,7 @@ variable "disk-size-cm" {
 
 
 variable "ds" {
+  description = "name to give to ds instance"
   type    = string
   default = "ds"
 }

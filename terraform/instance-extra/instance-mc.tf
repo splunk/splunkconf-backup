@@ -2,7 +2,7 @@
 # *********************** MC ********************
 
 resource "aws_iam_role" "role-splunk-mc" {
-  name                  = "role-splunk-mc-3"
+  name_prefix           = "role-splunk-mc-"
   force_detach_policies = true
   description           = "iam role for splunk mc"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
@@ -14,7 +14,7 @@ resource "aws_iam_role" "role-splunk-mc" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-mc_profile" {
-  name     = "role-splunk-mc_profile"
+  name_prefix     = "role-splunk-mc_profile"
   role     = aws_iam_role.role-splunk-mc.name
   provider = aws.region-primary
 }
@@ -178,7 +178,8 @@ resource "aws_launch_template" "splunk-mc" {
   #  ebs_optimized = true
   #  vpc_security_group_ids = [aws_security_group.splunk-cm.id]
   iam_instance_profile {
-    name = "role-splunk-mc_profile"
+    name = aws_iam_instance_profile.role-splunk-mc_profile.name
+    #name = "role-splunk-mc_profile"
   }
   network_interfaces {
     device_index                = 0

@@ -14,9 +14,9 @@ resource "aws_iam_role" "role-splunk-idx" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-idx_profile" {
-  name     = "role-splunk-idx_profile"
-  role     = aws_iam_role.role-splunk-idx.name
-  provider = aws.region-primary
+  name_prefix     = "role-splunk-idx_profile"
+  role            = aws_iam_role.role-splunk-idx.name
+  provider        = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "idx-attach-splunk-splunkconf-backup" {

@@ -2,7 +2,7 @@
 # ******************** Standalone with S2 ***********************
 
 resource "aws_iam_role" "role-splunk-std" {
-  name                  = "role-splunk-std"
+  name_prefix           = "role-splunk-std"
   force_detach_policies = true
   description           = "iam role for splunk standalone with S2"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
@@ -14,7 +14,7 @@ resource "aws_iam_role" "role-splunk-std" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-std_profile" {
-  name     = "role-splunk-std_profile"
+  name_prefix     = "role-splunk-std_profile"
   role     = aws_iam_role.role-splunk-std.name
   provider = aws.region-primary
 }
@@ -224,7 +224,8 @@ resource "aws_launch_template" "splunk-std" {
   }
   #  ebs_optimized = true
   iam_instance_profile {
-    name = "role-splunk-std_profile"
+    name = aws_iam_instance_profile.role-splunk-std_profile.name
+    #name = "role-splunk-std_profile"
   }
   network_interfaces {
     device_index                = 0

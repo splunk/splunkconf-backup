@@ -2,7 +2,7 @@
 #  **************** bastion ***************
 
 resource "aws_iam_role" "role-splunk-bastion" {
-  name                  = "role-splunk-bastion"
+  name_prefix           = "role-splunk-bastion"
   force_detach_policies = true
   description           = "iam role for splunk bastion"
   assume_role_policy    = file("./policy-aws/assumerolepolicy.json")
@@ -14,7 +14,7 @@ resource "aws_iam_role" "role-splunk-bastion" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-bastion_profile" {
-  name = "role-splunk-bastion_profile"
+  name_prefix = "role-splunk-bastion_profile"
   role = aws_iam_role.role-splunk-bastion.name
 }
 
@@ -126,7 +126,8 @@ resource "aws_launch_template" "splunk-bastion" {
   }
   #  ebs_optimized = true
   iam_instance_profile {
-    name = "role-splunk-bastion_profile"
+    name = aws_iam_instance_profile.role-splunk-bastion_profile.name
+    #name = "role-splunk-bastion_profile"
   }
   network_interfaces {
     device_index                = 0

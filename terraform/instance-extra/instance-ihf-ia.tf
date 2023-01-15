@@ -3,7 +3,7 @@
 
 
 resource "aws_iam_role" "role-splunk-ihf" {
-  name                  = "role-splunk-ihf"
+  name_prefix           = "role-splunk-ihf"
   force_detach_policies = true
   description           = "iam role for splunk ihf"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
@@ -15,7 +15,7 @@ resource "aws_iam_role" "role-splunk-ihf" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-ihf_profile" {
-  name     = "role-splunk-ihf_profile"
+  name_prefix     = "role-splunk-ihf_profile"
   role     = aws_iam_role.role-splunk-ihf.name
   provider = aws.region-primary
 }
@@ -196,7 +196,8 @@ resource "aws_launch_template" "splunk-ihf" {
   #  ebs_optimized = true
   #  vpc_security_group_ids = [aws_security_group.splunk-cm.id]
   iam_instance_profile {
-    name = "role-splunk-ihf_profile"
+    name = aws_iam_instance_profile.role-splunk-ihf_profile.name
+    #name = "role-splunk-ihf_profile"
   }
   network_interfaces {
     device_index                = 0

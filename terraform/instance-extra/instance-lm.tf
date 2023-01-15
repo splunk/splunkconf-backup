@@ -2,7 +2,7 @@
 # ******************* LM *************************
 
 resource "aws_iam_role" "role-splunk-lm" {
-  name                  = "role-splunk-lm-3"
+  name_prefix           = "role-splunk-lm-"
   force_detach_policies = true
   description           = "iam role for splunk lm"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
@@ -14,7 +14,7 @@ resource "aws_iam_role" "role-splunk-lm" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-lm_profile" {
-  name     = "role-splunk-lm_profile"
+  name_prefix     = "role-splunk-lm_profile"
   role     = aws_iam_role.role-splunk-lm.name
   provider = aws.region-primary
 }

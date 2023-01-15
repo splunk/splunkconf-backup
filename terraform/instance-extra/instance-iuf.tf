@@ -4,7 +4,7 @@
 ####### WARNING NOT COMPLETE AND NOT TESTED
 
 resource "aws_iam_role" "role-splunk-iuf" {
-  name                  = "role-splunk-iuf-3"
+  name_prefix           = "role-splunk-iuf-"
   force_detach_policies = true
   description           = "iam role for splunk iuf"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
@@ -16,7 +16,7 @@ resource "aws_iam_role" "role-splunk-iuf" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-iuf_profile" {
-  name     = "role-splunk-iuf_profile"
+  name_prefix     = "role-splunk-iuf_profile"
   role     = aws_iam_role.role-splunk-iuf.name
   provider = aws.region-primary
 }
@@ -159,7 +159,8 @@ resource "aws_launch_template" "splunk-iuf" {
   #  ebs_optimized = true
   #  vpc_security_group_ids = [aws_security_group.splunk-cm.id]
   iam_instance_profile {
-    name = "role-splunk-iuf_profile"
+    name = aws_iam_instance_profile.role-splunk-iuf_profile.name
+    #name = "role-splunk-iuf_profile"
   }
   network_interfaces {
     device_index                = 0

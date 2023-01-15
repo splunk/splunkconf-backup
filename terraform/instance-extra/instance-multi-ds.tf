@@ -1,6 +1,6 @@
 # ********************* DS *******************
 resource "aws_iam_role" "role-splunk-ds" {
-  name                  = "role-splunk-ds-3"
+  name_prefix           = "role-splunk-ds-"
   force_detach_policies = true
   description           = "iam role for splunk ds"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
@@ -12,7 +12,7 @@ resource "aws_iam_role" "role-splunk-ds" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-ds_profile" {
-  name     = "role-splunk-ds_profile"
+  name_prefix     = "role-splunk-ds_profile"
   role     = aws_iam_role.role-splunk-ds.name
   provider = aws.region-primary
 }
@@ -248,7 +248,8 @@ resource "aws_launch_template" "splunk-ds" {
   #  ebs_optimized = true
   #  vpc_security_group_ids = [aws_security_group.splunk-cm.id]
   iam_instance_profile {
-    name = "role-splunk-ds_profile"
+    name = aws_iam_instance_profile.role-splunk-ds_profile.name
+    #name = "role-splunk-ds_profile"
   }
   network_interfaces {
     device_index                = 0

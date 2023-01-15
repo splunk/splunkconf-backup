@@ -2,7 +2,7 @@
 # ******************** HF ***********************
 
 resource "aws_iam_role" "role-splunk-hf" {
-  name                  = "role-splunk-hf-3"
+  name_prefix           = "role-splunk-hf-"
   force_detach_policies = true
   description           = "iam role for splunk hf"
   assume_role_policy    = file("policy-aws/assumerolepolicy-ec2.json")
@@ -217,7 +217,8 @@ resource "aws_launch_template" "splunk-hf" {
   }
   #  ebs_optimized = true
   iam_instance_profile {
-    name = "role-splunk-hf_profile"
+    name = aws_iam_instance_profile.role-splunk-hf_profile.name
+    #name = "role-splunk-hf_profile"
   }
   network_interfaces {
     device_index                = 0

@@ -56,7 +56,8 @@ resource "aws_launch_template" "splunk-ihf3" {
   #  ebs_optimized = true
   #  vpc_security_group_ids = [aws_security_group.splunk-cm.id]
   iam_instance_profile {
-    name = "role-splunk-ihf_profile"
+    name = aws_iam_instance_profile.role-splunk-ihf_profile.name
+    #name = "role-splunk-ihf_profile"
   }
   network_interfaces {
     device_index                = 0

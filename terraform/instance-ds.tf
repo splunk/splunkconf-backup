@@ -12,7 +12,7 @@ resource "aws_iam_role" "role-splunk-ds" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-ds_profile" {
-  name     = "role-splunk-ds_profile"
+  name_prefix     = "role-splunk-ds_profile"
   role     = aws_iam_role.role-splunk-ds.name
   provider = aws.region-primary
 }

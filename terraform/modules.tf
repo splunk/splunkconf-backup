@@ -26,9 +26,9 @@ module "network" {
 
 module "ssh" {
   source = "./modules/ssh"
+  ssh_algorithm = var.ssh_algorithm
   providers = {
     aws = aws.region-primary
-    ssh_algorithm = var.ssh_algorithm
   }
 }
 

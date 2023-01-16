@@ -127,7 +127,7 @@ variable "instance-type-iuf-default" {
 variable "ihf-nb" {
   description = "target intermediate hf number in ASG"
   type        = number
-  default     = 3
+  default     = 1
 }
 
 variable "instance-type-ihf-min" {

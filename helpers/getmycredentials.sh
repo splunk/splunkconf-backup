@@ -1,4 +1,4 @@
-#/bin/bash
+#/bin/bash -x
 
 # Copyright 2023 Splunk Inc.
 #
@@ -21,19 +21,20 @@
 # 20230102 initial version
 # 20230109 rename to getmycredentials and add splunk admin pwd get from aws secrets 
 # 20230109 add query param to only print value
+# 20230116 fix typo and change output for ssh key first time 
 
-VERSION="20230109b"
+VERSION="20230116a"
 
 # this is to get ssh key from aws secret manager so you can connect to your instance(s)
 # obviously you need to have the appropriate credentials to do this
 
 
 echo "This helper is used to get credentials from AWS so that you can connect to your instances."
-echo " It is obviously and absolutitely necessary that you have the appropriate credentials or that will fail"
+echo "It is obviously and absolutely necessary that you have the appropriate credentials or that will fail"
 echo "region and splunk_admin_arn are variables / output of terraform run that you need to provide as inputs (as this is the only way to sort out things if multiple tf have been run in //"
 
 if [ $# -ne 2 ]; then
-  echo "Please provide region and splunk_admin_arn as arguments"
+  echo "Please provide region and splunk_admin_arn as arguments like $0 eu-east-1 arn:aws:secretsmanager:us-east-1:nnnnnnnnn:secret:splunk_admin_pwdxxxxxx"
   exit 1
 fi
 
@@ -46,11 +47,21 @@ if [ -e "$FI" ]; then
   echo "$FI already exist , wont attempt to overwrite it !!!! Please remove with care if you really want to update"
   echo " result would have been :"
   aws secretsmanager  get-secret-value --secret-id $KEY --region $REGION| grep SecretString| sed 's/.*\(\-\-\-\-\-BEGIN.*KEY\-\-\-\-\-\).*/\1/' |sed 's/\\n/\r\n/g'
+  echo " result2 would have been :"
+  aws secretsmanager  get-secret-value --secret-id $KEY --region $REGION| grep SecretString| sed 's/\\n/\r\n/g'
+  echo " result3 would have been :"
+  aws secretsmanager  get-secret-value --secret-id $KEY --region $REGION| grep SecretString
+  echo " result4 would have been :"
+  aws secretsmanager  get-secret-value --secret-id $KEY --region $REGION
+  echo " result5 would have been :"
+  aws secretsmanager  get-secret-value --secret-id $KEY --query "SecretString" --output text --region $REGION
 else
   echo "writing to $FI"
-  aws secretsmanager  get-secret-value --secret-id $KEY --region $REGION| grep SecretString| sed 's/.*\(\-\-\-\-\-BEGIN.*KEY\-\-\-\-\-\).*/\1/' |sed 's/\\n/\r\n/g' > $FI
+  aws secretsmanager  get-secret-value --secret-id $KEY --query "SecretString" --output text --region $REGION > $FI
   # setting permission to protect key
-  chmod u=r $FI
+  chmod u=r,og= $FI
+  echo "key file contain:"
+  cat $FI
 fi
 echo "get user-seed"
 aws ssm get-parameter --name splunk-user-seed --region $REGION --query "Parameter.Value" --output text

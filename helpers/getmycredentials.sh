@@ -46,14 +46,6 @@ FI="mykey-${REGION}.priv"
 if [ -e "$FI" ]; then
   echo "$FI already exist , wont attempt to overwrite it !!!! Please remove with care if you really want to update"
   echo " result would have been :"
-  aws secretsmanager  get-secret-value --secret-id $KEY --region $REGION| grep SecretString| sed 's/.*\(\-\-\-\-\-BEGIN.*KEY\-\-\-\-\-\).*/\1/' |sed 's/\\n/\r\n/g'
-  echo " result2 would have been :"
-  aws secretsmanager  get-secret-value --secret-id $KEY --region $REGION| grep SecretString| sed 's/\\n/\r\n/g'
-  echo " result3 would have been :"
-  aws secretsmanager  get-secret-value --secret-id $KEY --region $REGION| grep SecretString
-  echo " result4 would have been :"
-  aws secretsmanager  get-secret-value --secret-id $KEY --region $REGION
-  echo " result5 would have been :"
   aws secretsmanager  get-secret-value --secret-id $KEY --query "SecretString" --output text --region $REGION
 else
   echo "writing to $FI"

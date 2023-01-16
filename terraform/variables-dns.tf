@@ -7,6 +7,7 @@ variable "dns-zone-name" {
 }
 
 variable "enable_lambda_route53" {
+  description = "Enable lambda function used to scan autoscaling event received by eventbridge in the region and update route53 zone. Disable if ever you have the same lambda running in the same region (as the function should run independently in each region that you use) 
   type        = bool
   default     = "true"
 }

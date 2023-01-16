@@ -39,5 +39,5 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: main
-          message: "topology update via github action to only use instance-xxx.tf files needed"
+          message: "ATTENTION : Topology update via github action, check TF plan carefully, do not apply TF before this commit if you merged branch"
 

@@ -235,6 +235,11 @@ resource "aws_launch_template" "splunk-ihf" {
   user_data = filebase64("./user-data/user-data.txt")
 }
 
+output "instance-type-ihf" {
+  value       = local.instance-type-ihf
+  description = "ihf instance type"
+}
+
 output "ihf-dns-name" {
   value       = "${local.dns-prefix}${var.ihf}.${var.dns-zone-name}"
   description = "ihf dns name (private ip)"

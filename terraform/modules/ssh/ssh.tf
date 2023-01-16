@@ -15,7 +15,7 @@
 #}
 
 resource "tls_private_key" "mykey" {
-  algorithm = "ED25519"
+  algorithm = var.ssh_algorithm
 }
 
 resource "aws_key_pair" "mykey" {

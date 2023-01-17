@@ -62,11 +62,15 @@ variable "enable-s3-reverse-replication-backup" {
   default     = "false"
 }
 
-variable "fs_s3_principals" {
-  description = "List of AWS principals to authorize for FS S3 (example [ \"1111111111\",\"22222222222\" ] ) "
+variable "fs_s3_principal" {
+  description = "AWS principal to authorize for FS S3 (example [ \"1111111111\",\"22222222222\" ] ) "
   type    = string
-  # this is a string for TF, it is passed to policy which use it as a list. Otherwise TF refuse to generate policy from template
-  #type    = list(string)
+  default = ""
+}
+
+variable "fs_s3_principals" {
+  description = "(not yet used, need to switch to templatefile in tf before.) List of AWS principals to authorize for FS S3 (example [ \"1111111111\",\"22222222222\" ] ) "
+  type    = list(string)
   default = [""]
   # example [ "1111111111","22222222222" ]
 }

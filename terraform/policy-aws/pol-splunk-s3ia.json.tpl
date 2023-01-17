@@ -22,7 +22,7 @@
             ]
         },
         {
-            "Sid": "AllowSplunkAccessTo ${s3_ia} (FS S3)",
+            "Sid": "AllowSplunkAccessTo ${s3_ia} for FS S3",
             "Effect": "Allow",
             "Principal": {
                  "AWS": [

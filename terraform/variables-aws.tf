@@ -62,10 +62,17 @@ variable "enable-s3-reverse-replication-backup" {
   default     = "false"
 }
 
+variable "enable-fss3-policy" {
+  description = "Whether to enable fs s3 policy which will require principal variable to be configured correctlyi (default : false) "
+  type        = bool
+  default     = "false"
+}
+
 variable "fs_s3_principal" {
   description = "AWS principal to authorize for FS S3 (example [ \"1111111111\",\"22222222222\" ] ) "
   type    = string
   default = ""
+  # FIXME : add condition to fail if enable is true and this variable empty
 }
 
 variable "fs_s3_principals" {
@@ -73,6 +80,7 @@ variable "fs_s3_principals" {
   type    = list(string)
   default = [""]
   # example [ "1111111111","22222222222" ]
+  # FIXME : add condition to fail if enable is true and this variable empty
 }
 
 

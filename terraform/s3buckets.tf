@@ -201,6 +201,7 @@ resource "aws_s3_bucket" "s3_ia" {
 }
 
 resource "aws_s3_bucket_policy" "allow_access_from_another_account_to_s3ia" {
+  count = var.enable-fss3-policy  ? 1 : 0
   bucket = aws_s3_bucket.s3_ia.id
   policy = data.template_file.pol-splunk-s3iafs.rendered 
 }

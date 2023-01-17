@@ -63,7 +63,7 @@ variable "enable-s3-reverse-replication-backup" {
 }
 
 variable "fs_s3_principals" {
-  description = "List of AWS principals to authorize for FS S3 (example [ "1111111111","22222222222" ] ) "
+  description = "List of AWS principals to authorize for FS S3 (example [ \"1111111111\",\"22222222222\" ] ) "
   type    = list(string)
   default = [""]
   # example [ "1111111111","22222222222" ]

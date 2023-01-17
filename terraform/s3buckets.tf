@@ -244,3 +244,7 @@ output "s3_data_arn" {
   description = "s3 data arn"
 }
 
+output "s3_ia_arn" {
+  value       = aws_s3_bucket.s3_ia.arn
+  description = "s3 data arn"
+}

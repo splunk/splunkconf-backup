@@ -68,12 +68,12 @@ variable "enable-fss3-policy" {
   default     = "false"
 }
 
-variable "fs_s3_principal" {
-  description = "AWS principal to authorize for FS S3 (example [ \"1111111111\",\"22222222222\" ] ) "
-  type    = string
-  default = ""
-  # FIXME : add condition to fail if enable is true and this variable empty
-}
+#variable "fs_s3_principal" {
+#  description = "AWS principal to authorize for FS S3 (example [ \"1111111111\",\"22222222222\" ] ) "
+#  type    = string
+#  default = ""
+#  # FIXME : add condition to fail if enable is true and this variable empty
+#}
 
 variable "fs_s3_principals" {
   description = "(not yet used, need to switch to templatefile in tf before.) List of AWS principals to authorize for FS S3 (example [ \"1111111111\",\"22222222222\" ] ) "

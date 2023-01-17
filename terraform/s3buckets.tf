@@ -200,6 +200,11 @@ resource "aws_s3_bucket" "s3_ia" {
   force_destroy = true
 }
 
+resource "aws_s3_bucket_policy" "allow_access_from_another_account_to_s3ia" {
+  bucket = aws_s3_bucket.s3_ia.id
+  policy = data.template_file.pol-splunk-s3iafs.rendered 
+}
+
 resource "aws_s3_bucket_public_access_block" "s3_ia" {
   bucket              = aws_s3_bucket.s3_ia.id
   block_public_acls   = true

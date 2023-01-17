@@ -39,4 +39,3 @@
         },
     ]
 }
-{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["arn:aws:iam::594195655983:role/emea-arch-fs4s3-02"]},"Action":["s3:GetBucketLocation","s3:ListBucket","s3:GetObject*"],"Sid":"AllowSplunkAccessTo splunkconf-default-test-ia20230115220555618000000005","Resource":["arn:aws:s3:::splunkconf-default-test-ia20230115220555618000000005","arn:aws:s3:::splunkconf-default-test-ia20230115220555618000000005/*"]}]}

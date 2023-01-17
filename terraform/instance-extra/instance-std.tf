@@ -165,6 +165,16 @@ resource "aws_security_group_rule" "std_from_networks_8088" {
   description       = "allow Standalone to receive hec from authorized networks"
 }
 
+resource "aws_security_group_rule" "std_from_networks_log" {
+  security_group_id = aws_security_group.splunk-std.id
+  type              = "ingress"
+  from_port         = 9997
+  to_port           = 9999
+  protocol          = "tcp"
+  cidr_blocks       = var.s2s-in-allowed-networks
+  description       = "allow to receive logs via S2S (remote networks)"
+}
+
 resource "aws_autoscaling_group" "autoscaling-splunk-std" {
   provider            = aws.region-primary
   name                = "asg-splunk-std"

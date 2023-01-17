@@ -390,6 +390,12 @@ variable "hec-in-allowed-networks" {
   default     = ["127.0.0.12/32"]
 }
 
+variable "s2s-in-allowed-networks" {
+  description = "List of trusted networks allowed to send data via S2S protocol (UF, HF,...)"
+  type        = list(string)
+  default     = ["127.0.0.13/32"]
+}
+
 variable "sgoutboundallprotocol" {
   description = "list of targets networks where all protocols is allowed for instances"
   type        = list(string)

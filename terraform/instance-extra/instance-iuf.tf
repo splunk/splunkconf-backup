@@ -103,6 +103,16 @@ resource "aws_security_group_rule" "iuf_from_all_icmpv6" {
   description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
 }
 
+resource "aws_security_group_rule" "iuf_from_networks_log" {
+  security_group_id = aws_security_group.splunk-iuf.id
+  type              = "ingress"
+  from_port         = 9997
+  to_port           = 9999
+  protocol          = "tcp"
+  cidr_blocks       = var.s2s-in-allowed-networks
+  description       = "allow to receive logs via S2S (remote networks)"
+}
+
 resource "aws_autoscaling_group" "autoscaling-splunk-iuf" {
   name                = "asg-splunk-iuf"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])

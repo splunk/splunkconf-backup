@@ -259,7 +259,7 @@ resource "aws_security_group_rule" "idx_from_networks_log" {
   from_port         = 9997
   to_port           = 9999
   protocol          = "tcp"
-  cidr_blocks       = ["127.0.0.1/32"]
+  cidr_blocks       = var.s2s-in-allowed-networks
   description       = "allow to receive logs via S2S (remote networks)"
 }
 

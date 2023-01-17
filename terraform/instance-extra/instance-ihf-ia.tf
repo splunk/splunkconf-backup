@@ -139,6 +139,16 @@ resource "aws_security_group_rule" "ihf_from_networks_8088" {
   description       = "allow HF to receive hec from authorized networks"
 }
 
+resource "aws_security_group_rule" "ihf_from_networks_log" {
+  security_group_id = aws_security_group.splunk-ihf.id
+  type              = "ingress"
+  from_port         = 9997
+  to_port           = 9999
+  protocol          = "tcp"
+  cidr_blocks       = var.s2s-in-allowed-networks
+  description       = "allow to receive logs via S2S (remote networks)"
+}
+
 resource "aws_autoscaling_group" "autoscaling-splunk-ihf" {
   name = "asg-splunk-ihf"
   #  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])

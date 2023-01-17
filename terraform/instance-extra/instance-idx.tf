@@ -253,6 +253,16 @@ resource "aws_security_group_rule" "idx_from_iuf_log" {
   description              = "allow to receive logs via S2S"
 }
 
+resource "aws_security_group_rule" "idx_from_ihf_log" {
+  security_group_id        = aws_security_group.splunk-idx.id
+  type                     = "ingress"
+  from_port                = 9997
+  to_port                  = 9999
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.splunk-ihf.id
+  description              = "allow to receive logs via S2S"
+}
+
 resource "aws_security_group_rule" "idx_from_networks_log" {
   security_group_id = aws_security_group.splunk-idx.id
   type              = "ingress"

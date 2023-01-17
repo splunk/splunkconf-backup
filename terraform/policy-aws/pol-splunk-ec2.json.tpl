@@ -29,7 +29,7 @@
                 "ssm:PutParameter",
                 "ssm:GetParameter"
             ],
-            "Resource": "arn:aws:ssm:eu-central-1:*:parameter/splunk-user-seed"
+            "Resource": "arn:aws:ssm:${region}:*:parameter/splunk-user-seed"
         }
     ]
 }

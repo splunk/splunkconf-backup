@@ -4,6 +4,7 @@ data "template_file" "pol-splunk-ec2" {
     s3_install      = aws_s3_bucket.s3_install.arn
     profile         = var.profile
     splunktargetenv = var.splunktargetenv
+    region          = var.region-primary
   }
 }
 

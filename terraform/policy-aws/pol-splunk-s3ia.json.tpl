@@ -2,7 +2,7 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "VisualEditor2",
+            "Sid": "Allow access to S3 IA",
             "Effect": "Allow",
             "Action": [
                 "s3:PutObject",
@@ -20,6 +20,23 @@
                 "${s3_ia}/${s3_iaprefix}/*",
                 "${s3_ia}/*"
             ]
-        }
+        },
+        {
+            "Sid": "AllowSplunkAccessTo ${s3_ia} (FS S3)",
+            "Effect": "Allow",
+            "Principal": {
+                 "AWS": ${fs_s3_principals}
+            },
+            "Action": [
+                "s3:GetBucketLocation",
+                "s3:ListBucket",
+                "s3:GetObject*"
+            ],
+            "Resource": [
+                "${s3_ia}/${s3_iaprefix}/*",
+                "${s3_ia}/*"
+            ]
+        },
     ]
 }
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["arn:aws:iam::594195655983:role/emea-arch-fs4s3-02"]},"Action":["s3:GetBucketLocation","s3:ListBucket","s3:GetObject*"],"Sid":"AllowSplunkAccessTo splunkconf-default-test-ia20230115220555618000000005","Resource":["arn:aws:s3:::splunkconf-default-test-ia20230115220555618000000005","arn:aws:s3:::splunkconf-default-test-ia20230115220555618000000005/*"]}]}

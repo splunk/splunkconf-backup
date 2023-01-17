@@ -159,6 +159,7 @@ data "template_file" "pol-splunk-s3ia" {
   vars = {
     s3_ia           = aws_s3_bucket.s3_ia.arn
     s3_iaprefix     = var.s3_iaprefix
+    fs_s3_principals= var.fs_s3_principals
     profile         = var.profile
     splunktargetenv = var.splunktargetenv
   }

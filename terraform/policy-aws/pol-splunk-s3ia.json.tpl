@@ -2,7 +2,7 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "Allow access to S3 IA",
+            "Sid": "AllowaccesstoS3IA",
             "Effect": "Allow",
             "Action": [
                 "s3:PutObject",
@@ -22,7 +22,7 @@
             ]
         },
         {
-            "Sid": "AllowSplunkAccessTo S3 IA for FS S3",
+            "Sid": "AllowSplunkAccessToS3IAforFSS3",
             "Effect": "Allow",
             "Principal": {
                  "AWS": [

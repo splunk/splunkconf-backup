@@ -164,17 +164,31 @@ data "template_file" "pol-splunk-s3ia" {
   }
 }
 
-data "template_file" "pol-splunk-s3iafs" {
-  template = file("policy-aws/pol-splunk-s3iafs.json.tpl")
+locals {
 
-  vars = {
-    s3_ia           = aws_s3_bucket.s3_ia.arn
-    s3_iaprefix     = var.s3_iaprefix
-    fs_s3_principal= var.fs_s3_principal
-    profile         = var.profile
-    splunktargetenv = var.splunktargetenv
-  }
+  pol-splunk-s3iafs=templatefile(
+               "policy-aws/pol-splunk-s3iafs.json.tpl",
+               {
+                  s3_ia           = aws_s3_bucket.s3_ia.arn
+                  s3_iaprefix     = var.s3_iaprefix
+                  fs_s3_principals= var.fs_s3_principals
+                  profile         = var.profile
+                  splunktargetenv = var.splunktargetenv
+               }
+              )
 }
+
+#data "template_file" "pol-splunk-s3iafs" {
+#  template = file("policy-aws/pol-splunk-s3iafs.json.tpl")
+#
+#  vars = {
+#    s3_ia           = aws_s3_bucket.s3_ia.arn
+#    s3_iaprefix     = var.s3_iaprefix
+#    fs_s3_principal= var.fs_s3_principal
+#    profile         = var.profile
+#    splunktargetenv = var.splunktargetenv
+#  }
+#}
 
 resource "aws_iam_policy" "pol-splunk-s3ia" {
   # ... other configuration ...

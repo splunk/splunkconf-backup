@@ -26,7 +26,7 @@
             "Effect": "Allow",
             "Principal": {
                  "AWS": [
-                     "${fs_s3_principal}
+                     "${fs_s3_principal}"
                  ]
             },
             "Action": [

@@ -5,9 +5,7 @@
             "Sid": "AllowSplunkAccessToS3IAforFSS3",
             "Effect": "Allow",
             "Principal": {
-                 "AWS": [
-                     "${fs_s3_principal}"
-                 ]
+                 "AWS":"${fs_s3_principal}"
             },
             "Action": [
                 "s3:GetBucketLocation",
@@ -16,7 +14,8 @@
             ],
             "Resource": [
                 "${s3_ia}/${s3_iaprefix}/*",
-                "${s3_ia}/*"
+                "${s3_ia}/*",
+                "${s3_ia}"
             ]
         }
     ]

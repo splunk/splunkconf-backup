@@ -42,12 +42,17 @@
 # 20221009 add sha for 7.0.2
 # 20230116 add sha for 7.1.0
 # 20230118 improve messages
+# 20230118 increase max_upload_size check to 2048 to match current ES doc and improve messages
+# 20230118 add setting to not restart between install and setup 
 
-VERSION="20230118a"
+VERSION="20230118c"
 
 SCRIPTNAME="installes"
 
+# set to no for newer ES versions
 ESINSTALLERNFORCENOTA="no"
+
+INSTALLWITHSETUP="yes"
 
 ###### function definition
 
@@ -94,12 +99,13 @@ TODAY=`date '+%Y%m%d-%H:%M_%u'`;
 ID=`date '+%s'`;
 FAIL=0;
 
-echo_log "checking user is not root"
+echo_log "INFO: running $0 version=$VERSION. Checking user is not root"
 # check that we are not launched by root
 if [[ $EUID -eq 0 ]]; then
-   echo_log "This script must be run as splunk user, not root !" 1>&2
+   fail_log "This script $0 must be run as splunk user, not root !" 1>&2
    exit 1
 fi
+
 
 echo_log "Note : Please make sure you have read docs, PS ES deployment guide and have been ES implementation trained before running this script"
 echo_log "this script install/update ES with content update on a single SH (for SHC, this need to be run on the staging server, not 1 of the SH member !)"
@@ -117,7 +123,7 @@ SPLUNK_HOME="/opt/splunk";
 read -p "SPLUNK_HOME (default : ${SPLUNK_HOME})" input
 SPLUNK_HOME=${input:-$SPLUNK_HOME}
 
-echo_log "SPLUNK_HOME=${SPLUNK_HOME}"
+echo_log "INFO: SPLUNK_HOME=${SPLUNK_HOME}"
 
 if [ ! -d "$SPLUNK_HOME" ]; then
   fail_log "SPLUNK_HOME  (${SPLUNK_HOME}) does not exist ! Please check and correct.";
@@ -160,8 +166,8 @@ if [ ${CHECKLEVEL} -ne 7 ]; then
     fail_log "max_upload_size is unchanged from default which is too low for ES installation to be succesfull. Please fix in org_all_search_base/local/web.conf under settings stanza (or the appropriate app for ES SH custom settings in your env and relaunch installes script"
     ((FAIL++))
     #exit 1
-  elif [ ${maxuploadsize} -lt 024 ]; then
-    fail_log "max_upload_size is set but under the required value of 1024. ES app installation require this to be succesfull. Please fix in org_all_search_base/local/web.conf under settings stanza (or the appropriate app for ES SH custom settings in your env and relaunch installes script"
+  elif [ ${maxuploadsize} -lt 2048 ]; then
+    fail_log "max_upload_size is set but under the required value of 2048. ES app installation require this to be succesfull. Please fix in org_all_search_base/local/web.conf under settings stanza (or the appropriate app for ES SH custom settings in your env and relaunch installes script"
     ((FAIL++))
     #exit 1
   else
@@ -272,10 +278,13 @@ EXPECTEDSHA="a45bc6a1a583426e8f587bc0693dbf0296fa61ca2cd9d927e1cf99cab9c351cd"
 echo_log "please verify sha256 to check for integrity (corruption , truncation during file download....)"
 echo "INFO: expected sha256=${EXPECTEDSHA}"
 
-if command -v sha256 &> /dev/null then
-  SHARES=`sha256 ${ESAPPFULL}` 
-elif command -v sha256sum &> /dev/null then
-  SHARES=`sha256sum ${ESAPPFULL}` 
+APP=${ESAPPFULL}
+if command -v sha256 &> /dev/null
+then
+  SHARES=`sha256 ${APP}` 
+elif command -v sha256sum &> /dev/null
+then
+  SHARES=`sha256sum ${APP}` 
 fi
 if [ -z ${SHARES+x} ]; then
   fail_log "ooops, sha256 could not be calculated, may you need to install the required binary to compute sha256 on your system"
@@ -305,7 +314,14 @@ if [ -z ${CONTENTUPDATE} ]; then
   exit 1
 else
   echo_log "OK: CONTENTUPDATE=${CONTENTUPDATE}"
-  SHARES=`sha256 ${CONTENTUPDATE} || sha256sum ${CONTENTUPDATE}` 
+  APP=${CONTENTUPDATE}
+  if command -v sha256 &> /dev/null
+  then
+    SHARES=`sha256 ${APP}`      
+  elif command -v sha256sum &> /dev/null
+  then
+    SHARES=`sha256sum ${APP}`      
+  fi
   if [ -z ${SHARES+x} ]; then
     fail_log "ooops, sha256 could not be calculated, may you need to install the required binary to compute sha256 on your system"
     exit 1
@@ -394,29 +410,35 @@ fi
 #App 'xxxxxx/yyyyyy/splunk-enterprise-security_472.spl' installed 
 #You need to restart the Splunk Server (splunkd) for your changes to take effect.
 
-echo_log "install ES done. Restarting splunk in 5s"
-sleep 5
+if [[ $INSTALLWITHSETUP = "yes" ]]; then 
+  echo_log "INFO: install with setup option set, continuing with setup after install."
+  sleep 5
+else
+  echo_log "OK: install ES done. Restarting splunk in 5s"
+  sleep 5
 
-echo_log "INFO: restarting splunk (ignore warning there, we haven't yet done ES setup)"
-echo_log "INFO: if you get prompted here by systemctl, you havent configured polkit properly , please fix this before running this script"
-${SPLUNK_HOME}/bin/splunk restart 
+  echo_log "INFO: restarting splunk (ignore warning there, we haven't yet done ES setup)"
+  echo_log "INFO: if you get prompted here by systemctl, you havent configured polkit properly , please fix this before running this script"
+  ${SPLUNK_HOME}/bin/splunk restart 
 
-echo_log "INFO: waiting 5s after restart"
-sleep 5 
+  echo_log "INFO: waiting 5s after restart"
+  sleep 5 
 
-echo_log "INFO: doing the ES setup with TA excluded (please wait for setup to complete...)"
+  ${SPLUNK_HOME}/bin/splunk login -auth $SPLADMIN:$SPLPASS
+fi
 
-${SPLUNK_HOME}/bin/splunk login -auth $SPLADMIN:$SPLPASS
+
 
 # debug flags in case TCPOutloop crash with 8.2.x
 
-${SPLUNK_HOME}/bin/splunk set log-level TcpOutputQChannels -level DEBUG
-${SPLUNK_HOME}/bin/splunk set log-level TcpOutputProc -level DEBUG
+#${SPLUNK_HOME}/bin/splunk set log-level TcpOutputQChannels -level DEBUG
+#${SPLUNK_HOME}/bin/splunk set log-level TcpOutputProc -level DEBUG
 
 # note : starting with ES 5.3 , TA are not deployed by default but we already force to disable them 
 # starting with ES 6.2 , the exclude TA option no longer exist (the TA ae no longer shipped)
 
 if [[ "${ESINSTALLERNFORCENOTA}" == "yes" ]]; then
+  echo_log "INFO: running ES setup with TA excluded (please wait for setup to complete...)"
   if [[ "${SHC}" -eq 1 ]]; then
 	${SPLUNK_HOME}/bin/splunk search '| essinstall --deployment_type shc_deployer --skip-ta Splunk_TA_bluecoat-proxysg Splunk_TA_bro Splunk_TA_flowfix Splunk_TA_juniper Splunk_TA_mcafee Splunk_TA_nessus Splunk_TA_nix Splunk_TA_oracle Splunk_TA_ossec Splunk_TA_rsa-securid Splunk_TA_sophos Splunk_TA_sourcefire Splunk_TA_symantec-ep Splunk_TA_ueba Splunk_TA_websense-cg Splunk_TA_windows TA-airdefense TA-alcatel TA-cef TA-fortinet TA-ftp TA-nmap TA-tippingpoint TA-trendmicro ' -timeout 600 
   else
@@ -424,6 +446,7 @@ if [[ "${ESINSTALLERNFORCENOTA}" == "yes" ]]; then
     ${SPLUNK_HOME}/bin/splunk search '| essinstall --skip-ta Splunk_TA_bluecoat-proxysg Splunk_TA_bro Splunk_TA_flowfix Splunk_TA_juniper Splunk_TA_mcafee Splunk_TA_nessus Splunk_TA_nix Splunk_TA_oracle Splunk_TA_ossec Splunk_TA_rsa-securid Splunk_TA_sophos Splunk_TA_sourcefire Splunk_TA_symantec-ep Splunk_TA_ueba Splunk_TA_websense-cg Splunk_TA_windows TA-airdefense TA-alcatel TA-cef TA-fortinet TA-ftp TA-nmap TA-tippingpoint TA-trendmicro ' -timeout 600 
   fi
 else
+  echo_log "INFO: running ES setup (please wait for setup to complete...)"
   if [[ "${SHC}" -eq 1 ]]; then
 	${SPLUNK_HOME}/bin/splunk search '| essinstall --deployment_type shc_deployer ' -timeout 600 
   else
@@ -447,8 +470,8 @@ ${SPLUNK_HOME}/bin/splunk restart
 
 # back to INFO
 
-${SPLUNK_HOME}/bin/splunk set log-level TcpOutputQChannels -level INFO
-${SPLUNK_HOME}/bin/splunk set log-level TcpOutputProc -level INFO
+#${SPLUNK_HOME}/bin/splunk set log-level TcpOutputQChannels -level INFO
+#${SPLUNK_HOME}/bin/splunk set log-level TcpOutputProc -level INFO
 
 echo_log "ES installed and setup run. Please check for errors in $SPLUNK_HOME/var/log/splunk/essinstaller2.log"
 # Marquis check

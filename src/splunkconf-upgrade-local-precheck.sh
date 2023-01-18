@@ -13,8 +13,9 @@
 # 20220326 add zstd package install
 # 20221205 check for splunkacceptlicense tag and ask for it if not present
 # 20230118 format messages to start with OK or KO
+# 20230118 typo fix in test
 
-VERSION="20230118"
+VERSION="20230118b"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -157,7 +158,7 @@ if [ -z "$splunks3installbucket" ]; then
     echo "ERROR : no instance tags file at $INSTANCEFILE"
     exit 1
   fi
-elsif [ -z "$splunkacceptlicense" ]; then
+elif [ -z "$splunkacceptlicense" ]; then
   echo "KO: ATTENTION please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add splunkaccceptlicense tag to this instance and relaunch"f 
   exit 1
 else

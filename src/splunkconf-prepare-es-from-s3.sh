@@ -20,7 +20,7 @@ VERSION="20221009"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
-   echo "Exiting ! This script need to be run as splunk !"
+   echo "KO: Exiting ! This script need to be run as splunk !"
    exit 1
 fi
 
@@ -38,10 +38,10 @@ mkdir -p $localinstalldir
 mkdir -p $localappsinstalldir
 
 if [ -z "$splunks3installbucket" ]; then
-  echo "KO ATTENTION TAGS NOT SET in instance tags, please correct an relaunch"
+  echo "KO: ATTENTION TAGS NOT SET in instance tags, please correct an relaunch"
   exit 1
 else
-  echo "OK Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
+  echo "OK: Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
 fi
 
 
@@ -50,9 +50,9 @@ rm $localinstalldir/installes.sh
 aws s3 cp $remoteinstalldir/installes.sh  $localinstalldir --quiet
 chmod +x $localinstalldir/installes.sh
 if [ -e "$localinstalldir/installes.sh" ]; then
-  echo "OK : installes present "
+  echo "OK: installes present "
 else
-  echo "KO : installes.sh is NOT present in s3 install at $remoteinstalldir:  Please upload scripts to s3 install"
+  echo "KO: installes.sh is NOT present in s3 install at $remoteinstalldir:  Please upload scripts to s3 install"
 fi
 
 ESAPP="splunk-enterprise-security_710.spl"
@@ -73,5 +73,5 @@ else
   echo "KO: ES Content update file $ESCU is NOT present in s3 install at $remoteappsdir : Please upload correct version to s3 install or update this script to a different version"
 fi
 
-echo "end of script, if everything is ok please run as splunk installes.sh from /opt/splunk/scripts directory (sh only)"
+echo "INFO: end of script, if everything is ok please run as splunk installes.sh from /opt/splunk/scripts directory (sh only)"
 

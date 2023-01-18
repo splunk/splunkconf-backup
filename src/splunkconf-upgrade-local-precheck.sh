@@ -12,8 +12,9 @@
 # 20210706 use cloud version when existing to avoid outdated aws version kept on s3
 # 20220326 add zstd package install
 # 20221205 check for splunkacceptlicense tag and ask for it if not present
+# 20230118 format messages to start with OK or KO
 
-VERSION="20221205"
+VERSION="20230118"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -104,7 +105,7 @@ PACKAGELIST="aws-cli curl python3-pip zstd"
 get_packages () {
 
   if [ $splunkconnectedmode == 3 ]; then
-    echo "not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True ${PACKAGELIST} -y"
+    echo "INFO : not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True ${PACKAGELIST} -y"
   else 
     # perl needed for swap (regex) and splunkconf-init.pl
     # openjdk not needed by recovery itself but for app that use java such as dbconnect , itsi...
@@ -114,7 +115,7 @@ get_packages () {
 
     if ! command -v yum &> /dev/null
     then
-      echo "FAIL yum command could not be found, not RH like distribution , not fully implemented/tested at the moment, stopping here " >> /var/log/splunkconf-cloud-recovery-info.log
+      echo "FAIL : yum command could not be found, not RH like distribution , not fully implemented/tested at the moment, stopping here " >> /var/log/splunkconf-cloud-recovery-info.log
       exit 1
     fi
 
@@ -146,7 +147,7 @@ splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=res
 splunktargetbinary=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunktargetbinary | cut -f 5`
 splunkacceptlicense=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunkacceptlicense | cut -f 5`
 if [ -z "$splunks3installbucket" ]; then
-  echo "ATTENTION TAGS NOT SET in instance tags, please correct and relaunch"
+  echo "KO: ATTENTION TAGS NOT SET in instance tags, please correct and relaunch"
   INSTANCEFILE="/etc/instance-tags"
   if [ -e "$INSTANCEFILE" ]; then
     chmod 644 $INSTANCEFILE
@@ -157,10 +158,10 @@ if [ -z "$splunks3installbucket" ]; then
     exit 1
   fi
 elsif [ -z "$splunkacceptlicense" ]; then
-  echo "ATTENTION please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add splunkaccceptlicense tag to this instance and relaunch"f 
+  echo "KO: ATTENTION please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add splunkaccceptlicense tag to this instance and relaunch"f 
   exit 1
 else
-  echo "Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
+  echo "OK: Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
 fi
 remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"
@@ -180,12 +181,12 @@ do
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
     echo "VER=$VER"
     if [ -z "$VER" ]; then
-      echo "predownload             $i : undefined version : KO"
+      echo "KO: predownload             $i : undefined version "
     else
-      echo "predownload             $i $VER"
+      echo "OK: predownload             $i $VER"
     fi
   else
-    echo "script $localinstalldir/$i missing before download\n" 
+    echo "WARNING : script $localinstalldir/$i missing before download\n" 
   fi
   aws s3 cp $remoteinstalldir/$i  $localinstalldir --quiet
   if [ -e "$localinstalldir/$i" ]; then
@@ -193,17 +194,18 @@ do
     # 2 versions of grep, 1 for bash, 1 for perl
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
     if [ -z "$VER" ]; then
-       echo "after download $i : undefined version : KO"
+       echo "KO: after download $i : undefined version"
     else
-      echo "after download OK script $i present. $VER"
+      echo "OK: after download script $i present. version=$VER"
     fi
   else
-    echo "script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"  
+    echo "KO: script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"  
   fi
 done
 if [ -e "$localinstalldir/splunkconf-cloud-recovery.sh" ]; then
   if [ -e "$localinstalldir/splunkconf-aws-recovery.sh" ]; then
-    echo "cloud recovery exist, overwriting aws version in case old one still present in install bucket"
+    echo "WARNING : old AWS cloud recovery exist, overwriting aws version in case old one still present in install bucket"
+    echo "WARNING : iplease remove all splunkconf-aws-recovery.sh from S3 , local and also check user-data if you dont want to see this message again"
     cp -p "$localinstalldir/splunkconf-cloud-recovery.sh" "$localinstalldir/splunkconf-aws-recovery.sh"
   fi
 fi
@@ -218,12 +220,12 @@ do
     # 2 versions of grep, 1 for bash, 1 for perl
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
     if [ -z "$VER" ]; then
-      echo "predownload             $i : undefined version : KO"
+      echo "KO: predownload             $i : undefined version"
     else
-      echo "predownload             $i $VER"
+      echo "OK: predownload             $i version=$VER"
     fi
   else
-    echo "script $localinstalldir/$i missing before download\n"  
+    echo "WARNING : script $localinstalldir/$i missing before download\n"  
   fi
   aws s3 cp $remoteinstalldir/$i  $localinstalldir --quiet
   if [ -e "$localinstalldir/$i" ]; then
@@ -233,12 +235,12 @@ do
     # 2 versions of grep, 1 for bash, 1 for perl
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
     if [ -z "$VER" ]; then
-       echo "after download : $i undefined version : KO"
+       echo "KO: after download : $i undefined version"
     else
-      echo "after download OK script $i present. $VER"
+      echo "OK: after download script $i present. version=$VER"
     fi
   else
-    echo "script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"
+    echo "KO: script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"
   fi
 
 done
@@ -248,21 +250,23 @@ localinstalldir="/usr/local/bin"
 
 if [ -z "$splunktargetbinary" ]; then
   splunktargetbinary=`grep ^splbinary $localinstalldir/splunkconf-aws-recovery.sh | cut -d"\"" -f2`
-  echo "ATTENTION splunktargetbinary not SET in instance tags, version used will be the one hardcoded in script : $splunktargetbinary"
+  echo "INFO: splunktargetbinary not SET in instance tags, version used will be the one hardcoded in script : $splunktargetbinary"
+  echo "INFO: This is fine if you are just testing or always want to use script version"
 else
-  echo "splunksplunktargetbinary=$splunktargetbinary"
+  echo "INFO: splunksplunktargetbinary=$splunktargetbinary"
 fi
-echo "checking RPM is present in s3 install"
+echo "INFO: checking RPM is present in s3 install"
 aws s3 cp $remoteinstalldir/$splunktargetbinary /tmp --quiet
 if [ -e "/tmp/$splunktargetbinary" ]; then
-  echo "RPM $splunktargetbinary is present in s3 install : OK"
+  echo "OK: RPM $splunktargetbinary is present in s3 install"
 else
-  echo "RPM $splunktargetbinary is NOT present in s3 install : KO Please upload RPM or check tag value"
+  echo "KO: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value"
 fi
 
 # we are updating ourselve, last action as it may break here
 
 aws s3 cp $remoteinstalldir/splunkconf-upgrade-local-precheck.sh  $localinstalldir --quiet
 chmod +x $localinstalldir/splunkconf-upgrade-local-precheck.sh
-echo "end of splunkconf upgrade precheck script"
+echo "INFO: end of splunkconf upgrade precheck script"
+echo "INFO: launch me a second time if this script version changed, that will make sure you run with the latest one"
 

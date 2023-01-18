@@ -206,7 +206,7 @@ done
 if [ -e "$localinstalldir/splunkconf-cloud-recovery.sh" ]; then
   if [ -e "$localinstalldir/splunkconf-aws-recovery.sh" ]; then
     echo "WARNING : old AWS cloud recovery exist, overwriting aws version in case old one still present in install bucket"
-    echo "WARNING : iplease remove all splunkconf-aws-recovery.sh from S3 , local and also check user-data if you dont want to see this message again"
+    echo "WARNING : please remove all splunkconf-aws-recovery.sh from S3 , local and also check user-data if you dont want to see this message again"
     cp -p "$localinstalldir/splunkconf-cloud-recovery.sh" "$localinstalldir/splunkconf-aws-recovery.sh"
   fi
 fi

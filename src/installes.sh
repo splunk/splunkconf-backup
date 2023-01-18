@@ -41,8 +41,9 @@
 # 20220325 add sha for 7.0.1
 # 20221009 add sha for 7.0.2
 # 20230116 add sha for 7.1.0
+# 20230118 improve messages
 
-VERSION="20230116"
+VERSION="20230118a"
 
 SCRIPTNAME="installes"
 
@@ -130,7 +131,7 @@ if [ ${splunkdtimeout} -eq 30 ]; then
 elif (( ${splunkdtimeout} < 120 )); then
      warn_log "Splunkdtimeout is under 120s, this could be low for ES setup (and other usages), consider increase it to at least 120s in org_all_search_base or equivalent"
 else 
-     echo_log "Splunkdtimeout is set over the default ES value"
+     echo_log "OK: Splunkdtimeout is set over the default ES value"
 fi
 
 version=`${SPLUNK_HOME}/bin/splunk version | cut -d ' ' -f 2`;
@@ -153,18 +154,18 @@ debug_log "check_level=${CHECKLEVEL}"
 
 if [ ${CHECKLEVEL} -ne 7 ]; then
   maxuploadsize=`${SPLUNK_HOME}/bin/splunk btool web  list  settings | grep max_upload_size | cut -d " " -f 3`
-  echo_log "(web.conf in [settings]) max_upload_size=${maxuploadsize} "
+  echo_log "INFO: (web.conf in [settings]) max_upload_size=${maxuploadsize} "
   # workaroud the fact that btool wont return a value for that param when not custonize (if the defautlt were to be changed, the test will have to be changed)
   if [ -z ${maxuploadsize} ]; then
     fail_log "max_upload_size is unchanged from default which is too low for ES installation to be succesfull. Please fix in org_all_search_base/local/web.conf under settings stanza (or the appropriate app for ES SH custom settings in your env and relaunch installes script"
     ((FAIL++))
     #exit 1
   elif [ ${maxuploadsize} -lt 024 ]; then
-    fail_log "max_upload_size is iset but under the required value of 1024. ES app installation require this to be succesfull. Please fix in org_all_search_base/local/web.conf under settings stanza (or the appropriate app for ES SH custom settings in your env and relaunch installes script"
+    fail_log "max_upload_size is set but under the required value of 1024. ES app installation require this to be succesfull. Please fix in org_all_search_base/local/web.conf under settings stanza (or the appropriate app for ES SH custom settings in your env and relaunch installes script"
     ((FAIL++))
     #exit 1
   else
-    echo_log "max_upload_size is over 1024, fine"
+    echo_log "OK: max_upload_size is over 1024, fine"
   fi
 else
   debug_log "max_upload_size not checked because not yet at v8+"
@@ -194,7 +195,7 @@ INSTALLAPPDIR="${SPLUNK_HOME}/splunkapps"
 
 read -p "INSTALLAPPDIR (default : ${INSTALLAPPDIR})" input
 INSTALLAPPDIR=${input:-$INSTALLAPPDIR}
-echo_log "INSTALLAPPDIR=${INSTALLAPPDIR}"
+echo_log "INFO: INSTALLAPPDIR=${INSTALLAPPDIR}"
 if [ ! -d "$INSTALLAPPDIR" ]; then
   fail_log "INSTALLAPPDIR  (${INSTALLAPPDIR}) does not exist ! Please check and correct.";
   ((FAIL++))
@@ -269,9 +270,13 @@ fi
 EXPECTEDSHA="a45bc6a1a583426e8f587bc0693dbf0296fa61ca2cd9d927e1cf99cab9c351cd"
 
 echo_log "please verify sha256 to check for integrity (corruption , truncation during file download....)"
-echo "expected sha256=${EXPECTEDSHA}"
+echo "INFO: expected sha256=${EXPECTEDSHA}"
 
-SHARES=`sha256 ${ESAPPFULL} || sha256sum ${ESAPPFULL}` 
+if command -v sha256 &> /dev/null then
+  SHARES=`sha256 ${ESAPPFULL}` 
+elif command -v sha256sum &> /dev/null then
+  SHARES=`sha256sum ${ESAPPFULL}` 
+fi
 if [ -z ${SHARES+x} ]; then
   fail_log "ooops, sha256 could not be calculated, may you need to install the required binary to compute sha256 on your system"
   ((FAIL++))
@@ -281,7 +286,7 @@ else
   debug_log "EXP=${EXPECTEDSHA}"
   debug_log "GOT=${SHAb}"
   if [ "${EXPECTEDSHA}" = "${SHAb}" ]; then
-    echo_log "SHA256 verified successfully for Splunk ES installation files ${ESAPPFULL} ${SHAb}"
+    echo_log "OK: SHA256 verified successfully for Splunk ES installation files ${ESAPPFULL} ${SHAb}"
   else
     fail_log "SHA256 doesnt match for ${ESAPPFULL}. Stopping installation here, please investigate why the check failed. EXP=${EXPECTEDSHA},GOT=${SHAb} "
     ((FAIL++))
@@ -299,7 +304,7 @@ if [ -z ${CONTENTUPDATE} ]; then
   fail_log "Couldnt find content update file in ${INSTALLAPPDIR}. Please download latest ES content update from Splunkbase and place it here with read write for splunk user them relaunch installation scriot"
   exit 1
 else
-  echo_log "OK : CONTENTUPDATE=${CONTENTUPDATE}"
+  echo_log "OK: CONTENTUPDATE=${CONTENTUPDATE}"
   SHARES=`sha256 ${CONTENTUPDATE} || sha256sum ${CONTENTUPDATE}` 
   if [ -z ${SHARES+x} ]; then
     fail_log "ooops, sha256 could not be calculated, may you need to install the required binary to compute sha256 on your system"
@@ -338,13 +343,13 @@ until [[ "$LOGGEDIN" -eq "1" ]] ; do
 done
 
 echo_log ""
-echo_log "OK, logged in"
+echo_log "OK: logged in"
 
 if [ ${CHECKLEVEL} -ne 7 ]; then
-  echo_log "Checking user capability to install app ?(8.0+)"
+  echo_log "INFO: Checking user capability to install app ?(8.0+)"
   A=`curl -k -X POST -s  -u ${SPLADMIN}:"${SPLPASS}" https://127.0.0.1:8089/services/search/jobs -d search="rest /services/authentication/users/  | search title="${SPLADMIN}"| fields capabilities | eval isok=mvfilter(match(capabilities,\"^edit_local_apps$\")) | search isok=*" -d output_mode=xml -d exec_mode=oneshot -d latest_time=@m`;
   if echo $A | grep "<value h='1'><text>edit_local_apps</text></value>">/dev/null; then
-    echo_log "Fine, user ${SPLADMIN} do have edit_local_apps capability"
+    echo_log "OK: user ${SPLADMIN} have edit_local_apps capability"
   else
     fail_log "ATTENTION !!!!! user ${SPLADMIN} is lacking edit_local_apps capability. Please add this capability to this user as required by ES installation document. Stopping installation"
     ((FAIL++))
@@ -358,7 +363,7 @@ if [ $FAIL -gt 0 ]; then
   fail_log "There were ${FAIL} fail condition(s) detected, please review messages, fix and rerun script before proceeding to installation step. Exiting" 
   exit 1
 else
-  debug_log "no fail condition detected, continuing to installation"
+  echo_log "OK: looks good, continuing to installation step"
 fi
 
 PROCEED="Y"
@@ -373,16 +378,16 @@ fi
 
 
 ################################ START INSTALL HERE #########################################
-echo_log "install/updating ES app from ${ESAPPFULL} with splunk install located in ${SPLUNK_HOME} "
+echo_log "INFO: install/updating ES app from ${ESAPPFULL} with splunk install located in ${SPLUNK_HOME} "
 
 # timeout not supported here
 ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true 
 # ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true -auth admin:${PASSWORD}
 if [[ "${SHC}" -eq 0 ]]; then
-  echo_log "install/updating ES content update app from ${CONTENTUPDATE} with splunk install located in ${SPLUNK_HOME} "
+  echo_log "INFO: install/updating ES content update app from ${CONTENTUPDATE} with splunk install located in ${SPLUNK_HOME} "
   ${SPLUNK_HOME}/bin/splunk install app ${CONTENTUPDATE} -update true 
 else 
- echo "deployer mode, extracting ES Content Update app to shcluster app instead"
+ echo "INFO: deployer mode, extracting ES Content Update app to shcluster app instead"
  tar -C"${SPLUNK_HOME}/etc/shcluster/apps/" -zxvf ${CONTENTUPDATE} 
 fi
 # ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true -auth admin:${PASSWORD}
@@ -392,14 +397,14 @@ fi
 echo_log "install ES done. Restarting splunk in 5s"
 sleep 5
 
-echo_log "restarting splunk (ignore warning there, we haven't yet done ES setup)"
-echo_log "if you get prompted here by systemctl, you havent configured polkit properly , please fix this before running this script"
+echo_log "INFO: restarting splunk (ignore warning there, we haven't yet done ES setup)"
+echo_log "INFO: if you get prompted here by systemctl, you havent configured polkit properly , please fix this before running this script"
 ${SPLUNK_HOME}/bin/splunk restart 
 
-echo_log "waiting 5s after restart"
+echo_log "INFO: waiting 5s after restart"
 sleep 5 
 
-echo_log "doing the ES setup with TA excluded (please wait for setup to complete...)"
+echo_log "INFO: doing the ES setup with TA excluded (please wait for setup to complete...)"
 
 ${SPLUNK_HOME}/bin/splunk login -auth $SPLADMIN:$SPLPASS
 
@@ -425,8 +430,6 @@ else
   #  # default is search_head but better not set the option so that it can work with pre 5.3 version also
     ${SPLUNK_HOME}/bin/splunk search '| essinstall ' -timeout 600 
   fi
-
-
 fi # no ta
 
 # note : this may timeout in some cases here if you haven't pushed the org_search_base app that increase splunkdtimeout for ES (or any other way of increasing this setting)
@@ -435,10 +438,10 @@ fi # no ta
 #----------------------------------------------
 #Initialization complete, please restart Splunk
 
-echo_log "end of setup. waiting 5s before restarting"
+echo_log "INFO: end of setup. waiting 5s before restarting"
 sleep 5
 
-echo_log "restarting Splunk after ES setup done"
+echo_log "INFO: restarting Splunk after ES setup done"
 
 ${SPLUNK_HOME}/bin/splunk restart
 
@@ -452,12 +455,12 @@ echo_log "ES installed and setup run. Please check for errors in $SPLUNK_HOME/va
 # INFO STAGE COMPLETE: "finalize"
 # 2020-06-08 20:12:46,423+0000 INFO pid=29627 tid=MainThread file=essinstaller2.py:wrapper:82 | STAGE COMPLETE: "finalize"
 # 2020-06-08 20:12:46,424+0000 INFO pid=29627 tid=MainThread file=essinstall.py:do_install:265 | Initialization complete, please restart Splunk
-tail -5 $SPLUNK_HOME/var/log/splunk/essinstaller2.log | grep -q " STAGE COMPLETE: \"finalize\"" && echo_log "OK : STAGE complete finalize FOUND " || fail_log "FAIL ***********: missing STAGE COMPLETE : investigate please ************\n" 
+tail -5 $SPLUNK_HOME/var/log/splunk/essinstaller2.log | grep -q " STAGE COMPLETE: \"finalize\"" && echo_log "OK: STAGE complete finalize FOUND. That is a good sign the install/upgrade went fine" || fail_log "FAIL ***********: missing STAGE COMPLETE : investigate please ************\n" 
 
 
 # v4.x(or custom setting)  : wait if need for threat list download
 
-#echo "Restarting "
+#echo "INFO: Restarting "
 #${SPLUNK_HOME}/bin/splunk restart
 
 

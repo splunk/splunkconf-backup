@@ -261,7 +261,7 @@ aws s3 cp $remoteinstalldir/$splunktargetbinary /tmp --quiet
 if [ -e "/tmp/$splunktargetbinary" ]; then
   echo "OK: RPM $splunktargetbinary is present in s3 install"
 else
-  echo "KO: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value"
+  echo "KO: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value (unless you run in auto mode)"
 fi
 
 # we are updating ourselve, last action as it may break here

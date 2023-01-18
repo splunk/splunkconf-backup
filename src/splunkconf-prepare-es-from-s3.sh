@@ -14,6 +14,7 @@
 # 20220325 update for 7.0.1
 # 20220815 add remoteappsdir var and improve error messages
 # 20221009 update for 7.0.2
+# 20230118 update for 7.1.0
 
 VERSION="20221009"
 
@@ -37,10 +38,10 @@ mkdir -p $localinstalldir
 mkdir -p $localappsinstalldir
 
 if [ -z "$splunks3installbucket" ]; then
-  echo "ATTENTION TAGS NOT SET in instance tags, please correct an relaunch"
+  echo "KO ATTENTION TAGS NOT SET in instance tags, please correct an relaunch"
   exit 1
 else
-  echo "Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
+  echo "OK Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
 fi
 
 
@@ -49,27 +50,27 @@ rm $localinstalldir/installes.sh
 aws s3 cp $remoteinstalldir/installes.sh  $localinstalldir --quiet
 chmod +x $localinstalldir/installes.sh
 if [ -e "$localinstalldir/installes.sh" ]; then
-  echo "installes present : OK"
+  echo "OK : installes present "
 else
-  echo "installes.sh is NOT present in s3 install at $remoteinstalldir: KO Please upload scripts to s3 install"
+  echo "KO : installes.sh is NOT present in s3 install at $remoteinstalldir:  Please upload scripts to s3 install"
 fi
 
-ESAPP="splunk-enterprise-security_702.spl"
+ESAPP="splunk-enterprise-security_710.spl"
 
 aws s3 cp $remoteappsdir/$ESAPP  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESAPP" ]; then
-  echo "ES install file $ESAPP present : OK"
+  echo "OK: ES install file $ESAPP present"
 else
-  echo "ES install file $ESAPP is NOT present in s3 install at $remoteappsdir: KO Please upload correct ES app version to s3 install or update this script is you want to use a different version"
+  echo "KO: ES install file $ESAPP is NOT present in s3 install at $remoteappsdir: Please upload correct ES app version to s3 install or update this script is you want to use a different version"
 fi
 
 ESCU="splunk-es-content-update_3500.tgz"
 
 aws s3 cp $remoteappsdir/$ESCU  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESCU" ]; then
-  echo "ES Content update install file $ESCU present : OK"
+  echo "OK: ES Content update install file $ESCU present"
 else
-  echo "ES Content update file $ESCU is NOT present in s3 install at $remoteappsdir : KO Please upload correct version to s3 install or update this script to a different version"
+  echo "KO: ES Content update file $ESCU is NOT present in s3 install at $remoteappsdir : Please upload correct version to s3 install or update this script to a different version"
 fi
 
 echo "end of script, if everything is ok please run as splunk installes.sh from /opt/splunk/scripts directory (sh only)"

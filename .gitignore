@@ -14,7 +14,12 @@ Icon
 
 # backups
 old
-splunkconf-backup.old
+*old
+s4plunkconf-backup.old
+
+# keys
+*priv
+*pub
 
 # local
 terraform/local
@@ -22,6 +27,7 @@ terraform-gcp/local
 
 # test
 src/test.pl
+test*
 
 # other
 splunkconf-backup/appserver/

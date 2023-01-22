@@ -3,9 +3,9 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ihf3" {
   name = "asg-splunk-ihf3"
   #  vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id,local.subnet_pub_2_id,local.subnet_pub_3_id] : [local.subnet_priv_1_id,local.subnet_priv_2_id,local.subnet_priv_3_id])
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
-  desired_capacity    = var.ihf-nb
-  max_size            = var.ihf-nb
-  min_size            = var.ihf-nb
+  desired_capacity    = var.ihf3-nb
+  max_size            = var.ihf3-nb
+  min_size            = var.ihf3-nb
   mixed_instances_policy {
     launch_template {
       launch_template_specification {

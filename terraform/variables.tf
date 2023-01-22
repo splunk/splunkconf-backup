@@ -130,6 +130,18 @@ variable "ihf-nb" {
   default     = 1
 }
 
+variable "ihf2-nb" {
+  description = "target intermediate hf 2 number in ASG"
+  type        = number
+  default     = 1
+}
+
+variable "ihf3-nb" {
+  description = "target intermediate hf 3 number in ASG"
+  type        = number
+  default     = 1
+}
+
 variable "instance-type-ihf-min" {
   type    = string
   default = "t3a.medium"

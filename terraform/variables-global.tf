@@ -21,7 +21,7 @@ variable "region-primary" {
   type        = string
   default     = "us-east-1"
   validation {
-    condition     = can(regex("[a-z][a-z]-[a-z]+-[1-9]", var.region-master))
+    condition     = can(regex("[a-z][a-z]-[a-z]+-[1-9]", var.region-primary))
     error_message = "Region must be valid AWS Region name"
   }
 }
@@ -31,7 +31,7 @@ variable "region-secondary" {
   type        = string
   default     = "us-west-1"
   validation {
-    condition     = can(regex("[a-z][a-z]-[a-z]+-[1-9]", var.region-master))
+    condition     = can(regex("[a-z][a-z]-[a-z]+-[1-9]", var.region-secondary))
     error_message = "Region must be valid AWS Region name"
   }
 }

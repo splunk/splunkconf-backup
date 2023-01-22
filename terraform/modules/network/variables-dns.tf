@@ -12,7 +12,7 @@ variable "enable_lambda_route53" {
   default     = "true"
 }
 
-variable "manage-ns-glue-aws"{
+variable "enable-ns-glue-aws"{
   description = "true : create NS records in the zone above by calling route53, enable this if top zone is in AWS and you have credentials to update it (require dns-zone-name-top to be configured). False if managed manaually or outside this terraform"
   type= bool
   default = "true"
@@ -20,7 +20,7 @@ variable "manage-ns-glue-aws"{
 
 # note : because we dont manage the top zone in this TF (so we dont destroy it when we destroy this) , we have to use provisionners which is
 variable "dns-zone-name-top" {
-  description = "dns-zone-name should be a subzone of this one (that existing, not managed by TF and that you control in order to be able to create NS record in it (to delegate sub zone so the DNS update we do are visible from outside) (if top zone outside cloud or cant be updated by TF, please create NS in it) (certificate generations via cloud mechanisms wont work without it as this mean you cant prove the zone is yours)")
+  description = "dns-zone-name should be a subzone of this one (that existing, not managed by TF and that you control in order to be able to create NS record in it (to delegate sub zone so the DNS update we do are visible from outside) (if top zone outside cloud or cant be updated by TF, please create NS in it) (certificate generations via cloud mechanisms wont work without it as this mean you cant prove the zone is yours)"
   type        = string
   default     = "could.acme.com"
 }

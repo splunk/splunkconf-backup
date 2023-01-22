@@ -53,6 +53,13 @@ variable "idx-nb" {
   default     = 3
 }
 
+
+variable "enable-idx-hecelb" {
+  description = "whether to create ELB for IDX HEC" 
+  type    = bool
+  default = true
+}
+
 variable "hec_protocol" {
   description = "HTTP or HTTPS depending if the target being ELB listen in HTTP or HTTPS"
   type        = string

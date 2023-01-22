@@ -405,6 +405,7 @@ resource "aws_launch_template" "splunk-idx" {
 
 # ***************** LB HEC **********************
 resource "aws_security_group" "splunk-lbhec" {
+  count = var.enable-idx-hecelb ? 1: 0
   name        = "splunk-lbhec"
   description = "Security group for Splunk LB for HEC to idx"
   vpc_id      = local.master_vpc_id

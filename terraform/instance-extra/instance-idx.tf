@@ -405,7 +405,6 @@ resource "aws_launch_template" "splunk-idx" {
 
 # ***************** LB HEC **********************
 resource "aws_security_group" "splunk-lbhec" {
-  count = var.enable-idx-hecelb ? 1: 0
   name        = "splunk-lbhec"
   description = "Security group for Splunk LB for HEC to idx"
   vpc_id      = local.master_vpc_id
@@ -505,6 +504,7 @@ resource "aws_alb_target_group" "idxhec-ack" {
 
 resource "aws_lb" "idxhec-noack" {
   #count    = var.use_elb ? 1 : 0
+  #count = var.enable-idx-hecelb ? 1: 0
   name               = "idxhec-noack"
   load_balancer_type = "application"
   security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhec.id]
@@ -517,6 +517,7 @@ resource "aws_lb" "idxhec-noack" {
 
 resource "aws_lb" "idxhec-ack" {
   #count    = var.use_elb_ack ? 1 : 0
+  #count = var.enable-idx-hecelb ? 1: 0
   name               = "idxhec-ack"
   load_balancer_type = "application"
   security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhec.id]

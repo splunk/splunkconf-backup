@@ -52,6 +52,8 @@ TOP=$4
 
 TTL=$5
 
+echo "Arguments are ZONE=$ZONE,ZONEID=${ZONEID},REGION=${REGION},ZONETOP=${ZONETOP},TTL=$TTL"
+
 # 1d
 #TTL=86400
 # 1h
@@ -68,10 +70,25 @@ echo "get NS records for id $ZONEID (ZONE $ZONE) in REGION $REGION"
 A=$(aws route53 get-hosted-zone --region $REGION --id ${ZONEID}| grep \"ns- | grep -o '".*"' | sed 's/"//g' | sed 's/\(.*\)/{"Value": "\1."},/g')
 
 echo "RECORDS="
-
-
 echo $A
+
+if [[ ${#A} -gt 2 ]]; then
+  echo "OK found"
+else
+  echo "-----"
+  echo "falling back to no region"
+  echo "get NS records for id $ZONEID (ZONE $ZONE) (auto)"
+  A=$(aws route53 get-hosted-zone --id ${ZONEID}| grep \"ns- | grep -o '".*"' | sed 's/"//g' | sed 's/\(.*\)/{"Value": "\1."},/g')
+  echo "(second try) RECORDS="
+  echo $A
+fi
+
 echo "-----"
+
+if [[ ${#A} -lt 2 ]]; then
+  echo "FAIL : zone not found , check arguments, permissions and relaunch please"
+  exit 1
+fi
 
 #B=${A::-1}
 B=${A::${#A}-1}

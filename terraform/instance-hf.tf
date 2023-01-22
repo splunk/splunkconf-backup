@@ -14,7 +14,7 @@ resource "aws_iam_role" "role-splunk-hf" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-hf_profile" {
-  name     = "role-splunk-hf_profile"
+  name_prefix     = "role-splunk-hf_profile"
   role     = aws_iam_role.role-splunk-hf.name
   provider = aws.region-primary
 }

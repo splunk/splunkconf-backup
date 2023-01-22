@@ -20,7 +20,7 @@ module "network" {
   ns_ttl=var.ns_ttl
   enable_lambda_route53=var.enable_lambda_route53
   # easier to use for route53
-  region=aws.region-primary
+  region=var.region-primary
 
   providers = {
     aws = aws.region-primary

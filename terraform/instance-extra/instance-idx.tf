@@ -365,7 +365,8 @@ resource "aws_launch_template" "splunk-idx" {
   #  ebs_optimized = true
   #  vpc_security_group_ids = [aws_security_group.splunk-idx.id]
   iam_instance_profile {
-    name = "role-splunk-idx_profile"
+    name = aws_iam_instance_profile.role-splunk-idx_profile.name
+    #name = "role-splunk-idx_profile"
   }
   network_interfaces {
     device_index                = 0

@@ -15,7 +15,7 @@ module "network" {
   use_nat_gateway=var.use_nat_gateway
   nat_gateway_ha=var.nat_gateway_ha
   dns-zone-name=var.dns-zone-name
-  enable-ns-glue-aws=var.manage-ns-glue-aws
+  enable-ns-glue-aws=var.enable-ns-glue-aws
   dns-zone-name-top=var.dns-zone-name-top
   ns_ttl=var.ns_ttl
   enable_lambda_route53=var.enable_lambda_route53

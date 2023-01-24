@@ -47,6 +47,13 @@ variable "disk-size-idx-b" {
   default     = 35
 }
 
+variable "splunkenableunifiedpartition" {
+  description = "for instance with ephemeral disk whether to directly use this partition under SPLUNK_HOME (otherwise /data/vol1 is used) (default = false)"
+  type        = bool
+  default     = "false"
+}
+
+
 variable "idx-nb" {
   description = "target indexer number in ASG"
   type        = number

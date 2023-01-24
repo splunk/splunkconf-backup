@@ -171,8 +171,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230108 add tag splunkpwdarn and transfer it to splunkconfi-init with region also 
 # 20230108 fix order of tag inclusion and splunkconfinit option
 # 20230111 change form logic to set hosts for hf and uf except when containing -farm
+# 20230123 add splunkenableunifiedpartition var
 
-VERSION="20230111a"
+VERSION="20230123a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -336,7 +337,13 @@ get_packages () {
 setup_disk () {
 
     DEVNUM=1
-
+    if [[ $splunkenableunifiedpartition -eq "true" ]]; then
+      echo "Usimg unified partition mode"
+      MOUNTPOINT="$SPLUNK_HOME"
+    else
+      echo "Using distinct partition mode"
+      MOUNTPOINT="/data/vol1"
+    fi
 
     # let try to find if we have ephemeral storage
     if [[ "cloud_type" -eq 2 ]]; then
@@ -380,17 +387,17 @@ setup_disk () {
         lvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
         # note mkfs wont format if the FS is already mounted -> no need to check here
         mkfs.ext4 -L storage1 /dev/vgsplunkstorage1/lvsplunkstorage1 >> /var/log/splunkconf-cloud-recovery-info.log
-        mkdir -p /data/vol1
-        RES=`grep /data/vol1 /etc/fstab`
+        mkdir -p $MOUNTPOINT
+        RES=`grep $MOUNTPOINT /etc/fstab`
         #echo " debug F=$RES."
         if [ -z "${RES}" ]; then
 
-          #mount /dev/vgsplunkephemeral1/lvsplunkephemeral1 /data/vol1 && mkdir -p /data/vol1/indexes
-          echo "/data/vol1 not found in /etc/fstab, adding it" >> /var/log/splunkconf-cloud-recovery-info.log
-          echo "/dev/vgsplunkstorage${DEVNUM}//lvsplunkstorage${DEVNUM} /data/vol1 ext4 defaults,nofail 0 2" >> /etc/fstab
-          mount /data/vol1
+          #mount /dev/vgsplunkephemeral1/lvsplunkephemeral1 $MOUNTPOINT && mkdir -p $MOUNTPOINT/indexes
+          echo "$MOUNTPOINT not found in /etc/fstab, adding it" >> /var/log/splunkconf-cloud-recovery-info.log
+          echo "/dev/vgsplunkstorage${DEVNUM}//lvsplunkstorage${DEVNUM} $MOUNTPOINT ext4 defaults,nofail 0 2" >> /etc/fstab
+          mount $MOUNTPOINT
         else
-          echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
+          echo "$MOUNTPOINT is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
         fi
       else
         echo "no EBS partition to configure" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -398,8 +405,8 @@ setup_disk () {
       # Note : in case there is just one partition , this will create the dir so that splunk will run
       # for volume management to work in classic mode, it is better to use a distinct partition to not mix manage and unmanaged on the same partition
       echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-cloud-recovery-info.log
-      mkdir -p /data/vol1/indexes
-      chown -R ${usersplunk}. /data/vol1/indexes
+      mkdir -p $MOUNTPOINT/indexes
+      chown -R ${usersplunk}. $MOUNTPOINT/indexes
     else
       echo "instance storage detected"
       #OSDEVICE=$(lsblk -o NAME -n | grep -v '[[:digit:]]' | sed "s/^sd/xvd/g")
@@ -424,25 +431,29 @@ setup_disk () {
       lvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
       # note mkfs wont format if the FS is already mounted -> no need to check here
       mkfs.ext4 -L ephemeral1 /dev/vgsplunkephemeral1/lvsplunkephemeral1  >> /var/log/splunkconf-cloud-recovery-info.log
-      mkdir -p /data/vol1
-      RES=`grep /data/vol1 /etc/fstab`
+      mkdir -p $MOUNTPOINT
+      RES=`grep $MOUNTPOINT /etc/fstab`
       #echo " debug F=$RES."
       if [ -z "${RES}" ]; then
-        #mount /dev/vgsplunkephemeral1/lvsplunkephemeral1 /data/vol1 && mkdir -p /data/vol1/indexes
-        echo "/data/vol1 not found in /etc/fstab, adding it" >> /var/log/splunkconf-cloud-recovery-info.log
-        echo "/dev/vgsplunkephemeral${DEVNUM}/lvsplunkephemeral${DEVNUM} /data/vol1 ext4 defaults,nofail 0 2" >> /etc/fstab
-        mount /data/vol1
-        echo "creating /data/vol1/indexes and giving to splunk user" >> /var/log/splunkconf-cloud-recovery-info.log
-        mkdir -p /data/vol1/indexes
-        chown -R ${usersplunk}. /data/vol1/indexes
-        echo "moving splunk home to ephemeral devices in data/vol1/splunk (smartstore scenario)" >> /var/log/splunkconf-cloud-recovery-info.log
-        (mv /opt/splunk /data/vol1/splunk;ln -s /data/vol1/splunk /opt/splunk;chown -R ${usersplunk}. /opt/splunk) || mkdir -p /data/vol1/splunk
-        SPLUNK_HOME="/data/vol1/splunk"
+        #mount /dev/vgsplunkephemeral1/lvsplunkephemeral1 $MOUNTPOINT && mkdir -p $MOUNTPOINT/indexes
+        echo "$MOUNTPOINT not found in /etc/fstab, adding it" >> /var/log/splunkconf-cloud-recovery-info.log
+        echo "/dev/vgsplunkephemeral${DEVNUM}/lvsplunkephemeral${DEVNUM} $MOUNTPOINT ext4 defaults,nofail 0 2" >> /etc/fstab
+        mount $MOUNTPOINT
+        echo "creating $MOUNTPOINT/indexes and giving to splunk user" >> /var/log/splunkconf-cloud-recovery-info.log
+        mkdir -p $MOUNTPOINT/indexes
+        chown -R ${usersplunk}. $MOUNTPOINT/indexes
+        if [[ $splunkenableunifiedpartition -eq "true" ]]; then
+          echo "fusion partition, SPLUNK_HOME already in epehemeral, ok"
+        else 
+          echo "moving splunk home to ephemeral devices in /data/vol1/splunk (smartstore scenario)" >> /var/log/splunkconf-cloud-recovery-info.log
+          (mv /opt/splunk /data/vol1/splunk;ln -s /data/vol1/splunk /opt/splunk;chown -R ${usersplunk}. /opt/splunk) || mkdir -p /data/vol1/splunk
+          SPLUNK_HOME="/data/vol1/splunk"
+        fi
       else
-        echo "/data/vol1 is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
+        echo "$MOUNTPOINT is already in /etc/fstab, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
       fi
     fi
-    PARTITIONFAST="/data/vol1"
+    PARTITIONFAST="$MOUNTPOINT"
     # FS created in AMI, need to give them back to splunk user
     if [ -e "/data/hotwarm" ]; then
        chown -R ${usersplunk}. /data/hotwarm
@@ -635,6 +646,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkacceptlicense=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkacceptlicense`
   splunkpwdinit=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdinit`
   splunkpwdarn=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdarn`
+  splunkenableunifiedpartition=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkenableunifiedpartition`
   #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi

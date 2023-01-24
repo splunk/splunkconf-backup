@@ -394,6 +394,7 @@ resource "aws_launch_template" "splunk-idx" {
       splunkosupdatemode  = var.splunkosupdatemode
       splunkconnectedmode = var.splunkconnectedmode
       splunkacceptlicense = var.splunkacceptlicense
+      splunkenableunifiedpartition = var.splunkenableunifiedpartition
     }
   }
   metadata_options {

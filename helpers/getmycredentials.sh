@@ -34,7 +34,7 @@ echo "It is obviously and absolutely necessary that you have the appropriate cre
 echo "region and splunk_admin_arn are variables / output of terraform run that you need to provide as inputs (as this is the only way to sort out things if multiple tf have been run in //"
 
 if [ $# -ne 2 ]; then
-  echo "Please provide region and splunk_admin_arn as arguments like $0 eu-east-1 arn:aws:secretsmanager:us-east-1:nnnnnnnnn:secret:splunk_admin_pwdxxxxxx"
+  echo "Please provide region and splunk_admin_arn as arguments like $0 us-east-1 arn:aws:secretsmanager:us-east-1:nnnnnnnnn:secret:splunk_admin_pwdxxxxxx"
   exit 1
 fi
 

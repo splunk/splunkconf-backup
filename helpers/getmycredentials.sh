@@ -33,7 +33,7 @@ echo "This helper is used to get credentials from AWS so that you can connect to
 echo "It is obviously and absolutely necessary that you have the appropriate credentials or that will fail"
 echo "region and splunk_admin_arn are variables / output of terraform run that you need to provide as inputs (as this is the only way to sort out things if multiple tf have been run in //"
 
-if [ $# -ne 2 ]; then
+if [ $# -lt 2 ]; then
   echo "Please provide region and splunk_admin_arn as arguments like $0 us-east-1 arn:aws:secretsmanager:us-east-1:nnnnnnnnn:secret:splunk_admin_pwdxxxxxx"
   exit 1
 fi
@@ -57,6 +57,10 @@ else
 fi
 echo "get user-seed"
 aws ssm get-parameter --name splunk-user-seed --region $REGION --query "Parameter.Value" --output text
-
+if [ $# -eq 3 ]; then
+ echo "get pass4symmkeyidx"
+ KEY=$3
+ aws secretsmanager  get-secret-value --secret-id $KEY --query "SecretString" --output text --region $REGION
+fi
 echo "Getting splunk admin pwd from AWS SecretsManager with arn $SPLUNK_ADMIN_ARN in region $REGION"
 aws secretsmanager  get-secret-value --secret-id $SPLUNK_ADMIN_ARN --region $REGION  --query "SecretString" --output text

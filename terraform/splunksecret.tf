@@ -150,6 +150,11 @@ output "splunk_pass4symmkeyidx" {
   sensitive = true
 }
 
+output "splunk_pass4symmkeyidx_arn" {
+  value = aws_secretsmanager_secret.splunk_pass4symmkeyidx.id
+  description = "splunk pass4symmkey for idx clustering arn"
+}
+
 output "splunk_pass4symmkeyidxdiscovery" {
   value = "${local.splunkpass4symmkeyidxdiscovery}"
   description = "splunk pass4symmkey for idx discovery protocol"

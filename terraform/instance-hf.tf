@@ -148,7 +148,7 @@ resource "aws_security_group_rule" "hf_from_mc_8089" {
 }
 
 # only when hf used as hec intermediate (instead of direct to idx via LB)
-resource "aws_security_group_rule" "idx_from_networks_8088" {
+resource "aws_security_group_rule" "hf_from_networks_8088" {
   security_group_id = aws_security_group.splunk-hf.id
   type              = "ingress"
   from_port         = 8088

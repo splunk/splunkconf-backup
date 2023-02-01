@@ -425,7 +425,7 @@ resource "aws_launch_template" "splunk-sh2" {
     http_tokens                 = (var.imdsv2 == "required" ? "required" : "optional")
     http_put_response_hop_limit = 1
   }
-  user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
+  user_data = filebase64("./user-data/user-data.txt")
 }
 
 
@@ -523,7 +523,7 @@ resource "aws_launch_template" "splunk-sh3" {
     http_tokens                 = (var.imdsv2 == "required" ? "required" : "optional")
     http_put_response_hop_limit = 1
   }
-  user_data = filebase64("../buckets/bucket-install/install/user-data.txt")
+  user_data = filebase64("./user-data/user-data.txt")
 }
 
 

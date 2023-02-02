@@ -82,8 +82,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20220409 fix double remote copy issue with kvdump/kvstore 
 # 20220823 fix regression for cm master and manager folders 
 # 20221014 remove logging for remote when unconfigured (to reduce logging footprint)
+# 20230202 optimize renote copy, change logic condition when disabled to imprive logging experience, enable disabled logging to allow dashboard to differentiate missing and disabled state, change logic so that with remote disabled, we now log a disabled entry which make easier to report on dashboard
 
-VERSION="20221014a"
+VERSION="20230202a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -249,7 +250,8 @@ function debug_log {
   # uncomment for debugging
   #DEBUG=1   
   if [ "$DEBUG" == "1" ]; then 
-    echo_log_ext  "DEBUG id=$ID $1"
+    DA=`date`
+    echo_log_ext  "DEBUG $DA id=$ID $1"
   fi 
 }
 
@@ -386,16 +388,25 @@ function do_remote_copy() {
   if [ -e "$FIC" ]; then
     FILESIZE=$(/usr/bin/stat -c%s "$FIC")
   else
-    debug_log "FIC=$FIC doesntexist !"
+    debug_log "FIC=$FIC doesnt exist !"
     FILESIZE=0
   fi
   START=$(($(date +%s%N)));
-  if [ "${LFIC}" != "disabled" ] && [ "${OBJECT}" == "kvdump" ] && [ "${kvdump_done}" == "0" ]; then
+  if [ "${LFIC}" == "disabled" ]; then
+    # local disable case
+    echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled" 
+    #debug_log "not doing remote $OBJECT as no local version present MODE=$MODE"
+  elif [ $DOREMOTEBACKUP -eq 0 ]; then
+    # local ran but remote is disabled
+    DURATION=0
+    echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}" 
+  elif [ "${LFIC}" != "disabled" ] && [ "${OBJECT}" == "kvdump" ] && [ "${kvdump_done}" == "0" ]; then
       # we have initiated kvdump but it took so long we never had a complete message so we cant copy as it could be incomplete
       # we want to log here so it appear in dashboard and alerts
       DURATION=0
       fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} kvdump may be incomplete, not copying to remote" 
-  elif [ "${LFIC}" != "disabled" ]; then
+  #elif [ "${LFIC}" != "disabled" ]; then
+  else
     debug_log "doing remote copy with ${CPCMD} ${LFIC} ${RFIC} ${OPTION}"
     ${CPCMD} ${LFIC} ${RFIC} ${OPTION}
     RES=$?
@@ -404,12 +415,9 @@ function do_remote_copy() {
     let DURATION=(END-START)/1000000
     if [ $RES -eq 0 ]; then
         echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}" 
-
     else
          fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}"
     fi
-  else
-    debug_log "not doing remote $OBJECT as no local version present MODE=$MODE"
   fi
 }
 
@@ -643,6 +651,7 @@ fi
 # servername is more reliable in dynamic env like AWS 
 #INSTANCE=$SERVERNAME
 
+# FIXME : opti : relax check to only exit if global or kvdump/kvstore mode
 debug_log "checking for a ongoing kvdump restore"
 if [ -e "/opt/splunk/var/run/splunkconf-kvrestore.lock" ]; then
   fail_log "splunkconf-restore is currently running a kvdump, stopping to avoid creating a incomplete backup."
@@ -760,11 +769,11 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
     MESS1="backuptype=scriptstargetedinstanceversion ";
   fi
   splunkconf_checkspace;
-  if [ $ERROR -ne 0 ]; then
+  if [ -z ${BACKUPSCRIPTS+x} ] || [ $BACKUPSCRIPTS -eq 0 ]; then
+    # we echo here to have it appear in logs as it will allow to identify disabled versus missing case
+    echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled dest=$FIC reason=disabled ${MESS1}" 
+  elif [ $ERROR -ne 0 ]; then
     fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
-  elif [ -z ${BACKUPSCRIPTS+x} ]; then 
-    # should we echo here to have it appear in stats ?
-    debug_log "action=backup type=$TYPE object=${OBJECT} result=disabled dest=$FIC reason=disabled ${MESS1}" 
   else 
     #debug_log "doing backup scripts via tar";
     FILELIST=${SCRIPTDIR}
@@ -788,7 +797,7 @@ OBJECT="kvstore"
 if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || [ "$MODE" == "kvauto" ]; then 
   debug_log "object=kvstore  action=start"
   FIC="disabled"
-  if [ -z ${BACKUPKV+x} ]; then 
+  if [ -z ${BACKUPKV+x} ] || [ $BACKUPKV -eq 0 ]; then
     echo_log "type=$TYPE object=${OBJECT} result=disabled"; 
   else
     version=`${SPLUNK_HOME}/bin/splunk version | cut -d ' ' -f 2`;
@@ -843,10 +852,9 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       if [ -e "$FIC" ]; then
         FILESIZE=$(/usr/bin/stat -c%s "$FIC")
       else
-        debug_log "FIC=$FIC doesntexist after kvdump"
+        debug_log "FIC=$FIC doesnt exist after kvdump"
         FILESIZE=0
       fi
-
       if [[ -z "$RES" ]];  then
 	warn_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=$kvbackupmode result=failure dest=${LFICKVDUMP} durationms=${DURATION} size=${FILESIZE}  ATTENTION : we didnt get ready status ! Either backup kvstore (kvdump) has failed or takes too long"
 	kvdump_done="-1"
@@ -1003,7 +1011,6 @@ debug_log "MODE=$MODE, extmode=${extmode} starting remote part"
 # remotetype 0=auto, 1=date, 2 = no date, 3= no date, no instance
 
 TYPE="remote"
-if [ $DOREMOTEBACKUP -eq 1 ]; then
 debug_log "starting remote backup"
   if [ ${REMOTETYPE} -eq 0 ]; then 
     if [ ${REMOTETECHNO} -eq 2 ]; then
@@ -1019,6 +1026,7 @@ debug_log "starting remote backup"
   else 
     debug_log "remote_type statically set, unchanged, it is set to ${REMOTETYPE}"
   fi
+if [ $DOREMOTEBACKUP -eq 1 ]; then
   if [ ${REMOTETECHNO} -eq 1 ]; then 
         #echo_log "running directories check for NAS type on $REMOTEBACKUPDIR"
   	if [ ! -d "$REMOTEBACKUPDIR" ]; then
@@ -1030,6 +1038,7 @@ debug_log "starting remote backup"
 		exit 1;
 	fi
   fi
+fi
   # now we add the instance name or backup from different instances would collide
   REMOTEBACKUPDIR="${REMOTEBACKUPDIR}/${INSTANCE}"
   # first run we are creating that instance dir
@@ -1133,33 +1142,40 @@ debug_log "starting remote backup"
 # second option depend on recent ssh , instead it is possible to disable via =no or use other mean to accept the key before the script run
     OPTION=" -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
   fi
-  TYPE="remote"
-  OBJECT="etc"
-  LFIC=${LFICETC}
-  RFIC=${FICETC}
-  do_remote_copy;
+  if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
+    TYPE="remote"
+    OBJECT="etc"
+    LFIC=${LFICETC}
+    RFIC=${FICETC}
+    do_remote_copy;
+  fi
 
-  OBJECT="scripts"
-  LFIC=${LFICSCRIPT}
-  RFIC=${FICSCRIPT}
-  do_remote_copy;
+  if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then 
+    OBJECT="scripts"
+    LFIC=${LFICSCRIPT}
+    RFIC=${FICSCRIPT}
+    do_remote_copy;
+  fi
 
-  OBJECT="kvdump"
-  LFIC=${LFICKVDUMP}
-  RFIC=${FICKVDUMP}
-  do_remote_copy;
+  if [ $ver \> $minimalversion ]  && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
+    OBJECT="kvdump"
+    LFIC=${LFICKVDUMP}
+    RFIC=${FICKVDUMP}
+    do_remote_copy;
+  elif [[ "$MODE" == "0" ]] || [[ "$MODE" == "kvauto" ]]; then
+    OBJECT="kvstore"
+    LFIC=${LFICKVSTORE}
+    RFIC=${FICKVSTORE}
+    do_remote_copy;
+  fi
 
-  OBJECT="kvstore"
-  LFIC=${LFICKVSTORE}
-  RFIC=${FICKVSTORE}
-  do_remote_copy;
-
-  OBJECT="state"
-  LFIC=${LFICSTATE}
-  RFIC=${FICSTATE}
-  do_remote_copy;
-
-else 
+  if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
+    OBJECT="state"
+    LFIC=${LFICSTATE}
+    RFIC=${FICSTATE}
+    do_remote_copy;
+  fi
+if [ $DOREMOTEBACKUP -eq 0 ]; then
 	debug_log "no remote backup requested"
 fi
 

@@ -10,6 +10,7 @@ exec > /tmp/splunkconf-checkbackup-debug.log  2>&1
 # 20200305 initial version 
 # 20201105 add python3 protection with AWS1 support and test for conf file inclusion to improve logging
 # 20220327 relax form protection for std
+# 20230202 fix typos and false positive in check
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -172,7 +173,7 @@ if [ -z ${LOCALBACKUPDIR+x} ]; then fail_log "LOCALBACKUPDIR not defined in ENSP
 if (( ${LOCALMAXSIZE} > 1000000000 )); then 
   debug_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check ok" 
 else 
-  fail_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check KO ! Need to be at least 1G(1000000000). Exiting to avoiod deletion of all backup on invalid value"
+  fail_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check KO ! Need to be at least 1G(1000000000). Exiting to avoid deletion of all backup on invalid value"
   exit 1;
 fi
 
@@ -191,7 +192,7 @@ fi
 # modinput (for upgrade, newer version only create state)
 /usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-*modinput*tar.gz*" -mtime -${BACKUPRECENCY} -print  && echo_log "action=check type=local reason=retentionpolicy object=modinout result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPMODINPUTRETENTIONDAYS} purge local modinput backup done" || fail_log "action=check type=local reason=retentionpolicy object=modinput result=fail error purging local modinput backup "
 # state
-/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-*state*tar.*" -mtime-${BACKUPRECENCY} -print && echo_log "action=check type=local reason=retentionpolicy object=state result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSTATERETENTIONDAYS} purge local state backup done" || fail_log "action=check type=local reason=retentionpolicy object=state result=fail error purging local state backup "
+/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-*state*tar.*" -mtime -${BACKUPRECENCY} -print && echo_log "action=check type=local reason=retentionpolicy object=state result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSTATERETENTIONDAYS} purge local state backup done" || fail_log "action=check type=local reason=retentionpolicy object=state result=fail error purging local state backup "
 
 
 # note : only implemented for nas type currently, implicitely you have use the date versioned files for this to work correctly

@@ -83,8 +83,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20220823 fix regression for cm master and manager folders 
 # 20221014 remove logging for remote when unconfigured (to reduce logging footprint)
 # 20230202 optimize renote copy, change logic condition when disabled to imprive logging experience, enable disabled logging to allow dashboard to differentiate missing and disabled state, change logic so that with remote disabled, we now log a disabled entry which make easier to report on dashboard
+# 20230206 add autodisable for scripts, uf detection, autokvdump disable for uf or kvstore disabled, add logic for empty statelist case with specific log, fix missing var for 2 dir in statelist (rel mode)
 
-VERSION="20230202a"
+VERSION="20230206a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -209,7 +210,7 @@ fi
 if [ "${TARMODE}" = "abs" ]; then
     STATELIST="${SPLUNK_DB}/modinput ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy"
 else
-    STATELIST="${SPLUNK_DB_REL}/modinput ./var/run/splunk/scheduler ./var/run/splunk/cluster/remote-bundle ./persistentstorage ./fishbucket ./var/run/splunk/deploy"
+    STATELIST="${SPLUNK_DB_REL}/modinput ./var/run/splunk/scheduler ./var/run/splunk/cluster/remote-bundle ${SPLUNK_DB_REL}/persistentstorage ${SPLUNK_DB_REL}/fishbucket ./var/run/splunk/deploy"
 fi
 
 # configuration for scripts backups
@@ -370,7 +371,7 @@ function do_backup_tar() {
     if [ -e "$FIC" ]; then
       FILESIZE=$(/usr/bin/stat -c%s "$FIC")
     else
-      debug_log "FIC=$FIC doesntexist after tar"
+      debug_log "FIC=$FIC doesn't exist after tar"
       FILESIZE=0
     fi
     #echo_log "res=${RES}"
@@ -388,7 +389,7 @@ function do_remote_copy() {
   if [ -e "$FIC" ]; then
     FILESIZE=$(/usr/bin/stat -c%s "$FIC")
   else
-    debug_log "FIC=$FIC doesnt exist !"
+    debug_log "FIC=$FIC doesn't exist !"
     FILESIZE=0
   fi
   START=$(($(date +%s%N)));
@@ -777,10 +778,34 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
   else 
     #debug_log "doing backup scripts via tar";
     FILELIST=${SCRIPTDIR}
-    #tar -zcf ${FIC}  ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
-    do_backup_tar;
-    scripts_done=1
-    LFICSCRIPT=$FIC;
+    FILELIST2=""
+    for i in $FILELIST;
+    do
+      #debug_log "mode=$MODE, i=$i"
+      if [ -e "${backuptardir}/$i" ]; then
+        debug_log "fileverif : $i exist"
+        # Assuming here it contains dir
+        LIS=`ls ${backuptardir}/$i|wc -l`
+        if (( $LIS > 0 )); then 
+          debug_log "fileverif : $i exist and not empty"
+          FILELIST2="${STATELIST2} $i"
+        else
+          debug_log "fileverif : $i exist and  empty, not adding it"
+        fi
+     else
+        debug_log "fileverif : $i NOT exist"
+     fi
+    done
+    debug_log "FILELIST=${STATELIST} FILELIST2=${FILELIST2}"
+    if [ ! -z "${FILELIST2}" ]; then
+
+      #tar -zcf ${FIC}  ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
+      do_backup_tar;
+      scripts_done=1
+      LFICSCRIPT=$FIC;
+    else
+      echo_log "action=backup type=$TYPE object=$OBJECT result=autodisabledempty"
+    fi
   fi
   # debug
   #echo "backup dir contains (tail)"
@@ -797,10 +822,14 @@ OBJECT="kvstore"
 if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || [ "$MODE" == "kvauto" ]; then 
   debug_log "object=kvstore  action=start"
   FIC="disabled"
-  if [ -z ${BACKUPKV+x} ] || [ $BACKUPKV -eq 0 ]; then
-    echo_log "type=$TYPE object=${OBJECT} result=disabled"; 
+  isforwarder=`${SPLUNK_HOME}/bin/splunk version | tail -1 | grep -i forwarder`;
+  if [ -z ${isforwarder+x} ] || [[ "${isforwarder}" =~ "orwarder" ]];  then
+    echo_log "type=$TYPE object=${OBJECT} result=disabled reason=ufdisabled"; 
+  elif [ -z ${BACKUPKV+x} ] || [ $BACKUPKV -eq 0 ]; then
+    echo_log "type=$TYPE object=${OBJECT} result=disabled reason=disabledbyconfiguration"; 
   else
-    version=`${SPLUNK_HOME}/bin/splunk version | cut -d ' ' -f 2`;
+    # we do a tail to get the last line as sometimes there can be warning on first lines so the version is always last line
+    version=`${SPLUNK_HOME}/bin/splunk version | tail -1 | cut -d ' ' -f 2`;
     if [[ $version =~ ^([^.]+\.[^.]+)\. ]]; then
       ver=${BASH_REMATCH[1]}
       debug_log "splunkversion=$ver"
@@ -810,8 +839,11 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
     minimalversion=7.0
     kvbackupmode=taronline
     MESSVER="currentversion=$ver, minimalversionover=${minimalversion}";
+    btoolkvstore=`${SPLUNK_HOME}/bin/splunk btool server list kvstore | grep disabled`;
     splunkconf_checkspace;
-    if [ $ERROR -ne 0 ]; then
+    if [[ $btoolkvstore =~ "true" ]] || [[ $btoolkvstore =~ "1" ]]; then
+      echo_log "type=$TYPE object=${OBJECT} result=disabled reason=kvstoredisabledonsplunkbyconfig";
+    elif [ $ERROR -ne 0 ]; then
       fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
     # bc not present on some os changing if (( $(echo "$ver >= $minimalversion" |bc -l) )); then
     #if [[ $ver \> $minimalversion ]]  && [[ "$MODE" == "0"  || "$MODE" == "kvdump" || "$MODE" == "kvauto" ]]; then
@@ -906,7 +938,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
         echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} ${MESS1}";
 
         START=$(($(date +%s%N)));
-        tar -I ${COMPRESS} -cf ${FIC}  ${FILELIST}
+        tar -I ${COMPRESS} -C${backuptardir} -cf ${FIC}  ${FILELIST}
         RES=$?
         #echo_log "res=${RES}"
         END=$(($(date +%s%N)));
@@ -915,7 +947,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
         if [ -e "$FIC" ]; then
            FILESIZE=$(/usr/bin/stat -c%s "$FIC")
         else
-           debug_log "FIC=$FIC doesntexist after tar"
+           debug_log "FIC=$FIC doesn't exist after tar"
            FILESIZE=0
         fi
         if [ $RES -eq 0 ]; then
@@ -988,17 +1020,23 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
      fi
     done
     debug_log "STATELIST=${STATELIST} STATELIST2=${STATELIST2}" 
-    splunkconf_checkspace;
-    if [ $ERROR -ne 0 ]; then
-      fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
+    if [ ! -z "${STATELIST2}" ]; then 
+      splunkconf_checkspace;
+      if [ $ERROR -ne 0 ]; then
+        fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
+      else
+        #echo_log "doing backup state (modinput and scheduler state) via tar";
+        #result=$(tar -zcf ${FIC}  ${MODINPUTPATH} ${SCHEDULERSTATEPATH} ${STATELIST}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (modinputpath=${MODINPUTPATH} schedulerpath=${SCHEDULERSTATEPATH}  statelist=${STATELIST} result=$result )"
+        FILELIST=${STATELIST2}
+        #result=$(tar -zcf ${FIC} ${FILELIST}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (statelist=${STATELIST} statelist2=${STATELIST2} result=$result )"
+        do_backup_tar;
+        state_done=1
+        LFICSTATE=$FIC;
+      fi
     else
-      #echo_log "doing backup state (modinput and scheduler state) via tar";
-      #result=$(tar -zcf ${FIC}  ${MODINPUTPATH} ${SCHEDULERSTATEPATH} ${STATELIST}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (modinputpath=${MODINPUTPATH} schedulerpath=${SCHEDULERSTATEPATH}  statelist=${STATELIST} result=$result )"
-      FILELIST=${STATELIST2}
-      #result=$(tar -zcf ${FIC} ${FILELIST}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (statelist=${STATELIST} statelist2=${STATELIST2} result=$result )"
-      do_backup_tar;
-      state_done=1
-      LFICSTATE=$FIC;
+      ERROR_MESS="nostatefiles"
+      MESS1=""
+      fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
     fi
   fi
   # if mode explicit state or all

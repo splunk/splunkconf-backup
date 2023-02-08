@@ -101,6 +101,9 @@ The Splunk deployment in normal conditions (ie outside of failures events) is ju
 The usual requirements from Splunk on versions, upgrade requirements, configuration, apps and so are still applicable.
 
 
+Docs :
+Docs are currently spread over multiple parts in each directories
+They are being moved and organized over https://github.com/splunk/splunkconf-backup/wiki as time goes
 
 
 

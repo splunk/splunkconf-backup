@@ -84,8 +84,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20221014 remove logging for remote when unconfigured (to reduce logging footprint)
 # 20230202 optimize renote copy, change logic condition when disabled to imprive logging experience, enable disabled logging to allow dashboard to differentiate missing and disabled state, change logic so that with remote disabled, we now log a disabled entry which make easier to report on dashboard
 # 20230206 add autodisable for scripts, uf detection, autokvdump disable for uf or kvstore disabled, add logic for empty statelist case with specific log, fix missing var for 2 dir in statelist (rel mode)
+# 20230208 add action to some log entries 
 
-VERSION="20230206a"
+VERSION="20230208a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -272,12 +273,12 @@ function splunkconf_checkspace {
   CURRENTAVAIL=`df --output=avail -k  ${LOCALBACKUPDIR} | tail -1`
   if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
     # we dont report the error here in normal case as it will be reported with nore info by the local backup functions
-    debug_log "mode=$MODE, minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} type=localdiskspacecheck reason=insufficientspaceleft action=checkdiskfree result=fail ERROR : Insufficient disk space left , disabling backups ! Please fix "
+    debug_log "action=checkdiskfree mode=$MODE, minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} type=localdiskspacecheck reason=insufficientspaceleft result=fail ERROR : Insufficient disk space left , disabling backups ! Please fix "
     ERROR=1
     ERROR_MESS="localdiskspacecheck"
     return -1
   else
-    debug_log "mode=$MODE, minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} type=localdiskspacecheck action=checkdiskfree result=success min free available OK"
+    debug_log "action=checkdiskfree mode=$MODE, minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} type=localdiskspacecheck result=success min free available OK"
     # dont touch ERROR here, we dont want to overwrite it
     return 0
   fi
@@ -824,9 +825,9 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
   FIC="disabled"
   isforwarder=`${SPLUNK_HOME}/bin/splunk version | tail -1 | grep -i forwarder`;
   if [ -z ${isforwarder+x} ] || [[ "${isforwarder}" =~ "orwarder" ]];  then
-    echo_log "type=$TYPE object=${OBJECT} result=disabled reason=ufdisabled"; 
+    echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=ufdisabled"; 
   elif [ -z ${BACKUPKV+x} ] || [ $BACKUPKV -eq 0 ]; then
-    echo_log "type=$TYPE object=${OBJECT} result=disabled reason=disabledbyconfiguration"; 
+    echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=disabledbyconfiguration"; 
   else
     # we do a tail to get the last line as sometimes there can be warning on first lines so the version is always last line
     version=`${SPLUNK_HOME}/bin/splunk version | tail -1 | cut -d ' ' -f 2`;
@@ -842,7 +843,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
     btoolkvstore=`${SPLUNK_HOME}/bin/splunk btool server list kvstore | grep disabled`;
     splunkconf_checkspace;
     if [[ $btoolkvstore =~ "true" ]] || [[ $btoolkvstore =~ "1" ]]; then
-      echo_log "type=$TYPE object=${OBJECT} result=disabled reason=kvstoredisabledonsplunkbyconfig";
+      echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=kvstoredisabledonsplunkbyconfig";
     elif [ $ERROR -ne 0 ]; then
       fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
     # bc not present on some os changing if (( $(echo "$ver >= $minimalversion" |bc -l) )); then

@@ -22,8 +22,9 @@
 # 20230109 rename to getmycredentials and add splunk admin pwd get from aws secrets 
 # 20230109 add query param to only print value
 # 20230116 fix typo and change output for ssh key first time 
+# 20230214 mykey as input as now dynamic
 
-VERSION="20230116a"
+VERSION="20230214a"
 
 # this is to get ssh key from aws secret manager so you can connect to your instance(s)
 # obviously you need to have the appropriate credentials to do this
@@ -33,14 +34,14 @@ echo "This helper is used to get credentials from AWS so that you can connect to
 echo "It is obviously and absolutely necessary that you have the appropriate credentials or that will fail"
 echo "region and splunk_admin_arn are variables / output of terraform run that you need to provide as inputs (as this is the only way to sort out things if multiple tf have been run in //"
 
-if [ $# -lt 2 ]; then
-  echo "Please provide region and splunk_admin_arn as arguments like $0 us-east-1 arn:aws:secretsmanager:us-east-1:nnnnnnnnn:secret:splunk_admin_pwdxxxxxx"
+if [ $# -lt 3 ]; then
+  echo "Please provide region , splunk_admin_arn and splunk_ssk_key_arn  as arguments like $0 us-east-1 arn:aws:secretsmanager:us-east-1:nnnnnnnnn:secret:splunk_admin_pwdxxxxxxi arn:aws:secretsmanager:us-east-1:nnnnnnnn:secret:splunk_ssh_keyxxxxxxxxxxxxxxxxx-xxxx"
   exit 1
 fi
 
-KEY="mykey"
 REGION=$1
 SPLUNK_ADMIN_ARN=$2
+KEY=$3
 FI="mykey-${REGION}.priv"
 
 if [ -e "$FI" ]; then

@@ -1,6 +1,7 @@
 locals {
   manager_uri="${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
   license_uri="${local.dns-prefix}${var.lm}.${var.dns-zone-name}"
+  deploymentserver_uri="${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
 }
 
 resource "local_file" "ansible_vars_tf" {

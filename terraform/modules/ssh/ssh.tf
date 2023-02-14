@@ -25,7 +25,7 @@ resource "aws_key_pair" "mykey" {
 }
 
 resource "aws_secretsmanager_secret" "mykey" {
-  name = "mykey"
+  name_prefix = "mykey"
 }
 
 resource "aws_secretsmanager_secret_version" "mykey" {

@@ -235,7 +235,9 @@ variable "dsnb" {
 
 variable "lm" {
   type    = string
-  default = "lm"
+  # cm here to colocate lm on cm
+  default = "cm"
+  #default = "lm"
 }
 
 variable "instance-type-lm" {

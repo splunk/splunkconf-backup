@@ -602,8 +602,17 @@ if (-d $INITIALSPLAPPSDIR) {
 }
 
 # if splunkforwarder then it is normal to not create a admin account to reduce attack surface
-unless (-e $SPLUSERSEED || -e $SPLPASSWDFILE || $SPLUNK_SUBSYS eq "splunkforwarder") {
-  if (($cloud_type == 1) && $splunkpwdinit eq "yes") {
+if (-e $SPLPASSWDFILE) {
+  print "splunk pwd file exist, disabling pwd generation\n";
+} elsif (-e $SPLUSERSEED) {
+  print "splunk user seed file provided, disabling pwd generation\n";
+} elsif ($SPLUNK_SUBSYS eq "splunkforwarder") {
+  print "splunkforwarder and user seed not provided, no need for passwd, disabling pwd generation\n";
+} else {
+  print "in pwd init generation\n";
+  if ($splunkpwdinit eq "no") {
+    print "splunkpwd=no disabling pwd generation\n";
+  } elsif (($cloud_type == 1) && $splunkpwdinit eq "yes") {
     print "running in AWS with splunkpwdinit set and no passwd defined or provided by user-seed -> trying to get one or generate \n";
     do {
       $gen++;

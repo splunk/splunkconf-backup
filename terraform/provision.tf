@@ -1,7 +1,8 @@
 locals {
-  manager_uri="${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
-  license_uri="${local.dns-prefix}${var.lm}.${var.dns-zone-name}"
-  deploymentserver_uri="${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
+  manager_name="${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
+  license_manager_name="${local.dns-prefix}${var.lm}.${var.dns-zone-name}"
+  deploymentserver_name="${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
+  smartstore_uri="${aws_s3_bucket.s3_data.id}/smartstore"
 }
 
 resource "local_file" "ansible_vars_tf" {
@@ -13,8 +14,10 @@ resource "local_file" "ansible_vars_tf" {
     pass4symmkeydiscovery: ${local.splunkpass4symmkeyidxdiscovery}
     org: ${var.splunkorg}
     splunkorg: ${var.splunkorg}
-    manager_uri: ${local.manager_uri}
-    license_uri: ${local.license_uri}
+    manager_name: ${local.manager_name}
+    license_name: ${local.license_name}
+    deploymentserver_name=${local.deploymentserver_name}
+    smartstore_uri=${local.smartstore_uri}
     dns_zone_name: ${var.dns-zone-name}
   tasks:
   - name: create directories for target jinja

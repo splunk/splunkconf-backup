@@ -14,22 +14,22 @@
 #  public_key = file("~/.ssh/id_rsa.pub")
 #}
 
-resource "tls_private_key" "mykey" {
+resource "tls_private_key" "splunk_ssh_key" {
   algorithm = var.ssh_algorithm
 }
 
-resource "aws_key_pair" "mykey" {
+resource "aws_key_pair" "splunk_ssh_key" {
   #provider   = aws.region-primary
-  key_name_prefix   = "mykey"
-  public_key = tls_private_key.mykey.public_key_openssh
+  key_name_prefix   = "splunk_ssh_key"
+  public_key = tls_private_key.splunk_ssh_key.public_key_openssh
 }
 
-resource "aws_secretsmanager_secret" "mykey" {
-  name_prefix = "mykey"
+resource "aws_secretsmanager_secret" "splunk_ssh_key" {
+  name_prefix = "splunk_ssh_key"
 }
 
-resource "aws_secretsmanager_secret_version" "mykey" {
-  secret_id     = aws_secretsmanager_secret.mykey.id
-  secret_string = tls_private_key.mykey.private_key_openssh
+resource "aws_secretsmanager_secret_version" "splunk_ssh_key" {
+  secret_id     = aws_secretsmanager_secret.splunk_ssh_key.id
+  secret_string = tls_private_key.splunk_ssh_key.private_key_openssh
 }
 

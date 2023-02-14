@@ -36,7 +36,7 @@ resource "local_file" "ansible_vars_tf" {
   filename = "./ansible_jinja_tf.yml"
 }
 
-resource "null_resource" "bucket_sync" {
+resource "null_resource" "bucket_sync_worker" {
   triggers = {
     always_run = "${timestamp()}"
   }

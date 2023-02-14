@@ -11,7 +11,8 @@ resource "local_file" "ansible_vars_tf" {
 - hosts: 127.0.0.1
   vars:
     pass4symmkeyidx: ${local.splunkpass4symmkeyidx}
-    pass4symmkeydiscovery: ${local.splunkpass4symmkeyidxdiscovery}
+    pass4symmkeyidxdiscovery: ${local.splunkpass4symmkeyidxdiscovery}
+    pass4symmkeyshc: ${local.splunkpass4symmkeyshc}
     org: ${var.splunkorg}
     splunkorg: ${var.splunkorg}
     manager_name: ${local.manager_name}

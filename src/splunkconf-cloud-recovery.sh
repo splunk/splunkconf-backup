@@ -172,8 +172,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230108 fix order of tag inclusion and splunkconfinit option
 # 20230111 change form logic to set hosts for hf and uf except when containing -farm
 # 20230123 add splunkenableunifiedpartition var
+# 20230214 add manager and ds initial apps support
 
-VERSION="20230123a"
+VERSION="20230214a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1296,6 +1297,22 @@ if [ "$MODE" != "upgrade" ]; then
     tar -C "${SPLUNK_HOME}/etc/apps" -zxf ${localinstalldir}/initialtlsapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
   else
     echo "${remotepackagedir}/initialtlsapps.tar.gz not found, trying without but this may lead to a non functional splunk if you enabled custom certificates. This should contain the minimal apps to configure TLS in order to attach to the rest of infrastructure"
+  fi
+  echo "remote : ${remotepackagedir} : copying ds initial apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/deployment-apps (it will only exist if we are a ds) " >> /var/log/splunkconf-cloud-recovery-info.log
+  # copy to local
+  get_object ${remotepackagedir}/initialdsapps.tar.gz ${localinstalldir}
+  if [ -f "${localinstalldir}/initialdsapps.tar.gz"  ]; then
+    tar -C "${SPLUNK_HOME}/etc/deployment-apps" -zxf ${localinstalldir}/initialdsapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
+  else
+    echo "${remotepackagedir}/initialdsapps.tar.gz not found, this is expected if we are not on a ds"
+  fi
+  echo "remote : ${remotepackagedir} : copying manager initial apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/manager-apps " >> /var/log/splunkconf-cloud-recovery-info.log
+  # copy to local
+  get_object ${remotepackagedir}/initialmanagerapps.tar.gz ${localinstalldir}
+  if [ -f "${localinstalldir}/initialmanagerapps.tar.gz"  ]; then
+    tar -C "${SPLUNK_HOME}/etc/manager-apps" -zxf ${localinstalldir}/initialmanagerapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
+  else
+    echo "${remotepackagedir}/initialmanagerapps.tar.gz not found, this is expected if we are not a cm" >> /var/log/splunkconf-cloud-recovery-info.log
   fi
   echo "remote : ${remotepackagedir} : copying splunkcloud uf app to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/apps " >> /var/log/splunkconf-cloud-recovery-info.log
   get_object  ${remotepackagedir}/splunkclouduf.spl ${localinstalldir} 

@@ -173,8 +173,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230111 change form logic to set hosts for hf and uf except when containing -farm
 # 20230123 add splunkenableunifiedpartition var
 # 20230214 add manager and ds initial apps support
+# 20230215 move initial backup and install directory creation after FS to account for potential conflict with FS creation 
 
-VERSION="20230214a"
+VERSION="20230215a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -998,13 +999,7 @@ fi
 # manually create the splunk user so that it will exist for next step   
 useradd --home-dir ${SPLUNK_HOME} --comment "Splunk Server" ${splunkuser} --shell /bin/bash 
 
-# localbackupdir creation
-mkdir -p ${localbackupdir}
-chown ${usersplunk}. ${localbackupdir}
-
-mkdir -p ${localinstalldir}
-chown ${usersplunk}. ${localinstalldir}
-
+# install addition os packages 
 get_packages
 
 
@@ -1052,6 +1047,14 @@ if [ "$MODE" != "upgrade" ]; then
     extend_fs
     PARTITIONFAST="/"
   fi # if idx
+
+  echo "#************************************** BACKUP AND INSTALL DIR STRUCTURE CREATION  ************************"
+  # localbackupdir creation
+  mkdir -p ${localbackupdir}
+  chown ${usersplunk}. ${localbackupdir}
+  mkdir -p ${localinstalldir}
+  chown ${usersplunk}. ${localinstalldir}
+
   echo "#************************************** SWAP MANAGEMENT ************************"
   # swap management
   swapme="splunkconf-swapme.pl"

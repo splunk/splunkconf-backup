@@ -32,7 +32,7 @@ variable "instance-type-indexer-min" {
 
 variable "instance-type-indexer-default" {
   type    = string
-  default = "t3a.nano"
+  default = "t3a.small"
 }
 
 variable "disk-size-idx-a" {
@@ -135,7 +135,7 @@ variable "instance-type-iuf-min" {
 
 variable "instance-type-iuf-default" {
   type    = string
-  default = "t3a.nano"
+  default = "t3a.small"
 }
 
 variable "ihf-nb" {
@@ -163,7 +163,7 @@ variable "instance-type-ihf-min" {
 
 variable "instance-type-ihf-default" {
   type    = string
-  default = "t3a.nano"
+  default = "t3a.small"
 }
 
 variable "disk-size-ihf" {
@@ -184,7 +184,7 @@ variable "instance-type-cm-min" {
 
 variable "instance-type-cm-default" {
   type    = string
-  default = "t3a.nano"
+  default = "t3a.small"
 }
 
 variable "disk-size-cm" {
@@ -213,7 +213,7 @@ variable "instance-type-ds-min" {
 
 variable "instance-type-ds-default" {
   type    = string
-  default = "t3a.nano"
+  default = "t3a.small"
 }
 
 variable "disk-size-ds" {
@@ -242,7 +242,7 @@ variable "lm" {
 
 variable "instance-type-lm" {
   type    = string
-  default = "t3a.nano"
+  default = "t3a.small"
 }
 
 variable "sh" {
@@ -257,7 +257,7 @@ variable "instance-type-sh-min" {
 
 variable "instance-type-sh-default" {
   type    = string
-  default = "t3a.nano"
+  default = "t3a.small"
 }
 
 variable "disk-size-sh" {
@@ -290,7 +290,7 @@ variable "instance-type-mc-min" {
 
 variable "instance-type-mc-default" {
   type    = string
-  default = "t3a.nano"
+  default = "t3a.small"
 }
 
 variable "disk-size-mc" {
@@ -316,7 +316,7 @@ variable "instance-type-hf-min" {
 
 variable "instance-type-hf-default" {
   type    = string
-  default = "t3a.nano"
+  default = "t3a.small"
 }
 
 variable "disk-size-hf" {

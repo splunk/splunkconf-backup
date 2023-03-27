@@ -85,8 +85,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20230202 optimize renote copy, change logic condition when disabled to imprive logging experience, enable disabled logging to allow dashboard to differentiate missing and disabled state, change logic so that with remote disabled, we now log a disabled entry which make easier to report on dashboard
 # 20230206 add autodisable for scripts, uf detection, autokvdump disable for uf or kvstore disabled, add logic for empty statelist case with specific log, fix missing var for 2 dir in statelist (rel mode)
 # 20230208 add action to some log entries 
+# 20230327 fix typo in modinputs path
 
-VERSION="20230208a"
+VERSION="20230327a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -994,7 +995,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
   if [ -z ${BACKUPSTATE+x} ]; then 
     echo_log "action=backup type=$TYPE object=$OBJECT result=disabled"
   else
-    debug_log "start to backup state (modinput , scheduler states, bundle, fishbuckets,....)";
+    debug_log "start to backup state (modinputs , scheduler states, bundle, fishbuckets,....)";
     if [ ${LOCALTYPE} -eq 2 ]; then
       FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
       MESS1="backuptype=stateinstanceoverwrite ";
@@ -1026,7 +1027,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
       if [ $ERROR -ne 0 ]; then
         fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
       else
-        #echo_log "doing backup state (modinput and scheduler state) via tar";
+        #echo_log "doing backup state (modinputs and scheduler state) via tar";
         #result=$(tar -zcf ${FIC}  ${MODINPUTPATH} ${SCHEDULERSTATEPATH} ${STATELIST}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (modinputpath=${MODINPUTPATH} schedulerpath=${SCHEDULERSTATEPATH}  statelist=${STATELIST} result=$result )"
         FILELIST=${STATELIST2}
         #result=$(tar -zcf ${FIC} ${FILELIST}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (statelist=${STATELIST} statelist2=${STATELIST2} result=$result )"

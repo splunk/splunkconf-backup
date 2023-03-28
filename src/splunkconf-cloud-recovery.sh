@@ -178,8 +178,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230328 adding more debug log to identify issue with restoring kvdump
 # 20230328 add more logic to avoid conflict with potential old backups done with previous versions
 # 20230328 changed loop syntax to try to solve kvdump restore issue
+# 20030328 comment the global logic flag for recovery so the new fine grained variable win and work in mixed mode (will work better with the kvdump restore)
 
-VERSION="20230328c"
+VERSION="20230328d"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1495,7 +1496,8 @@ if [ "$MODE" != "upgrade" ]; then
                        tar -I ${compressbin} -C ${backupuntardir} -xf ${localdir}/$FI
                        chown -R ${usersplunk}. ${SPLUNK_HOME}
                    fi
-                   DONE=1
+                   # replaced with xxxxbackfound logic to be more granular and support mixed case
+                   #DONE=1
                else
                    echo "backup form ${FI} not found" >> /var/log/splunkconf-cloud-recovery-info.log
                fi

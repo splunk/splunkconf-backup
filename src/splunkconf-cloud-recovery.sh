@@ -176,8 +176,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230215 move initial backup and install directory creation after FS to account for potential conflict with FS creation 
 # 20230317 up to 9.0.4
 # 20230328 adding more debug log to identify issue with restoring kvdump
+# 20230328 add more logic to avoid conflict with potential old backups done with previous versions
 
-VERSION="20230328a"
+VERSION="20230328b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1401,12 +1402,30 @@ if [ "$MODE" != "upgrade" ]; then
     # getting backups  
     echo "***********Starting to download backups (autodetecting each type)***********" >> /var/log/splunkconf-cloud-recovery-info.log
     kvdumpbackupfound=0
+    etcbackupfound=0
+    statebackupfound=0
+    scriptsbackupfound=0
     for type in etc-targeted state scripts kvdump kvstore;
     do 
        FOUND=0
        if [ ${kvdumpbackupfound} = 1 ]; then
            if [ ${type} = "kvstore" ]; then
                echo "skipping kvstore detection as kvdump present" >> /var/log/splunkconf-cloud-recovery-info.log
+               continue
+           fi
+       elif [ ${type} = "etc-targeted" ]; then
+           if [ ${etcbackupfound} = 1 ]; then
+               echo "${type} backup already found, skipping additional detection" >> /var/log/splunkconf-cloud-recovery-info.log
+               continue
+           fi
+       elif [ ${type} = "state" ]; then
+           if [ ${statebackupfound} = 1 ]; then
+               echo "${type} backup already found, skipping additional detection" >> /var/log/splunkconf-cloud-recovery-info.log
+               continue
+           fi
+       elif [ ${type} = "scripts" ]; then
+           if [ ${scriptsbackupfound} = 1 ]; then
+               echo "${type} backup already found, skipping additional detection" >> /var/log/splunkconf-cloud-recovery-info.log
                continue
            fi
        fi
@@ -1450,6 +1469,14 @@ if [ "$MODE" != "upgrade" ]; then
                           echo "ERROR FATAL : backup $FI was created with zstd but zstd binary could not be deployed to this instance, stopping here to force admin fix that unforeseen situation !" >> /var/log/splunkconf-cloud-recovery-info.log
                           exit 1
                        fi
+                   fi
+                   # if we found backup in the prefered order then we need to remmber it so in case there is a old backup done with a older version that was not cleanup, it will not be used
+                   if [ ${type} = "etc-targeted" ]; then
+                     etcbackupfound=1
+                   elif [ ${type} = "state" ]; then
+                     statebackupfound=1
+                   elif [ ${type} = "scripts" ]; then
+                     scriptsbackupfound=1
                    fi
                    if [ "${type}" = "kvdump" ]; then
                        mv ${localdir}/$FI ${localdir}/backupconfsplunk-kvdump-toberestored.tar.${compress}

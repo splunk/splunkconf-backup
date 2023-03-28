@@ -179,8 +179,11 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230328 add more logic to avoid conflict with potential old backups done with previous versions
 # 20230328 changed loop syntax to try to solve kvdump restore issue
 # 20030328 comment the global logic flag for recovery so the new fine grained variable win and work in mixed mode (will work better with the kvdump restore)
+# 20230328 tune permission on restored backup files (before use)
+# 20230328 fix variable init issue then revert additional logic and debug 
+# 20230328 more cleanup and simplification, avoid duplicate code for scripts-initial
 
-VERSION="20230328d"
+VERSION="20230328f"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1393,12 +1396,12 @@ if [ "$MODE" != "upgrade" ]; then
   get_object ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz ${localbackupdir}
   # setting up permissions for backup
   chown ${usersplunk}. ${localbackupdir}/*.tar.*
-  chmod 500 ${localbackupdir}/*.tar.*
+  chmod 400 ${localbackupdir}/*.tar.*
   if [ -f "${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz"  ]; then
     # excluding this script to avoid restoring a older version from backup
     tar -C "/" --exclude opt/splunk/scripts/splunkconf-aws-recovery.sh --exclude usr/local/bin/splunkconf-aws-recovery.sh --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz
   else
-    echo "${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz not found, trying without. You can use this to package custom scripts to be deployed at installation time" 
+    echo "INFO: ${remotebackupdir}/backupconfsplunk-scripts-initial.tar.gz not found, trying without. You can use this to package custom scripts to be deployed at installation time" 
   fi
   if [ "$RESTORECONFBACKUP" -eq 1 ]; then
     # getting backups  
@@ -1409,25 +1412,11 @@ if [ "$MODE" != "upgrade" ]; then
     scriptsbackupfound=0
     for type in etc-targeted state scripts kvdump kvstore
     do 
-       FOUND=0
-       if [ ${kvdumpbackupfound} = 1 ]; then
+       #FOUND=0
+       DONE=0
+       if [ ${kvdumpbackupfound} = "1" ]; then
            if [ ${type} = "kvstore" ]; then
                echo "skipping kvstore detection as kvdump present" >> /var/log/splunkconf-cloud-recovery-info.log
-               continue
-           fi
-       elif [ ${type} = "etc-targeted" ]; then
-           if [ ${etcbackupfound} = 1 ]; then
-               echo "${type} backup already found, skipping additional detection" >> /var/log/splunkconf-cloud-recovery-info.log
-               continue
-           fi
-       elif [ ${type} = "state" ]; then
-           if [ ${statebackupfound} = 1 ]; then
-               echo "${type} backup already found, skipping additional detection" >> /var/log/splunkconf-cloud-recovery-info.log
-               continue
-           fi
-       elif [ ${type} = "scripts" ]; then
-           if [ ${scriptsbackupfound} = 1 ]; then
-               echo "${type} backup already found, skipping additional detection" >> /var/log/splunkconf-cloud-recovery-info.log
                continue
            fi
        fi
@@ -1436,7 +1425,6 @@ if [ "$MODE" != "upgrade" ]; then
        do  
            for compress in zst gz
            do  
-               echo "DEBUG : getting backup type=$type,mode=$mode,compress=$compress" 
                compressbin="gzip"
                if [ "${compress}" = "zst" ]; then
                    compressbin="zstd"
@@ -1458,12 +1446,11 @@ if [ "$MODE" != "upgrade" ]; then
                     mkdir -p ${localdir}
                     chown ${usersplunk}. ${localdir}
                fi
-               echo "DEBUG : getting backup step2 type=$type,mode=$mode,compress=$compress,extmode=$extmode,compressbin=${compressbin},FI=$FI" 
                get_object ${remotebackupdir}/${FI} ${localdir}
                if [ -e "${localdir}/${FI}" ]; then
                    echo "backup form ${FI} found" >> /var/log/splunkconf-cloud-recovery-info.log
                    # making sure splunk user can access the backup
-                   chmod 500 ${localdir}/$FI
+                   chmod 400 ${localdir}/$FI
                    chown ${usersplunk}. ${localdir}/$FI
                    if [ "${compress}" = "zst" ]; then
                        if ! command -v zstd &> /dev/null
@@ -1472,34 +1459,18 @@ if [ "$MODE" != "upgrade" ]; then
                           exit 1
                        fi
                    fi
-                   # if we found backup in the prefered order then we need to remmber it so in case there is a old backup done with a older version that was not cleanup, it will not be used
-                   if [ ${type} = "etc-targeted" ]; then
-                     etcbackupfound=1
-                   elif [ ${type} = "state" ]; then
-                     statebackupfound=1
-                   elif [ ${type} = "scripts" ]; then
-                     scriptsbackupfound=1
-                   fi
                    if [ "${type}" = "kvdump" ]; then
                        mv ${localdir}/$FI ${localdir}/backupconfsplunk-kvdump-toberestored.tar.${compress}
+                       echo "DEBUG: ${type} backup found"
                        kvdumpbackupfound=1
-                   elif [ "${type}" = "scripts" ]; then
-                       if [ -f "${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz"  ]; then
-                          echo "Deploying ${localdir}/backupconfsplunk-scripts-initial.tar.gz into /" >> /var/log/splunkconf-cloud-recovery-info.log
-                          tar -C "/" --exclude opt/splunk/scripts/splunkconf-aws-recovery.sh --exclude usr/local/bin/splunkconf-aws-recovery.sh --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts-initial.tar.gz
-                       fi
-                       echo "Deploying ${localdir}/$FI into ${backupuntardir}" >> /var/log/splunkconf-cloud-recovery-info.log
-                       tar -I ${compressbin} -C ${backupuntardir} -xf ${localdir}/$FI
-                       chown -R ${usersplunk}. ${SPLUNK_HOME}
                    else   # untarring
                        echo "Deploying ${localdir}/$FI into ${backupuntardir}" >> /var/log/splunkconf-cloud-recovery-info.log
                        tar -I ${compressbin} -C ${backupuntardir} -xf ${localdir}/$FI
                        chown -R ${usersplunk}. ${SPLUNK_HOME}
                    fi
-                   # replaced with xxxxbackfound logic to be more granular and support mixed case
-                   #DONE=1
+                   DONE=1
                else
-                   echo "backup form ${FI} not found" >> /var/log/splunkconf-cloud-recovery-info.log
+                   echo "backup form ${FI} not found, trying next form if applicable" >> /var/log/splunkconf-cloud-recovery-info.log
                fi
                if [[ $DONE == 1 ]]; then
                    break
@@ -1512,31 +1483,9 @@ if [ "$MODE" != "upgrade" ]; then
        if [[ $DONE == 1 ]]; then
            continue
        else
-           echo "attention, no remote backup found for $type (this is expected if you just created the env otherwise you are probably in trouble" 
+           echo "attention, no remote backup found for $type (this is expected if you just created the env otherwise you are probably in trouble)" 
        fi
     done   # type
-#    echo "remote : ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-#    get_object ${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz ${localbackupdir}
-    # at first splunk install, need to recreate the dir and give it to splunk
-#    mkdir -p ${localkvdumpbackupdir};chown ${usersplunk}. ${localkvdumpbackupdir}
-#    echo "remote : ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
-#    get_object ${remotebackupdir}/backupconfsplunk-kvdump.tar.gz ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
-    # making sure splunk user can access the backup 
-#    chown ${usersplunk}. ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
-    # and only
-#    chmod 500 ${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz
-#    echo "remote : ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz " >> /var/log/splunkconf-cloud-recovery-info.log
-#    get_object ${remotebackupdir}/backupconfsplunk-kvstore.tar.gz ${localbackupdir}
-
-#    echo "remote : ${remotebackupdir}/backupconfsplunk-state.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-#    get_object ${remotebackupdir}/backupconfsplunk-state.tar.gz ${localbackupdir}
-
-#    echo "remote : ${remotebackupdir}/backupconfsplunk-scripts.tar.gz" >> /var/log/splunkconf-cloud-recovery-info.log
-#    get_object ${remotebackupdir}/backupconfsplunk-scripts.tar.gz ${localbackupdir}
-
-    # setting up permissions for backup
-#    chown ${usersplunk}. ${localbackupdir}/*.tar.gz
-#    chmod 500 ${localbackupdir}/*.tar.gz
 
     echo "localbackupdir ${localbackupdir}  contains" >> /var/log/splunkconf-cloud-recovery-info.log
     ls -l ${localbackupdir} >> /var/log/splunkconf-cloud-recovery-info.log
@@ -1544,36 +1493,6 @@ if [ "$MODE" != "upgrade" ]; then
     echo "localkvdumpbackupdir ${localkvdumpbackupdir}  contains" >> /var/log/splunkconf-cloud-recovery-info.log
     ls -l ${localkvdumpbackupdir} >> /var/log/splunkconf-cloud-recovery-info.log
 
-    # untarring backups  
-#    if [ -f "${localbackupdir}/backupconfsplunk-etc-targeted.tar.gz"  ]; then
-#      # configuration (will redefine collections as needed)
-#      tar -C "/" -xf ${localbackupdir}/backupconfsplunk-etc-targeted.tar.gz
-#    else
-#      echo "${remotebackupdir}/backupconfsplunk-etc-targeted.tar.gz not found, trying without. This is normal if this is the first time this instance start or for instances without backup such as indexers" 
-#    fi
-    # restore kvstore ONLY if kvdump not present
-#    file="${localkvdumpbackupdir}/backupconfsplunk-kvdump-toberestored.tar.gz"
-#    if [ -e "$file" ]; then
-#      echo "kvdump exist ($file), it will be automatically restored by splunkconf-backup app at one of next Splunk launch " >> /var/log/splunkconf-cloud-recovery-info.log
-#      # when needed kvdump will be restored later as it need to be done online
-#    else 
-#      echo "kvdump backup does not exist. This is normal for indexers, for first time instance creation or for pre 7.1 Splunk. Otherwise please investigate " >> /var/log/splunkconf-cloud-recovery-info.log
-#      file="${localbackupdir}/backupconfsplunk-kvstore.tar.gz"
-#      if [ -e "$file" ]; then
-#         echo "kvstore backup exist and is restored" >> /var/log/splunkconf-cloud-recovery-info.log
-#         tar -C "/" -xf ${localbackupdir}/backupconfsplunk-kvstore.tar.gz
-#      else
-#         echo "Neither kvdump or kvstore backup exist, doing nothing. This is normal for indexers and first time instance creation, investigate otherwise" >> /var/log/splunkconf-cloud-recovery-info.log
-#      fi
-#    fi 
-#    if [ -f "${localbackupdir}/backupconfsplunk-state.tar.gz"  ]; then
-#      tar -C "/" -xf ${localbackupdir}/backupconfsplunk-state.tar.gz
-#    else 
-#      echo "${remotebackupdir}/backupconfsplunk-state.tar.gz not found, trying without"
-#    fi 
-#    if [ -f "${localbackupdir}/backupconfsplunk-scripts.tar.gz"  ]; then
-#      tar -C "/" --exclude opt/splunk/scripts/splunkconf-aws-recovery.sh --exclude usr/local/bin/splunkconf-aws-recovery.sh --exclude opt/splunk/scripts/splunkconf-cloud-recovery.sh --exclude usr/local/bin/splunkconf-cloud-recovery.sh -xf ${localbackupdir}/backupconfsplunk-scripts.tar.gz
-#    fi
     if [ -f "${localinstalldir}/mycerts.tar.gz"  ]; then
       # if we updated certs, we want them to optionally replace the ones in backup
       tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 

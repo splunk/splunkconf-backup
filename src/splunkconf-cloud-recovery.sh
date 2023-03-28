@@ -177,8 +177,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230317 up to 9.0.4
 # 20230328 adding more debug log to identify issue with restoring kvdump
 # 20230328 add more logic to avoid conflict with potential old backups done with previous versions
+# 20230328 changed loop syntax to try to solve kvdump restore issue
 
-VERSION="20230328b"
+VERSION="20230328c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1405,7 +1406,7 @@ if [ "$MODE" != "upgrade" ]; then
     etcbackupfound=0
     statebackupfound=0
     scriptsbackupfound=0
-    for type in etc-targeted state scripts kvdump kvstore;
+    for type in etc-targeted state scripts kvdump kvstore
     do 
        FOUND=0
        if [ ${kvdumpbackupfound} = 1 ]; then
@@ -1430,9 +1431,9 @@ if [ "$MODE" != "upgrade" ]; then
            fi
        fi
        # we are looping with priority so as soon as we find we exit the loop to find the next type
-       for mode in rel abs;
+       for mode in rel abs
        do  
-           for compress in zst gz;
+           for compress in zst gz
            do  
                echo "DEBUG : getting backup type=$type,mode=$mode,compress=$compress" 
                compressbin="gzip"

@@ -175,8 +175,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230214 add manager and ds initial apps support
 # 20230215 move initial backup and install directory creation after FS to account for potential conflict with FS creation 
 # 20230317 up to 9.0.4
+# 20230328 adding more debug log to identify issue with restoring kvdump
 
-VERSION="20230317a"
+VERSION="20230328a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1414,6 +1415,7 @@ if [ "$MODE" != "upgrade" ]; then
        do  
            for compress in zst gz;
            do  
+               echo "DEBUG : getting backup type=$type,mode=$mode,compress=$compress" 
                compressbin="gzip"
                if [ "${compress}" = "zst" ]; then
                    compressbin="zstd"
@@ -1435,6 +1437,7 @@ if [ "$MODE" != "upgrade" ]; then
                     mkdir -p ${localdir}
                     chown ${usersplunk}. ${localdir}
                fi
+               echo "DEBUG : getting backup step2 type=$type,mode=$mode,compress=$compress,extmode=$extmode,compressbin=${compressbin},FI=$FI" 
                get_object ${remotebackupdir}/${FI} ${localdir}
                if [ -e "${localdir}/${FI}" ]; then
                    echo "backup form ${FI} found" >> /var/log/splunkconf-cloud-recovery-info.log

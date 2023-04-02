@@ -182,8 +182,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230328 tune permission on restored backup files (before use)
 # 20230328 fix variable init issue then revert additional logic and debug 
 # 20230328 more cleanup and simplification, avoid duplicate code for scripts-initial
+# 20230402 logic change for splunkpwdinit tag management with more options passed along to splunkconfinit in all cases for AWS and improved logging
 
-VERSION="20230328f"
+VERSION="20230402a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -693,21 +694,22 @@ if [[ "cloud_type" -eq 1 ]]; then
   # AWS
   # tell splunkconfinit we are running in AWS 
   SPLUNKINITOPTIONS+=" --cloud_type=${cloud_type}"
+  if [ -z ${REGION+x} ]; then
+    echo "REGION is not set ! unexpected here , please fix";
+  else
+    SPLUNKINITOPTIONS+=" --region=$REGION" 
+  fi
+  if [ -z ${splunkpwdarn+x} ]; then
+    echo "tag splunkpwdarn is not set ! Please add it if you use tag splunkpwdinit so we can update the secret or you will not be able to get the password !";
+  else
+    SPLUNKINITOPTIONS+=" --splunkpwdarn=$splunkpwdarn" 
+  fi
   if [ "${splunkpwdinit}" == "yes" ]; then
     # tell splunkconfinit (in AWS context) that if user seed was not provided and pwd is not present from backup to create one and store it via AWS secrets
+    echo "tag splunkpwdinit is set ! This instance is allowed to create a pwd if needed"
     SPLUNKINITOPTIONS+=" --splunkpwdinit=yes"
-    if [ -z ${REGION+x} ]; then
-      echo "REGION is not set ! unexpected here , please fix";
-    else
-      SPLUNKINITOPTIONS+=" --region=$REGION" 
-    fi
-    if [ -z ${splunkpwdarn+x} ]; then
-      echo "tag splunkpwdarn is not set ! Please add it when having tag splunkpwdinit so we can update the secret or you will know the pasword !";
-    else
-      SPLUNKINITOPTIONS+=" --splunkpwdarn=$splunkpwdarn" 
-    fi
   else
-    echo "splunkpwdinit tag not present"
+    echo "splunkpwdinit tag not present, this instance wont be  allowed to create pwd itself so it shoudl already have it or another instance should have this tag set"
   fi
 fi
   

@@ -183,8 +183,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230328 fix variable init issue then revert additional logic and debug 
 # 20230328 more cleanup and simplification, avoid duplicate code for scripts-initial
 # 20230402 logic change for splunkpwdinit tag management with more options passed along to splunkconfinit in all cases for AWS and improved logging
+# 20230402 typo fix for sed command for login content adaptation
 
-VERSION="20230402a"
+VERSION="20230402b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1749,7 +1750,7 @@ if [ -z ${splunktargetenv+x} ]; then
   echo "splunktargetenv tag not set , please consider adding it if you want to automatically modify login banner for a test env using prod backups" >> /var/log/splunkconf-cloud-recovery-info.log
 else 
   echo "trying to replace login_content for splunktargetenv=$splunktargetenv"
-  find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "web.conf" -exec grep -l login_content {} \; -exec sed -i -e "s%^.*login_content.*=.*$%This is a <b>$splunktargetenv server</b>.<br>Authorized access only" {} \;  && echo "login_content replaced" || echo "login_content not replaced"
+  find ${SPLUNK_HOME}/etc/apps ${SPLUNK_HOME}/etc/system/local -name "web.conf" -exec grep -l login_content {} \; -exec sed -i -e "s%^.*login_content.*=.*$%This is a <b>$splunktargetenv server</b>.<br>Authorized access only%" {} \;  && echo "login_content replaced" || echo "login_content not replaced"
   envhelperscript="splunktargetenv-for${splunktargetenv}.sh"
   echo "remote : ${remoteinstalldir}/${envhelperscript}" >> /var/log/splunkconf-cloud-recovery-info.log
   get_object ${remoteinstalldir}/${envhelperscript}  ${localinstalldir}

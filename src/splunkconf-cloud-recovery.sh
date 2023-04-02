@@ -184,8 +184,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230328 more cleanup and simplification, avoid duplicate code for scripts-initial
 # 20230402 logic change for splunkpwdinit tag management with more options passed along to splunkconfinit in all cases for AWS and improved logging
 # 20230402 typo fix for sed command for login content adaptation
+# 20230402 fix dir creation for initial managerapps support
 
-VERSION="20230402b"
+VERSION="20230402c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1324,6 +1325,10 @@ if [ "$MODE" != "upgrade" ]; then
   # copy to local
   get_object ${remotepackagedir}/initialmanagerapps.tar.gz ${localinstalldir}
   if [ -f "${localinstalldir}/initialmanagerapps.tar.gz"  ]; then
+    # dir may not exist at this point, need to create it first to populate initial manager apps
+    mkdir -p ${SPLUNK_HOME}/etc/manager-apps
+    chmod 700 ${SPLUNK_HOME}/etc/manager-apps
+    chown ${usersplunk}. ${SPLUNK_HOME}/etc/manager-apps
     tar -C "${SPLUNK_HOME}/etc/manager-apps" -zxf ${localinstalldir}/initialmanagerapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
   else
     echo "${remotepackagedir}/initialmanagerapps.tar.gz not found, this is expected if we are not a cm" >> /var/log/splunkconf-cloud-recovery-info.log

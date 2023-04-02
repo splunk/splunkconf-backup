@@ -111,6 +111,8 @@
 # 20230108 add more arguments region and splunkpwdarn
 # 20230108 add splunkpwdinit support (aws specific)
 # 20230109 remove potential extra line output from rand command
+# 20230329 rework logic block for interacting with AWS SSM for user seed 
+# 20230329 remove commented code to improve readability and add more info  message
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -120,16 +122,9 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20230109a";
+$VERSION="20230329b";
 
-print "Using splunkconf-init version $VERSION\n";
-
-# this part moved to user seed
-# YOU NEED TO SET THE TARGET PASSWORD !
-# it is used on every instance even when you disable web interface
-#my $SPLUNKPWD="changed";
-#die ("You really want to set a GOOD password for splunk admin (ie generate it for example) \nPlease edit the script and read the comments\n") unless ($SPLUNKPWD ne "changed");
-
+print "splunkconf-init version=$VERSION\n";
 
 my $DEBUG=1;
 
@@ -138,7 +133,7 @@ my $MANAGEDSECRET=1; # if true , we have already deployed splunk.secret and dont
 # you can now specify command line args to disable it for initial splunk.secret generation (to generate the first splunk.secret file)
 # $MANAGEDSECRET=0;     # we dont care but we wont be able to push obfuscated password easily
 
-print "managed secret $MANAGEDSECRET \n" if ($DEBUG);
+print "managedsecret=$MANAGEDSECRET \n" if ($DEBUG);
 
 # user for splunk
 my $USERSPLUNK='splunk';
@@ -390,7 +385,7 @@ if ($servicename) {
 my $SUBIN="/bin/su";
 
 if (-e "/bin/su") {
-     print "OK su found in /bin \n" if ($DEBUG);
+     print "INFO: su found in /bin \n" if ($DEBUG);
 } elsif (-e "/usr/bin/su") {
     $SUBIN = "/usr/bin/su";
 } else {
@@ -603,75 +598,107 @@ if (-d $INITIALSPLAPPSDIR) {
 
 # if splunkforwarder then it is normal to not create a admin account to reduce attack surface
 if (-e $SPLPASSWDFILE) {
-  print "splunk pwd file exist, disabling pwd generation\n";
+  print "OK: splunk pwd file exist (from backup or because upgrade)-> Existing passord, all good, no need to fetch user seed or generate one\n";
 } elsif (-e $SPLUSERSEED) {
-  print "splunk user seed file provided, disabling pwd generation\n";
+  print "OK: no existing password yet but splunk user seed file provided, will use this user seed file\n";
 } elsif ($SPLUNK_SUBSYS eq "splunkforwarder") {
-  print "splunkforwarder and user seed not provided, no need for passwd, disabling pwd generation\n";
+  print "OK: this is a splunkforwarder and user seed not provided, no need for admin user account on a splunk forwarder, that is fine\n";
 } else {
-  print "in pwd init generation\n";
-  if ($splunkpwdinit eq "no") {
-    print "splunkpwd=no disabling pwd generation\n";
-  } elsif (($cloud_type == 1) && $splunkpwdinit eq "yes") {
-    print "running in AWS with splunkpwdinit set and no passwd defined or provided by user-seed -> trying to get one or generate \n";
-    do {
-      $gen++;
-      $res=`openssl rand -base64 $length`;
-      chomp($res);
-      print "$res";
-      $res =~ s/^([^=]+)[=]*$/$1/;
-      print "$res";
-
-      if (($res =~ /\d/) && ($res =~/[\\\/\+\-\,\.\%\$]+[=]*/)) {
-        print "res looks ok\n";
-        $valid=1;
-        $hash=`$SPLUNK_HOME/bin/splunk hash-passwd $res`;
-        if ($hash =~ /^\$6\$/) {
-          chomp($hash);
-          print "ok hash $hash\n";
-          my $ssmhash=`aws ssm get-parameter --name splunk-user-seed --query "Parameter.Value" --output text --region $region`;
-          if ($ssmhash) {
-            chomp ($ssmhash);
-            print "existing hash $ssmhash, reusing it\n";
-            $hash=$ssmhash;
-            $newhash=0;
-          } else {
-            print "no ssm param detected, either dont exist or there is a issue\n";
-            print "writing hash=$hash to SSM param splunk-user-seed in region $region\n";
-            my $ssmputres=`  aws ssm put-parameter --name splunk-user-seed --value '$hash' --type String  --region $region`;
-            print "result of ssm put-parameters : $ssmputres\n";
-            my $secres=`aws secretsmanager put-secret-value --secret-id $splunkpwdarn --secret-string '$res' --region $region`;
-            print "result of secretsmanager put-secret-value : $secres\n";
+  print "INFO: no user seed file provided and admin account need to be created\n";
+  if ($cloud_type == 1) {
+    print "INFO: running inside AWS\n";
+    #if ($splunkpwdinit eq "no") {
+    #  print "INFO : splunkpwd=no disabling pwd generation on this instance but we still may try to get a user seed\n";
+    #} elsif (($cloud_type == 1) && $splunkpwdinit eq "yes") {
+    #print "running in AWS with splunkpwdinit set and no passwd defined or provided by user-seed -> trying to get one or generate \n";
+    $res="";
+    $hash=""; 
+    if ($splunkpwdinit eq "yes") {
+      # pre generating new hash before checking AWS to reduce race condition risk 
+      do {
+        $gen++;
+        $res=`openssl rand -base64 $length`;
+        chomp($res);
+        print "$res";
+        $res =~ s/^([^=]+)[=]*$/$1/;
+        print "$res";
+        if (($res =~ /\d/) && ($res =~/[\\\/\+\-\,\.\%\$]+[=]*/)) {
+          print "res looks ok, using generated value\n";
+          $hash=`$SPLUNK_HOME/bin/splunk hash-passwd $res`;
+          if ($hash =~ /^\$6\$/) {
+            chomp($hash);
+            print "ok hash $hash\n";
+            $valid=1;
           }
-          open(FH, '>', ${SPLUSERSEED}) or die $!;
-          $str= <<EOF;
+         }
+      } until ($valid==1 || $gen>=$maxgen );
+      if ($valid==1) {
+        print "pwd gen ok in $gen attempts\n";
+      } else {
+        print "pwd gen ko after $gen attempts. Impossible to generate a valid pwd, something is wrong, please check and correct os and splunk installation\n";
+      }
+    }
+    my $ssmhash=`aws ssm get-parameter --name splunk-user-seed --query "Parameter.Value" --output text --region $region`;
+    my $found=0;           
+    if ($ssmhash) {
+      chomp ($ssmhash);
+      print "INFO : got existing hash $ssmhash via SSM, using this for user seed\n";
+      $hash=$ssmhash;
+      $newhash=0;
+      $valid=0;
+      $found=1;
+    } elsif ( ($splunkpwdinit eq "yes") && ($valid == 1) ) {
+      print "user seed not present via ssm iand splunkpwdinit set, seeding SSM and secrets manager with new password\n";
+      print "writing hash=$hash to SSM param splunk-user-seed in region $region\n";
+      my $ssmputres=`  aws ssm put-parameter --name splunk-user-seed --value '$hash' --type String  --region $region`;
+      print "result of ssm put-parameters : $ssmputres\n";
+      my $secres=`aws secretsmanager put-secret-value --secret-id $splunkpwdarn --secret-string '$res' --region $region`;
+      print "result of secretsmanager put-secret-value : $secres\n";
+      $found=1;
+    } else {
+      print "initial ssm get failed, waiting a bit for other instance with splunkpwdinit set to start and populate it\n";
+      my $try=0;
+      my $maxtry=10;
+      do {
+        $try++;
+        $ssmhash=`aws ssm get-parameter --name splunk-user-seed --query "Parameter.Value" --output text --region $region`;
+        if ($ssmhash) {
+          chomp ($ssmhash);
+          print "INFO : got existing hash $ssmhash via SSM, using this for user seed\n";
+          $hash=$ssmhash;
+          $newhash=0;
+          $valid=0;
+          $found=1;
+        } else {
+          print "waiting 10s before retrying (waiting for other potential instance) ($try/$maxtry)\n";
+          sleep 10;
+        }
+      } until ($found==1 || $try>=$maxtry );
+      if ($found == 0) {
+        print "FAIL: ************* splunkpwdinit disabled and no other instance has generated a user seed, something is wrong, make sure you enable at least one instance with splunkpwdinit enabled\n";
+        print "INFO: Your instance will not have pwd set, you may later configure by providing a user-seed.conf\n";
+      }
+    }
+    if ($found == 1) {
+      print "generating user-seed.conf file\n";
+      open(FH, '>', ${SPLUSERSEED}) or die $!;
+      $str= <<EOF;
 # this file was generated by splunkconf-init
 [user_info]
 USERNAME = admin
 HASHED_PASSWORD = $hash
 
 EOF
-          print "Writing to file $SPLUSERSEED with content \n $str\n";
-          print FH $str;
-          close(FH);
-          `chown $USERSPLUNK. $SPLUSERSEED`;
-        } else {
-          print "ko hash $hash\n";
-          $valid=0;
-        };
-      } else {
-        print "KO\n";
-      }
-    } until ($valid==1 || $gen>=$maxgen );
-    if ($valid==1) {
-      print "pwd gen ok in $gen attempts\n";
-    } else {
-      print "pwd gen ko after $gen attempts. Impossible to generate a valid pwd, check complexity requirement versus length are aligned\n";
+      print "Writing to file $SPLUSERSEED with content \n $str\n";
+      print FH $str;
+      close(FH);
+      `chown $USERSPLUNK. $SPLUSERSEED`;
     }
+  # end if cloud type == AWS
   } elsif ($no_prompt) {
     print "this is a new installation of splunk. Please provide a user-seed.conf with the initial admin password as described in https://docs.splunk.com/Documentation/Splunk/latest/Admin/User-seedconf you should probably use splunk hash-passwd commend to generate directly the hashed version  \n";
     #die("") unless ($dry_run);
-  } else {
+  } else { # we still havent one but we are interactive mode so we have a human who can answer our questions so we can generate user seed 
     print "You havent provided a user-seed.conf file, that is used to initiate the admin account, let's create one\n";
     print "enter admin account name (enter to use admin)(do NOT change admin name for premium apps)\n";
     my $name=<STDIN>;
@@ -697,8 +724,8 @@ ENDING
    close(FF);
    print "backuping user-seed.conf file to /tmp. You can reuse this file to prevent being prompted and for scripter installation\n";
    `cp $SPLUSERSEED /tmp/user-seed.conf;chmod 600 /tmp/user-seed.conf`;
-  }
-}
+  } 
+} # end else condition
 
 # to be able to reread password obfuscated with splunk.secret,
 #  we need to save and restore this file before splunk restart (or a new one would be created and all the password saved would not be readable by Splunk

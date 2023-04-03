@@ -187,7 +187,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230402 fix dir creation for initial managerapps support
 # 20230403 add default value false for splunkenableunifiedpartition when unset
 
-VERSION="20230403a"
+VERSION="20230403b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -351,7 +351,7 @@ get_packages () {
 setup_disk () {
 
     DEVNUM=1
-    if [[ $splunkenableunifiedpartition -eq "true" ]]; then
+    if [[ "$splunkenableunifiedpartition" == "true" ]]; then
       echo "Usimg unified partition mode"
       MOUNTPOINT="$SPLUNK_HOME"
     else

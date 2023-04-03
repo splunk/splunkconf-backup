@@ -185,8 +185,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230402 logic change for splunkpwdinit tag management with more options passed along to splunkconfinit in all cases for AWS and improved logging
 # 20230402 typo fix for sed command for login content adaptation
 # 20230402 fix dir creation for initial managerapps support
+# 20230403 add default value false for splunkenableunifiedpartition when unset
 
-VERSION="20230402c"
+VERSION="20230403a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -690,6 +691,11 @@ elif [ "${splunksystemd}" == "auto" ]; then
   echo "systemd tag set to auto -> default"
 else
   echo "unsupported/unknown value for splunksystemd:${splunksystemd} , falling back to default"
+fi
+
+if [ -z ${splunkenableunifiedpartition+x} ]; then 
+  echo "splunkenableunifiedpartition is unset, falling back to default value false"
+  splunkenableunifiedpartition="false"
 fi
 
 if [[ "cloud_type" -eq 1 ]]; then

@@ -113,6 +113,7 @@
 # 20230109 remove potential extra line output from rand command
 # 20230329 rework logic block for interacting with AWS SSM for user seed 
 # 20230329 remove commented code to improve readability and add more info  message
+# 20230405 update wlm default pools
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -122,7 +123,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20230329b";
+$VERSION="20230405a";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -960,23 +961,25 @@ if ($enablesystemd==1 && !$disablewlm) {
   my $wlmconf= <<'EOF';
 [general]
 enabled = true
-default_pool = Standard
+default_pool = standard_perf
 ingest_pool = ingest
 workload_pool_base_dir_name = splunk
 
 [workload_category:search]
-cpu_weight = 70
-mem_weight = 70
+cpu_weight = 65
+# mem_weight = 55
+mem_weight = 100
 
 [workload_category:ingest]
 cpu_weight = 20
 mem_weight = 100
 
 [workload_category:misc]
-cpu_weight = 10
-mem_weight = 10
+cpu_weight = 15
+# mem_weight = 40
+mem_weight = 100
 
-[workload_pool:Standard]
+[workload_pool:standard_perf]
 cpu_weight = 35
 mem_weight = 100
 category = search
@@ -994,15 +997,15 @@ mem_weight = 100
 category = misc
 default_category_pool = 1
 
-[workload_pool:HighPriority]
+[workload_pool:high_perf]
 cpu_weight = 60
-mem_weight = 90
+mem_weight = 100
 category = search
 default_category_pool = 0
 
-[workload_pool:LowPriority]
+[workload_pool:limited_perf]
 cpu_weight = 5
-mem_weight = 90
+mem_weight = 100
 category = search
 default_category_pool = 0
 

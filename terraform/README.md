@@ -1,4 +1,11 @@
 
+# Wiki
+
+Most content has been moved and reorganized in wiki
+Please see https://github.com/splunk/splunkconf-backup/wiki 
+
+# Legacy readme
+
 Quick and fast guide for deploying a env
 
 by default the terraform is configured for a test env (with minimal cloud cost)  

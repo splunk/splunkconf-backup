@@ -187,8 +187,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230402 fix dir creation for initial managerapps support
 # 20230403 add default value false for splunkenableunifiedpartition when unset
 # 20230403 more regex fix for login_content adaptation
+# 20230414 add yum option to work around conflict with AMI2023 and curl-minimal package
 
-VERSION="20230403c"
+VERSION="20230414a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -342,7 +343,7 @@ get_packages () {
     fi
 
     # one yum command so yum can try to download and install in // which will improve recovery time
-    yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y
+    yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y --skip-broken
     # disable as scan in permanence and not needed for splunk
     systemctl stop log4j-cve-2021-44228-hotpatch
     systemctl disable log4j-cve-2021-44228-hotpatch

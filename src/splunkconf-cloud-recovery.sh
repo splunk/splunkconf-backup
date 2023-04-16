@@ -190,8 +190,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230414 add yum option to work around conflict with AMI2023 and curl-minimal package
 # 20230416 add manager_uri form for cm tag replacement in addition to master_uri
 # 20230416 add missing manager-apps for multi ds (for consistency)
+# 20230417 add splunkconf-backup-etc-terminate-helper service
 
-VERSION="20230416b"
+VERSION="20230416c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1997,6 +1998,49 @@ if [ "$MODE" != "upgrade" ]; then
   fi
 fi # if not upgrade
 
+# ***********************************  SETUP BACKUP SERVICE AT SHUTDOWN FOR NON IDX-iuf/iuh farms  ****************************
+# better to do this after setup as the dependency for services will exist
+if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
+  echo "specific instance name : setting up backup services for shutddow"
+  if [ $SYSVER -eq "6" ]; then
+    echo "running non systemd os , we wont add a custom service to terminate"
+  else
+    echo "running systemd os , adding backup terminate services"
+    # this service is ran at stop when a instance is terminated cleanly 
+    # we dont want to run this each time the service stop for cases such as rolling restart or system reboot
+    read -d '' SYSTERMINATE << EOF
+[Unit]
+Description=splunkconf-backup etc terminate helper Service
+Before=poweroff.target shutdown.target halt.target
+# so that it will stop before splunk systemd unit stop
+Wants=splunk.target
+Requires=network-online.target network.target sshd.service
+
+[Service]
+WorkingDirectory=$SPLUNK_HOME/etc/apps
+KillMode=none
+ExecStart=/bin/true
+#ExecStop=/bin/bash -c "/usr/bin/su - splunk -s /bin/bash -c \'/usr/local/bin/splunkconf-aws-terminate-idx\'";true
+ExecStop=/bin/bash $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup-etc.sh
+RemainAfterExit=yes
+Type=oneshot
+# stop after 15 min anyway as a safeguard, the shell script should use a timeout below that value
+TimeoutStopSec=15min
+User=splunk
+Group=splunk
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+    echo "$SYSTERMINATE" > /etc/systemd/system/splunkconf-backup-etc-terminate-helper.service
+    systemctl daemon-reload
+    systemctl enable splunkconf-backup-etc-terminate-helper.service
+
+    # here -> more stuff for other backups
+fi
+
+# ***********************************  ADDITIONAL POST SETUP ACTIONS   ****************************
 # always download even in upgrade mode
 
 # create script dir if not exist and give it to splunk user

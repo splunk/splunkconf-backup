@@ -1,9 +1,9 @@
 
 # also for module
 variable "dns-zone-name" {
-  description = "Please give here a public dns sub zone like splunk.acme.com that is cloud managed so we can publish dns entries in it as instances start and stop"
+  description = "Please give here a public dns sub zone like splunk.cloud.acme.com that is cloud managed so we can publish dns entries in it as instances start and stop"
   type        = string
-  default     = "splunk.acme.com"
+  default     = "splunk.cloud.acme.com"
 }
 
 variable "enable_lambda_route53" {
@@ -22,7 +22,7 @@ variable "enable-ns-glue-aws"{
 variable "dns-zone-name-top" {
   description = "dns-zone-name should be a subzone of this one (that existing, not managed by TF and that you control in order to be able to create NS record in it (to delegate sub zone so the DNS update we do are visible from outside) (if top zone outside cloud or cant be updated by TF, please create NS in it) (certificate generations via cloud mechanisms wont work without it as this mean you cant prove the zone is yours)"
   type        = string
-  default     = "could.acme.com"
+  default     = "cloud.acme.com"
 }
 
 variable "ns_ttl" {

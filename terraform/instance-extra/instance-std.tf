@@ -221,7 +221,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-std" {
 resource "aws_launch_template" "splunk-std" {
   provider = aws.region-primary
   #name          = "splunk-std"
-  name_prefix   = "launch-template-splunk-std"
+  name_prefix   = "splunk-std-"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"

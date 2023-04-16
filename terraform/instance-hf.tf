@@ -204,7 +204,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
 resource "aws_launch_template" "splunk-hf" {
   provider = aws.region-primary
   #name          = "splunk-hf"
-  name_prefix   = "launch-template-splunk-hf"
+  name_prefix   = "splunk-hf-"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"

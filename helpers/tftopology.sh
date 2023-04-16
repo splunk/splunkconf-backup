@@ -21,8 +21,9 @@
 # 20221229 initial version
 # 20230115 add support for env variable as input to allow store input via GH secret
 # 20230115 using upper case as GH automatically move to uppercase 
+# 20230416 fix info message in local topo mode
 
-VERSION="20230115b"
+VERSION="20230416a"
 
 # This script move instance tf files from and to instances-extra based on the content of topology.txt
 # This simplify terraform by only populating with the files to be used and reducing creation of unused objects
@@ -53,9 +54,9 @@ if [[ -z "${TOPOLOGY}" ]]; then
   status=0
 
   if [ -e "$filenamelocal" ]; then
-    echo "OK local topology file found at $filename"
     # removing terraform dir as we are going to cd into it
     filename='topology-local.txt'
+    echo "OK local topology file found at $filename"
   elif [ -e "$filename" ]; then
     echo "OK topology file found at $filename, please consider using a local version by creating ${filename-local} to prevent conflict when updating git files later on"
     # removing terraform dir as we are going to cd into it

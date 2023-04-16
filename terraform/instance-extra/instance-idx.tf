@@ -344,7 +344,8 @@ resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
 }
 
 resource "aws_launch_template" "splunk-idx" {
-  name          = "splunk-idx"
+  #name          = "splunk-idx"
+  name_prefix    = "splunk-idx-"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = local.ssh_key_name
   instance_type = local.instance-type-indexer

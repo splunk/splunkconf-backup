@@ -164,7 +164,8 @@ resource "aws_autoscaling_group" "autoscaling-splunk-mc" {
 }
 
 resource "aws_launch_template" "splunk-mc" {
-  name          = "splunk-mc"
+  #name          = "splunk-mc"
+  name_prefix    = "splunk-mc-"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"

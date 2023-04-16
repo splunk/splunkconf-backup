@@ -234,7 +234,8 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
 }
 
 resource "aws_launch_template" "splunk-ds" {
-  name          = "splunk-ds"
+  #name          = "splunk-ds"
+  name_prefix    = "splunk-ds-"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"

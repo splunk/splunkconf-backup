@@ -298,7 +298,8 @@ resource "aws_security_group_rule" "lb_outbound_hecidx" {
 
 # ASG
 resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
-  name                = "asg-splunk-idx"
+  #name                = "asg-splunk-idx"
+  name_prefix          = "asg-splunk-idx-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = var.idx-nb
   max_size            = var.idx-nb

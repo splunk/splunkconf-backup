@@ -2,6 +2,7 @@
 # include modules
 
 module "network" {
+  create = var.create_network_module 
   source = "./modules/network"
   profile=var.profile
   splunktargetenv=var.splunktargetenv

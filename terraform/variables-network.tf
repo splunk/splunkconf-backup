@@ -1,3 +1,7 @@
+variable "create_network_module" {
+  type = bool
+  default = true
+}
 
 # this is for network.tf 
 # for existing vpc and networks, you probably already have these defined

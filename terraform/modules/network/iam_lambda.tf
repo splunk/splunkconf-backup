@@ -1,5 +1,6 @@
 
 data "template_file" "pol-splunk-route53-updatednsrecords-forlambda" {
+  count = var.create ? 1 : 0
   template = file("policy-aws/pol-splunk-route53-updatednsrecords-forlambda.json.tpl")
 
   vars = {
@@ -10,6 +11,7 @@ data "template_file" "pol-splunk-route53-updatednsrecords-forlambda" {
 }
 
 resource "aws_iam_policy" "pol-splunk-route53-updatednsrecords-forlambda" {
+  count = var.create ? 1 : 0
   name_prefix = "splunkconf_route53_updatednsrecords_forlambda"
   # ... other configuration ...
   #statement {
@@ -21,10 +23,12 @@ resource "aws_iam_policy" "pol-splunk-route53-updatednsrecords-forlambda" {
 }
 
 data "template_file" "pol-splunk-lambda-asg" {
+  count = var.create ? 1 : 0
   template = file("policy-aws/pol-splunk-asg.json.tpl")
 }
 
 resource "aws_iam_policy" "pol-splunk-lambda-asg" {
+  count = var.create ? 1 : 0
   description = "Permissions needed specific for ASG Lambda execution"
   #provider    = aws.region-primary
   policy      = data.template_file.pol-splunk-lambda-asg.rendered
@@ -32,11 +36,13 @@ resource "aws_iam_policy" "pol-splunk-lambda-asg" {
 
 
 data "template_file" "pol-splunk-cloudwatch-write" {
+  count = var.create ? 1 : 0
   template = file("policy-aws/cloudwatchwritepolicy.json")
 
 }
 
 resource "aws_iam_policy" "pol-splunk-cloudwatch-write" {
+  count = var.create ? 1 : 0
   # ... other configuration ...
   #statement {
   #  sid = "pol-splunk-smartstore-${var.profile}-$(var.region-primary}-${var.splunktargetenv}"

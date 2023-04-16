@@ -190,9 +190,10 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230414 add yum option to work around conflict with AMI2023 and curl-minimal package
 # 20230416 add manager_uri form for cm tag replacement in addition to master_uri
 # 20230416 add missing manager-apps for multi ds (for consistency)
-# 20230417 add splunkconf-backup-etc-terminate-helper service
+# 20230416 add splunkconf-backup-etc-terminate-helper service
+# 20230416 fix for previous update
 
-VERSION="20230416c"
+VERSION="20230416d"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2038,6 +2039,7 @@ EOF
     systemctl enable splunkconf-backup-etc-terminate-helper.service
 
     # here -> more stuff for other backups
+  fi
 fi
 
 # ***********************************  ADDITIONAL POST SETUP ACTIONS   ****************************

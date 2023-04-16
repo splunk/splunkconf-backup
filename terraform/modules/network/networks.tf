@@ -15,7 +15,7 @@ resource "aws_vpc" "vpc_master" {
 resource "aws_internet_gateway" "igw" {
   count = var.create ? 1 : 0
   #provider = aws.region-primary
-  vpc_id   = aws_vpc.vpc_master.id
+  vpc_id   = aws_vpc.vpc_master[0].id
 }
 
 
@@ -32,7 +32,7 @@ resource "aws_subnet" "subnet_pub_1" {
   count = var.create ? 1 : 0
   #provider          = aws.region-primary
   availability_zone = element(data.aws_availability_zones.azs.names, 0)
-  vpc_id            = aws_vpc.vpc_master.id
+  vpc_id            = aws_vpc.vpc_master[0].id
   cidr_block        = var.cidr_subnet_pub_1
 }
 
@@ -41,8 +41,8 @@ resource "aws_subnet" "subnet_pub_1" {
 resource "aws_subnet" "subnet_pub_2" {
   count = var.create ? 1 : 0
   #provider          = aws.region-primary
-  vpc_id            = aws_vpc.vpc_master.id
-  availability_zone = element(data.aws_availability_zones.azs.names, 1)
+  vpc_id            = aws_vpc.vpc_master[0].id
+  availability_zone = element(data.aws_availability_zones.azs[0].names, 1)
   cidr_block        = var.cidr_subnet_pub_2
 }
 
@@ -50,8 +50,8 @@ resource "aws_subnet" "subnet_pub_2" {
 resource "aws_subnet" "subnet_pub_3" {
   count = var.create ? 1 : 0
   #provider          = aws.region-primary
-  vpc_id            = aws_vpc.vpc_master.id
-  availability_zone = element(data.aws_availability_zones.azs.names, 2)
+  vpc_id            = aws_vpc.vpc_master[0].id
+  availability_zone = element(data.aws_availability_zones.azs[0].names, 2)
   cidr_block        = var.cidr_subnet_pub_3
 }
 
@@ -59,10 +59,10 @@ resource "aws_subnet" "subnet_pub_3" {
 resource "aws_route_table" "internet_route" {
   count = var.create ? 1 : 0
   #provider = aws.region-primary
-  vpc_id   = aws_vpc.vpc_master.id
+  vpc_id   = aws_vpc.vpc_master[0].id
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
+    gateway_id = aws_internet_gateway.igw[0].id
   }
   lifecycle {
     ignore_changes = all
@@ -76,8 +76,8 @@ resource "aws_route_table" "internet_route" {
 resource "aws_main_route_table_association" "set-master-default-rt-assoc" {
   count = var.create ? 1 : 0
   #provider       = aws.region-primary
-  vpc_id         = aws_vpc.vpc_master.id
-  route_table_id = aws_route_table.internet_route.id
+  vpc_id         = aws_vpc.vpc_master[0].id
+  route_table_id = aws_route_table.internet_route[0].id
 }
 
 
@@ -85,8 +85,8 @@ resource "aws_main_route_table_association" "set-master-default-rt-assoc" {
 resource "aws_subnet" "subnet_priv_1" {
   count = var.create ? 1 : 0
   #provider          = aws.region-primary
-  availability_zone = element(data.aws_availability_zones.azs.names, 0)
-  vpc_id            = aws_vpc.vpc_master.id
+  availability_zone = element(data.aws_availability_zones.azs[0].names, 0)
+  vpc_id            = aws_vpc.vpc_master[0].id
   cidr_block        = var.cidr_subnet_priv_1
 }
 
@@ -95,8 +95,8 @@ resource "aws_subnet" "subnet_priv_1" {
 resource "aws_subnet" "subnet_priv_2" {
   count = var.create ? 1 : 0
   #provider          = aws.region-primary
-  vpc_id            = aws_vpc.vpc_master.id
-  availability_zone = element(data.aws_availability_zones.azs.names, 1)
+  vpc_id            = aws_vpc.vpc_master[0].id
+  availability_zone = element(data.aws_availability_zones.azs[0].names, 1)
   cidr_block        = var.cidr_subnet_priv_2
 }
 
@@ -104,8 +104,8 @@ resource "aws_subnet" "subnet_priv_2" {
 resource "aws_subnet" "subnet_priv_3" {
   count = var.create ? 1 : 0
   #provider          = aws.region-primary
-  vpc_id            = aws_vpc.vpc_master.id
-  availability_zone = element(data.aws_availability_zones.azs.names, 2)
+  vpc_id            = aws_vpc.vpc_master[0].id
+  availability_zone = element(data.aws_availability_zones.azs[0].names, 2)
   cidr_block        = var.cidr_subnet_priv_3
 }
 

@@ -375,7 +375,7 @@ variable "deleteddata-retention" {
 }
 
 variable "s2days-1-ia" {
-  description = "number of days for data in smartstore prefix (main) before transition to STANDARD_IA by lifecyclei (30 days mini)"
+  description = "number of days for data in smartstore prefix (main) before transition to STANDARD_IA by lifecycle (30 days mini)"
   type        = number
   default     = 30
 }
@@ -500,6 +500,6 @@ variable "generateuserseed" {
 
 variable "splunkpwdinit" {
   type        = string
-  description = "whether to generate user seed from splunkconf-init when not present(default to yes) "
+  description = "whether to generate user seed from splunkconf-init when not present (default to yes) "
   default     = "yes"
 }

@@ -63,7 +63,7 @@ variable "enable-s3-reverse-replication-backup" {
 }
 
 variable "enable-fss3-policy" {
-  description = "Whether to enable fs s3 policy which will require principal variable to be configured correctlyi (default : false) "
+  description = "Whether to enable fs s3 policy which will require principal variable to be configured correctly (default : false) "
   type        = bool
   default     = "false"
 }

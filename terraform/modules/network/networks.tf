@@ -31,7 +31,7 @@ data "aws_availability_zones" "azs" {
 resource "aws_subnet" "subnet_pub_1" {
   count = var.create ? 1 : 0
   #provider          = aws.region-primary
-  availability_zone = element(data.aws_availability_zones.azs.names, 0)
+  availability_zone = element(data.aws_availability_zones.azs[0].names, 0)
   vpc_id            = aws_vpc.vpc_master[0].id
   cidr_block        = var.cidr_subnet_pub_1
 }

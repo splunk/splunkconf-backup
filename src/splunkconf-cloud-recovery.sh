@@ -189,8 +189,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230403 more regex fix for login_content adaptation
 # 20230414 add yum option to work around conflict with AMI2023 and curl-minimal package
 # 20230416 add manager_uri form for cm tag replacement in addition to master_uri
+# 20230416 add missing manager-apps for multi ds (for consistency)
 
-VERSION="20230416a"
+VERSION="20230416b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1915,6 +1916,7 @@ if [[ "${instancename}" =~ ds ]]  && [ ! -z ${splunkdsnb+x} ] && [[ $splunkdsnb 
   ${localrootscriptdir}/splunkconf-ds-lb.sh 
   echo "creating fake structure and files for splunkconf-backup not to complain and report failures when backuping (as we only car about deployment-apps related stuff)"
   mkdir -p ${SPLUNK_HOME}/etc/master-apps
+  mkdir -p ${SPLUNK_HOME}/etc/manager-apps
   mkdir -p ${SPLUNK_HOME}/etc/shcluster
   touch ${SPLUNK_HOME}/etc/passwd
   mkdir -p ${SPLUNK_HOME}/etc/openldap

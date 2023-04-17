@@ -70,6 +70,12 @@ variable "nat_gateway_ha" {
 #  default     = "10.0.0.0/16"
 #}
 
+variable "vpc_id_import" {
+  description = "existing id imported when reusing a existing network created outside this terraform"
+  type        = string
+  default = "null"
+}
+
 variable "cidr_subnet_pub_1_id_import" {
   description = "existing id imported when reusing a existing network created outside this terraform"
   type        = string

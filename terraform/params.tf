@@ -3,6 +3,7 @@ resource "aws_ssm_parameter" "splunkorg" {
   description = "Organisation"
   type        = "String"
   value       = var.splunkorg
+  overwrite   = true
 
   tags = {
     environment = var.splunktargetenv

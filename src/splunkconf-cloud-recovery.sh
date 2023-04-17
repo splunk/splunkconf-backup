@@ -192,8 +192,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230416 add missing manager-apps for multi ds (for consistency)
 # 20230416 add splunkconf-backup-etc-terminate-helper service
 # 20230416 fix for previous update
+# 20230417 remove master-apps untarring to prevent conflict with manager-apps
 
-VERSION="20230416d"
+VERSION="20230417a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1382,19 +1383,19 @@ if [ "$MODE" != "upgrade" ]; then
       echo "${remotepackagedir}/initialdsapps.tar.gz not found, trying without but this may lead to a non functional splunk. This should contain the minimal ds apps deployed to rest of infra and referenced in serverclass configured via deploymentserver app"
     fi
   fi
-  if [[ "${instancename}" =~ cm ]]; then
-    echo "remote : ${remotepackagedir} : copying initial manager(ex master) apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/master-apps (for the moment, not the logic to avoid conflict between master-apps and manager-apps) " >> /var/log/splunkconf-cloud-recovery-info.log
-    # FIXME : we need to add logic for v9+ new directory and manage conflicts 
-    echo "WARNING ! Assuming master-apps is used , update to newer recovery uf you want to use manager-apps on v9+"
-    # copy to local
-    get_object ${remotepackagedir}/initialmanagerapps.tar.gz ${localinstalldir} 
-    if [ -f "${localinstalldir}/initialmanagerapps.tar.gz"  ]; then
-      mkdir -p "${SPLUNK_HOME}/etc/master-apps"
-      tar -C "${SPLUNK_HOME}/etc/master-apps" -zxf ${localinstalldir}/initialmanagerapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
-    else
-      echo "${remotepackagedir}/initialmanagerapps.tar.gz not found, trying without but this may lead to a non functional splunk. This should contain the apps push from cm to idx"
-    fi
-  fi
+  #if [[ "${instancename}" =~ cm ]]; then
+  #  echo "remote : ${remotepackagedir} : copying initial manager(ex master) apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/master-apps (for the moment, not the logic to avoid conflict between master-apps and manager-apps) " >> /var/log/splunkconf-cloud-recovery-info.log
+  #  # FIXME : we need to add logic for v9+ new directory and manage conflicts 
+  #  echo "WARNING ! Assuming master-apps is used , update to newer recovery uf you want to use manager-apps on v9+"
+  #  # copy to local
+  #  get_object ${remotepackagedir}/initialmanagerapps.tar.gz ${localinstalldir} 
+  #  if [ -f "${localinstalldir}/initialmanagerapps.tar.gz"  ]; then
+  #    mkdir -p "${SPLUNK_HOME}/etc/master-apps"
+  #    tar -C "${SPLUNK_HOME}/etc/master-apps" -zxf ${localinstalldir}/initialmanagerapps.tar.gz >> /var/log/splunkconf-cloud-recovery-info.log
+  #  else
+  #    echo "${remotepackagedir}/initialmanagerapps.tar.gz not found, trying without but this may lead to a non functional splunk. This should contain the apps push from cm to idx"
+  #  fi
+  #fi
   ## 7.0 no user seed with hashed passwd, first time we have no backup lets put directly passwd 
   #echo "remote : ${remoteinstalldir}/passwd" >> /var/log/splunkconf-cloud-recovery-info.log
   #aws s3 cp ${remoteinstalldir}/passwd ${localinstalldir} --quiet

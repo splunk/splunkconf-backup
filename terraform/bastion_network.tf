@@ -1,6 +1,8 @@
+# if we manage routing then either one of these routes need to be created
+# if it is managed outside then none of these config need to be created
 
 resource "aws_route_table" "private_route_instancegw" {
-  count    = local.use_nat_gateway ? 0 : 1
+  count    = local.use_instance_gateway ? 0 : 1
   provider = aws.region-primary
   vpc_id   = local.master_vpc_id
   route {

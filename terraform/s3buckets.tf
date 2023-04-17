@@ -242,7 +242,7 @@ output "s3_install_arn" {
 }
 
 output "s3_install_s3uri" {
-  value       = "s3://".aws_s3_bucket.s3_install.bucket
+  value       = "s3://${aws_s3_bucket.s3_install.bucket}"
   description = "s3 install s3uri"
 }
 

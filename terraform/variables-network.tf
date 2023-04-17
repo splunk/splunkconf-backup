@@ -61,3 +61,51 @@ variable "nat_gateway_ha" {
   default     = true
 }
 
+# when create_network_module = false, you need to provide existing id here
+
+
+#variable "vpc_cidr_block" {
+#  description = "private cidr network for vpc"
+#  type        = string
+#  default     = "10.0.0.0/16"
+#}
+
+variable "cidr_subnet_pub_1_id_import" {
+  description = "existing id imported when reusing a existing network created outside this terraform"
+  type        = string
+  default = "null"
+}
+
+variable "cidr_subnet_pub_2_id_import" {
+  description = "private cidr network for this subnet"
+  description = "existing id imported when reusing a existing network created outside this terraform"
+  type        = string
+  default = "null"
+}
+
+variable "cidr_subnet_pub_3_id_import" {
+  description = "private cidr network for this subnet"
+  description = "existing id imported when reusing a existing network created outside this terraform"
+  type        = string
+  default = "null"
+}
+
+variable "cidr_subnet_priv_1_id_import" {
+  description = "private cidr network for this subnet"
+  description = "existing id imported when reusing a existing network created outside this terraform"
+  type        = string
+  default = "null"
+}
+
+variable "cidr_subnet_priv_2_id_import" {
+  description = "existing id imported when reusing a existing network created outside this terraform"
+  type        = string
+  default = "null"
+}
+
+variable "cidr_subnet_priv_3_id_import" {
+  description = "existing id imported when reusing a existing network created outside this terraform"
+  type        = string
+  default = "null"
+}
+

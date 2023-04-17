@@ -15,6 +15,12 @@ module "network" {
   cidr_subnet_priv_3=var.cidr_subnet_priv_3
   use_nat_gateway=var.use_nat_gateway
   nat_gateway_ha=var.nat_gateway_ha
+  cidr_subnet_pub_1_id_import=var.cidr_subnet_pub_1_id_import
+  cidr_subnet_pub_2_id_import=var.cidr_subnet_pub_2_id_import
+  cidr_subnet_pub_3_id_import=var.cidr_subnet_pub_3_id_import
+  cidr_subnet_priv_1_id_import=var.cidr_subnet_priv_1_id_import
+  cidr_subnet_priv_2_id_import=var.cidr_subnet_priv_2_id_import
+  cidr_subnet_priv_3_id_import=var.cidr_subnet_priv_3_id_import
   dns-zone-name=var.dns-zone-name
   enable-ns-glue-aws=var.enable-ns-glue-aws
   dns-zone-name-top=var.dns-zone-name-top

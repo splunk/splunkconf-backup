@@ -42,6 +42,12 @@ resource "aws_iam_role_policy_attachment" "cm-attach-splunk-ec2" {
   provider   = aws.region-primary
 }
 
+resource "aws_iam_role_policy_attachment" "cm-attach-splunk-writesecret" {
+  role = aws_iam_role.role-splunk-cm.name
+  policy_arn = aws_iam_policy.pol-splunk-writesecret.arn
+  provider   = aws.region-primary
+}
+
 resource "aws_iam_role_policy_attachment" "cm-attach-ssm-managedinstance" {
   #  name       = "cm-attach-ssm-managedinstance"
   role = aws_iam_role.role-splunk-cm.name
@@ -306,5 +312,10 @@ output "cm-dns-name" {
 output "cm-dns-name-ext" {
   value       = var.associate_public_ip ? "${local.dns-prefix}${var.cm}-ext.${var.dns-zone-name}" : "disabled"
   description = "cm ext dns name (pub ip)"
+}
+
+output "cm-url" {
+  value       = var.associate_public_ip ? "https://${local.dns-prefix}${var.cm}-ext.${var.dns-zone-name}:8000" : "https://${local.dns-prefix}${var.cm}.${var.dns-zone-name}:8000"
+  description = "cm url"
 }
 

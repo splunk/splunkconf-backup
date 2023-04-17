@@ -43,6 +43,12 @@ resource "aws_iam_role_policy_attachment" "idx-attach-splunk-ec2" {
   provider   = aws.region-primary
 }
 
+resource "aws_iam_role_policy_attachment" "idx-attach-splunk-writesecret" {
+  role = aws_iam_role.role-splunk-idx.name
+  policy_arn = aws_iam_policy.pol-splunk-writesecret.arn
+  provider   = aws.region-primary
+}
+
 resource "aws_iam_role_policy_attachment" "idx-attach-splunk-smartstore" {
   #name       = "idx-attach-splunk-smartstore"
   role = aws_iam_role.role-splunk-idx.name

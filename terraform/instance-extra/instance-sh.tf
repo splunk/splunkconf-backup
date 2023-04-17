@@ -42,6 +42,12 @@ resource "aws_iam_role_policy_attachment" "sh-attach-splunk-ec2" {
   provider   = aws.region-primary
 }
 
+resource "aws_iam_role_policy_attachment" "sh-attach-splunk-writesecret" {
+  role = aws_iam_role.role-splunk-sh.name
+  policy_arn = aws_iam_policy.pol-splunk-writesecret.arn
+  provider   = aws.region-primary
+}
+
 resource "aws_iam_role_policy_attachment" "sh-attach-ssm-managedinstance" {
   #name       = "sh-attach-ssm-managedinstance"
   role = aws_iam_role.role-splunk-sh.name
@@ -351,5 +357,15 @@ resource "aws_security_group_rule" "lbsh_from_networks_https" {
 output "sh-dns-name" {
   value       = "${local.dns-prefix}${var.sh}.${var.dns-zone-name}"
   description = "sh dns name (private ip)"
+}
+
+output "sh-dns-name-ext" {
+  value       = var.associate_public_ip ? "${local.dns-prefix}${var.sh}-ext.${var.dns-zone-name}" : "disabled"
+  description = "sh ext dns name (pub ip)"
+}
+
+output "sh-url" {
+  value       = var.associate_public_ip ? "https://${local.dns-prefix}${var.sh}-ext.${var.dns-zone-name}:8000" : "https://${local.dns-prefix}${var.sh}.${var.dns-zone-name}:8000"
+  description = "sh url"
 }
 

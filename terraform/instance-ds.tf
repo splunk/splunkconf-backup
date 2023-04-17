@@ -308,3 +308,13 @@ output "ds-dns-name" {
   description = "ds dns name (private ip)"
 }
 
+output "ds-dns-name-ext" {
+  value       = var.associate_public_ip ? "${local.dns-prefix}${var.ds}-ext.${var.dns-zone-name}" : "disabled"
+  description = "ds ext dns name (pub ip)"
+}
+
+output "ds-url" {
+  value       = var.associate_public_ip ? "https://${local.dns-prefix}${var.ds}-ext.${var.dns-zone-name}:8000" : "https://${local.dns-prefix}${var.ds}.${var.dns-zone-name}:8000"
+  description = "ds url"
+}
+

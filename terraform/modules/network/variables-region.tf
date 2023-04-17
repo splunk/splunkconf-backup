@@ -3,6 +3,6 @@
 variable "region" {
   description = "region as variable for route53"
   type        = string
-  default     = "eu-east-1"
+  default     = "us-east-1"
 }
 

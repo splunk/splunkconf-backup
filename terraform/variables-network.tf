@@ -77,21 +77,18 @@ variable "cidr_subnet_pub_1_id_import" {
 }
 
 variable "cidr_subnet_pub_2_id_import" {
-  description = "private cidr network for this subnet"
   description = "existing id imported when reusing a existing network created outside this terraform"
   type        = string
   default = "null"
 }
 
 variable "cidr_subnet_pub_3_id_import" {
-  description = "private cidr network for this subnet"
   description = "existing id imported when reusing a existing network created outside this terraform"
   type        = string
   default = "null"
 }
 
 variable "cidr_subnet_priv_1_id_import" {
-  description = "private cidr network for this subnet"
   description = "existing id imported when reusing a existing network created outside this terraform"
   type        = string
   default = "null"

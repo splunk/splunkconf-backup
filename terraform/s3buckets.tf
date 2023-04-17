@@ -241,6 +241,11 @@ output "s3_install_arn" {
   description = "s3 install arn"
 }
 
+output "s3_install_s3uri" {
+  value       = "s3://".aws_s3_bucket.s3_install.bucket
+  description = "s3 install s3uri"
+}
+
 output "s3_backup_arn" {
   value       = aws_s3_bucket.s3_backup.arn
   description = "s3 backup arn"

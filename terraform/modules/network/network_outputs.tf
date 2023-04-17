@@ -1,7 +1,7 @@
 
 output "master_vpc_id" {
   description = "Master VPC id"
-  value       = var.create_network_module ? aws_vpc.vpc_master[0].id : vpc_master_id_import
+  value       = var.create_network_module ? aws_vpc.vpc_master[0].id : var.vpc_master_id_import
 }
 
 output "dnszone_id" {

@@ -303,3 +303,8 @@ output "cm-dns-name" {
   description = "cm dns name (private ip)"
 }
 
+output "cm-dns-name-ext" {
+  value       = var.associate_public_ip ? "${local.dns-prefix}${var.cm}-ext.${var.dns-zone-name}" : "disabled"
+  description = "cm ext dns name (pub ip)"
+}
+

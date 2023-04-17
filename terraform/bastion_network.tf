@@ -2,7 +2,7 @@
 # if it is managed outside then none of these config need to be created
 
 resource "aws_route_table" "private_route_instancegw" {
-  count    = local.use_instance_gateway ? 0 : 1
+  count    = local.use_instance_gateway ? 1 : 0
   provider = aws.region-primary
   vpc_id   = local.master_vpc_id
   route {

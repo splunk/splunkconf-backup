@@ -1,6 +1,6 @@
 #Create VPC in eu-west-3
 resource "aws_vpc" "vpc_master" {
-  count = var.create ? 1 : 0
+  count = var.create_network_module ? 1 : 0
   #provider             = aws.region-primary
   cidr_block           = var.vpc_cidr_block
   enable_dns_support   = true
@@ -13,7 +13,7 @@ resource "aws_vpc" "vpc_master" {
 
 #Create IGW in region
 resource "aws_internet_gateway" "igw" {
-  count = var.create ? 1 : 0
+  count = var.create_network_module ? 1 : 0
   #provider = aws.region-primary
   vpc_id   = aws_vpc.vpc_master[0].id
 }
@@ -21,7 +21,7 @@ resource "aws_internet_gateway" "igw" {
 
 #Get all available AZ's in VPC for master region
 data "aws_availability_zones" "azs" {
-  count = var.create ? 1 : 0
+  count = var.create_network_module ? 1 : 0
   #provider = aws.region-primary
   state    = "available"
 }
@@ -29,7 +29,7 @@ data "aws_availability_zones" "azs" {
 
 #Create subnet pub # 1 in vpc
 resource "aws_subnet" "subnet_pub_1" {
-  count = var.create ? 1 : 0
+  count = var.create_network_module ? 1 : 0
   #provider          = aws.region-primary
   availability_zone = element(data.aws_availability_zones.azs[0].names, 0)
   vpc_id            = aws_vpc.vpc_master[0].id
@@ -39,7 +39,7 @@ resource "aws_subnet" "subnet_pub_1" {
 
 #Create subnet pub #2  in vpc
 resource "aws_subnet" "subnet_pub_2" {
-  count = var.create ? 1 : 0
+  count = var.create_network_module ? 1 : 0
   #provider          = aws.region-primary
   vpc_id            = aws_vpc.vpc_master[0].id
   availability_zone = element(data.aws_availability_zones.azs[0].names, 1)
@@ -48,7 +48,7 @@ resource "aws_subnet" "subnet_pub_2" {
 
 #Create subnet pub #3  in vpc
 resource "aws_subnet" "subnet_pub_3" {
-  count = var.create ? 1 : 0
+  count = var.create_network_module ? 1 : 0
   #provider          = aws.region-primary
   vpc_id            = aws_vpc.vpc_master[0].id
   availability_zone = element(data.aws_availability_zones.azs[0].names, 2)
@@ -57,7 +57,7 @@ resource "aws_subnet" "subnet_pub_3" {
 
 #Create default route table in region
 resource "aws_route_table" "internet_route" {
-  count = var.create ? 1 : 0
+  count = var.create_network_module ? 1 : 0
   #provider = aws.region-primary
   vpc_id   = aws_vpc.vpc_master[0].id
   route {
@@ -74,7 +74,7 @@ resource "aws_route_table" "internet_route" {
 
 #Overwrite default route table of VPC(Master) with our route table entries
 resource "aws_main_route_table_association" "set-master-default-rt-assoc" {
-  count = var.create ? 1 : 0
+  count = var.create_network_module ? 1 : 0
   #provider       = aws.region-primary
   vpc_id         = aws_vpc.vpc_master[0].id
   route_table_id = aws_route_table.internet_route[0].id
@@ -83,7 +83,7 @@ resource "aws_main_route_table_association" "set-master-default-rt-assoc" {
 
 #Create subnet priv # 1 in vpc
 resource "aws_subnet" "subnet_priv_1" {
-  count = var.create ? 1 : 0
+  count = var.create_network_module ? 1 : 0
   #provider          = aws.region-primary
   availability_zone = element(data.aws_availability_zones.azs[0].names, 0)
   vpc_id            = aws_vpc.vpc_master[0].id
@@ -93,7 +93,7 @@ resource "aws_subnet" "subnet_priv_1" {
 
 #Create subnet priv #2  in vpc
 resource "aws_subnet" "subnet_priv_2" {
-  count = var.create ? 1 : 0
+  count = var.create_network_module ? 1 : 0
   #provider          = aws.region-primary
   vpc_id            = aws_vpc.vpc_master[0].id
   availability_zone = element(data.aws_availability_zones.azs[0].names, 1)
@@ -102,7 +102,7 @@ resource "aws_subnet" "subnet_priv_2" {
 
 #Create subnet priv #3  in vpc
 resource "aws_subnet" "subnet_priv_3" {
-  count = var.create ? 1 : 0
+  count = var.create_network_module ? 1 : 0
   #provider          = aws.region-primary
   vpc_id            = aws_vpc.vpc_master[0].id
   availability_zone = element(data.aws_availability_zones.azs[0].names, 2)
@@ -111,12 +111,12 @@ resource "aws_subnet" "subnet_priv_3" {
 
 
 resource "aws_eip" "nat_gateway" {
-  count = var.use_nat_gateway ? 1 : 0
+  count = local.use_nat_gateway ? 1 : 0
   vpc   = true
 }
 
 resource "aws_nat_gateway" "nat_gateway1" {
-  count         = var.use_nat_gateway ? 1 : 0
+  count         = local.use_nat_gateway ? 1 : 0
   allocation_id = aws_eip.nat_gateway[0].id
   subnet_id     = aws_subnet.subnet_pub_1[0].id
   tags = {
@@ -127,7 +127,7 @@ resource "aws_nat_gateway" "nat_gateway1" {
   depends_on = [aws_internet_gateway.igw]
 }
 
-# this moved to bastion_network as we need the bastion to be created first
+# this moved to bastion_network as we need the bastion to be create_network_moduled first
 #resource "aws_route_table" "private_route_instancegw" {
 #  count    = var.use_nat_gateway ? 0 : 1
 #  provider = aws.region-primary
@@ -148,7 +148,7 @@ resource "aws_nat_gateway" "nat_gateway1" {
 #}
 
 #resource "aws_route_table" "private_route_natgw1" {
-#  count    = var.use_nat_gateway ? 1 : 0
+#  count    = local.use_nat_gateway ? 1 : 0
 #  provider = aws.region-primary
 #  vpc_id   = aws_vpc.vpc_master.id
 #  route {

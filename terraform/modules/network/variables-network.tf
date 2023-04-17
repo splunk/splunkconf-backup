@@ -1,6 +1,6 @@
 # for module
 
-variable "create" {
+variable "create_network_module" {
   type =bool
   default = true
 }

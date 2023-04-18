@@ -394,9 +394,9 @@ resource "aws_launch_template" "splunk-idx" {
       splunkorg             = var.splunkorg
       splunktargetenv       = var.splunktargetenv
       splunktargetbinary    = var.splunktargetbinary
-      splunktargetcm        = var.cm
-      splunktargetlm        = var.lm
-      splunktargetds        = var.ds
+      splunktargetcm        = "${local.dns-prefix}${var.cm}"
+      splunktargetlm        = "${local.dns-prefix}${var.lm}"
+      splunktargetds        = "${local.dns-prefix}${var.ds}"
       # IDX special case
       splunkcloudmode     = "3"
       splunkosupdatemode  = var.splunkosupdatemode

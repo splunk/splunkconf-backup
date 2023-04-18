@@ -187,14 +187,15 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230402 fix dir creation for initial managerapps support
 # 20230403 add default value false for splunkenableunifiedpartition when unset
 # 20230403 more regex fix for login_content adaptation
-# 20230414 add yum option to work around conflict with AMI2023 and curl-minimal package
+# 20230414 add yum option to work around conflict with AMI AL2023 and curl-minimal package
 # 20230416 add manager_uri form for cm tag replacement in addition to master_uri
 # 20230416 add missing manager-apps for multi ds (for consistency)
 # 20230416 add splunkconf-backup-etc-terminate-helper service
 # 20230416 fix for previous update
 # 20230417 remove master-apps untarring to prevent conflict with manager-apps
+# 20230418 add cgroupv1 fallback for AL2023 so that WLM works 
 
-VERSION="20230417a"
+VERSION="20230418a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2106,6 +2107,8 @@ if [ "$MODE" != "upgrade" ]; then
   elif [ "${splunkosupdatemode}" = "noreboot" ]; then
      echo "os update mode is no reboot , not rebooting"
   else
+    echo "Forcing cgroupv1 (need reboot) (needed for AL2023 at the moment)"
+    grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"
     echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
     echo "#************************************* END with reboot ***************************************"
     # reboot

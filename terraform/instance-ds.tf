@@ -282,9 +282,9 @@ resource "aws_launch_template" "splunk-ds" {
       splunkorg             = var.splunkorg
       splunktargetenv       = var.splunktargetenv
       splunktargetbinary    = var.splunktargetbinary
-      splunktargetcm        = var.cm
-      splunktargetlm        = var.lm
-      splunktargetds        = var.ds
+      splunktargetcm        = "${local.dns-prefix}${var.cm}"
+      splunktargetlm        = "${local.dns-prefix}${var.lm}"
+      splunktargetds        = "${local.dns-prefix}${var.ds}"
       splunkcloudmode       = var.splunkcloudmode
       splunkosupdatemode    = var.splunkosupdatemode
       splunkconnectedmode   = var.splunkconnectedmode

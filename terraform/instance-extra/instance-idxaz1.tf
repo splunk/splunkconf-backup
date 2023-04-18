@@ -350,9 +350,9 @@ resource "aws_autoscaling_group" "autoscaling-splunk-idxaz1" {
   depends_on        = [null_resource.bucket_sync]
 }
 
-resource "aws_launch_template" "splunk-idx" {
+resource "aws_launch_template" "splunk-idxaz1" {
   #name          = "splunk-idx"
-  name_prefix    = "splunk-idx-"
+  name_prefix    = "splunk-idxaz1-"
   image_id      = data.aws_ssm_parameter.linuxAmi.value
   key_name      = local.ssh_key_name
   instance_type = local.instance-type-indexer

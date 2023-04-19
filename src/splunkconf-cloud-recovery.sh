@@ -195,8 +195,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230417 remove master-apps untarring to prevent conflict with manager-apps
 # 20230418 add cgroupv1 fallback for AL2023 so that WLM works 
 # 20230419 adding logging on current cgroup mode
+# 20230419 initial logic change to get ability to update and change cgroup at first boot in AWS
 
-VERSION="20230419a"
+VERSION="20230419b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -543,39 +544,24 @@ cgroup_status () {
  echo "cgroups mode : $CGROUPMODE"
 }
 
+force_cgroupv1 () {
+  echo "Forcing cgroupv1 (need reboot) (needed for AL2023 at the moment)"
+  grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"
+}
+
 echo "#*************************************  START  ********************************************************"
-
-check_cloud
-check_sysver
-cgroup_status
-
-echo "cloud_type=$cloud_type, sysver=$SYSVER"
-
-if [[ $cloud_type == 2 ]]; then
-  # GCP
-  if [ $# -eq 0 ]; then
-    # not in upgrade mode
-    if [ -e "/root/first_boot.check" ]; then 
-      . /etc/instance-tags
-      instancename=$splunkinstanceType 
-      echo "splunkinstanceType : instancename=${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
-      if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
-        echo "Setting hostname to ${instancename} via hostnamectl method" >> /var/log/splunkconf-cloud-recovery-info.log
-        hostnamectl set-hostname ${instancename}
-      fi
-      echo "First boot already ran, exiting to prevent loop"
-      exit 0
-    fi
-  touch "/root/first_boot.check"
-  fi
-fi
-
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
    echo "Exiting ! This recovery script need to be run as root !" 
    exit 1
 fi
+
+check_cloud
+check_sysver
+cgroup_status
+
+echo "cloud_type=$cloud_type, sysver=$SYSVER"
 
 if [ $# -eq 1 ]; then
   MODE=$1
@@ -598,6 +584,30 @@ elif [ $# -gt 1 ]; then
 else
   echo "No arguments given, assuming launched by user data" >> /var/log/splunkconf-cloud-recovery-info.log
   MODE="0"
+  if [[ $cloud_type == 1 ]]; then
+    # AWS
+    if [ -e "/root/first_boot.check" ]; then 
+      echo "First boot already ran, exiting to prevent boot loop (GCP)"
+      exit 0
+    fi
+  elif [[ $cloud_type == 2 ]]; then
+    # GCP
+    if [ -e "/root/first_boot.check" ]; then 
+      . /etc/instance-tags
+      instancename=$splunkinstanceType 
+      echo "splunkinstanceType : instancename=${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
+      if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
+        echo "Setting hostname to ${instancename} via hostnamectl method" >> /var/log/splunkconf-cloud-recovery-info.log
+        hostnamectl set-hostname ${instancename}
+      fi
+      echo "First boot already ran, exiting to prevent boot loop (GCP)"
+      exit 0
+    fi
+  fi
+  touch "/root/first_boot.check"
+fi
+
+
 fi
 
 echo "running with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -2115,8 +2125,7 @@ if [ "$MODE" != "upgrade" ]; then
   elif [ "${splunkosupdatemode}" = "noreboot" ]; then
      echo "os update mode is no reboot , not rebooting"
   else
-    echo "Forcing cgroupv1 (need reboot) (needed for AL2023 at the moment)"
-    grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"
+    force_cgroupv1
     echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
     echo "#************************************* END with reboot ***************************************"
     # reboot

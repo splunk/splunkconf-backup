@@ -194,8 +194,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230416 fix for previous update
 # 20230417 remove master-apps untarring to prevent conflict with manager-apps
 # 20230418 add cgroupv1 fallback for AL2023 so that WLM works 
+# 20230419 adding logging on current cgroup mode
 
-VERSION="20230418a"
+VERSION="20230419a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -536,10 +537,17 @@ tag_replacement () {
   fi
 }
 
+cgroup_status () {
+  CGROUPMODE="unknown"
+  [ $(stat -fc %T /sys/fs/cgroup/) = "cgroup2fs" ] && CGROUPMODE="cgroupvs v2 (unified)" || ( [ -e /sys/fs/cgroup/unified/ ] && CGROUPMODE="hybrid mode" || CGROUPMODE="legacy cgroupsv1")
+ echo "cgroups mode : $CGROUPMODE"
+}
+
 echo "#*************************************  START  ********************************************************"
 
 check_cloud
 check_sysver
+cgroup_status
 
 echo "cloud_type=$cloud_type, sysver=$SYSVER"
 

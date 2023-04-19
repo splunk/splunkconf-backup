@@ -623,9 +623,6 @@ EOF
   force_cgroupv1
 fi
 
-
-fi
-
 echo "running with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 # setting variables

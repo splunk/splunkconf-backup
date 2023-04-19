@@ -116,6 +116,7 @@
 # 20230405 update wlm default pools
 # 20230414 small systemd file update
 # 20230416 add support for kernel 6+ where path changed for cgroup (service would not start at all without this)
+# 20230419 reverting change as dont work correctly and add info to tell to disable cgroupv2 which change path and allow splunk service to start
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -125,7 +126,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20230416a";
+$VERSION="20230419a";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -1157,8 +1158,8 @@ CPUShares=1024
 MemoryLimit=$systemdmemlimit
 PermissionsStartOnly=true
 # for 8.1, that is now back to ExecStartPost 
-# for kernel >=6.0 system.slice is under cgroup so we handle both cases
-ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/cpu/system.slice/%n;chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/memory/system.slice/%n;chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/system.slice/%n";true
+# if this fail here and path dont exist, you haven't disabled cgroups v2, please do this first
+ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/cpu/system.slice/%n;chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/memory/system.slice/%n"
 ## Modifications to the base Splunkd.service that is created from the "enable boot-start" command ##
 # set additional ulimits:
 LimitNPROC=262143

@@ -86,6 +86,12 @@ variable "use_elb_ack" {
 }
 
 
+variable "idx" {
+  description = "idx name (single name to use later for ssh name)""
+  type        = string
+  default     = "idx"
+}
+
 variable "idxdnsnames" {
   description = "list of names to create for indexer ips (used by lambda function)"
   type        = string

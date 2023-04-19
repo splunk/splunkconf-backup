@@ -197,7 +197,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230419 adding logging on current cgroup mode
 # 20230419 initial logic change to get ability to update and change cgroup at first boot in AWS
 
-VERSION="20230419b"
+VERSION="20230419c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -587,8 +587,23 @@ else
   if [[ $cloud_type == 1 ]]; then
     # AWS
     if [ -e "/root/first_boot.check" ]; then 
-      echo "First boot already ran, exiting to prevent boot loop (GCP)"
+      echo "First boot already ran, exiting to prevent boot loop (AWS)"
+      rm /var/lib/cloud/scripts/per-boot/splunkconf-secondstart.sh
       exit 0
+    else
+      echo "First boot (AWS)"
+      INPUT=$(cat <<EOF
+#!/bin/bash -x 
+exec >> /var/log/splunkconf-cloud-secondboot.log 2>&1
+ 
+echo "running splunkconf-secondboot.sh"
+/usr/local/bin/splunkconf-cloud-recovery.sh
+
+echo "end of running splunkconf-secondboot.sh"
+EOF
+)
+      echo $INPUT > /var/lib/cloud/scripts/per-boot/splunkconf-secondboot.sh
+      chmod a+x /var/lib/cloud/scripts/per-boot/splunkconf-secondboot.sh
     fi
   elif [[ $cloud_type == 2 ]]; then
     # GCP

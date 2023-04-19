@@ -85,9 +85,8 @@ variable "use_elb_ack" {
   default     = 0
 }
 
-
 variable "idx" {
-  description = "idx name (single name to use later for ssh name)""
+  description = "idx name (single name to use later for ssh name)"
   type        = string
   default     = "idx"
 }

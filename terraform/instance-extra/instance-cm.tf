@@ -319,3 +319,7 @@ output "cm-url" {
   description = "cm url"
 }
 
+output "cm-sshconnection" {
+  value       = var.associate_public_ip ? "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.cm}-ext.${var.dns-zone-name}" : "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
+  description = "cm ssh connection "
+}

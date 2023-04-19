@@ -620,6 +620,7 @@ EOF
     fi
   fi
   touch "/root/first_boot.check"
+  force_cgroupv1
 fi
 
 

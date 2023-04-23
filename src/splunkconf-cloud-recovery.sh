@@ -688,7 +688,7 @@ EOF
       exit 0
     fi
   fi
-  if [[ "${INSTALLPHASE}" == 1]]; then
+  if [[ "${INSTALLPHASE}" == 1 ]]; then
     # common actions at first boot in user data mode
     echo "INFO: Doing first boot actions"
     touch "/root/first_boot.check"

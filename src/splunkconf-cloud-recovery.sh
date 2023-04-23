@@ -196,8 +196,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230418 add cgroupv1 fallback for AL2023 so that WLM works 
 # 20230419 adding logging on current cgroup mode
 # 20230419 initial logic change to get ability to update and change cgroup at first boot in AWS
+# 20230423 move all os update and cgroup to first boot logic, remove unused wait restoration code as no longer needed
 
-VERSION="20230419c"
+VERSION="20230423a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -549,11 +550,26 @@ force_cgroupv1 () {
   grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"
 }
 
+os_update() {
+  echo "#************************************* OS UPDATES MANAGEMENT ********************************************************"
+  if [ -z ${splunkosupdatemode+x} ]; then
+    splunkosupdatemode="updateandreboot" 
+  fi
+  if [ "${splunkosupdatemode}" = "disabled" ]; then
+    echo "os update disabled, not applying them here. Make sure you applied them already in the os image or use for testing"
+  elif [ $splunkconnectedmode == 3 ]; then
+    echo "Full disconnected mode ! Attention, I wont try to apply latest/updates fixes even if splunosupdatemode is not set to disabled -> incoherent settings"
+  else 
+    echo "applying latest os updates/security and bugfixes"
+    yum update -y
+  fi
+}
+
 echo "#*************************************  START  ********************************************************"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
-   echo "Exiting ! This recovery script need to be run as root !" 
+   echo "ERROR: Exiting ! This recovery script need to be run as root !" 
    exit 1
 fi
 
@@ -563,47 +579,74 @@ cgroup_status
 
 echo "cloud_type=$cloud_type, sysver=$SYSVER"
 
+# arguments : are we launched by user-data or in upgrade mode ?
 if [ $# -eq 1 ]; then
   MODE=$1
-  echo "Your command line contains 1 argument $MODE" >> /var/log/splunkconf-cloud-recovery-info.log
+  echo "Your command line contains 1 argument mode=$MODE" >> /var/log/splunkconf-cloud-recovery-info.log
   if [ "$MODE" == "upgrade" ]; then 
-    echo "upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "INFO : upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
   else
     echo "unknown parameter, ignoring" >> /var/log/splunkconf-cloud-recovery-info.log
     MODE="0"
   fi
 elif [ $# -gt 1 ]; then
-  echo "Your command line contains too many ($#) arguments. Ignoring the extra data" >> /var/log/splunkconf-cloud-recovery-info.log
+  echo "ERROR: Your command line contains too many ($#) arguments. Ignoring the extra data" >> /var/log/splunkconf-cloud-recovery-info.log
   MODE=$1
   if [ "$MODE" == "upgrade" ]; then 
-    echo "upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "INFO: upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
   else
-    echo "unknown parameter, ignoring" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "INFO: unknown parameter, ignoring, assuming boot mode (user data)" >> /var/log/splunkconf-cloud-recovery-info.log
     MODE="0"
   fi
 else
-  echo "No arguments given, assuming launched by user data" >> /var/log/splunkconf-cloud-recovery-info.log
+  echo "INFO: No arguments given, assuming launched by user data" >> /var/log/splunkconf-cloud-recovery-info.log
   MODE="0"
+fi
+
+echo "INFO: running with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
+
+# in user data mode, updates and cgroupv1 handling
+if [[ "$MODE" -eq 0 ]]; then
+  echo "INFO: user-data mode"
+  SECONDSTART="/var/lib/cloud/scripts/per-boot/splunkconf-secondstart.sh"
+  # check by provider as it is different
   if [[ $cloud_type == 1 ]]; then
     # AWS
-    if [ -e "/root/first_boot.check" ]; then 
-      echo "First boot already ran, exiting to prevent boot loop (AWS)"
-      rm /var/lib/cloud/scripts/per-boot/splunkconf-secondstart.sh
-      exit 0
+    if [ -e "/root/second_boot.check" ]; then 
+      echo "ERROR : we are launched a 3rd time, which is not supposed to happen, please investigate"
+      echo "INFO: second boot already ran, exiting to prevent boot loop (AWS)"
+      if [ -e "${SECONDSTART}" ]; then 
+        rm ${SECONDSTART}
+      fi
+      exit 1
+    elif [ -e "/root/first_boot.check" ]; then 
+      echo "INFO: First boot already ran, exiting to prevent boot loop (AWS)"
+      if [ -e "${SECONDSTART}" ]; then 
+        rm ${SECONDSTART}
+      fi
+      touch "/root/second_boot.check"
     else
-      echo "First boot (AWS)"
+      echo "INFO: This is First boot, setting up logic for second boot (AWS)"
       INPUT=$(cat <<EOF
 #!/bin/bash -x 
 exec >> /var/log/splunkconf-cloud-secondboot.log 2>&1
  
+VERSION=$VERSION
+
 echo "running splunkconf-secondboot.sh"
+echo "renaming log to avoid loosing them"
+mv /var/log/splunkconf-cloud-recovery-debug.log.1 /var/log/splunkconf-cloud-recovery-debug.log.2
+mv /var/log/splunkconf-cloud-recovery-info.log.1 /var/log/splunkconf-cloud-recovery-info.log.2
+mv /var/log/splunkconf-cloud-recovery-debug.log /var/log/splunkconf-cloud-recovery-debug.log.1
+mv /var/log/splunkconf-cloud-recovery-info.log /var/log/splunkconf-cloud-recovery-info.log.1
+
 /usr/local/bin/splunkconf-cloud-recovery.sh
 
 echo "end of running splunkconf-secondboot.sh"
 EOF
 )
-      echo $INPUT > /var/lib/cloud/scripts/per-boot/splunkconf-secondboot.sh
-      chmod a+x /var/lib/cloud/scripts/per-boot/splunkconf-secondboot.sh
+      echo $INPUT > ${SECONDSTART}
+      chmod a+x ${SECONDSTART}
     fi
   elif [[ $cloud_type == 2 ]]; then
     # GCP
@@ -616,14 +659,33 @@ EOF
         hostnamectl set-hostname ${instancename}
       fi
       echo "First boot already ran, exiting to prevent boot loop (GCP)"
+      touch "/root/second_boot.check"
       exit 0
     fi
   fi
+  # common actions at first boot in user data mode
+  echo "INFO: Doing first boot actions"
   touch "/root/first_boot.check"
+  os_update
   force_cgroupv1
-fi
+  TODAY=`date '+%Y%m%d-%H%M_%u'`;
+  if [ "${splunkosupdatemode}" = "disabled" ]; then
+    echo "os update disabled, no need to reboot, forcing setting to second_boot"
+    echo "ATTENTION : if you had to disable cgroupsv2 then this will fail later , you had to reboot in that case but following tag values"
+    if [ -e "${SECONDSTART}" ]; then 
+      rm ${SECONDSTART}
+    fi
+  elif [ "${splunkosupdatemode}" = "noreboot" ]; then
+    echo "os update mode is no reboot , not rebooting"
+    echo "ATTENTION : if you had to disable cgroupsv2 then this will fail later , you had to reboot in that case but following tag values"
+  else
+    echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "#************************************* END with reboot ***************************************"
+    # reboot
+    init 6
+  fi
+fi  # MODE = 0 (user-data)
 
-echo "running with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 # setting variables
 
@@ -1080,19 +1142,6 @@ if [ "$MODE" == "upgrade" ]; then
 fi
 
 if [ "$MODE" != "upgrade" ]; then 
-  echo "#************************************* OS UPDATES MANAGEMENT ********************************************************"
-  if [ -z ${splunkosupdatemode+x} ]; then
-    splunkosupdatemode="updateandreboot" 
-  fi
-  if [ "${splunkosupdatemode}" = "disabled" ]; then
-    echo "os update disabled, not applying them here. Make sure you applied them already in the os image or use for testing"
-  elif [ $splunkconnectedmode == 3 ]; then
-    echo "Full disconnected mode ! Attention, I wont try to apply latest/updates fixes even if splunosupdatemode is not set to disabled -> incoherent settings"
-  else 
-    echo "applying latest os updates/security and bugfixes"
-    yum update -y
-  fi
-
   # if idx
   if [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
     echo "#************************************** DISK ************************"
@@ -2097,54 +2146,7 @@ fi
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 
 tag_replacement
 
-# apply sessions workaround for 8.0 if needed
-# commenting as no longer needed, please comment tools.session timeout in web.conf if you have the issue with sessions and error 500 
-#if [ -e "/opt/splunk/etc/apps/sessions.py" ]; then
-#  cp -p /opt/splunk/lib/python3.7/site-packages/splunk/appserver/mrsparkle/lib/sessions.py /opt/splunk/etc/apps/sessions.py.orig
-#  cp -p /opt/splunk/etc/apps/sessions.py /opt/splunk/lib/python3.7/site-packages/splunk/appserver/mrsparkle/lib/sessions.py 
-#fi
-sleep 1
-
-if [ "$MODE" != "upgrade" ]; then 
-  TODAY=`date '+%Y%m%d-%H%M_%u'`;
-  echo "${TODAY}  splunkconf-cloud-recovery.sh checking if kvdump recovery running" >> /var/log/splunkconf-cloud-recovery-info.log
-  # prevent reboot in the middle of a kvdump restore
-  counter=100
-  # (30 min max should be enough for restoring a big kvdump)
-  while [ $counter -gt 0 ]
-  do
-    counter=$(($counter-1))
-    if [ -e /opt/splunk/var/run/splunkconf-kvrestore.lock ]; then 
-      echo "splunkconf-restore is running at the moment, waiting before initiating reboot (step=30s, counter=$counter)" >> /var/log/splunkconf-cloud-recovery-info.log
-      sleep 30
-    else
-      # no need to loop
-      break
-    fi
-  done
-  # prevent stale lock 
-  if [ -e /opt/splunk/var/run/splunkconf-kvrestore.lock ]; then 
-    echo "Warning : Removing possible splunkconf kvstore lock" >> /var/log/splunkconf-cloud-recovery-info.log 
-    rm /opt/splunk/var/run/splunkconf-kvrestore.lock
-  fi
-fi # if not upgrade
-
-
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 #NOW=`(date "+%Y/%m/%d %H:%M:%S")`
-if [ "$MODE" != "upgrade" ]; then 
-  if [ "${splunkosupdatemode}" = "disabled" ]; then
-     echo "os update disabled, no need to reboot"
-  elif [ "${splunkosupdatemode}" = "noreboot" ]; then
-     echo "os update mode is no reboot , not rebooting"
-  else
-    force_cgroupv1
-    echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
-    echo "#************************************* END with reboot ***************************************"
-    # reboot
-    init 6
-  fi
-else
-  echo "${TODAY} splunkconf-cloud-recovery.sh end of script run in upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
-  echo "#************************************* END ***************************************"
-fi # if not upgrade
+echo "INFO: ${TODAY} splunkconf-cloud-recovery.sh end of script run" >> /var/log/splunkconf-cloud-recovery-info.log
+echo "#************************************* END ***************************************"

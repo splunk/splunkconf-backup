@@ -555,7 +555,7 @@ cgroup_status () {
 }
 
 force_cgroupv1 () {
-  if [[ $NEEDCGROUPDISABLED == 1 ]; then
+  if [[ $NEEDCGROUPDISABLED == 1 ]]; then
     echo "Forcing cgroupv1 (need reboot) (needed for AL2023 at the moment)"
     grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"
     NEEDREBOOT=1
@@ -571,7 +571,7 @@ os_update() {
   fi
   if [ "${splunkosupdatemode}" = "disabled" ]; then
     echo "os update disabled, not applying them here. Make sure you applied them already in the os image or use for testing"
-  elif [ $splunkconnectedmode == 3 ]; then
+  elif [[ $splunkconnectedmode == 3 ]]; then
     echo "Full disconnected mode ! Attention, I wont try to apply latest/updates fixes even if splunosupdatemode is not set to disabled -> incoherent settings"
   else 
     echo "applying latest os updates/security and bugfixes"

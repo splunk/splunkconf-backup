@@ -198,8 +198,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230419 initial logic change to get ability to update and change cgroup at first boot in AWS
 # 20230423 move all os update and cgroup to first boot logic, remove unused wait restoration code as no longer needed
 # 20230423 add installphase variable
+# 20230423 redo cgroup status and add needreboot logic
 
-VERSION="20230423d"
+VERSION="20230423e"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -541,14 +542,26 @@ tag_replacement () {
 }
 
 cgroup_status () {
-  CGROUPMODE="unknown"
-  [ $(stat -fc %T /sys/fs/cgroup/) = "cgroup2fs" ] && CGROUPMODE="cgroupvs v2 (unified)" || ( [ -e /sys/fs/cgroup/unified/ ] && CGROUPMODE="hybrid mode" || CGROUPMODE="legacy cgroupsv1")
- echo "cgroups mode : $CGROUPMODE"
+  NEEDCGROUPDISABLED=0
+  TEST1=$(stat -fc %T /sys/fs/cgroup/)
+  if [ -e /sys/fs/cgroup/unified/ ]; then
+    echo "identified cgroupsv2 with unified off, disabling unified was done"
+  elif [ $TEST1 = "cgroup2fs" ]; then
+    echo "identified cgroupv2 with unified on, need disabling"
+    NEEDCGROUPDISABLED=1
+  else
+    echo "cgroupsv1, nothing to do"
+  fi
 }
 
 force_cgroupv1 () {
-  echo "Forcing cgroupv1 (need reboot) (needed for AL2023 at the moment)"
-  grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"
+  if [[ $NEEDCGROUPDISABLED == 1 ]; then
+    echo "Forcing cgroupv1 (need reboot) (needed for AL2023 at the moment)"
+    grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"
+    NEEDREBOOT=1
+  else
+    echo "INFO : no need to disable cgroupsv2"
+  fi
 }
 
 os_update() {
@@ -563,6 +576,12 @@ os_update() {
   else 
     echo "applying latest os updates/security and bugfixes"
     yum update -y
+    if [ "${splunkosupdatemode}" = "noreboot" ]; then
+      echo "tag splunkosupdatemode set to no reboot"
+      # we do not disable here as cgroups disabling may have asked for reboot
+    else
+      NEEDREBOOT=1
+    fi
   fi
 }
 
@@ -692,24 +711,20 @@ EOF
     # common actions at first boot in user data mode
     echo "INFO: Doing first boot actions"
     touch "/root/first_boot.check"
+    NEEDREBOOT=0
     os_update
     force_cgroupv1
     TODAY=`date '+%Y%m%d-%H%M_%u'`;
-    if [ "${splunkosupdatemode}" = "disabled" ]; then
-      echo "os update disabled, no need to reboot, forcing setting to second_boot"
-      echo "ATTENTION : if you had to disable cgroupsv2 then this will fail later , you had to reboot in that case but following tag values"
+    if [[ $NEEDREBOOT = 0 ]; then
+      echo "no need to reboot, forcing setting to second_boot"
       if [ -e "${SECONDSTART}" ]; then 
         rm ${SECONDSTART}
       fi
-    elif [ "${splunkosupdatemode}" = "noreboot" ]; then
-      echo "os update mode is no reboot , not rebooting"
-      echo "ATTENTION : if you had to disable cgroupsv2 then this will fail later , you had to reboot in that case but following tag values"
     else
+      echo "INFO: reboot needed"
       echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
       echo "#************************************* END with reboot ***************************************"
-      # reboot
       init 6
-      #reboot
       exit 0
     fi
   fi

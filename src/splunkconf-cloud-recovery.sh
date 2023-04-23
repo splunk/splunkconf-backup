@@ -197,8 +197,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230419 adding logging on current cgroup mode
 # 20230419 initial logic change to get ability to update and change cgroup at first boot in AWS
 # 20230423 move all os update and cgroup to first boot logic, remove unused wait restoration code as no longer needed
+# 20230423 add installphase variable
 
-VERSION="20230423c"
+VERSION="20230423d"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -605,6 +606,11 @@ fi
 
 echo "INFO: running with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
 
+INSTALLPHASE=1
+# 1 update/cgroup only
+# 2 normal install
+# 3 exit mode
+
 # in user data mode, updates and cgroupv1 handling
 if [[ "$MODE" -eq 0 ]]; then
   echo "INFO: user-data mode"
@@ -618,15 +624,18 @@ if [[ "$MODE" -eq 0 ]]; then
       if [ -e "${SECONDSTART}" ]; then 
         rm ${SECONDSTART}
       fi
+      INSTALLPHASE=3
       exit 1
     elif [ -e "/root/first_boot.check" ]; then 
-      echo "INFO: First boot already ran, exiting to prevent boot loop (AWS)"
+      echo "INFO: First boot already ran, going to normal install mode (AWS)"
       if [ -e "${SECONDSTART}" ]; then 
         rm ${SECONDSTART}
       fi
       touch "/root/second_boot.check"
+      INSTALLPHASE=2
     else
       echo "INFO: This is First boot, setting up logic for second boot (AWS)"
+      INSTALLPHASE=1
       if [ -e "${SECONDSTART}" ]; then 
         rm ${SECONDSTART}
       fi
@@ -652,7 +661,20 @@ EOF
     fi
   elif [[ $cloud_type == 2 ]]; then
     # GCP
-    if [ -e "/root/first_boot.check" ]; then 
+    if [ -e "/root/second_boot.check" ]; then
+      echo "INFO : we are launched a 3rd time, which is normal on GCP but then we are no longer in install mode"
+      echo "INFO: second boot already ran, exiting (GCP)"
+      INSTALLPHASE=3
+    elif [ -e "/root/first_boot.check" ]; then
+      echo "INFO: First boot already ran, going to normal install mode (GCP)"
+      touch "/root/second_boot.check"
+      INSTALLPHASE=2
+    else
+      INSTALLPHASE=1
+      echo "This is first boot"
+    fi
+    # GCP after reboot if we already ran then we set hostname
+    if [ -e "/etc/instance-tags" ]; then 
       . /etc/instance-tags
       instancename=$splunkinstanceType 
       echo "splunkinstanceType : instancename=${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -660,36 +682,40 @@ EOF
         echo "Setting hostname to ${instancename} via hostnamectl method" >> /var/log/splunkconf-cloud-recovery-info.log
         hostnamectl set-hostname ${instancename}
       fi
-      echo "First boot already ran, exiting to prevent boot loop (GCP)"
-      touch "/root/second_boot.check"
+    fi
+    if [[ "${INSTALLPHASE}" == 3]]; then
+      echo "GCP : exit ok"
       exit 0
     fi
   fi
-  # common actions at first boot in user data mode
-  echo "INFO: Doing first boot actions"
-  touch "/root/first_boot.check"
-  os_update
-  force_cgroupv1
-  TODAY=`date '+%Y%m%d-%H%M_%u'`;
-  if [ "${splunkosupdatemode}" = "disabled" ]; then
-    echo "os update disabled, no need to reboot, forcing setting to second_boot"
-    echo "ATTENTION : if you had to disable cgroupsv2 then this will fail later , you had to reboot in that case but following tag values"
-    if [ -e "${SECONDSTART}" ]; then 
-      rm ${SECONDSTART}
+  if [[ "${INSTALLPHASE}" == 1]]; then
+    # common actions at first boot in user data mode
+    echo "INFO: Doing first boot actions"
+    touch "/root/first_boot.check"
+    os_update
+    force_cgroupv1
+    TODAY=`date '+%Y%m%d-%H%M_%u'`;
+    if [ "${splunkosupdatemode}" = "disabled" ]; then
+      echo "os update disabled, no need to reboot, forcing setting to second_boot"
+      echo "ATTENTION : if you had to disable cgroupsv2 then this will fail later , you had to reboot in that case but following tag values"
+      if [ -e "${SECONDSTART}" ]; then 
+        rm ${SECONDSTART}
+      fi
+    elif [ "${splunkosupdatemode}" = "noreboot" ]; then
+      echo "os update mode is no reboot , not rebooting"
+      echo "ATTENTION : if you had to disable cgroupsv2 then this will fail later , you had to reboot in that case but following tag values"
+    else
+      echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
+      echo "#************************************* END with reboot ***************************************"
+      # reboot
+      init 6
+      #reboot
+      exit 0
     fi
-  elif [ "${splunkosupdatemode}" = "noreboot" ]; then
-    echo "os update mode is no reboot , not rebooting"
-    echo "ATTENTION : if you had to disable cgroupsv2 then this will fail later , you had to reboot in that case but following tag values"
-  else
-    echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
-    echo "#************************************* END with reboot ***************************************"
-    # reboot
-    init 6
-    reboot
-    exit 0
   fi
 fi  # MODE = 0 (user-data)
 
+echo "INFO: INSTALLPHASE=${INSTALLPHASE}" 
 
 # setting variables
 

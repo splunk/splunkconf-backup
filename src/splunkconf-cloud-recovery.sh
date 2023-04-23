@@ -715,7 +715,7 @@ EOF
     os_update
     force_cgroupv1
     TODAY=`date '+%Y%m%d-%H%M_%u'`;
-    if [[ $NEEDREBOOT = 0 ]; then
+    if [[ $NEEDREBOOT = 0 ]]; then
       echo "no need to reboot, forcing setting to second_boot"
       if [ -e "${SECONDSTART}" ]; then 
         rm ${SECONDSTART}

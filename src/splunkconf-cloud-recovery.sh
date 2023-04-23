@@ -198,7 +198,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230419 initial logic change to get ability to update and change cgroup at first boot in AWS
 # 20230423 move all os update and cgroup to first boot logic, remove unused wait restoration code as no longer needed
 
-VERSION="20230423b"
+VERSION="20230423c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -647,7 +647,6 @@ mv /var/log/splunkconf-cloud-recovery-info.log /var/log/splunkconf-cloud-recover
 
 echo "end of running splunkconf-secondboot.sh"
 EOF
-)
       #echo $INPUT > ${SECONDSTART}
       chmod a+x ${SECONDSTART}
     fi

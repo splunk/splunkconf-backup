@@ -683,7 +683,7 @@ EOF
         hostnamectl set-hostname ${instancename}
       fi
     fi
-    if [[ "${INSTALLPHASE}" == 3]]; then
+    if [[ "${INSTALLPHASE}" == 3 ]]; then
       echo "GCP : exit ok"
       exit 0
     fi

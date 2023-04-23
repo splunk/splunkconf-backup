@@ -641,7 +641,7 @@ if [[ "$MODE" -eq 0 ]]; then
       fi
       cat <<EOF >> ${SECONDSTART}
 #!/bin/bash -x 
-exec >> /var/log/splunkconf-cloud-secondboot.log 2>&1
+exec >> /var/log/splunkconf-cloud-recovery-secondboot.log 2>&1
  
 VERSION=$VERSION
 

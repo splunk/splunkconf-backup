@@ -8,7 +8,7 @@ variable "imdsv2" {
 
 variable "extra_default_tags" {
   description = "extra default tags to add at provider level (can be used for billing purpose)"
-  type        = string
+  type        = map
   default     = {Type="Splunk",Project="Splunk"}
 }
 

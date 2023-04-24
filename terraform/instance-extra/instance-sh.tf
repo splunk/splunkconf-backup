@@ -208,7 +208,8 @@ resource "aws_security_group_rule" "sh_from_sh_8191" {
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-sh" {
-  name                = "asg-splunk-sh"
+  #name                = "asg-splunk-sh"
+  name_prefix          = "asg-splunk-sh-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = 1
   max_size            = 1

@@ -122,7 +122,8 @@ resource "aws_security_group_rule" "mc_from_all_icmpv6" {
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-mc" {
-  name                = "asg-splunk-mc"
+  #name                = "asg-splunk-mc"
+  name_prefix          = "asg-splunk-mc-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = local.mc-nb
   max_size            = local.mc-nb
@@ -224,4 +225,20 @@ output "mc-dns-name" {
   value       = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
   description = "mc dns name (private ip)"
 }
+
+
+output "mc-dns-name-ext" {
+  value       = var.associate_public_ip ? "${local.dns-prefix}${var.mc}-ext.${var.dns-zone-name}" : "disabled"
+  description = "mc ext dns name (pub ip)"
+} 
+  
+output "sh-url" {
+  value       = var.associate_public_ip ? "https://${local.dns-prefix}${var.mc}-ext.${var.dns-zone-name}:8000" : "https://${local.dns-prefix}${var.mc}.${var.dns-zone-name}:8000"
+  description = "mc url"
+} 
+  
+output "mc-sshconnection" {
+  value       = var.associate_public_ip ? "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.mc}-ext.${var.dns-zone-name}" : "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
+  description = "mc ssh connection "
+} 
 

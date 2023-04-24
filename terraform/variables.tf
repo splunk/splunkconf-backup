@@ -177,6 +177,16 @@ variable "disk-size-ihf" {
   default     = 35
 }
 
+variable "smartstore_site_number" {
+  description = "number of sites in multisite (this is usually 3, change this only if you really cant get a 3rd site)"
+  type    = number
+  default = 3
+  validation {
+    condition     = can(regex("[2-3]", var.smartstore_site_number))
+    error_message = "Valid choices are 2 and 3 only"
+  }
+}
+
 variable "cm" {
   type    = string
   default = "cm"

@@ -12,9 +12,9 @@ resource "aws_kms_key" "splunkkms" {
   #lifecycle {
   #  prevent_destroy = true
   #}
-  tags = {
-    Type = "Splunk"
-  }
+  #tags = {
+  #  Type = "Splunk"
+  #}
 
 }
 

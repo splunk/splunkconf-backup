@@ -199,8 +199,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230423 move all os update and cgroup to first boot logic, remove unused wait restoration code as no longer needed
 # 20230423 add installphase variable
 # 20230423 redo cgroup status and add needreboot logic
+# 20230424 move init to a function and call it after param initiallization
 
-VERSION="20230423e"
+VERSION="20230424a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -585,20 +586,13 @@ os_update() {
   fi
 }
 
-echo "#*************************************  START  ********************************************************"
 
-# check that we are launched by root
-if [[ $EUID -ne 0 ]]; then
-   echo "ERROR: Exiting ! This recovery script need to be run as root !" 
-   exit 1
-fi
 
-check_cloud
-check_sysver
-cgroup_status
-
-echo "cloud_type=$cloud_type, sysver=$SYSVER"
-
+# This parse argument and handle logic to launch os update and cgroup
+# then decide on second boot if needed
+# this need to be done after parameters initialisation
+# cgroup_status shouldd have ran before
+init_arg() {
 # arguments : are we launched by user-data or in upgrade mode ?
 if [ $# -eq 1 ]; then
   MODE=$1
@@ -731,6 +725,24 @@ EOF
 fi  # MODE = 0 (user-data)
 
 echo "INFO: INSTALLPHASE=${INSTALLPHASE}" 
+
+}
+
+
+
+echo "#*************************************  START  ********************************************************"
+
+# check that we are launched by root
+if [[ $EUID -ne 0 ]]; then
+   echo "ERROR: Exiting ! This recovery script need to be run as root !" 
+   exit 1
+fi
+
+check_cloud
+check_sysver
+cgroup_status
+
+echo "cloud_type=$cloud_type, sysver=$SYSVER"
 
 # setting variables
 
@@ -1084,6 +1096,10 @@ localrootscriptdir="/usr/local/bin"
 # by default try to restore backups
 # we will disable if indexer detected as not needed
 RESTORECONFBACKUP=1
+
+echo "#************************************* ARGUMENTS for upgrade, os update, cgroup and reboot logic  ********************************************************"
+
+init_arg
 
 echo "#************************************* SPLUNK USER AND GROUP CREATION ********************************************************"
 # splunkuser checks

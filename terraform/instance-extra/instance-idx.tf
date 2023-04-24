@@ -449,7 +449,7 @@ resource "aws_security_group_rule" "lbhec_from_networks_8088" {
   from_port         = 8088
   to_port           = 8088
   protocol          = "tcp"
-  cidr_blocks       = set_union(var.hec-in-allowed-networks,var.hec-in-allowed-firehose-networks)
+  cidr_blocks       = setunion(var.hec-in-allowed-networks,var.hec-in-allowed-firehose-networks)
   description       = "allow hec from authorized networks"
 }
 

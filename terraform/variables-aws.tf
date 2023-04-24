@@ -6,10 +6,10 @@ variable "imdsv2" {
   default     = "optional"
 }
 
-variable "extra_tags" {
-  description = "extra custom tags to add in each ASG/instances"
+variable "extra_default_tags" {
+  description = "extra default tags to add at provider level (can be used for billing purpose)"
   type        = string
-  default     = ""
+  default     = {Type="Splunk",Project="Splunk"}
 }
 
 #variable "usekms" {

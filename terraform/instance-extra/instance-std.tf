@@ -90,15 +90,15 @@ resource "aws_security_group_rule" "std_from_splunkadmin-networks_ssh" {
   description       = "allow SSH connection from splunk admin networks"
 }
 
-resource "aws_security_group_rule" "std_from_splunkadmin-networks_webui" {
+resource "aws_security_group_rule" "std_from_networks_webui" {
   provider          = aws.region-primary
   security_group_id = aws_security_group.splunk-std.id
   type              = "ingress"
   from_port         = 8000
   to_port           = 8000
   protocol          = "tcp"
-  cidr_blocks       = var.splunkadmin-networks
-  description       = "allow WebUI connection from splunk admin networks"
+  cidr_blocks       = setunion(var.splunkadmin-networks,var.users-networks)
+  description       = "allow WebUI connection from authorixed networks"
 }
 
 #resource "aws_security_group_rule" "std_from_splunkadmin-networks-ipv6_ssh" { 
@@ -133,16 +133,16 @@ resource "aws_security_group_rule" "std_from_all_icmp" {
   description       = "allow icmp (ping, icmp path discovery, unreachable,...)"
 }
 
-resource "aws_security_group_rule" "std_from_all_icmpv6" {
-  provider          = aws.region-primary
-  security_group_id = aws_security_group.splunk-std.id
-  type              = "ingress"
-  from_port         = -1
-  to_port           = -1
-  protocol          = "icmpv6"
-  ipv6_cidr_blocks  = ["::/0"]
-  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
-}
+#resource "aws_security_group_rule" "std_from_all_icmpv6" {
+#  provider          = aws.region-primary
+#  security_group_id = aws_security_group.splunk-std.id
+#  type              = "ingress"
+#  from_port         = -1
+#  to_port           = -1
+#  protocol          = "icmpv6"
+#  ipv6_cidr_blocks  = ["::/0"]
+#  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
+#}
 
 resource "aws_security_group_rule" "std_from_mc_8089" {
   provider                 = aws.region-primary
@@ -177,7 +177,7 @@ resource "aws_security_group_rule" "std_from_networks_log" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-std" {
   provider            = aws.region-primary
-  name                = "asg-splunk-std"
+  name_prefix         = "asg-splunk-std-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = 1
   max_size            = 1
@@ -281,6 +281,17 @@ output "std-dns-name" {
 }
 
 output "std-dns-name-ext" {
-  value       = "${local.dns-prefix}${var.std}-ext.${var.dns-zone-name}"
-  description = "Standalone with S2 (std) dns name (public ip if enabled)"
-}
+  value       = var.associate_public_ip ? "${local.dns-prefix}${var.std}-ext.${var.dns-zone-name}" : "disabled"
+  description = "Standalone with S2 (std) ext dns name (pub ip)"
+} 
+  
+output "std-url" {
+  value       = var.associate_public_ip ? "https://${local.dns-prefix}${var.std}-ext.${var.dns-zone-name}:8000" : "https://${local.dns-prefix}${var.std}.${var.dns-zone-name}:8000"
+  description = "std url"
+} 
+  
+output "std-sshconnection" {
+  value       = var.associate_public_ip ? "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.std}-ext.${var.dns-zone-name}" : "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.std}.${var.dns-zone-name}"
+  description = "std ssh connection"
+} 
+

@@ -117,15 +117,15 @@ resource "aws_security_group_rule" "cm_from_all_icmp" {
   description       = "allow icmp (ping, icmp path discovery, unreachable,...)"
 }
 
-resource "aws_security_group_rule" "cm_from_all_icmpv6" {
-  security_group_id = aws_security_group.splunk-cm.id
-  type              = "ingress"
-  from_port         = -1
-  to_port           = -1
-  protocol          = "icmpv6"
-  ipv6_cidr_blocks  = ["::/0"]
-  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
-}
+#resource "aws_security_group_rule" "cm_from_all_icmpv6" {
+#  security_group_id = aws_security_group.splunk-cm.id
+#  type              = "ingress"
+#  from_port         = -1
+#  to_port           = -1
+#  protocol          = "icmpv6"
+#  ipv6_cidr_blocks  = ["::/0"]
+#  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
+#}
 
 resource "aws_security_group_rule" "cm_from_mc_8089" {
   security_group_id        = aws_security_group.splunk-cm.id

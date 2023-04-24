@@ -180,25 +180,25 @@ resource "aws_security_group_rule" "ds_from_iuf_8089" {
   description              = "allow connect to instance on mgt port (rest api)"
 }
 
-resource "aws_security_group_rule" "ds_from_networks_8089" {
-  security_group_id = aws_security_group.splunk-ds.id
-  type              = "ingress"
-  from_port         = 8089
-  to_port           = 8089
-  protocol          = "tcp"
-  cidr_blocks       = ["127.0.0.19/32"]
-  description       = "allow connect to instance on mgt port (rest api)"
-}
+#resource "aws_security_group_rule" "ds_from_networks_8089" {
+#  security_group_id = aws_security_group.splunk-ds.id
+#  type              = "ingress"
+#  from_port         = 8089
+#  to_port           = 8089
+#  protocol          = "tcp"
+#  cidr_blocks       = ["127.0.0.19/32"]
+#  description       = "allow connect to instance on mgt port (rest api)"
+#}
 
-resource "aws_security_group_rule" "ds_from_networks_ipv6_8089" {
-  security_group_id = aws_security_group.splunk-ds.id
-  type              = "ingress"
-  from_port         = 8089
-  to_port           = 8089
-  protocol          = "tcp"
-  ipv6_cidr_blocks  = ["::1/128"]
-  description       = "allow connect to instance on mgt port (rest api)"
-}
+#resource "aws_security_group_rule" "ds_from_networks_ipv6_8089" {
+#  security_group_id = aws_security_group.splunk-ds.id
+#  type              = "ingress"
+#  from_port         = 8089
+#  to_port           = 8089
+#  protocol          = "tcp"
+#  ipv6_cidr_blocks  = ["::1/128"]
+#  description       = "allow connect to instance on mgt port (rest api)"
+#}
 
 resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
   provider            = aws.region-primary

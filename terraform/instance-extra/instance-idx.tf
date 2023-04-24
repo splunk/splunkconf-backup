@@ -149,15 +149,15 @@ resource "aws_security_group_rule" "idx_from_all_icmp" {
   description       = "allow icmp (ping, icmp path discovery, unreachable,...)"
 }
 
-resource "aws_security_group_rule" "idx_from_all_icmpv6" {
-  security_group_id = aws_security_group.splunk-idx.id
-  type              = "ingress"
-  from_port         = -1
-  to_port           = -1
-  protocol          = "icmpv6"
-  ipv6_cidr_blocks  = ["::/0"]
-  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
-}
+#resource "aws_security_group_rule" "idx_from_all_icmpv6" {
+#  security_group_id = aws_security_group.splunk-idx.id
+#  type              = "ingress"
+#  from_port         = -1
+#  to_port           = -1
+#  protocol          = "icmpv6"
+#  ipv6_cidr_blocks  = ["::/0"]
+#  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
+#}
 
 resource "aws_security_group_rule" "idx_from_lbhec_8088" {
   security_group_id        = aws_security_group.splunk-idx.id
@@ -433,26 +433,15 @@ resource "aws_security_group_rule" "lbhec_from_all_icmp" {
   description       = "allow icmp (ping, icmp path discovery, unreachable,...)"
 }
 
-resource "aws_security_group_rule" "lbhec_from_all_icmpv6" {
-  security_group_id = aws_security_group.splunk-lbhec.id
-  type              = "ingress"
-  from_port         = -1
-  to_port           = -1
-  protocol          = "icmpv6"
-  ipv6_cidr_blocks  = ["::/0"]
-  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
-}
-
-
-resource "aws_security_group_rule" "lbhec_from_firehose_8088" {
-  security_group_id = aws_security_group.splunk-lbhec.id
-  type              = "ingress"
-  from_port         = 8088
-  to_port           = 8088
-  protocol          = "tcp"
-  cidr_blocks       = var.hec-in-allowed-firehose-networks
-  description       = "allow hec from firehose networks"
-}
+#resource "aws_security_group_rule" "lbhec_from_all_icmpv6" {
+#  security_group_id = aws_security_group.splunk-lbhec.id
+#  type              = "ingress"
+#  from_port         = -1
+#  to_port           = -1
+#  protocol          = "icmpv6"
+#  ipv6_cidr_blocks  = ["::/0"]
+#  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
+#}
 
 resource "aws_security_group_rule" "lbhec_from_networks_8088" {
   security_group_id = aws_security_group.splunk-lbhec.id
@@ -460,7 +449,7 @@ resource "aws_security_group_rule" "lbhec_from_networks_8088" {
   from_port         = 8088
   to_port           = 8088
   protocol          = "tcp"
-  cidr_blocks       = var.hec-in-allowed-networks
+  cidr_blocks       = set_union(var.hec-in-allowed-networks,var.hec-in-allowed-firehose-networks)
   description       = "allow hec from authorized networks"
 }
 

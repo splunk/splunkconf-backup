@@ -155,7 +155,7 @@ resource "aws_security_group_rule" "hf_from_networks_8088" {
   to_port           = 8088
   protocol          = "tcp"
   cidr_blocks       = var.hec-in-allowed-networks
-  description       = "allow HF to receive hec from authorized networks"
+  description       = "allow to receive hec from authorized networks"
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-hf" {

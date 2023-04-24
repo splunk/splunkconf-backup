@@ -13,7 +13,7 @@ locals {
   instance-type-sh      = (local.env == "min" ? var.instance-type-sh-min : var.instance-type-sh-default)
   ds-nb                 = (var.ds-enable ? 1 : 0)
   mc-nb                 = (var.mc-enable ? 1 : 0)
-  default_tags="${merge(map("Type", "Splunk", "Env", local.env), var.extra_default_tags)}"
+  default_tags="${merge(tomap({Type="Splunk", Env=local.env}), var.extra_default_tags)}"
 }
 
 

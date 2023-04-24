@@ -232,7 +232,7 @@ output "mc-dns-name-ext" {
   description = "mc ext dns name (pub ip)"
 } 
   
-output "sh-url" {
+output "mc-url" {
   value       = var.associate_public_ip ? "https://${local.dns-prefix}${var.mc}-ext.${var.dns-zone-name}:8000" : "https://${local.dns-prefix}${var.mc}.${var.dns-zone-name}:8000"
   description = "mc url"
 } 

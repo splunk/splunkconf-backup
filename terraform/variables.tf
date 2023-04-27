@@ -67,6 +67,12 @@ variable "enable-idx-hecelb" {
   default = true
 }
 
+variable "force-idx-hecelb-private" {
+  description = "whether to force ELB for IDX HEC on private network (or auto depending on other variables)" 
+  type    = bool
+  default = false
+}
+
 variable "hec_protocol" {
   description = "HTTP or HTTPS depending if the target being ELB listen in HTTP or HTTPS"
   type        = string

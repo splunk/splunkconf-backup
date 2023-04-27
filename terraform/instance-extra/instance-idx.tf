@@ -508,10 +508,7 @@ resource "aws_lb" "idxhec-noack" {
   name               = "idxhec-noack"
   load_balancer_type = "application"
   security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhec.id]
-  subnets            = [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id]
-  tags = {
-    Type = "Splunk"
-  }
+  subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
 }
 
 
@@ -521,10 +518,7 @@ resource "aws_lb" "idxhec-ack" {
   name               = "idxhec-ack"
   load_balancer_type = "application"
   security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhec.id]
-  subnets            = [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id]
-  tags = {
-    Type = "Splunk"
-  }
+  subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
 }
 
 
@@ -560,5 +554,5 @@ output "idx-dns-name" {
 
 output "idx-sshconnection" {
   value       = var.associate_public_ip ? "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.idx}-ext.${var.dns-zone-name}" : "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.idx}.${var.dns-zone-name}"
-  description = "idx ssh connection "
+  description = "idx ssh connection"
 }

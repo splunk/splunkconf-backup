@@ -530,7 +530,7 @@ resource "aws_lb" "idxhec-ack" {
 
 resource "aws_alb_listener" "idxhec-noack" {
   count    = var.use_elb ? 1 : 0
-  load_balancer_arn = aws_lb.idxhec-noack.arn[0]
+  load_balancer_arn = aws_lb.idxhec-noack[0].arn
   port              = 8088
   # change here for HTTPS
   protocol = "HTTP"
@@ -542,7 +542,7 @@ resource "aws_alb_listener" "idxhec-noack" {
 
 resource "aws_alb_listener" "idxhec-ack" {
   count    = var.use_elb_ack ? 1 : 0
-  load_balancer_arn = aws_lb.idxhec-ack.arn[0]
+  load_balancer_arn = aws_lb.idxhec-ack[0].arn
   port              = 8088
   # change here for HTTPS
   protocol = "HTTP"

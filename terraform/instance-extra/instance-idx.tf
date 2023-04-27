@@ -503,7 +503,7 @@ resource "aws_alb_target_group" "idxhec-ack" {
 }
 
 resource "aws_lb" "idxhec-noack" {
-  #count    = var.use_elb ? 1 : 0
+  count    = var.use_elb ? 1 : 0
   #count = var.enable-idx-hecelb ? 1: 0
   name               = "idxhec-noack"
   load_balancer_type = "application"
@@ -516,7 +516,7 @@ resource "aws_lb" "idxhec-noack" {
 
 
 resource "aws_lb" "idxhec-ack" {
-  #count    = var.use_elb_ack ? 1 : 0
+  count    = var.use_elb_ack ? 1 : 0
   #count = var.enable-idx-hecelb ? 1: 0
   name               = "idxhec-ack"
   load_balancer_type = "application"

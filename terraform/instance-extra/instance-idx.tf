@@ -558,7 +558,7 @@ resource "aws_acm_certificate" "acm_certificate_elb_hec" {
 resource "aws_route53_record" "validation_route53_record_elb_hec" {
   count   = var.create_elb_hec_certificate ? 1 : 0
   for_each = {
-    for dvo in aws_acm_certificate.acm_certificate_elb_hec[*].domain_validation_options : dvo.domain_name => {
+    for dvo in aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
       type   = dvo.resource_record_type

@@ -200,8 +200,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230423 add installphase variable
 # 20230423 redo cgroup status and add needreboot logic
 # 20230424 move init to a function and call it after param initiallization
+# 20230427 add support fot tag splunk_smartstore_site_number so it possible to work with one instance without replication for hot data but still instance resiliency
 
-VERSION="20230424a"
+VERSION="20230427a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -819,6 +820,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkpwdinit=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdinit`
   splunkpwdarn=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdarn`
   splunkenableunifiedpartition=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkenableunifiedpartition`
+  splunk_smartstore_site_number=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunk_smartstore_site_number`
   #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
@@ -854,6 +856,11 @@ fi
 if [ -z ${splunkenableunifiedpartition+x} ]; then 
   echo "splunkenableunifiedpartition is unset, falling back to default value false"
   splunkenableunifiedpartition="false"
+fi
+
+if [ -z ${splunk_smartstore_site_number+x} ]; then 
+  echo "splunk_smartstore_site_number is unset, falling back to default value 3"
+  splunk_smartstore_site_number=3
 fi
 
 if [[ "cloud_type" -eq 1 ]]; then
@@ -1723,6 +1730,11 @@ if [ "$MODE" != "upgrade" ]; then
       h)
         sitenum="8" ;;
     esac
+    if [[ $sitenum > $splunk_smartstore_site_number ]]; then
+      echo "INFO: indexer started in a zone over splunk_smartstore_site_number (splunk_smartstore_site_number=$splunk_smartstore_site_number), setting site to $splunk_smartstore_site_number so the site is accepted by cm (value would have been $sitenum))"
+      echo "INFO: This is expected if you run over multiple zone for instance resiliency without replication (because you start less instance than zones and the cm need to see at least one idx per zone declared to switch to indexing-ready mode). If that is not the case, please set splunk_smartstore_site_number to match the availabilities zones (should be 3 with AZa, AZb and AZc usually)"
+      sitenum=$splunk_smartstore_site_number
+   fi
     site="site${sitenum}"
     echo "Indexer detected setting site for availability zone $AZONE (letter=$ZONELETTER,sitenum=$sitenum, site=$site) " >> /var/log/splunkconf-cloud-recovery-info.log
     # removing any conflicting app that could define site

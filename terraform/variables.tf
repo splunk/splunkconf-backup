@@ -182,8 +182,8 @@ variable "smartstore_site_number" {
   type    = number
   default = 3
   validation {
-    condition     = can(regex("[2-3]", var.smartstore_site_number))
-    error_message = "Valid choices are 2 and 3 only"
+    condition     = can(regex("[1-3]", var.smartstore_site_number))
+    error_message = "Valid choices are 1(disable replication), 2 and 3 only"
   }
 }
 

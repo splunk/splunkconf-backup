@@ -564,13 +564,13 @@ resource "aws_route53_record" "validation_route53_record_elb_hec" {
   ttl     = "60"
 }
 
-#resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" {
-#  count                   = var.create_elb_hec_certificate ? 1 : 0
-#  certificate_arn         = aws_acm_certificate.acm_certificate_elb_hec[0].arn
-#  validation_record_fqdns = [
-# aws_route53_record.validation_route53_record_elb_hec[0].*.fqdn,
-# ]
-#}
+resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" { 
+  count                   = var.create_elb_hec_certificate ? 1 : 0
+  certificate_arn         = aws_acm_certificate.acm_certificate_elb_hec[0].arn
+  validation_record_fqdns = [
+ aws_route53_record.validation_route53_record_elb_hec[0].*.fqdn,
+ ]
+}
 
 output "idx-dns-name" {
   value       = "${local.dns-prefix}[${var.idxdnsnames}].${var.dns-zone-name}"

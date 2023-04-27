@@ -73,6 +73,12 @@ variable "force-idx-hecelb-private" {
   default = false
 }
 
+variable "create_elb_hec_certificate" {
+  description = "whether to ask for certificate for hec elb" 
+  type    = bool
+  default = false
+}
+
 variable "hec_protocol" {
   description = "HTTP or HTTPS depending if the target being ELB listen in HTTP or HTTPS"
   type        = string

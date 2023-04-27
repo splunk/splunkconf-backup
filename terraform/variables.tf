@@ -81,14 +81,14 @@ variable "hec_protocol" {
 
 variable "use_elb" {
   description = "whether to create ELB for HEC"
-  type        = number
-  default     = 1
+  type        = bool
+  default     = true
 }
 
 variable "use_elb_ack" {
   description = "whether to create ELB for HEC with ACK (required for Kinesis Firehose)"
-  type        = number
-  default     = 0
+  type        = bool
+  default     = false
 }
 
 variable "idx" {

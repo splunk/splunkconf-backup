@@ -570,10 +570,10 @@ resource "aws_route53_record" "validation_route53_record_elb_hec" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  #name    = aws_acm_certificate.acm_certificate_elb_hec[0].domain_validation_options.0.resource_record_name
-  #type    = aws_acm_certificate.acm_certificate_elb_hec[0].domain_validation_options.0.resource_record_type
+  name    = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_name
+  type    = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_type
   zone_id = module.network.dnszone_id
-  #records = aws_acm_certificate.acm_certificate_elb_hec[0].domain_validation_options.0.resource_record_value
+  records = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_value
 }
 
 #resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" { 

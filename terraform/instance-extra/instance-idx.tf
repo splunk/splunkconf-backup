@@ -570,20 +570,20 @@ resource "aws_route53_record" "validation_route53_record_elb_hec" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  name    = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_name
-  type    = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_type
+  #name    = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_name
+  #type    = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_type
   zone_id = module.network.dnszone_id
-  records = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_value
+  #records = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_value
 }
 
-#resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" { 
+resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" { 
 #  count                   = var.create_elb_hec_certificate ? 1 : 0
-#  certificate_arn         = aws_acm_certificate.acm_certificate_elb_hec[0].arn
-##  validation_record_fqdns = [
-## aws_route53_record.validation_route53_record_elb_hec[0].*.fqdn,
-## ]
-#  validation_record_fqdns = [for record in aws_route53_record.validation_route53_record_elb_hec : record.fqdn]
-#}
+  certificate_arn         = aws_acm_certificate.acm_certificate_elb_hec.arn
+  validation_record_fqdns = [
+ aws_route53_record.validation_route53_record_elb_hec.*.fqdn,
+ ]
+  validation_record_fqdns = [for record in aws_route53_record.validation_route53_record_elb_hec : record.fqdn]
+}
 
 output "idx-dns-name" {
   value       = "${local.dns-prefix}[${var.idxdnsnames}].${var.dns-zone-name}"

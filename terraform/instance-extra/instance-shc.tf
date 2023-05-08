@@ -67,7 +67,7 @@ resource "aws_security_group_rule" "sh_from_splunkadmin-networks_ssh" {
   from_port         = 22
   to_port           = 22
   protocol          = "tcp"
-  cidr_blocks       = var.splunkadmin-networks
+  cidr_blocks       = setunion(var.splunkadmin-networks)
   description       = "allow SSH connection from splunk admin networks"
 }
 
@@ -127,7 +127,7 @@ resource "aws_security_group_rule" "sh_from_trustedrestapi_8089" {
   from_port         = 8089
   to_port           = 8089
   protocol          = "tcp"
-  cidr_blocks       = var.trustedrestapi_to_sh
+  cidr_blocks       = setunion(var.trustedrestapi_to_sh)
   description       = "allow connect to sh on mgt port (rest api) from extra trusted ip(s)"
 }
 
@@ -147,7 +147,7 @@ resource "aws_security_group_rule" "sh_from_splunkadmin-networks_webui" {
   from_port         = 8000
   to_port           = 8000
   protocol          = "tcp"
-  cidr_blocks       = var.splunkadmin-networks
+  cidr_blocks       = setunion(var.splunkadmin-networks)
   description       = "allow Webui connection from splunk admin networks"
 }
 
@@ -167,7 +167,7 @@ resource "aws_security_group_rule" "sh_from_usersnetworks_8000" {
   from_port         = 8000
   to_port           = 8000
   protocol          = "tcp"
-  cidr_blocks       = var.users-networks
+  cidr_blocks       = setunion(var.users-networks)
   description       = "allow connect to instance on web ui"
 }
 
@@ -177,7 +177,7 @@ resource "aws_security_group_rule" "sh_from_usersnetworks-ipv6_8000" {
   from_port         = 8000
   to_port           = 8000
   protocol          = "tcp"
-  ipv6_cidr_blocks  = var.users-networks-ipv6
+  ipv6_cidr_blocks  = setunion(var.users-networks-ipv6)
   description       = "allow connect to instance on web ui"
 }
 

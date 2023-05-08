@@ -86,7 +86,7 @@ resource "aws_security_group_rule" "std_from_splunkadmin-networks_ssh" {
   from_port         = 22
   to_port           = 22
   protocol          = "tcp"
-  cidr_blocks       = var.splunkadmin-networks
+  cidr_blocks       = setunion(var.splunkadmin-networks)
   description       = "allow SSH connection from splunk admin networks"
 }
 
@@ -161,7 +161,7 @@ resource "aws_security_group_rule" "std_from_networks_8088" {
   from_port         = 8088
   to_port           = 8088
   protocol          = "tcp"
-  cidr_blocks       = var.hec-in-allowed-networks
+  cidr_blocks       = setunion(var.hec-in-allowed-networks)
   description       = "allow Standalone to receive hec from authorized networks"
 }
 
@@ -171,7 +171,7 @@ resource "aws_security_group_rule" "std_from_networks_log" {
   from_port         = 9997
   to_port           = 9999
   protocol          = "tcp"
-  cidr_blocks       = var.s2s-in-allowed-networks
+  cidr_blocks       = setunion(var.s2s-in-allowed-networks)
   description       = "allow to receive logs via S2S (remote networks)"
 }
 

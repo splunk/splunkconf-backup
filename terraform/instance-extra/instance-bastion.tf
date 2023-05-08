@@ -51,17 +51,18 @@ resource "aws_security_group_rule" "bastion_from_splunkadmin-networks_ssh" {
 # this is only used when not using a nat gateway (lab)
 # no harm if present otherwise
 # 
-resource "aws_security_group_rule" "bastion_natinstance" {
-  provider          = aws.region-primary
-  security_group_id = aws_security_group.splunk-bastion.id
-  type              = "ingress"
-  from_port       = 0
-  to_port         = 0
-  protocol        = -1
-  security_groups = [aws_security_group.splunk-hf.id, aws_security_group.splunk-cm.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-idx.id, aws_security_group.splunk-sh.id, aws_security_group.splunk-iuf.id, aws_security_group.splunk-mc.id,aws_security_group.splunk-worker.id]
-  self            = true
-  description       = "allow instance to be used as instance gateway from internal hosts only"
-}
+#resource "aws_security_group_rule" "bastion_natinstance" {
+#  provider          = aws.region-primary
+#  security_group_id = aws_security_group.splunk-bastion.id
+#  type              = "ingress"
+#  from_port       = 0
+#  to_port         = 0
+#  protocol        = -1
+#  # fixme split by id
+#  security_groups = [aws_security_group.splunk-hf.id, aws_security_group.splunk-cm.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-idx.id, aws_security_group.splunk-sh.id, aws_security_group.splunk-iuf.id, aws_security_group.splunk-mc.id,aws_security_group.splunk-worker.id]
+#  self            = true
+#  description       = "allow instance to be used as instance gateway from internal hosts only"
+#}
 
 # defined in sg-definition
 #resource "aws_security_group" "splunk-bastion" {

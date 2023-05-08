@@ -15,6 +15,7 @@ locals {
   ds-nb                 = (var.ds-enable ? 1 : 0)
   mc-nb                 = (var.mc-enable ? 1 : 0)
   default_tags="${merge(tomap({Type="Splunk", Env=local.env}), var.extra_default_tags)}"
+  image_id=data.aws_ssm_parameter.linuxAmi.value
 }
 
 

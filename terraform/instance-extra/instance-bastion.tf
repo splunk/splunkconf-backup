@@ -63,11 +63,12 @@ resource "aws_security_group_rule" "bastion_natinstance" {
   description       = "allow instance to be used as instance gateway from internal hosts only"
 }
 
-resource "aws_security_group" "splunk-bastion" {
-  name        = "splunk-bastion"
-  description = "Security group for bastion"
-  vpc_id      = local.master_vpc_id
-}
+# defined in sg-definition
+#resource "aws_security_group" "splunk-bastion" {
+#  name        = "splunk-bastion"
+#  description = "Security group for bastion"
+#  vpc_id      = local.master_vpc_id
+#}
 
 resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
   name = "asg-splunk-bastion"

@@ -403,7 +403,7 @@ resource "aws_launch_template" "splunk-idxaz1" {
       splunkconnectedmode = var.splunkconnectedmode
       splunkacceptlicense = var.splunkacceptlicense
       splunkenableunifiedpartition = var.splunkenableunifiedpartition
-      splunk_smartstore_site_number=var.smartstore_site_number
+      splunksmartstoresitenumber = var.splunksmartstoresitenumber
     }
   }
   metadata_options {

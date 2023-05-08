@@ -138,8 +138,16 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_secondary_lifecycle"
   }
 }
 
+resource "aws_s3_bucket_ownership_controls" "s3_backup" {
+  bucket = aws_s3_bucket.s3_backup.id
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
 resource "aws_s3_bucket_acl" "source_s3_bucket_backup_acl" {
   provider = aws.region-primary
+  depends_on = [aws_s3_bucket_ownership_controls.s3_backup]
 
   bucket = aws_s3_bucket.s3_backup.id
   acl    = "private"

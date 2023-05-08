@@ -44,7 +44,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ihf2" {
 
 resource "aws_launch_template" "splunk-ihf2" {
   name          = "splunk-ihf2"
-  image_id      = data.aws_ssm_parameter.linuxAmi.value
+  image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"
   block_device_mappings {

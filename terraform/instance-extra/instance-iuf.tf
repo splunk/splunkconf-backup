@@ -157,7 +157,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-iuf" {
 resource "aws_launch_template" "splunk-iuf" {
   #name          = "splunk-iuf"
   name_prefix    = "splunk-iuf-"
-  image_id      = data.aws_ssm_parameter.linuxAmi.value
+  image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"
   block_device_mappings {

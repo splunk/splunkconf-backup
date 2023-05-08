@@ -112,7 +112,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
 resource "aws_launch_template" "splunk-bastion" {
   #name          = var.bastion
   name_prefix = "launch-template-splunk-bastion"
-  image_id    = data.aws_ssm_parameter.linuxAmi.value
+  image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"
   # just recreate one if needed

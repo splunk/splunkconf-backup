@@ -103,8 +103,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-worker" {
 resource "aws_launch_template" "splunk-worker" {
   provider                 = aws.region-primary
   name_prefix = "splunk-worker-"
-  image_id    = data.aws_ssm_parameter.linuxAmi.value
-  #key_name      = aws_key_pair.master-key.key_name
+  image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"
   # just recreate one if needed

@@ -85,7 +85,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
         version            = "$Latest"
       }
       override {
-        instance_type = "t3a.nano"
+        instance_type = local.instance-type-bastion
       }
     }
   }
@@ -116,7 +116,7 @@ resource "aws_launch_template" "splunk-bastion" {
   name_prefix = "launch-template-splunk-bastion"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
-  instance_type = "t3a.nano"
+  instance_type = local.instance-type-bastion
   # just recreate one if needed
   instance_initiated_shutdown_behavior = "terminate"
   block_device_mappings {

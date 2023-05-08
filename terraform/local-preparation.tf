@@ -11,6 +11,7 @@ locals {
   instance-type-mc      = (local.env == "min" ? var.instance-type-mc-min : var.instance-type-mc-default)
   instance-type-ds      = (local.env == "min" ? var.instance-type-ds-min : var.instance-type-ds-default)
   instance-type-sh      = (local.env == "min" ? var.instance-type-sh-min : var.instance-type-sh-default)
+  instance-type-bastion = var.instance-type-bastion
   use-elb-private      = (var.create_network_module == "false" || var.force-idx-hecelb-private == "false" ? "false" : "true")
   ds-nb                 = (var.ds-enable ? 1 : 0)
   mc-nb                 = (var.mc-enable ? 1 : 0)

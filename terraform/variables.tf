@@ -115,6 +115,11 @@ variable "bastion" {
   default     = "bastion"
 }
 
+variable "instance-type-bastion" {
+  type    = string
+  default = "t3a.nano"
+}
+
 variable "splunkcloudconfiglocation" {
   description = "universal forwarder packaged downloaded from your splunkcloud stack"
   type        = string

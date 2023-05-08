@@ -19,7 +19,7 @@ resource "local_file" "ansible_vars_tf" {
     license_manager_name: ${local.license_manager_name}
     deploymentserver_name: ${local.deploymentserver_name}
     smartstore_uri: ${local.smartstore_uri}
-    smartstore_site_number: ${var.smartstore_site_number}
+    smartstore_site_number: ${var.splunksmartstoresitenumber}
     dns_zone_name: ${var.dns-zone-name}
   tasks:
   - name: create directories for target jinja

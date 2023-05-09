@@ -223,6 +223,7 @@ resource "null_resource" "bucket_sync_bastion" {
     command = "./scripts/copytos3-bastion.sh ${aws_s3_bucket.s3_install.id} ${aws_s3_bucket.s3_backup.id}"
     #command = "./scripts/copytos3-bastion.sh ${aws_s3_bucket.s3_install.id} ${aws_s3_bucket.s3_backup.id}"
   }
+}
 
 
 output "bastion-dns-name-ext" {

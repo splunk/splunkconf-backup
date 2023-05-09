@@ -587,7 +587,7 @@ resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" {
 }
 
 output "idx-dns-name" {
-  value       = "${local.dns-prefix}[${var.idxdnsname}].${var.dns-zone-name}"
+  value       = "${local.dns-prefix}[${var.idx}].${var.dns-zone-name}"
   description = "idx (single) dns name (private ip)"
 }
 
@@ -597,7 +597,7 @@ output "idx-dns-names" {
 }
 
 output "idx-dns-name-ext" {
-  value       = var.associate_public_ip ? "${local.dns-prefix}${var.idxdnsname}-ext.${var.dns-zone-name}" : "disabled"
+  value       = var.associate_public_ip ? "${local.dns-prefix}${var.idx}-ext.${var.dns-zone-name}" : "disabled"
   description = "idx (single) ext dns name (pub ip)"
 } 
 

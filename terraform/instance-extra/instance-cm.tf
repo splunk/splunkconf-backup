@@ -303,9 +303,12 @@ resource "aws_launch_template" "splunk-cm" {
   user_data = filebase64("./user-data/user-data.txt")
 }
 
+locals {
+  cm-dns-name = "${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
+}
 
 output "cm-dns-name" {
-  value       = "${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
+  value       = local.cm-dns-name
   description = "cm dns name (private ip)"
 }
 

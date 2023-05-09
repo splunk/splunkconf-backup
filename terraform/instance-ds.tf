@@ -301,10 +301,12 @@ resource "aws_launch_template" "splunk-ds" {
   user_data = filebase64("./user-data/user-data.txt")
 }
 
-
+locals {
+  ds-dns-name = "${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
+}
 
 output "ds-dns-name" {
-  value       = "${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
+  value       = local.ds-dns-name
   description = "ds dns name (private ip)"
 }
 

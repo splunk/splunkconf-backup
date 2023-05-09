@@ -198,12 +198,12 @@ resource "local_file" "ansible_bastion_vars_tf" {
     bastionstrichostchecking: ${var.bastionstrichostchecking}
     privkeypathforhost: ${local.privkeypathforhost}
     hostuser: ${var.hostuser}
-    hostsh: ${output.sh-dns-name.value}
-    hostds: ${output.ds-dns-name.value}
-    hostcm: ${output.cm-dns-name.value}
-    hostidx: ${output.idx-dns-name.value}
-    hostmc: ${output.mc-dns-name.value}
-    hostworker: ${output.worker-dns-name.value}
+    hostsh: ${local.sh-dns-name}
+    hostds: ${local.ds-dns-name}
+    hostcm: ${output.cm-dns-name}
+    hostidx: ${output.idx-dns-name}
+    hostmc: ${output.mc-dns-name}
+    hostworker: ${output.worker-dns-name}
   tasks:
     - name: create ssh config file to use bastion
       template:

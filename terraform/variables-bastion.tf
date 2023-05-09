@@ -36,6 +36,12 @@ variable "bastionuser" {
   default     = "ec2-user"
 }
 
+variable "bastionstrichostchecking" {
+  description = "whether to use strict host checking therei (yes or no)"
+  type        = string
+  default     = "yes"
+}
+
 variable "hostuser" {
   description = "user login for hosts"
   type        = string

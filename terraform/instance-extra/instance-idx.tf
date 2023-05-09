@@ -587,9 +587,24 @@ resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" {
 }
 
 output "idx-dns-name" {
+  value       = "${local.dns-prefix}[${var.idxdnsname}].${var.dns-zone-name}"
+  description = "idx (single) dns name (private ip)"
+}
+
+output "idx-dns-names" {
   value       = "${local.dns-prefix}[${var.idxdnsnames}].${var.dns-zone-name}"
   description = "idx/inputs (multiples) dns name (private ip)"
 }
+
+output "idx-dns-name-ext" {
+  value       = var.associate_public_ip ? "${local.dns-prefix}${var.idxdnsname}-ext.${var.dns-zone-name}" : "disabled"
+  description = "idx (single) ext dns name (pub ip)"
+} 
+
+output "idx-dns-names-ext" {
+  value       = var.associate_public_ip ? "${local.dns-prefix}${var.idxdnsnames}-ext.${var.dns-zone-name}" : "disabled"
+  description = "idx/inputs (multiples) ext dns name (pub ip)"
+} 
 
 output "idx-sshconnection" {
   value       = var.associate_public_ip ? "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.idx}-ext.${var.dns-zone-name}" : "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.idx}.${var.dns-zone-name}"

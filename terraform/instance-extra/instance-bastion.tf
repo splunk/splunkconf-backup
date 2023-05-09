@@ -192,7 +192,7 @@ resource "local_file" "ansible_bastion_vars_tf" {
     bastion2host: ${var.bastion2host}
     privkeypathforbastion2: ${local.privkeypathforbastion2}
     bastion2user: ${var.bastion2user}
-    bastionhost-ext: ${var.bastionhost-ext}
+    bastionhost-ext: ${local.bastion-dns-name-ext}
     privkeypathforbastion: ${local.privkeypathforbastion}
     bastionuser: ${var.bastionuser}
     bastionstrichostchecking: ${var.bastionstrichostchecking}
@@ -225,9 +225,12 @@ resource "null_resource" "bucket_sync_bastion" {
   }
 }
 
+locals {
+  bastion-dns-name-ext= "${local.dns-prefix}${var.bastion}-ext.${var.dns-zone-name}"
+}
 
 output "bastion-dns-name-ext" {
-  value       = "${local.dns-prefix}${var.bastion}-ext.${var.dns-zone-name}"
+  value       = local.bastion-dns-name-ext
   description = "Bastion dns name (public ip)"
 }
 

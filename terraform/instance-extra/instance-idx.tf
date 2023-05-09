@@ -586,10 +586,6 @@ resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" {
   validation_record_fqdns = [for record in aws_route53_record.validation_route53_record_elb_hec : record.fqdn]
 }
 
-locals {
-  idx-dns-name = "${local.dns-prefix}[${var.idx}].${var.dns-zone-name}"
-}
-
 output "idx-dns-name" {
   value       = local.idx-dns-name
   description = "idx (single) dns name (private ip)"

@@ -142,9 +142,6 @@ resource "aws_launch_template" "splunk-worker" {
   user_data = filebase64("./user-data/user-data-worker.txt")
 }
 
-locals {
-  worker-dns-name = "${local.dns-prefix}${var.worker}.${var.dns-zone-name}"
-}
 
 output "worker-dns-name" {
   value       = local.worker-dns-name

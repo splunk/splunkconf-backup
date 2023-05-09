@@ -220,10 +220,6 @@ resource "aws_launch_template" "splunk-mc" {
   user_data = filebase64("./user-data/user-data.txt")
 }
 
-locals {
-  mc-dns-name = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
-}
-
 output "mc-dns-name" {
   value       = local.mc-dns-name
   description = "mc dns name (private ip)"

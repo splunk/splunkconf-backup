@@ -177,6 +177,53 @@ resource "aws_launch_template" "splunk-bastion" {
 #  security_groups = [aws_security_group.splunk-bastion.id]
 #}
 
+locals {
+  privkeypathforbastion2     = "${var.keypath}/${var.privkeynameforbastion2}"
+  privkeypathforbastion ="${var.keypath}/fixme"
+  privkeypathforhost="${var.keypath}/fixme"
+}
+
+resource "local_file" "ansible_bastion_vars_tf" {
+  content = <<-DOC
+---
+- hosts: 127.0.0.1
+  vars:
+    use_doublebastion: ${var.use_doublebastion}
+    bastion2host: ${var.bastion2host}
+    privkeypathforbastion2: ${local.privkeypathforbastion2}
+    bastion2user: ${var.bastion2user}
+    bastionhost-ext: ${var.bastionhost-ext}
+    privkeypathforbastion: ${local.privkeypathforbastion}
+    bastionuser: ${var.bastionuser}
+    bastionstrichostchecking: ${var.bastionstrichostchecking}
+    privkeypathforhost: ${local.privkeypathforhost}
+    hostuser: ${var.hostuser}
+    hostsh: ${output.sh-dns-name.value}
+    hostds: ${output.ds-dns-name.value}
+    hostcm: ${output.cm-dns-name.value}
+    hostidx: ${output.idx-dns-name.value}
+    hostmc: ${output.mc-dns-name.value}
+    hostworker: ${output.worker-dns-name.value}
+  tasks:
+    - name: create ssh config file to use bastion
+      template:
+        src: "j2/configsshtemplate.j2"
+        dest: "j2/configssh-${var.region-primary}.txt"
+        mode: 0644
+
+    DOC
+  filename = "./ansible_bastion_jinja_tf.yml"
+}
+
+resource "null_resource" "bucket_sync_bastion" {
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+  provisioner "local-exec" {
+    command = "./scripts/copytos3-bastion.sh ${aws_s3_bucket.s3_install.id} ${aws_s3_bucket.s3_backup.id}"
+    #command = "./scripts/copytos3-bastion.sh ${aws_s3_bucket.s3_install.id} ${aws_s3_bucket.s3_backup.id}"
+  }
+
 
 output "bastion-dns-name-ext" {
   value       = "${local.dns-prefix}${var.bastion}-ext.${var.dns-zone-name}"

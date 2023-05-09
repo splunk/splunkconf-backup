@@ -1,0 +1,99 @@
+
+Host *
+    ServerAliveInterval 30
+    ServerAliveCountMax 2
+ 
+# not for bastion , safe for the other one as we hop through bastion inside the vpc and we are changing keys each time we reinstantiate instance
+Host *-a
+   StrictHostKeyChecking no
+   UserKnownHostsFile=/dev/null
+
+{% if use_doublebastion is defined and use_doublebastion == 1 %} 
+Host bastion2
+        Hostname {{ bastion2host }}
+        IdentityFile {{ privkeypathforbastion2 }}
+        user {{ bastion2user }}
+{# This should be always yes here -#}
+        StrictHostKeyChecking yes
+
+{% endif %}
+
+Host bastion
+# change here ip when updated
+        Hostname {{ bastion-ext }}
+        IdentityFile {{ ssk_key_path }}
+        user ec2-user
+{% if use_doublebastion is defined and use_doublebastion == 1 %} 
+        ProxyJump bastion2
+{% endif %}
+{# this should be yes unless you recreate the instance often but understand what it means to change this - #}
+        StrictHostKeyChecking {{ bastionstrichostchecking }}
+
+
+Host SH-a
+        HostName {{ hostsh }}
+        IdentityFile {{ ssk_key_path }}
+        user ec2-user
+        LocalForward 18003 127.0.0.1:8000
+{% if use_doublebastion is defined and use_doublebastion == 1 %} 
+        ProxyJump bastion2,bastion
+{% else %}
+        ProxyJump bastion
+{% endif %}
+
+Host DS-a
+        HostName {{ hostds }}
+        IdentityFile {{ ssk_key_path }}
+        user ec2-user
+        LocalForward 18004 127.0.0.1:8000
+{% if use_doublebastion is defined and use_doublebastion == 1 %} 
+        ProxyJump bastion2,bastion
+{% else %}
+        ProxyJump bastion
+{% endif %}
+
+Host CM-a
+        HostName {{ hostds }}
+        IdentityFile {{ ssk_key_path }}
+        user ec2-user
+        LocalForward 18005 127.0.0.1:8000
+{% if use_doublebastion is defined and use_doublebastion == 1 %} 
+        ProxyJump bastion2,bastion
+{% else %}
+        ProxyJump bastion
+{% endif %}
+
+Host IDX-a
+        HostName {{ hostidx }}
+        IdentityFile {{ ssk_key_path }}
+        user ec2-user
+        LocalForward 18006 127.0.0.1:8000
+{% if use_doublebastion is defined and use_doublebastion == 1 %} 
+        ProxyJump bastion2,bastion
+{% else %}
+        ProxyJump bastion
+{% endif %}
+
+Host MC-a
+        HostName {{ hostmc }}
+        IdentityFile {{ ssk_key_path }}
+        user ec2-user
+        LocalForward 18009 127.0.0.1:8000
+{% if use_doublebastion is defined and use_doublebastion == 1 %} 
+        ProxyJump bastion2,bastion
+{% else %}
+        ProxyJump bastion
+{% endif %}
+
+Host worker-a
+        HostName {{ hostworker }}
+        IdentityFile {{ ssk_key_path }}
+        user ec2-user
+        LocalForward 18034 127.0.0.1:8000
+{% if use_doublebastion is defined and use_doublebastion == 1 %} 
+        ProxyJump bastion2,bastion
+{% else %}
+        ProxyJump bastion
+{% endif %}
+
+

@@ -8,7 +8,9 @@ Host *-a
    StrictHostKeyChecking no
    UserKnownHostsFile=/dev/null
 
-{% if use_doublebastion is defined and use_doublebastion == 1 %} 
+{% if use_doublebastion is defined and use_doublebastion == "yes" %} 
+# This is a outside bastion that connect through bastion to reach other instances
+# make sure you add this bastion2 ip to the admin acl
 Host bastion2
         Hostname {{ bastion2host }}
         IdentityFile {{ privkeypathforbastion2 }}
@@ -19,7 +21,6 @@ Host bastion2
 {% endif %}
 
 Host bastion
-# change here ip when updated
         Hostname {{ bastionhostext }}
         IdentityFile {{ privkeypathforbastion }}
         user {{ bastionuser }}

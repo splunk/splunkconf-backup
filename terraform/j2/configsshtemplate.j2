@@ -21,7 +21,7 @@ Host bastion2
 Host bastion
 # change here ip when updated
         Hostname {{ bastionhostext }}
-        IdentityFile {{ ssk_key_path }}
+        IdentityFile {{ privkeypathforbastion }}
         user {{ bastionuser }}
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
         ProxyJump bastion2
@@ -32,7 +32,7 @@ Host bastion
 
 Host SH-a
         HostName {{ hostsh }}
-        IdentityFile {{ ssk_key_path }}
+        IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18003 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
@@ -43,7 +43,7 @@ Host SH-a
 
 Host DS-a
         HostName {{ hostds }}
-        IdentityFile {{ ssk_key_path }}
+        IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18004 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
@@ -54,7 +54,7 @@ Host DS-a
 
 Host CM-a
         HostName {{ hostds }}
-        IdentityFile {{ ssk_key_path }}
+        IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18005 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
@@ -65,7 +65,7 @@ Host CM-a
 
 Host IDX-a
         HostName {{ hostidx }}
-        IdentityFile {{ ssk_key_path }}
+        IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18006 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
@@ -76,7 +76,7 @@ Host IDX-a
 
 Host MC-a
         HostName {{ hostmc }}
-        IdentityFile {{ ssk_key_path }}
+        IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18009 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
@@ -87,7 +87,7 @@ Host MC-a
 
 Host worker-a
         HostName {{ hostworker }}
-        IdentityFile {{ ssk_key_path }}
+        IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18034 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 

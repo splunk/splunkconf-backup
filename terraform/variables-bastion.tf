@@ -4,8 +4,11 @@ variable "use_doublebastion" {
   description = "set to yes value if you go through a external bastion"
   type        = string
   default     = "no"
-  condition     = can(regex("^(yes|no)$", var.use_doublebastion))
-  error_message = "valid values are yes and no only"
+  validation {
+    # regex(...) fails if it cannot find a match
+    condition     = can(regex("^(yes|no)$", var.use_doublebastion))
+    error_message = "valid values are yes and no only"
+  }
 }
 
 variable "bastion2host" {
@@ -48,8 +51,11 @@ variable "bastionstrichostchecking" {
   description = "whether to use strict host checking therei (yes or no)"
   type        = string
   default     = "yes"
-  condition     = can(regex("^(yes|no)$", var.bastionstrichostchecking))
-  error_message = "valid values are yes and no only"
+  validation {
+    # regex(...) fails if it cannot find a match
+    condition     = can(regex("^(yes|no)$", var.bastionstrichostchecking))
+    error_message = "valid values are yes and no only"
+  }
 }
 
 variable "hostuser" {

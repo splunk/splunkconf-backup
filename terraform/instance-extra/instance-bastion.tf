@@ -188,14 +188,14 @@ resource "local_file" "ansible_bastion_vars_tf" {
 ---
 - hosts: 127.0.0.1
   vars:
-    use_doublebastion: ${var.use_doublebastion}
+    use_doublebastion: "${var.use_doublebastion}"
     bastion2host: ${var.bastion2host}
     privkeypathforbastion2: ${local.privkeypathforbastion2}
     bastion2user: ${var.bastion2user}
     bastionhostext: ${local.bastion-dns-name-ext}
     privkeypathforbastion: ${local.privkeypathforbastion}
     bastionuser: ${var.bastionuser}
-    bastionstrichostchecking: ${var.bastionstrichostchecking}
+    bastionstrichostchecking: "${var.bastionstrichostchecking}"
     privkeypathforhost: ${local.privkeypathforhost}
     hostuser: ${var.hostuser}
     hostsh: ${local.sh-dns-name}

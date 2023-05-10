@@ -10,7 +10,7 @@ Host *-a
    StrictHostKeyChecking no
    UserKnownHostsFile=/dev/null
 
-{% if use_doublebastion == "yes" %} 
+{% if use_doublebastion %} 
 # This is a outside bastion that connect through bastion to reach other instances
 # make sure you add this bastion2 ip to the admin acl
 Host bastion2
@@ -26,7 +26,7 @@ Host bastion
         Hostname {{ bastionhostext }}
         IdentityFile {{ privkeypathforbastion }}
         user {{ bastionuser }}
-{% if use_doublebastion is defined and use_doublebastion == "yes" %} 
+{% if use_doublebastion %} 
         ProxyJump bastion2
 {% endif %}
 {# this should be yes unless you recreate the instance often but understand what it means to change this - #}
@@ -38,7 +38,7 @@ Host SH-a
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18003 127.0.0.1:8000
-{% if use_doublebastion is defined and use_doublebastion == "yes" %} 
+{% if use_doublebastion %} 
         ProxyJump bastion2,bastion
 {% else %}
         ProxyJump bastion
@@ -49,7 +49,7 @@ Host DS-a
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18004 127.0.0.1:8000
-{% if use_doublebastion is defined and use_doublebastion == "yes" %} 
+{% if use_doublebastion %} 
         ProxyJump bastion2,bastion
 {% else %}
         ProxyJump bastion
@@ -60,7 +60,7 @@ Host CM-a
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18005 127.0.0.1:8000
-{% if use_doublebastion is defined and use_doublebastion == "yes" %} 
+{% if use_doublebastion %} 
         ProxyJump bastion2,bastion
 {% else %}
         ProxyJump bastion
@@ -71,7 +71,7 @@ Host IDX-a
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18006 127.0.0.1:8000
-{% if use_doublebastion is defined and use_doublebastion == "yes" %} 
+{% if use_doublebastion %} 
         ProxyJump bastion2,bastion
 {% else %}
         ProxyJump bastion
@@ -82,7 +82,7 @@ Host MC-a
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18009 127.0.0.1:8000
-{% if use_doublebastion is defined and use_doublebastion == "yes" %} 
+{% if use_doublebastion %} 
         ProxyJump bastion2,bastion
 {% else %}
         ProxyJump bastion
@@ -93,7 +93,7 @@ Host worker-a
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18034 127.0.0.1:8000
-{% if use_doublebastion is defined and use_doublebastion == "yes" %} 
+{% if use_doublebastion %} 
         ProxyJump bastion2,bastion
 {% else %}
         ProxyJump bastion

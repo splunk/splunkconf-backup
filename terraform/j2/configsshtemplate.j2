@@ -54,7 +54,7 @@ Host DS-a
 {% endif %}
 
 Host CM-a
-        HostName {{ hostds }}
+        HostName {{ hostcm }}
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18005 127.0.0.1:8000

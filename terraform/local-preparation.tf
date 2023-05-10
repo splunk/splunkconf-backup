@@ -23,7 +23,7 @@ locals {
   mc-dns-name = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
   worker-dns-name = "${local.dns-prefix}${var.worker}.${var.dns-zone-name}"
   sh-dns-name="${local.dns-prefix}${var.sh}.${var.dns-zone-name}"
-  idx-dns-name = "${local.dns-prefix}[${var.idx}].${var.dns-zone-name}"
+  idx-dns-name = "${local.dns-prefix}${var.idx}.${var.dns-zone-name}"
   cm-dns-name = "${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
   ds-dns-name = "${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
 

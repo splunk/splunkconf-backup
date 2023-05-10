@@ -192,7 +192,7 @@ resource "local_file" "ansible_bastion_vars_tf" {
     bastion2host: ${var.bastion2host}
     privkeypathforbastion2: ${local.privkeypathforbastion2}
     bastion2user: ${var.bastion2user}
-    bastionhost-ext: ${local.bastion-dns-name-ext}
+    bastionhostext: ${local.bastion-dns-name-ext}
     privkeypathforbastion: ${local.privkeypathforbastion}
     bastionuser: ${var.bastionuser}
     bastionstrichostchecking: ${var.bastionstrichostchecking}
@@ -220,7 +220,7 @@ resource "null_resource" "bucket_sync_bastion" {
     always_run = "${timestamp()}"
   }
   provisioner "local-exec" {
-    command = "./scripts/copytos3-bastion.sh ${aws_s3_bucket.s3_install.id} ${aws_s3_bucket.s3_backup.id}"
+    command = "ansible-playbook ./ansible_bastion_jinja_tf.yml"
     #command = "./scripts/copytos3-bastion.sh ${aws_s3_bucket.s3_install.id} ${aws_s3_bucket.s3_backup.id}"
   }
 }

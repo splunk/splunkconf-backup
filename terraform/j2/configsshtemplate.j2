@@ -20,9 +20,9 @@ Host bastion2
 
 Host bastion
 # change here ip when updated
-        Hostname {{ bastion-ext }}
+        Hostname {{ bastionhostext }}
         IdentityFile {{ ssk_key_path }}
-        user ec2-user
+        user {{ bastionuser }}
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
         ProxyJump bastion2
 {% endif %}
@@ -33,7 +33,7 @@ Host bastion
 Host SH-a
         HostName {{ hostsh }}
         IdentityFile {{ ssk_key_path }}
-        user ec2-user
+        user {{ hostuser }}
         LocalForward 18003 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
         ProxyJump bastion2,bastion
@@ -44,7 +44,7 @@ Host SH-a
 Host DS-a
         HostName {{ hostds }}
         IdentityFile {{ ssk_key_path }}
-        user ec2-user
+        user {{ hostuser }}
         LocalForward 18004 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
         ProxyJump bastion2,bastion
@@ -55,7 +55,7 @@ Host DS-a
 Host CM-a
         HostName {{ hostds }}
         IdentityFile {{ ssk_key_path }}
-        user ec2-user
+        user {{ hostuser }}
         LocalForward 18005 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
         ProxyJump bastion2,bastion
@@ -66,7 +66,7 @@ Host CM-a
 Host IDX-a
         HostName {{ hostidx }}
         IdentityFile {{ ssk_key_path }}
-        user ec2-user
+        user {{ hostuser }}
         LocalForward 18006 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
         ProxyJump bastion2,bastion
@@ -77,7 +77,7 @@ Host IDX-a
 Host MC-a
         HostName {{ hostmc }}
         IdentityFile {{ ssk_key_path }}
-        user ec2-user
+        user {{ hostuser }}
         LocalForward 18009 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
         ProxyJump bastion2,bastion
@@ -88,7 +88,7 @@ Host MC-a
 Host worker-a
         HostName {{ hostworker }}
         IdentityFile {{ ssk_key_path }}
-        user ec2-user
+        user {{ hostuser }}
         LocalForward 18034 127.0.0.1:8000
 {% if use_doublebastion is defined and use_doublebastion == 1 %} 
         ProxyJump bastion2,bastion

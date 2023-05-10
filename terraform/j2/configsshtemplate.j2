@@ -8,7 +8,7 @@ Host *-a
    StrictHostKeyChecking no
    UserKnownHostsFile=/dev/null
 
-{% if use_doublebastion is defined and use_doublebastion == "yes" %} 
+{% if use_doublebastion == "yes" %} 
 # This is a outside bastion that connect through bastion to reach other instances
 # make sure you add this bastion2 ip to the admin acl
 Host bastion2

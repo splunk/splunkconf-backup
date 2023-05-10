@@ -18,7 +18,7 @@ locals {
   sh-nb                 = (var.sh-enable ? 1 : 0)
   cm-nb                 = (var.cm-enable ? 1 : 0)
   default_tags="${merge(tomap({Type="Splunk", Env=local.env}), var.extra_default_tags)}"
-  image_id=(var.enable-customami ? data.aws_ssm_parameter.linuxAmicustom.value : local.image_id_al)
+  image_id=(var.enable-customami ? data.aws_ssm_parameter.linuxAmicustom[0].value : local.image_id_al)
   image_id_al= (var.enable-al2023 ? data.aws_ssm_parameter.linuxAmiAL2023.value : data.aws_ssm_parameter.linuxAmi.value)
   mc-dns-name = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
   worker-dns-name = "${local.dns-prefix}${var.worker}.${var.dns-zone-name}"

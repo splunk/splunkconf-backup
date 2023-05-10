@@ -19,6 +19,7 @@ data "aws_ssm_parameter" "linuxAmiAL2023" {
 }
 
 data "aws_ssm_parameter" "linuxAmicustom" {
+  count = enable-customami ? 1 : 0
   provider = aws.region-primary
   name     = var.ssmamicustompath
 }

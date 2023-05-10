@@ -36,7 +36,7 @@ Host SH-a
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18003 127.0.0.1:8000
-{% if use_doublebastion == "yes" -%} 
+{%- if use_doublebastion == "yes" %} 
         ProxyJump bastion2,bastion
 {% else %}
         ProxyJump bastion
@@ -47,7 +47,7 @@ Host DS-a
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18004 127.0.0.1:8000
-{% if use_doublebastion == "yes" -%} 
+{%- if use_doublebastion == "yes" %} 
         ProxyJump bastion2,bastion
 {% else %}
         ProxyJump bastion
@@ -58,43 +58,43 @@ Host CM-a
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18005 127.0.0.1:8000
-{% if use_doublebastion == "yes" -%} 
+{%- if use_doublebastion == "yes" %} 
         ProxyJump bastion2,bastion
-{%- else -%}
+{% else %}
         ProxyJump bastion
-{%- endif -%}
+{% endif %}
 
 Host IDX-a
         HostName {{ hostidx }}
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18006 127.0.0.1:8000
-{%- if use_doublebastion == "yes" -%} 
+{%- if use_doublebastion == "yes" %} 
         ProxyJump bastion2,bastion
-{%- else -%}
+{% else %}
         ProxyJump bastion
-{%- endif -%}
+{% endif %}
 
 Host MC-a
         HostName {{ hostmc }}
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18009 127.0.0.1:8000
-{%- if use_doublebastion == "yes" -%} 
+{%- if use_doublebastion == "yes" %} 
         ProxyJump bastion2,bastion
-{%- else -%}
+{% else %}
         ProxyJump bastion
-{%- endif -%}
+{% endif %}
 
 Host worker-a
         HostName {{ hostworker }}
         IdentityFile {{ privkeypathforhost }}
         user {{ hostuser }}
         LocalForward 18034 127.0.0.1:8000
-{%- if use_doublebastion == "yes" -%} 
+{%- if use_doublebastion == "yes" %} 
         ProxyJump bastion2,bastion
-{%- else -%}
+{% else %}
         ProxyJump bastion
-{%- endif -%}
+{% endif %}
 
 

@@ -237,7 +237,7 @@ resource "null_resource" "bucket_sync_bastion" {
 
 locals {
   bastion-dns-name-ext= "${local.dns-prefix}${var.bastion}-ext.${var.dns-zone-name}"
-  helper-sshconfig="${aws_s3_bucket.s3_install.id}/install/configssh-${var.region-primary}.txt"
+  helper-sshconfig="aws s3 cp s3://${aws_s3_bucket.s3_install.id}/install/configssh-${var.region-primary}.txt ."
 }
 
 output "helper-sshconfig" {

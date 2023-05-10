@@ -277,7 +277,7 @@ variable "instance-type-lm" {
   default = "t3a.small"
 }
 
-variable "sh--enable" {
+variable "sh-enable" {
   type    = bool
   default = true
 }

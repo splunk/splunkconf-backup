@@ -215,18 +215,34 @@ resource "local_file" "ansible_bastion_vars_tf" {
   filename = "./ansible_bastion_jinja_tf.yml"
 }
 
-resource "null_resource" "bucket_sync_bastion" {
+resource "null_resource" "ansible_bastion_jinja" {
   triggers = {
     always_run = "${timestamp()}"
   }
   provisioner "local-exec" {
     command = "ansible-playbook ./ansible_bastion_jinja_tf.yml"
-    #command = "./scripts/copytos3-bastion.sh ${aws_s3_bucket.s3_install.id} ${aws_s3_bucket.s3_backup.id}"
   }
+  depends_on = [local_file.ansible_bastion_vars_tf]
+}
+
+resource "null_resource" "bucket_sync_bastion" {
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+  provisioner "local-exec" {
+    command = "./scripts/copytos3-bastion.sh ${aws_s3_bucket.s3_install.id} ${aws_s3_bucket.s3_backup.id} j2/configssh-${var.region-primary}.txt"
+  }
+  depends_on = [null_resource.ansible_bastion_jinja]
 }
 
 locals {
   bastion-dns-name-ext= "${local.dns-prefix}${var.bastion}-ext.${var.dns-zone-name}"
+  helper-sshconfig="${aws_s3_bucket.s3_install.id}/install/configssh-${var.region-primary}.txt"
+}
+
+output "helper-sshconfig" {
+  value       = local.helper-sshconfig
+  description = "helper ssh config location"
 }
 
 output "bastion-dns-name-ext" {

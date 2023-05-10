@@ -83,4 +83,21 @@ variable "fs_s3_principals" {
   # FIXME : add condition to fail if enable is true and this variable empty
 }
 
+variable "enable-al2023" {
+  description = "Whether to use al2023 instead of AWS2 AMI (if nit in custom mode)"
+  type        = bool
+  default     = "true"
+}
+
+variable "enable-customami" {
+  description = "Whether to use custom ami (will take over the default one usage) (you need to set a correct ssmamicustompath in that case)"
+  type        = bool
+  default     = "false"
+}
+
+variable "ssmamicustompath" {
+  description = "custom path for ami (rh like only)"
+  type        = string
+  default     = "notset"
+}
 

@@ -277,6 +277,11 @@ variable "instance-type-lm" {
   default = "t3a.small"
 }
 
+variable "sh--enable" {
+  type    = bool
+  default = true
+}
+
 variable "sh" {
   type    = string
   default = "sh"

@@ -211,9 +211,9 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh" {
   #name                = "asg-splunk-sh"
   name_prefix          = "asg-splunk-sh-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
-  desired_capacity    = 1
-  max_size            = 1
-  min_size            = 1
+  desired_capacity    = local.sh-nb
+  max_size            = local.sh-nb
+  min_size            = local.sh-nb
   mixed_instances_policy {
     launch_template {
       launch_template_specification {

@@ -16,6 +16,7 @@ locals {
   ds-nb                 = (var.ds-enable ? 1 : 0)
   mc-nb                 = (var.mc-enable ? 1 : 0)
   sh-nb                 = (var.sh-enable ? 1 : 0)
+  cm-nb                 = (var.cm-enable ? 1 : 0)
   default_tags="${merge(tomap({Type="Splunk", Env=local.env}), var.extra_default_tags)}"
   image_id=data.aws_ssm_parameter.linuxAmi.value
   mc-dns-name = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"

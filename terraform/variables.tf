@@ -204,6 +204,11 @@ variable "splunksmartstoresitenumber" {
   }
 }
 
+variable "cm-enable" {
+  type    = bool
+  default = true
+}
+
 variable "cm" {
   type    = string
   default = "cm"

@@ -48,13 +48,13 @@ variable "bastionuser" {
 }
 
 variable "bastionstrichostchecking" {
-  description = "whether to use strict host checking therei (yes or no)"
+  description = "whether to use strict host checking there (yes,no or accept-new)"
   type        = string
-  default     = "yes"
+  default     = "accept-new"
   validation {
     # regex(...) fails if it cannot find a match
-    condition     = can(regex("^(yes|no)$", var.bastionstrichostchecking))
-    error_message = "valid values are yes and no only"
+    condition     = can(regex("^(yes|no|accept-new)$", var.bastionstrichostchecking))
+    error_message = "valid values are yes,no and accept-new only"
   }
 }
 

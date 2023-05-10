@@ -17,8 +17,8 @@ Host bastion2
         Hostname {{ bastion2host }}
         IdentityFile {{ privkeypathforbastion2 }}
         user {{ bastion2user }}
-{# This should be always yes here #}
-        StrictHostKeyChecking yes
+{# This should be always be yes or accept-new here #}
+        StrictHostKeyChecking accept-new
 {% endif %}
 
 Host bastion

@@ -25,10 +25,10 @@ Host bastion
         Hostname {{ bastionhostext }}
         IdentityFile {{ privkeypathforbastion }}
         user {{ bastionuser }}
-{% if use_doublebastion == "yes" -%} 
+{%- if use_doublebastion == "yes" %} 
         ProxyJump bastion2
 {% endif %}
-{# this should be yes unless you recreate the instance often but understand what it means to change this -#}
+{#- this should be yes unless you recreate the instance often but understand what it means to change this #}
         StrictHostKeyChecking {{ bastionstrichostchecking }}
 
 Host SH-a

@@ -178,9 +178,9 @@ resource "aws_launch_template" "splunk-bastion" {
 #}
 
 locals {
-  privkeypathforbastion2     = "${var.keypath}/${var.privkeynameforbastion2}"
-  privkeypathforbastion ="${var.keypath}/fixme"
-  privkeypathforhost="${var.keypath}/fixme"
+  privkeypathforbastion2     = "${var.keybastion2path}/${var.privkeynameforbastion2}"
+  privkeypathforbastion ="${var.keypath}/mykey${var.region-primary}.priv"
+  privkeypathforhost="${var.keypath}/mykey${var.region-primary}.priv"
 }
 
 resource "local_file" "ansible_bastion_vars_tf" {

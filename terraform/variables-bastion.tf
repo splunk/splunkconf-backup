@@ -15,13 +15,19 @@ variable "bastion2host" {
 variable "keypath" {
   description = "path where priv keys are"
   type        = string
-  default     = "."
+  default     = "../helpers"
+}
+
+variable "keybastion2path" {
+  description = "path where priv keys are"
+  type        = string
+  default     = "~/.ssh"
 }
 
 variable "privkeynameforbastion2" {
   description = "priv key name for bastion2"
   type        = string
-  default     = "id_rsa.priv"
+  default     = "id_rsa"
 }
 
 variable "bastion2user" {

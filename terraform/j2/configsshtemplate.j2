@@ -3,12 +3,12 @@ Host *
     ServerAliveInterval 30
     ServerAliveCountMax 2
  
-# use_doublebastion = H{{ use_doublebastion }}H
-
 # not for bastion , safe for the other one as we hop through bastion inside the vpc and we are changing keys each time we reinstantiate instance
 Host *-a
    StrictHostKeyChecking no
    UserKnownHostsFile=/dev/null
+
+# use_doublebastion = {{ use_doublebastion }}
 
 {% if use_doublebastion == "yes" -%} 
 # This is a outside bastion that connect through bastion to reach other instances

@@ -291,7 +291,7 @@ output "std-url" {
 } 
   
 output "std-sshconnection" {
-  value       = var.associate_public_ip ? "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.std}-ext.${var.dns-zone-name}" : "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.std}.${var.dns-zone-name}"
+  value       = var.associate_public_ip ? "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.std}-ext.${var.dns-zone-name}" : "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.std}.${var.dns-zone-name}"
   description = "std ssh connection"
 } 
 

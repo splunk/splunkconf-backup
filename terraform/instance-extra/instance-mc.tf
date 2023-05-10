@@ -237,7 +237,7 @@ output "mc-url" {
 } 
   
 output "mc-sshconnection" {
-  value       = var.associate_public_ip ? "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.mc}-ext.${var.dns-zone-name}" : "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
+  value       = var.associate_public_ip ? "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.mc}-ext.${var.dns-zone-name}" : "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
   description = "mc ssh connection "
 } 
 

@@ -317,7 +317,7 @@ output "ds-url" {
 }
 
 output "ds-sshconnection" {
-  value       = var.associate_public_ip ? "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.ds}-ext.${var.dns-zone-name}" : "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
+  value       = var.associate_public_ip ? "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.ds}-ext.${var.dns-zone-name}" : "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
   description = "ds ssh connection"
 }
 

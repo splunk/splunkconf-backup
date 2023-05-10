@@ -607,6 +607,6 @@ output "idx-dns-names-ext" {
 } 
 
 output "idx-sshconnection" {
-  value       = var.associate_public_ip ? "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.idx}-ext.${var.dns-zone-name}" : "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.idx}.${var.dns-zone-name}"
+  value       = var.associate_public_ip ? "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.idx}-ext.${var.dns-zone-name}" : "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.idx}.${var.dns-zone-name}"
   description = "idx ssh connection"
 }

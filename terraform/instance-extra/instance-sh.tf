@@ -370,6 +370,6 @@ output "sh-url" {
 }
 
 output "sh-sshconnection" {
-  value       = var.associate_public_ip ? "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.sh}-ext.${var.dns-zone-name}" : "ssh -i mykey${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.sh}.${var.dns-zone-name}"
+  value       = var.associate_public_ip ? "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.sh}-ext.${var.dns-zone-name}" : "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.sh}.${var.dns-zone-name}"
   description = "sh ssh connection "
 }

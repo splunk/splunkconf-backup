@@ -17,10 +17,10 @@ Host bastion2
         Hostname {{ bastion2host }}
         IdentityFile {{ privkeypathforbastion2 }}
         user {{ bastion2user }}
-{#- This should be always yes here -#}
+{# This should be always yes here -#}
         StrictHostKeyChecking yes
 
-{%- endif -%}
+{% endif %}
 
 Host bastion
         Hostname {{ bastionhostext }}
@@ -28,8 +28,8 @@ Host bastion
         user {{ bastionuser }}
 {%- if use_doublebastion == "yes" -%} 
         ProxyJump bastion2
-{%- endif -%}
-{#- this should be yes unless you recreate the instance often but understand what it means to change this -#}
+{% endif %}
+{# this should be yes unless you recreate the instance often but understand what it means to change this -#}
         StrictHostKeyChecking {{ bastionstrichostchecking }}
 
 
@@ -40,7 +40,7 @@ Host SH-a
         LocalForward 18003 127.0.0.1:8000
 {%- if use_doublebastion == "yes" -%} 
         ProxyJump bastion2,bastion
-{%- else -%}
+{% else %}
         ProxyJump bastion
 {% endif %}
 

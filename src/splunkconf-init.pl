@@ -652,7 +652,7 @@ if (-e $SPLPASSWDFILE) {
       $valid=0;
       $found=1;
     } elsif ( ($splunkpwdinit eq "yes") && ($valid == 1) ) {
-      print "user seed not present via ssm iand splunkpwdinit set, seeding SSM and secrets manager with new password\n";
+      print "user seed not present via ssm and splunkpwdinit set, seeding SSM and secrets manager with new password\n";
       print "writing hash=$hash to SSM param splunk-user-seed in region $region\n";
       my $ssmputres=`  aws ssm put-parameter --name splunk-user-seed --value '$hash' --type String  --region $region`;
       print "result of ssm put-parameters : $ssmputres\n";

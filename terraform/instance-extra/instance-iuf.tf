@@ -16,9 +16,9 @@ resource "aws_iam_role" "role-splunk-iuf" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-iuf_profile" {
-  name_prefix     = "role-splunk-iuf_profile"
-  role     = aws_iam_role.role-splunk-iuf.name
-  provider = aws.region-primary
+  name_prefix = "role-splunk-iuf_profile"
+  role        = aws_iam_role.role-splunk-iuf.name
+  provider    = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "iuf-attach-splunk-splunkconf-backup" {
@@ -156,7 +156,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-iuf" {
 
 resource "aws_launch_template" "splunk-iuf" {
   #name          = "splunk-iuf"
-  name_prefix    = "splunk-iuf-"
+  name_prefix   = "splunk-iuf-"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"

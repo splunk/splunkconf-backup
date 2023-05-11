@@ -12,9 +12,9 @@ resource "aws_iam_role" "role-splunk-ds" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-ds_profile" {
-  name_prefix     = "role-splunk-ds_profile"
-  role     = aws_iam_role.role-splunk-ds.name
-  provider = aws.region-primary
+  name_prefix = "role-splunk-ds_profile"
+  role        = aws_iam_role.role-splunk-ds.name
+  provider    = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "ds-attach-splunk-splunkconf-backup" {
@@ -235,7 +235,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
 
 resource "aws_launch_template" "splunk-ds" {
   #name          = "splunk-ds"
-  name_prefix    = "splunk-ds-"
+  name_prefix   = "splunk-ds-"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"

@@ -15,9 +15,9 @@ resource "aws_iam_role" "role-splunk-ihf" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-ihf_profile" {
-  name_prefix     = "role-splunk-ihf_profile"
-  role     = aws_iam_role.role-splunk-ihf.name
-  provider = aws.region-primary
+  name_prefix = "role-splunk-ihf_profile"
+  role        = aws_iam_role.role-splunk-ihf.name
+  provider    = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "ihf-attach-splunk-splunkconf-backup" {
@@ -235,8 +235,8 @@ resource "aws_launch_template" "splunk-ihf" {
       splunkosupdatemode  = var.splunkosupdatemode
       splunkconnectedmode = var.splunkconnectedmode
       splunkacceptlicense = var.splunkacceptlicense
-      splunkpwdinit         = var.splunkpwdinit
-      splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
+      splunkpwdinit       = var.splunkpwdinit
+      splunkpwdarn        = aws_secretsmanager_secret.splunk_admin.id
     }
   }
   metadata_options {

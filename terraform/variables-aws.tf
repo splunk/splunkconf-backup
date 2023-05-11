@@ -8,8 +8,8 @@ variable "imdsv2" {
 
 variable "extra_default_tags" {
   description = "extra default tags to add at provider level (can be used for billing purpose)"
-  type        = map
-  default     = {Type="Splunk",Project="Splunk"}
+  type        = map(any)
+  default     = { Type = "Splunk", Project = "Splunk" }
 }
 
 #variable "usekms" {
@@ -77,8 +77,8 @@ variable "enable-fss3-policy" {
 
 variable "fs_s3_principals" {
   description = "(not yet used, need to switch to templatefile in tf before.) List of AWS principals to authorize for FS S3 (example [ \"1111111111\",\"22222222222\" ] ) "
-  type    = list(string)
-  default = [""]
+  type        = list(string)
+  default     = [""]
   # example [ "1111111111","22222222222" ]
   # FIXME : add condition to fail if enable is true and this variable empty
 }

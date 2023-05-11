@@ -15,7 +15,7 @@ resource "aws_iam_role" "role-splunk-bastion" {
 
 resource "aws_iam_instance_profile" "role-splunk-bastion_profile" {
   name_prefix = "role-splunk-bastion_profile"
-  role = aws_iam_role.role-splunk-bastion.name
+  role        = aws_iam_role.role-splunk-bastion.name
 }
 
 resource "aws_iam_role_policy_attachment" "bastion-attach-splunk-ec2" {
@@ -113,7 +113,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-bastion" {
 
 resource "aws_launch_template" "splunk-bastion" {
   #name          = var.bastion
-  name_prefix = "launch-template-splunk-bastion"
+  name_prefix   = "launch-template-splunk-bastion"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = local.instance-type-bastion
@@ -178,13 +178,13 @@ resource "aws_launch_template" "splunk-bastion" {
 #}
 
 locals {
-  privkeypathforbastion2     = "${var.keybastion2path}/${var.privkeynameforbastion2}"
-  privkeypathforbastion ="${var.keypath}/mykey-${var.region-primary}.priv"
-  privkeypathforhost="${var.keypath}/mykey-${var.region-primary}.priv"
+  privkeypathforbastion2 = "${var.keybastion2path}/${var.privkeynameforbastion2}"
+  privkeypathforbastion  = "${var.keypath}/mykey-${var.region-primary}.priv"
+  privkeypathforhost     = "${var.keypath}/mykey-${var.region-primary}.priv"
 }
 
 resource "local_file" "ansible_bastion_vars_tf" {
-  content = <<-DOC
+  content  = <<-DOC
 ---
 - hosts: 127.0.0.1
   vars:
@@ -236,8 +236,8 @@ resource "null_resource" "bucket_sync_bastion" {
 }
 
 locals {
-  bastion-dns-name-ext= "${local.dns-prefix}${var.bastion}-ext.${var.dns-zone-name}"
-  helper-sshconfig="aws s3 cp s3://${aws_s3_bucket.s3_install.id}/install/configssh-${var.region-primary}.txt ."
+  bastion-dns-name-ext = "${local.dns-prefix}${var.bastion}-ext.${var.dns-zone-name}"
+  helper-sshconfig     = "aws s3 cp s3://${aws_s3_bucket.s3_install.id}/install/configssh-${var.region-primary}.txt ."
 }
 
 output "helper-sshconfig" {

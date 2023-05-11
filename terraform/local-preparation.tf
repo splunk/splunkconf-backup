@@ -12,20 +12,20 @@ locals {
   instance-type-ds      = (local.env == "min" ? var.instance-type-ds-min : var.instance-type-ds-default)
   instance-type-sh      = (local.env == "min" ? var.instance-type-sh-min : var.instance-type-sh-default)
   instance-type-bastion = var.instance-type-bastion
-  use-elb-private      = (var.create_network_module == "false" || var.force-idx-hecelb-private == "false" ? "false" : "true")
+  use-elb-private       = (var.create_network_module == "false" || var.force-idx-hecelb-private == "false" ? "false" : "true")
   ds-nb                 = (var.ds-enable ? 1 : 0)
   mc-nb                 = (var.mc-enable ? 1 : 0)
   sh-nb                 = (var.sh-enable ? 1 : 0)
   cm-nb                 = (var.cm-enable ? 1 : 0)
-  default_tags="${merge(tomap({Type="Splunk", Env=local.env}), var.extra_default_tags)}"
-  image_id=(var.enable-customami ? data.aws_ssm_parameter.linuxAmicustom[0].value : local.image_id_al)
-  image_id_al= (var.enable-al2023 ? data.aws_ssm_parameter.linuxAmiAL2023.value : data.aws_ssm_parameter.linuxAmi.value)
-  mc-dns-name = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
-  worker-dns-name = "${local.dns-prefix}${var.worker}.${var.dns-zone-name}"
-  sh-dns-name="${local.dns-prefix}${var.sh}.${var.dns-zone-name}"
-  idx-dns-name = "${local.dns-prefix}${var.idx}.${var.dns-zone-name}"
-  cm-dns-name = "${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
-  ds-dns-name = "${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
+  default_tags          = merge(tomap({ Type = "Splunk", Env = local.env }), var.extra_default_tags)
+  image_id              = (var.enable-customami ? data.aws_ssm_parameter.linuxAmicustom[0].value : local.image_id_al)
+  image_id_al           = (var.enable-al2023 ? data.aws_ssm_parameter.linuxAmiAL2023.value : data.aws_ssm_parameter.linuxAmi.value)
+  mc-dns-name           = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
+  worker-dns-name       = "${local.dns-prefix}${var.worker}.${var.dns-zone-name}"
+  sh-dns-name           = "${local.dns-prefix}${var.sh}.${var.dns-zone-name}"
+  idx-dns-name          = "${local.dns-prefix}${var.idx}.${var.dns-zone-name}"
+  cm-dns-name           = "${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
+  ds-dns-name           = "${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
 
 }
 

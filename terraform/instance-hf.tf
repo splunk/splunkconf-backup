@@ -14,9 +14,9 @@ resource "aws_iam_role" "role-splunk-hf" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-hf_profile" {
-  name_prefix     = "role-splunk-hf_profile"
-  role     = aws_iam_role.role-splunk-hf.name
-  provider = aws.region-primary
+  name_prefix = "role-splunk-hf_profile"
+  role        = aws_iam_role.role-splunk-hf.name
+  provider    = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "hf-attach-splunk-splunkconf-backup" {
@@ -159,9 +159,9 @@ resource "aws_security_group_rule" "hf_from_networks_8088" {
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-hf" {
-  provider            = aws.region-primary
+  provider = aws.region-primary
   #name                = "asg-splunk-hf"
-  name_prefix          = "asg-splunk-hf-"
+  name_prefix         = "asg-splunk-hf-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = 1
   max_size            = 1

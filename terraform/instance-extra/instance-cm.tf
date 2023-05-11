@@ -15,7 +15,7 @@ resource "aws_iam_role" "role-splunk-cm" {
 
 resource "aws_iam_instance_profile" "role-splunk-cm_profile" {
   name_prefix = "role-splunk-cm_profile"
-  role = aws_iam_role.role-splunk-cm.name
+  role        = aws_iam_role.role-splunk-cm.name
 }
 
 resource "aws_iam_role_policy_attachment" "cm-attach-splunk-splunkconf-backup" {
@@ -43,7 +43,7 @@ resource "aws_iam_role_policy_attachment" "cm-attach-splunk-ec2" {
 }
 
 resource "aws_iam_role_policy_attachment" "cm-attach-splunk-writesecret" {
-  role = aws_iam_role.role-splunk-cm.name
+  role       = aws_iam_role.role-splunk-cm.name
   policy_arn = aws_iam_policy.pol-splunk-writesecret.arn
   provider   = aws.region-primary
 }
@@ -209,7 +209,7 @@ resource "aws_security_group_rule" "cm_from_ihf_8089" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-cm" {
   #name                = "asg-splunk-cm"
-  name_prefix          = "asg-splunk-cm-"
+  name_prefix         = "asg-splunk-cm-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = local.cm-nb
   max_size            = local.cm-nb
@@ -252,7 +252,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-cm" {
 
 resource "aws_launch_template" "splunk-cm" {
   #name          = "splunk-cm"
-  name_prefix     = "splunk-cm-"
+  name_prefix   = "splunk-cm-"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"

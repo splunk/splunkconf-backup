@@ -1,17 +1,17 @@
 
 provider "aws" {
-#  profile = var.profile
-  region  = var.region-primary
-  alias   = "region-primary"
+  #  profile = var.profile
+  region = var.region-primary
+  alias  = "region-primary"
   default_tags {
     tags = local.default_tags
   }
 }
 
 provider "aws" {
-#  profile = var.profile
-  region  = var.region-secondary
-  alias   = "region-secondary"
+  #  profile = var.profile
+  region = var.region-secondary
+  alias  = "region-secondary"
   default_tags {
     tags = local.default_tags
   }
@@ -26,9 +26,9 @@ provider "aws" {
 
 # legacy 
 provider "aws" {
-#  profile = var.profile
-  region  = var.region-primary
-  alias   = "region-master"
+  #  profile = var.profile
+  region = var.region-primary
+  alias  = "region-master"
   default_tags {
     tags = local.default_tags
   }

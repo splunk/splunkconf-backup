@@ -14,9 +14,9 @@ resource "aws_iam_role" "role-splunk-lm" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-lm_profile" {
-  name_prefix     = "role-splunk-lm_profile"
-  role     = aws_iam_role.role-splunk-lm.name
-  provider = aws.region-primary
+  name_prefix = "role-splunk-lm_profile"
+  role        = aws_iam_role.role-splunk-lm.name
+  provider    = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "lm-attach-splunk-splunkconf-backup" {

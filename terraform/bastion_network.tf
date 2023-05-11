@@ -35,17 +35,17 @@ resource "aws_route_table" "private_route_natgw1" {
 
 
 resource "aws_route_table_association" "private_1" {
-  count = var.create_network_module ? 1 : 0
+  count          = var.create_network_module ? 1 : 0
   subnet_id      = local.subnet_priv_1_id
   route_table_id = (var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
 }
 resource "aws_route_table_association" "private_2" {
-  count = var.create_network_module ? 1 : 0
+  count          = var.create_network_module ? 1 : 0
   subnet_id      = local.subnet_priv_2_id
   route_table_id = (var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
 }
 resource "aws_route_table_association" "private_3" {
-  count = var.create_network_module ? 1 : 0
+  count          = var.create_network_module ? 1 : 0
   subnet_id      = local.subnet_priv_3_id
   route_table_id = (var.use_nat_gateway ? aws_route_table.private_route_natgw1[0].id : aws_route_table.private_route_instancegw[0].id)
 }

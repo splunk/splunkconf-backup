@@ -4,6 +4,6 @@ locals {
 }
 
 output "helper-getmycredentials" {
-  value = local.helper-getmycredentials
+  value       = local.helper-getmycredentials
   description = "command to run to get credentials (if authorized)"
 }

@@ -14,9 +14,9 @@ resource "aws_iam_role" "role-splunk-mc" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-mc_profile" {
-  name_prefix     = "role-splunk-mc_profile"
-  role     = aws_iam_role.role-splunk-mc.name
-  provider = aws.region-primary
+  name_prefix = "role-splunk-mc_profile"
+  role        = aws_iam_role.role-splunk-mc.name
+  provider    = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "mc-attach-splunk-splunkconf-backup" {
@@ -123,7 +123,7 @@ resource "aws_security_group_rule" "mc_from_all_icmp" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-mc" {
   #name                = "asg-splunk-mc"
-  name_prefix          = "asg-splunk-mc-"
+  name_prefix         = "asg-splunk-mc-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = local.mc-nb
   max_size            = local.mc-nb
@@ -166,7 +166,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-mc" {
 
 resource "aws_launch_template" "splunk-mc" {
   #name          = "splunk-mc"
-  name_prefix    = "splunk-mc-"
+  name_prefix   = "splunk-mc-"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"
@@ -229,15 +229,15 @@ output "mc-dns-name" {
 output "mc-dns-name-ext" {
   value       = var.associate_public_ip ? "${local.dns-prefix}${var.mc}-ext.${var.dns-zone-name}" : "disabled"
   description = "mc ext dns name (pub ip)"
-} 
-  
+}
+
 output "mc-url" {
   value       = var.associate_public_ip ? "https://${local.dns-prefix}${var.mc}-ext.${var.dns-zone-name}:8000" : "https://${local.dns-prefix}${var.mc}.${var.dns-zone-name}:8000"
   description = "mc url"
-} 
-  
+}
+
 output "mc-sshconnection" {
   value       = var.associate_public_ip ? "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.mc}-ext.${var.dns-zone-name}" : "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
   description = "mc ssh connection "
-} 
+}
 

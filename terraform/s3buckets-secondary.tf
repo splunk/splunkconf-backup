@@ -146,7 +146,7 @@ resource "aws_s3_bucket_ownership_controls" "s3_backup" {
 }
 
 resource "aws_s3_bucket_acl" "source_s3_bucket_backup_acl" {
-  provider = aws.region-primary
+  provider   = aws.region-primary
   depends_on = [aws_s3_bucket_ownership_controls.s3_backup]
 
   bucket = aws_s3_bucket.s3_backup.id

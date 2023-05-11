@@ -13,9 +13,9 @@ resource "aws_iam_role" "role-splunk-sh" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-sh_profile" {
-  name_prefix     = "role-splunk-sh_profile"
-  role     = aws_iam_role.role-splunk-sh.name
-  provider = aws.region-primary
+  name_prefix = "role-splunk-sh_profile"
+  role        = aws_iam_role.role-splunk-sh.name
+  provider    = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "sh-attach-splunk-splunkconf-backup" {
@@ -281,7 +281,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh1" {
 
 resource "aws_launch_template" "splunk-sh1" {
   #name          = "splunk-sh1"
-  name_prefix    = "splunk-sh1-"
+  name_prefix   = "splunk-sh1-"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = local.instance-type-sh
@@ -378,7 +378,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh2" {
 
 resource "aws_launch_template" "splunk-sh2" {
   #name          = "splunk-sh2"
-  name_prefix    = "splunk-sh2-"
+  name_prefix   = "splunk-sh2-"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = local.instance-type-sh
@@ -477,7 +477,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh3" {
 
 resource "aws_launch_template" "splunk-sh3" {
   #name          = "splunk-sh3"
-  name_prefix    = "splunk-sh3-"
+  name_prefix   = "splunk-sh3-"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = local.instance-type-sh

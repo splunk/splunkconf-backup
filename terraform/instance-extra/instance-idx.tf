@@ -14,9 +14,9 @@ resource "aws_iam_role" "role-splunk-idx" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-idx_profile" {
-  name_prefix     = "role-splunk-idx_profile"
-  role            = aws_iam_role.role-splunk-idx.name
-  provider        = aws.region-primary
+  name_prefix = "role-splunk-idx_profile"
+  role        = aws_iam_role.role-splunk-idx.name
+  provider    = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "idx-attach-splunk-splunkconf-backup" {
@@ -44,7 +44,7 @@ resource "aws_iam_role_policy_attachment" "idx-attach-splunk-ec2" {
 }
 
 resource "aws_iam_role_policy_attachment" "idx-attach-splunk-writesecret" {
-  role = aws_iam_role.role-splunk-idx.name
+  role       = aws_iam_role.role-splunk-idx.name
   policy_arn = aws_iam_policy.pol-splunk-writesecret.arn
   provider   = aws.region-primary
 }
@@ -305,7 +305,7 @@ resource "aws_security_group_rule" "lb_outbound_hecidx" {
 # ASG
 resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
   #name                = "asg-splunk-idx"
-  name_prefix          = "asg-splunk-idx-"
+  name_prefix         = "asg-splunk-idx-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = var.idx-nb
   max_size            = var.idx-nb
@@ -352,7 +352,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-idx" {
 
 resource "aws_launch_template" "splunk-idx" {
   #name          = "splunk-idx"
-  name_prefix    = "splunk-idx-"
+  name_prefix   = "splunk-idx-"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = local.instance-type-indexer
@@ -398,12 +398,12 @@ resource "aws_launch_template" "splunk-idx" {
       splunktargetlm        = "${local.dns-prefix}${var.lm}"
       splunktargetds        = "${local.dns-prefix}${var.ds}"
       # IDX special case
-      splunkcloudmode     = "3"
-      splunkosupdatemode  = var.splunkosupdatemode
-      splunkconnectedmode = var.splunkconnectedmode
-      splunkacceptlicense = var.splunkacceptlicense
+      splunkcloudmode              = "3"
+      splunkosupdatemode           = var.splunkosupdatemode
+      splunkconnectedmode          = var.splunkconnectedmode
+      splunkacceptlicense          = var.splunkacceptlicense
       splunkenableunifiedpartition = var.splunkenableunifiedpartition
-      splunksmartstoresitenumber = var.splunksmartstoresitenumber
+      splunksmartstoresitenumber   = var.splunksmartstoresitenumber
     }
   }
   metadata_options {
@@ -450,7 +450,7 @@ resource "aws_security_group_rule" "lbhec_from_networks_8088" {
   from_port         = 8088
   to_port           = 8088
   protocol          = "tcp"
-  cidr_blocks       = setunion(var.hec-in-allowed-networks,var.hec-in-allowed-firehose-networks)
+  cidr_blocks       = setunion(var.hec-in-allowed-networks, var.hec-in-allowed-firehose-networks)
   description       = "allow hec from authorized networks"
 }
 
@@ -503,7 +503,7 @@ resource "aws_alb_target_group" "idxhec-ack" {
 }
 
 resource "aws_lb" "idxhec-noack" {
-  count    = var.use_elb ? 1 : 0
+  count = var.use_elb ? 1 : 0
   #count = var.enable-idx-hecelb ? 1: 0
   name               = "idxhec-noack"
   load_balancer_type = "application"
@@ -513,7 +513,7 @@ resource "aws_lb" "idxhec-noack" {
 
 
 resource "aws_lb" "idxhec-ack" {
-  count    = var.use_elb_ack ? 1 : 0
+  count = var.use_elb_ack ? 1 : 0
   #count = var.enable-idx-hecelb ? 1: 0
   name               = "idxhec-ack"
   load_balancer_type = "application"
@@ -523,11 +523,11 @@ resource "aws_lb" "idxhec-ack" {
 
 
 resource "aws_alb_listener" "idxhec-noack" {
-  count    = var.use_elb ? 1 : 0
+  count             = var.use_elb ? 1 : 0
   load_balancer_arn = aws_lb.idxhec-noack[0].arn
   port              = 8088
   # change here for HTTPS
-  protocol = "HTTPS"
+  protocol        = "HTTPS"
   certificate_arn = aws_acm_certificate_validation.acm_certificate_validation_elb_hec.certificate_arn
   default_action {
     target_group_arn = aws_alb_target_group.idxhec.arn
@@ -536,7 +536,7 @@ resource "aws_alb_listener" "idxhec-noack" {
 }
 
 resource "aws_alb_listener" "idxhec-ack" {
-  count    = var.use_elb_ack ? 1 : 0
+  count             = var.use_elb_ack ? 1 : 0
   load_balancer_arn = aws_lb.idxhec-ack[0].arn
   port              = 8088
   # change here for HTTPS
@@ -549,8 +549,8 @@ resource "aws_alb_listener" "idxhec-ack" {
 
 resource "aws_acm_certificate" "acm_certificate_elb_hec" {
   #count = var.create_elb_hec_certificate ? 1 : 0
-  domain_name               = var.dns-zone-name
-  validation_method         = "DNS"
+  domain_name       = var.dns-zone-name
+  validation_method = "DNS"
   lifecycle {
     create_before_destroy = true
   }
@@ -558,7 +558,7 @@ resource "aws_acm_certificate" "acm_certificate_elb_hec" {
 
 resource "aws_route53_record" "validation_route53_record_elb_hec" {
   #count   = var.create_elb_hec_certificate ? 1 : 0
-    #for dvo in aws_acm_certificate.acm_certificate_elb_hec[*].domain_validation_options : dvo.domain_name => {
+  #for dvo in aws_acm_certificate.acm_certificate_elb_hec[*].domain_validation_options : dvo.domain_name => {
   for_each = {
     for dvo in aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
@@ -577,12 +577,12 @@ resource "aws_route53_record" "validation_route53_record_elb_hec" {
   #records = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_value
 }
 
-resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" { 
-#  count                   = var.create_elb_hec_certificate ? 1 : 0
-  certificate_arn         = aws_acm_certificate.acm_certificate_elb_hec.arn
- # validation_record_fqdns = [
- #aws_route53_record.validation_route53_record_elb_hec.*.fqdn,
- #]
+resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" {
+  #  count                   = var.create_elb_hec_certificate ? 1 : 0
+  certificate_arn = aws_acm_certificate.acm_certificate_elb_hec.arn
+  # validation_record_fqdns = [
+  #aws_route53_record.validation_route53_record_elb_hec.*.fqdn,
+  #]
   validation_record_fqdns = [for record in aws_route53_record.validation_route53_record_elb_hec : record.fqdn]
 }
 
@@ -599,12 +599,12 @@ output "idx-dns-names" {
 output "idx-dns-name-ext" {
   value       = var.associate_public_ip ? "${local.dns-prefix}${var.idx}-ext.${var.dns-zone-name}" : "disabled"
   description = "idx (single) ext dns name (pub ip)"
-} 
+}
 
 output "idx-dns-names-ext" {
   value       = var.associate_public_ip ? "${local.dns-prefix}${var.idxdnsnames}-ext.${var.dns-zone-name}" : "disabled"
   description = "idx/inputs (multiples) ext dns name (pub ip)"
-} 
+}
 
 output "idx-sshconnection" {
   value       = var.associate_public_ip ? "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.idx}-ext.${var.dns-zone-name}" : "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.idx}.${var.dns-zone-name}"

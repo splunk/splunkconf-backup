@@ -14,9 +14,9 @@ resource "aws_iam_role" "role-splunk-std" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-std_profile" {
-  name_prefix     = "role-splunk-std_profile"
-  role     = aws_iam_role.role-splunk-std.name
-  provider = aws.region-primary
+  name_prefix = "role-splunk-std_profile"
+  role        = aws_iam_role.role-splunk-std.name
+  provider    = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "std-attach-splunk-splunkconf-backup" {
@@ -97,7 +97,7 @@ resource "aws_security_group_rule" "std_from_networks_webui" {
   from_port         = 8000
   to_port           = 8000
   protocol          = "tcp"
-  cidr_blocks       = setunion(var.splunkadmin-networks,var.users-networks)
+  cidr_blocks       = setunion(var.splunkadmin-networks, var.users-networks)
   description       = "allow WebUI connection from authorixed networks"
 }
 
@@ -256,15 +256,15 @@ resource "aws_launch_template" "splunk-std" {
       splunktargetenv       = var.splunktargetenv
       splunktargetbinary    = var.splunktargetbinary
       # should be not needed for std but if configured at app level only , it will be used either it should do nothing 
-      splunktargetcm        = var.cm
-      splunktargetlm        = var.lm
-      splunktargetds        = var.ds
-      splunkcloudmode       = var.splunkcloudmode
-      splunkosupdatemode    = var.splunkosupdatemode
-      splunkconnectedmode   = var.splunkconnectedmode
-      splunkacceptlicense   = var.splunkacceptlicense
-      splunkpwdinit         = var.splunkpwdinit
-      splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
+      splunktargetcm      = var.cm
+      splunktargetlm      = var.lm
+      splunktargetds      = var.ds
+      splunkcloudmode     = var.splunkcloudmode
+      splunkosupdatemode  = var.splunkosupdatemode
+      splunkconnectedmode = var.splunkconnectedmode
+      splunkacceptlicense = var.splunkacceptlicense
+      splunkpwdinit       = var.splunkpwdinit
+      splunkpwdarn        = aws_secretsmanager_secret.splunk_admin.id
     }
   }
   metadata_options {
@@ -283,15 +283,15 @@ output "std-dns-name" {
 output "std-dns-name-ext" {
   value       = var.associate_public_ip ? "${local.dns-prefix}${var.std}-ext.${var.dns-zone-name}" : "disabled"
   description = "Standalone with S2 (std) ext dns name (pub ip)"
-} 
-  
+}
+
 output "std-url" {
   value       = var.associate_public_ip ? "https://${local.dns-prefix}${var.std}-ext.${var.dns-zone-name}:8000" : "https://${local.dns-prefix}${var.std}.${var.dns-zone-name}:8000"
   description = "std url"
-} 
-  
+}
+
 output "std-sshconnection" {
   value       = var.associate_public_ip ? "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.std}-ext.${var.dns-zone-name}" : "ssh -i mykey-${var.region-primary}.priv ec2-user@${local.dns-prefix}${var.std}.${var.dns-zone-name}"
   description = "std ssh connection"
-} 
+}
 

@@ -62,7 +62,7 @@ resource "aws_security_group_rule" "worker_from_bastion_ssh" {
 }
 
 resource "aws_autoscaling_group" "autoscaling-splunk-worker" {
-  name = "asg-splunk-worker"
+  name                = "asg-splunk-worker"
   vpc_zone_identifier = [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id]
   desired_capacity    = 1
   max_size            = 1
@@ -101,8 +101,8 @@ resource "aws_autoscaling_group" "autoscaling-splunk-worker" {
 
 
 resource "aws_launch_template" "splunk-worker" {
-  provider                 = aws.region-primary
-  name_prefix = "splunk-worker-"
+  provider      = aws.region-primary
+  name_prefix   = "splunk-worker-"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"
@@ -128,7 +128,7 @@ resource "aws_launch_template" "splunk-worker" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = var.worker
+      Name                = var.worker
       splunkinstanceType  = var.worker
       splunkosupdatemode  = var.splunkosupdatemode
       splunkconnectedmode = var.splunkconnectedmode

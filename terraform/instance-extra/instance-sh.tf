@@ -43,7 +43,7 @@ resource "aws_iam_role_policy_attachment" "sh-attach-splunk-ec2" {
 }
 
 resource "aws_iam_role_policy_attachment" "sh-attach-splunk-writesecret" {
-  role = aws_iam_role.role-splunk-sh.name
+  role       = aws_iam_role.role-splunk-sh.name
   policy_arn = aws_iam_policy.pol-splunk-writesecret.arn
   provider   = aws.region-primary
 }
@@ -173,7 +173,7 @@ resource "aws_security_group_rule" "sh_from_usersnetworks_8000" {
   from_port         = 8000
   to_port           = 8000
   protocol          = "tcp"
-  cidr_blocks       = setunion( var.users-networks, var.splunkadmin-networks)
+  cidr_blocks       = setunion(var.users-networks, var.splunkadmin-networks)
   description       = "allow connect to instance on web ui"
 }
 
@@ -209,7 +209,7 @@ resource "aws_security_group_rule" "sh_from_sh_8191" {
 
 resource "aws_autoscaling_group" "autoscaling-splunk-sh" {
   #name                = "asg-splunk-sh"
-  name_prefix          = "asg-splunk-sh-"
+  name_prefix         = "asg-splunk-sh-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = local.sh-nb
   max_size            = local.sh-nb
@@ -252,7 +252,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-sh" {
 
 resource "aws_launch_template" "splunk-sh" {
   #name          = "splunk-sh"
-  name_prefix    = "splunk-sh-"
+  name_prefix   = "splunk-sh-"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = local.instance-type-sh

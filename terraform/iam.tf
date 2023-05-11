@@ -55,7 +55,7 @@ resource "aws_iam_policy" "pol-splunk-ec2worker" {
 data "template_file" "pol-splunk-writesecret" {
   template = file("policy-aws/pol-splunk-writesecret.json.tpl")
   vars = {
-    secret          = aws_secretsmanager_secret.splunk_admin.id 
+    secret          = aws_secretsmanager_secret.splunk_admin.id
     profile         = var.profile
     splunktargetenv = var.splunktargetenv
   }
@@ -166,16 +166,16 @@ data "template_file" "pol-splunk-s3ia" {
 
 locals {
 
-  pol-splunk-s3iafs=templatefile(
-               "policy-aws/pol-splunk-s3iafs.json.tpl",
-               {
-                  s3_ia           = aws_s3_bucket.s3_ia.arn
-                  s3_iaprefix     = var.s3_iaprefix
-                  fs_s3_principals= var.fs_s3_principals
-                  profile         = var.profile
-                  splunktargetenv = var.splunktargetenv
-               }
-              )
+  pol-splunk-s3iafs = templatefile(
+    "policy-aws/pol-splunk-s3iafs.json.tpl",
+    {
+      s3_ia            = aws_s3_bucket.s3_ia.arn
+      s3_iaprefix      = var.s3_iaprefix
+      fs_s3_principals = var.fs_s3_principals
+      profile          = var.profile
+      splunktargetenv  = var.splunktargetenv
+    }
+  )
 }
 
 #data "template_file" "pol-splunk-s3iafs" {

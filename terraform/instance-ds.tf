@@ -12,9 +12,9 @@ resource "aws_iam_role" "role-splunk-ds" {
 }
 
 resource "aws_iam_instance_profile" "role-splunk-ds_profile" {
-  name_prefix     = "role-splunk-ds_profile"
-  role     = aws_iam_role.role-splunk-ds.name
-  provider = aws.region-primary
+  name_prefix = "role-splunk-ds_profile"
+  role        = aws_iam_role.role-splunk-ds.name
+  provider    = aws.region-primary
 }
 
 resource "aws_iam_role_policy_attachment" "ds-attach-splunk-splunkconf-backup" {
@@ -201,9 +201,9 @@ resource "aws_security_group_rule" "ds_from_iuf_8089" {
 #}
 
 resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
-  provider            = aws.region-primary
+  provider = aws.region-primary
   #name                = "asg-splunk-ds"
-  name_prefix          = "asg-splunk-ds-"
+  name_prefix         = "asg-splunk-ds-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   desired_capacity    = local.ds-nb
   max_size            = local.ds-nb
@@ -242,7 +242,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
 
 
   #depends_on = [null_resource.bucket_sync, aws_lambda_function.lambda_update-route53-tag, time_sleep.wait_asglambda_destroy]
-  depends_on = [null_resource.bucket_sync,aws_secretsmanager_secret.splunk_admin]
+  depends_on = [null_resource.bucket_sync, aws_secretsmanager_secret.splunk_admin]
 }
 
 resource "aws_launch_template" "splunk-ds" {
@@ -290,7 +290,7 @@ resource "aws_launch_template" "splunk-ds" {
       splunkconnectedmode   = var.splunkconnectedmode
       splunkacceptlicense   = var.splunkacceptlicense
       splunkpwdinit         = var.splunkpwdinit
-      splunkpwdarn	    = aws_secretsmanager_secret.splunk_admin.id
+      splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
     }
   }
   metadata_options {

@@ -62,21 +62,21 @@ variable "idx-nb" {
 
 
 variable "enable-idx-hecelb" {
-  description = "whether to create ELB for IDX HEC" 
-  type    = bool
-  default = true
+  description = "whether to create ELB for IDX HEC"
+  type        = bool
+  default     = true
 }
 
 variable "force-idx-hecelb-private" {
-  description = "whether to force ELB for IDX HEC on private network (or auto depending on other variables)" 
-  type    = bool
-  default = false
+  description = "whether to force ELB for IDX HEC on private network (or auto depending on other variables)"
+  type        = bool
+  default     = false
 }
 
 variable "create_elb_hec_certificate" {
-  description = "whether to ask for certificate for hec elb" 
-  type    = bool
-  default = false
+  description = "whether to ask for certificate for hec elb"
+  type        = bool
+  default     = false
 }
 
 variable "hec_protocol" {
@@ -196,8 +196,8 @@ variable "disk-size-ihf" {
 
 variable "splunksmartstoresitenumber" {
   description = "number of sites in multisite (this is usually 3, change this only if you really cant get a 3rd site)"
-  type    = number
-  default = 3
+  type        = number
+  default     = 3
   validation {
     condition     = can(regex("[1-3]", var.splunksmartstoresitenumber))
     error_message = "Valid choices are 1(disable replication), 2 and 3 only"
@@ -234,8 +234,8 @@ variable "disk-size-cm" {
 
 variable "ds" {
   description = "name to give to ds instance"
-  type    = string
-  default = "ds"
+  type        = string
+  default     = "ds"
 }
 
 variable "ds-enable" {
@@ -271,7 +271,7 @@ variable "dsnb" {
 }
 
 variable "lm" {
-  type    = string
+  type = string
   # cm here to colocate lm on cm
   default = "cm"
   #default = "lm"
@@ -402,7 +402,7 @@ variable "disk-size-iuf" {
 variable "associate_public_ip" {
   description = "define if the splunk instances will have a additional public ip (still require autorizing flows on top if applicable) or just use private networks"
   type        = string
-  default = "true"
+  default     = "true"
   #default = "false"
 }
 

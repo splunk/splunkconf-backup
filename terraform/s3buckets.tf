@@ -236,13 +236,17 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_ia_lifecycle" {
   }
 }
 
+locals {
+  s3_install_s3uri="s3://${aws_s3_bucket.s3_install.bucket}"
+}
+
 output "s3_install_arn" {
   value       = aws_s3_bucket.s3_install.arn
   description = "s3 install arn"
 }
 
 output "s3_install_s3uri" {
-  value       = "s3://${aws_s3_bucket.s3_install.bucket}"
+  value       = local.s3_install_s3uri
   description = "s3 install s3uri"
 }
 

@@ -40,7 +40,8 @@ resource "local_file" "ansible_vars_tf" {
     when: item.state == 'file'
   - name: package apps
     ansible.builtin.shell: ./scripts/createpackage.sh ${var.splunkorg} ${var.base-apps-target-dir} packaged 0 disabled sh idx cm mc ds std 
-
+    args:
+      executable: /bin/bash
     DOC
   filename = "./ansible_jinja_tf.yml"
 }

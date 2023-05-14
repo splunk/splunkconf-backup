@@ -546,9 +546,6 @@ variable "splunkpwdinit" {
   default     = "yes"
 }
 
- base-apps-jinja-dir   = var.base-apps-jinja-dir
-  base-apps-target-dir  = var.base-apps-target-dir
-
 variable "base-apps-jinja-dir" { 
   type        = string
   description = "base-apps-jinja-dir"

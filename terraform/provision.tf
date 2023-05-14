@@ -3,6 +3,8 @@ locals {
   license_manager_name  = "${local.dns-prefix}${var.lm}.${var.dns-zone-name}"
   deploymentserver_name = "${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
   smartstore_uri        = "${aws_s3_bucket.s3_data.id}/smartstore"
+  base-apps-jinja-dir   = var.base-apps-jinja-dir
+  base-apps-target-dir  = var.base-apps-target-dir
 }
 
 resource "local_file" "ansible_vars_tf" {
@@ -24,19 +26,20 @@ resource "local_file" "ansible_vars_tf" {
   tasks:
   - name: create directories for target jinja
     file:
-      path: actions-runner/_work/apptest2/{{ item.path }}
+      path: ${var.base-apps-target-dir}/{{ item.path }}
       state: directory
       mode: '{{ item.mode }}'
-    with_filetree: actions-runner/_work/apptest1
+    with_filetree: ${var.base-apps-jinja-dir}
     when: item.state == 'directory'
   - name: apply jinja template
     template:
       src: '{{ item.src }}'
-      dest: actions-runner/_work/apptest2/{{ item.path }}
+      dest: ${var.base-apps-target-dir}/{{ item.path }}
       force: yes
-    with_filetree: actions-runner/_work/apptest1
+    with_filetree: ${var.base-apps-jinja-dir}
     when: item.state == 'file'
-
+  - name: package apps
+    ansible.builtin.shell: ./scripts/createpackage.sh ${var.splunkorg} ${var.base-apps-target-dir} packaged 0 disabled sh idx cm mc ds std 
 
     DOC
   filename = "./ansible_jinja_tf.yml"

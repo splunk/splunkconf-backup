@@ -545,3 +545,19 @@ variable "splunkpwdinit" {
   description = "whether to generate user seed from splunkconf-init when not present (default to yes) "
   default     = "yes"
 }
+
+ base-apps-jinja-dir   = var.base-apps-jinja-dir
+  base-apps-target-dir  = var.base-apps-target-dir
+
+variable "base-apps-jinja-dir" { 
+  type        = string
+  description = "base-apps-jinja-dir"
+  default     = "actions-runner/_work/apptest1"
+}
+
+variable "base-apps-target-dir" { 
+  type        = string
+  description = "base-apps-target-dir" 
+  default     = "actions-runner/_work/apptest2"
+}
+

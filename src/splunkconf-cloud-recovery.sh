@@ -202,8 +202,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230424 move init to a function and call it after param initiallization
 # 20230427 add support fot tag splunk_smartstore_site_number so it possible to work with one instance without replication for hot data but still instance resiliency
 # 20230508 rename splunk_smartstore_site_number to splunksmartstoresitenumber
+# 20230521 add splunkenableworker tag
 
-VERSION="20230508a"
+VERSION="20230521a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -338,7 +339,6 @@ set_connectedmode () {
   echo "splunkconnectedmode=${splunkconnectedmode}"
 }
 
-PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd"
 get_packages () {
 
   if [ $splunkconnectedmode == 3 ]; then
@@ -822,6 +822,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkpwdarn=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdarn`
   splunkenableunifiedpartition=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkenableunifiedpartition`
   splunksmartstoresitenumber=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksmartstoresitenumber`
+  splunkenableworker=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkenableworker`
   #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
@@ -862,6 +863,11 @@ fi
 if [ -z ${splunksmartstoresitenumber+x} ]; then 
   echo "splunksmartstoresitenumber is unset, falling back to default value 3"
   splunksmartstoresitenumber=3
+fi
+
+if [ -z ${splunkenableworker+x} ]; then 
+  echo "splunkenableworker is unset, falling back to default value 0 (disabled)"
+  splunkenableworker=0
 fi
 
 if [[ "cloud_type" -eq 1 ]]; then
@@ -1188,6 +1194,11 @@ fi
 useradd --home-dir ${SPLUNK_HOME} --comment "Splunk Server" ${splunkuser} --shell /bin/bash 
 
 # install addition os packages 
+PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd"
+if [[ splunkenableworker == 1 ]; then
+  PACKAGELIST="${PACKAGELIST} ansible"
+  echo "INFO: splunkenableworker=1 adding ansible to packagelist"
+fi
 get_packages
 
 
@@ -2215,6 +2226,14 @@ if [ -e ${localscriptdir}/splunkconf-prepare-es-from-s3.sh ]; then
   chmod 700 ${localscriptdir}/splunkconf-prepare-es-from-s3.sh
 else
   echo "${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh not existing, please consider add it if willing to deploy ES" 
+fi
+
+
+if [[ splunkenableworker == 1 ]; then
+  echo "INFO: worker role : getting ansible files"  
+  get_object ${remoteinstalldir}/ansible/ansible_jinja_tf.yml ${localscriptdir}
+  get_object ${remoteinstalldir}/ansible/ansible_jinja_byhost_tf.yml ${localscriptdir}
+  get_object ${remoteinstalldir}/ansible/getmycredentials.sh ${localscriptdir}
 fi
 
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 

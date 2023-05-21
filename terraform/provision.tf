@@ -23,6 +23,7 @@ resource "local_file" "ansible_vars_tf" {
     smartstore_uri: ${local.smartstore_uri}
     smartstore_site_number: ${var.splunksmartstoresitenumber}
     dns_zone_name: ${var.dns-zone-name}
+    splunk_ssh_key_arn: ${module.ssh.splunk_ssh_key_arn}
   tasks:
   - name: create directories for target jinja
     file:
@@ -46,6 +47,21 @@ resource "local_file" "ansible_vars_tf" {
   filename = "./ansible_jinja_tf.yml"
 }
 
+resource "local_file" "ansible_jinja_byhost_tf" {
+  content  = <<-DOC
+---
+- hosts: ALL
+  vars:
+    org: ${var.splunkorg}
+    splunkorg: ${var.splunkorg}
+    splunk_ssh_key_arn: ${module.ssh.splunk_ssh_key_arn}
+  tasks:
+  - name: apply packaged apps
+    command: "/bin/bash ./scripts/applypackaged.sh ${var.splunkorg} ${var.base-apps-target-dir} packaged 0 disabled sh idx cm mc ds std"
+    DOC
+  filename = "./ansible_jinja_byhost_tf.yml"
+}
+
 resource "null_resource" "bucket_sync_worker" {
   triggers = {
     always_run = "${timestamp()}"
@@ -53,5 +69,5 @@ resource "null_resource" "bucket_sync_worker" {
   provisioner "local-exec" {
     command = "./scripts/copytos3-worker.sh ${aws_s3_bucket.s3_install.id} ${aws_s3_bucket.s3_backup.id}"
   }
-  depends_on = [null_resource.build-idx-scripts, null_resource.build-nonidx-scripts, aws_s3_bucket_lifecycle_configuration.s3_install_lifecycle, aws_s3_bucket_lifecycle_configuration.s3_backup_lifecycle, aws_s3_bucket_versioning.s3_install_versioning, aws_s3_bucket_versioning.s3_backup_versioning, local_file.ansible_vars_tf]
+  depends_on = [null_resource.build-idx-scripts, null_resource.build-nonidx-scripts, aws_s3_bucket_lifecycle_configuration.s3_install_lifecycle, aws_s3_bucket_lifecycle_configuration.s3_backup_lifecycle, aws_s3_bucket_versioning.s3_install_versioning, aws_s3_bucket_versioning.s3_backup_versioning, local_file.ansible_vars_tf local_file.ansible_jinja_byhost_tf]
 }

@@ -299,6 +299,7 @@ resource "aws_launch_template" "splunk-ds" {
       splunkacceptlicense   = var.splunkacceptlicense
       splunkpwdinit         = var.splunkpwdinit
       splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
+      splunkenableworker    = ( var.ds-enableworker ? "1" : "0" )
     }
   }
   metadata_options {

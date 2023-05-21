@@ -275,7 +275,7 @@ resource "aws_launch_template" "splunk-ds" {
   network_interfaces {
     device_index                = 0
     associate_public_ip_address = var.associate_public_ip
-    security_groups             = ( var.ds_enableworker ? [aws_security_group.splunk-outbound.id, aws_security_group.splunk-ds.id,aws_security_group.splunk-worker.id] : [aws_security_group.splunk-outbound.id, aws_security_group.splunk-ds.id])
+    security_groups             = ( var.ds-enableworker ? [aws_security_group.splunk-outbound.id, aws_security_group.splunk-ds.id,aws_security_group.splunk-worker.id] : [aws_security_group.splunk-outbound.id, aws_security_group.splunk-ds.id])
   }
   tag_specifications {
     resource_type = "instance"

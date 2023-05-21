@@ -18,5 +18,6 @@ s3_backup=$2
 #aws s3 sync ../buckets/bucket-install/packaged s3://${s3_install}/packaged/ --storage-class STANDARD_IA; 
 #aws s3 sync ../buckets/bucket-install/install s3://${s3_install}/install/ --storage-class STANDARD_IA
 aws s3 sync ./ansible* s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
+aws s3 cp ../../helpers/getmycredentials.sh s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
 #aws s3 cp ./ansible_jinja_tf.yml s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
 #aws s3 cp ./ansible_jinja_byhost_tf.yml s3://${s3_install}/install/ --storage-class STANDARD_IA

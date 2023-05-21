@@ -259,6 +259,11 @@ variable "disk-size-ds" {
   default     = 35
 }
 
+variable "ds-enableworker" {
+  type    = bool
+  default = true
+}
+
 variable "splunktar" {
   description = "set this only for multi ds where we install by tar"
   type        = string

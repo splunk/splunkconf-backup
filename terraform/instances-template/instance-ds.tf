@@ -58,8 +58,6 @@ resource "aws_iam_role_policy_attachment" "ds-attach-splunk-writesecret" {
 #}
 
 
-
-
 resource "aws_security_group_rule" "ds_from_bastion_ssh" {
   security_group_id        = aws_security_group.splunk-ds.id
   type                     = "ingress"
@@ -68,6 +66,16 @@ resource "aws_security_group_rule" "ds_from_bastion_ssh" {
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.splunk-bastion.id
   description              = "allow SSH connection from bastion host"
+}
+
+resource "aws_security_group_rule" "ds_from_worker_ssh" {
+  security_group_id        = aws_security_group.splunk-ds.id
+  type                     = "ingress"
+  from_port                = 22
+  to_port                  = 22
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.splunk-worker.id
+  description              = "allow SSH connection from worker host"
 }
 
 resource "aws_security_group_rule" "ds_from_splunkadmin-networks_ssh" {

@@ -79,6 +79,16 @@ resource "aws_security_group_rule" "idx_from_bastion_ssh" {
   description              = "allow SSH connection from bastion host"
 }
 
+resource "aws_security_group_rule" "idx_from_worker_ssh" {
+  security_group_id        = aws_security_group.splunk-idx.id
+  type                     = "ingress"
+  from_port                = 22
+  to_port                  = 22
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.splunk-worker.id
+  description              = "allow SSH connection from worker host"
+}
+
 resource "aws_security_group_rule" "idx_from_splunkadmin-networks_ssh" {
   security_group_id = aws_security_group.splunk-idx.id
   type              = "ingress"

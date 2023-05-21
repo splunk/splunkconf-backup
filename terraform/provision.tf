@@ -46,7 +46,9 @@ resource "local_file" "ansible_vars_tf" {
   - name: get credentials
     tags:
       - credentials
-    command: "cd ../helpers;${local.helper-getmycredentials}"
+    command: "/bin/bash ${local.helper-getmycredentials}"
+    args:
+      chdir: "../helpers"
     DOC
   filename = "./ansible_jinja_tf.yml"
 }

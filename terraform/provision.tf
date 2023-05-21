@@ -43,6 +43,8 @@ resource "local_file" "ansible_vars_tf" {
     command: "/bin/bash ./scripts/createpackaged.sh ${var.splunkorg} ${var.base-apps-target-dir} packaged 0 disabled sh idx cm mc ds std"
   - name: sync packaged to s3 install
     command: "aws s3 sync packaged ${local.s3_install_s3uri}/packaged" 
+  - name: get credentials
+    command: "cd ../helpers;${local.helper-getmycredentials}"
     DOC
   filename = "./ansible_jinja_tf.yml"
 }

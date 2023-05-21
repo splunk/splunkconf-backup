@@ -22,10 +22,11 @@
 # 20230115 add support for env variable as input to allow store input via GH secret
 # 20230115 using upper case as GH automatically move to uppercase 
 # 20230416 fix info message in local topo mode
+# 20230521 rename subdir to template
 
-VERSION="20230416a"
+VERSION="20230521a"
 
-# This script move instance tf files from and to instances-extra based on the content of topology.txt
+# This script move instance tf files from and to instances-template based on the content of topology.txt
 # This simplify terraform by only populating with the files to be used and reducing creation of unused objects
 
 trim() {
@@ -78,7 +79,7 @@ fi
 cd terraform
 for i in instance-*.tf; do
   echo "i=$i   ."
-  t=instance-extra/${i}
+  t=instances-template/${i}
   if [ -e $t ]; then 
     echo "ERROR $t already exist, unable to move file $i, that is unexpected, both files should not be present at same time"
     status=1
@@ -109,7 +110,7 @@ if [[ $MODE -eq "2" ]]; then
     echo
     echo "Processing $var after trim in $filename"
     i=instance-${var}.tf
-    t=instance-extra/$i
+    t=instances-template/$i
     if [ -e "$t" ]; then
       if [ -e "$i" ]; then
         echo "ERROR $i already exist, unable to move file $t, that is unexpected, both files should not be present at same time"
@@ -145,7 +146,7 @@ elif [[ $MODE -eq "1" ]]; then
     echo
     echo "Processing $var after trim in $filename"
     i=instance-${var}.tf
-    t=instance-extra/$i
+    t=instances-template/$i
     if [ -e "$t" ]; then
       if [ -e "$i" ]; then
         echo "ERROR $i already exist, unable to move file $t, that is unexpected, both files should not be present at same time"

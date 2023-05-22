@@ -12,6 +12,6 @@
             "Effect": "Allow",
             "Action": "secretsmanager:GetSecretValue",
             "Resource": "${secret2}"
-        },
+        }
     ]
 }

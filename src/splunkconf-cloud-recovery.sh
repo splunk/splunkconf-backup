@@ -204,7 +204,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230508 rename splunk_smartstore_site_number to splunksmartstoresitenumber
 # 20230521 add splunkenableworker tag
 
-VERSION="20230521a"
+VERSION="20230522a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1195,7 +1195,7 @@ useradd --home-dir ${SPLUNK_HOME} --comment "Splunk Server" ${splunkuser} --shel
 
 # install addition os packages 
 PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd"
-if [[ splunkenableworker == 1 ]; then
+if [[ $splunkenableworker == 1 ]]; then
   PACKAGELIST="${PACKAGELIST} ansible"
   echo "INFO: splunkenableworker=1 adding ansible to packagelist"
 fi

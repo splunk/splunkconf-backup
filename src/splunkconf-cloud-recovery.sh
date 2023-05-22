@@ -2229,7 +2229,7 @@ else
 fi
 
 
-if [[ splunkenableworker == 1 ]; then
+if [[ $splunkenableworker == 1 ]]; then
   echo "INFO: worker role : getting ansible files"  
   get_object ${remoteinstalldir}/ansible/ansible_jinja_tf.yml ${localscriptdir}
   get_object ${remoteinstalldir}/ansible/ansible_jinja_byhost_tf.yml ${localscriptdir}

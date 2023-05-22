@@ -2241,6 +2241,9 @@ if [[ $splunkenableworker == 1 ]]; then
   get_object ${remoteinstalldir}/ansible/getmycredentials.sh ${localscriptdir}
   chown ${usersplunk}. ${localscriptdir}/getmycredentials.sh
   chmod 700 ${localscriptdir}/getmycredentials.sh
+  get_object ${remoteinstalldir}/ansible/inventory.yaml ${localscriptdir}
+  chown ${usersplunk}. ${localscriptdir}/inventory.yaml
+  chmod 600 ${localscriptdir}/inventory.yaml
 fi
 
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 

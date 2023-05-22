@@ -2244,6 +2244,7 @@ if [[ $splunkenableworker == 1 ]]; then
   get_object ${remoteinstalldir}/ansible/inventory.yaml ${localscriptdir}
   chown ${usersplunk}. ${localscriptdir}/inventory.yaml
   chmod 600 ${localscriptdir}/inventory.yaml
+  su - ${usersplunk} -c "pip install ansible"
 fi
 
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 

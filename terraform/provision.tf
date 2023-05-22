@@ -62,11 +62,26 @@ resource "local_file" "ansible_jinja_byhost_tf" {
     splunkorg: ${var.splunkorg}
     splunk_ssh_key_arn: ${module.ssh.splunk_ssh_key_arn}
   tasks:
-  - name: apply packaged apps
-    command: "/bin/bash ./scripts/applypackaged.sh ${var.splunkorg} ${var.base-apps-target-dir} packaged 0 disabled sh idx cm mc ds std"
+  - name: Download packaged file for apps from s3 install 
+    amazon.aws.aws_s3:
+      bucket: ${var.s3_install.arn}
+      mode: get
+      object: "packaged/{{ ansible_host }}/initialapps.tar.gz"
+      dest: "/opt/splunk/var/install"
+    register: getresult
+  - debug: 
+      msg="{{ getresult.msg }}" 
+    when: getresult.changed
+  - name: Unarchive a file that needs to be downloaded (added in 2.0)
+    ansible.builtin.unarchive:
+      src: "/opt/splunk/var/install/initialapps.tar.gz"
+      dest: /opt/splunk
+      remote_src: yes
     DOC
   filename = "./ansible_jinja_byhost_tf.yml"
 }
+#  - name: apply packaged apps
+#    command: "/bin/bash ./scripts/applypackaged.sh ${var.splunkorg} ${var.base-apps-target-dir} packaged 0 disabled sh idx cm mc ds std"
 
 resource "local_file" "ansible_inventory" {
   content  = <<-DOC

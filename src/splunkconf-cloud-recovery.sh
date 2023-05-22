@@ -203,8 +203,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230427 add support fot tag splunk_smartstore_site_number so it possible to work with one instance without replication for hot data but still instance resiliency
 # 20230508 rename splunk_smartstore_site_number to splunksmartstoresitenumber
 # 20230521 add splunkenableworker tag
+# 20230522 add more support for splunkenableworker tag
 
-VERSION="20230522a"
+VERSION="20230522b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2232,8 +2233,14 @@ fi
 if [[ $splunkenableworker == 1 ]]; then
   echo "INFO: worker role : getting ansible files"  
   get_object ${remoteinstalldir}/ansible/ansible_jinja_tf.yml ${localscriptdir}
+  chown ${usersplunk}. ${localscriptdir}/ansible_jinja_tf.yml
+  chmod 600 ${localscriptdir}/ansible_jinja_tf.yml
   get_object ${remoteinstalldir}/ansible/ansible_jinja_byhost_tf.yml ${localscriptdir}
+  chown ${usersplunk}. ${localscriptdir}/ansible_jinja_byhost_tf.yml
+  chmod 600 ${localscriptdir}/ansible_jinja_byhost_tf.yml
   get_object ${remoteinstalldir}/ansible/getmycredentials.sh ${localscriptdir}
+  chown ${usersplunk}. ${localscriptdir}/getmycredentials.sh
+  chmod 700 ${localscriptdir}/getmycredentials.sh
 fi
 
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 

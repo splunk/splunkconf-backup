@@ -57,6 +57,14 @@ resource "aws_iam_role_policy_attachment" "ds-attach-splunk-writesecret" {
 #  provider = aws.region-primary
 #}
 
+# this is used only when splunkdsenableworker is true
+# todo : make conditional ?
+resource "aws_iam_role_policy_attachment" "ds-attach-splunk-ec2worker-secret" {
+  #name       = "worker-attach-splunk-ec2worker-secret"
+  role       = aws_iam_role.role-splunk-ds.name
+  policy_arn = aws_iam_policy.pol-splunk-ec2worker-secret.arn
+}
+
 
 resource "aws_security_group_rule" "ds_from_bastion_ssh" {
   security_group_id        = aws_security_group.splunk-ds.id

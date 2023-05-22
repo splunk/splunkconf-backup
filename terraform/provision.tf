@@ -64,7 +64,7 @@ resource "local_file" "ansible_jinja_byhost_tf" {
   tasks:
   - name: Download packaged file for apps from s3 install 
     amazon.aws.aws_s3:
-      bucket: ${var.s3_install.arn}
+      bucket: ${local.s3_install_s3uri}
       mode: get
       object: "packaged/{{ ansible_host }}/initialapps.tar.gz"
       dest: "/opt/splunk/var/install"

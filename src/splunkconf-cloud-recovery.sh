@@ -1195,7 +1195,7 @@ fi
 useradd --home-dir ${SPLUNK_HOME} --comment "Splunk Server" ${splunkuser} --shell /bin/bash 
 
 # install addition os packages 
-PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd"
+PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd pip"
 if [[ $splunkenableworker == 1 ]]; then
   PACKAGELIST="${PACKAGELIST} ansible"
   echo "INFO: splunkenableworker=1 adding ansible to packagelist"

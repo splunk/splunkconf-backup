@@ -93,11 +93,11 @@ all:
     sh:
       ansible_host: ${local.sh-dns-name}
     cm:
-      ansible_host: ${local.sh-dns-name}
+      ansible_host: ${local.cm-dns-name}
     ds:
-      ansible_host: ${local.sh-dns-name}
+      ansible_host: ${local.ds-dns-name}
     mc:
-      ansible_host: ${local.sh-dns-name}
+      ansible_host: ${local.mc-dns-name}
   vars:
     ansible_user: ec2-user
     ansible_ssh_private_key_file: ./mykey-${var.region-primary}.priv

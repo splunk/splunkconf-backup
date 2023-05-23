@@ -70,7 +70,7 @@ resource "local_file" "ansible_jinja_byhost_tf" {
       bucket: ${local.s3_install_bucket}
       mode: get
       object: "packaged/{{ inventory_hostname }}/initialapps.tar.gz"
-      dest: "/opt/splunk/var/install"
+      dest: "/opt/splunk/var/install/initialapps.tar.gz"
     register: getresult
   - debug: 
       msg="{{ getresult.msg }}" 
@@ -78,7 +78,7 @@ resource "local_file" "ansible_jinja_byhost_tf" {
   - name: Unarchive a file that needs to be downloaded (added in 2.0)
     ansible.builtin.unarchive:
       src: "/opt/splunk/var/install/initialapps.tar.gz"
-      dest: /opt/splunk
+      dest: /opt/splunk/etc/apps/
       remote_src: yes
     DOC
   filename = "./ansible_jinja_byhost_tf.yml"

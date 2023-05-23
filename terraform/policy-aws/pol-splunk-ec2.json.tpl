@@ -2,13 +2,13 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "VisualEditor0",
+            "Sid": "ec2global",
             "Effect": "Allow",
             "Action": "ec2:*",
             "Resource": "*"
         },
         {
-            "Sid": "VisualEditor1",
+            "Sid": "s3install1",
             "Effect": "Allow",
             "Action": [
                 "s3:GetObject",
@@ -18,12 +18,24 @@
             "Resource": [
                 "${s3_install}/env/${profile}/${splunktargetenv}/*",
                 "${s3_install}/install/*",
-                "${s3_install}/packaged/*",
-                "${s3_install}/*"
+                "${s3_install}/packaged/*"
             ]
         },
        {
-            "Sid": "VisualEditor2",
+            "Sid": "s3installroot",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "${s3_install}"
+            ]
+        },
+
+       {
+            "Sid": "ssmuserseed",
             "Effect": "Allow",
             "Action": [
                 "ssm:PutParameter",

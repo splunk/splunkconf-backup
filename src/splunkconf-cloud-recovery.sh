@@ -205,8 +205,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230521 add splunkenableworker tag
 # 20230522 add more support for splunkenableworker tag
 # 20230523 add ansible and boto3 install via pip for worker (as not yet via RPM for AL2023)
+# 20230523 update boto3 deployment logic
 
-VERSION="20230523a"
+VERSION="20230523b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1455,7 +1456,9 @@ else
   sysctl --system;sleep 1;chmod u+x /etc/rc.d/rc.local;systemctl start rc-local;systemctl restart polkit
   echo "#****************************************** splunksecrets deployment ***********************************"
   # deploying splunk secrets
-  pip3 install splunksecrets
+  if [ $splunkconnectedmode == 1 ]; then 
+    pip3 install splunksecrets
+  fi
 fi
 
 # removal of any leftover from previous splunkconf-backup (that would come from AMI)
@@ -2231,6 +2234,11 @@ else
 fi
 
 
+# on all hosts 
+if [ $splunkconnectedmode == 1 ]; then
+  pip install boto3
+fi
+# only on worker
 if [[ $splunkenableworker == 1 ]]; then
   echo "INFO: worker role : getting ansible files"  
   get_object ${remoteinstalldir}/ansible/ansible_jinja_tf.yml ${localscriptdir}
@@ -2246,7 +2254,9 @@ if [[ $splunkenableworker == 1 ]]; then
   chown ${usersplunk}. ${localscriptdir}/inventory.yaml
   chmod 600 ${localscriptdir}/inventory.yaml
   # workaround for AL2023 which not yet allow ansible via yum 
-  su - ${usersplunk} -c "pip install ansible;pip install boto3"
+  if [ $splunkconnectedmode == 1 ]; then
+    pip install ansible
+  fi
 fi
 
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 

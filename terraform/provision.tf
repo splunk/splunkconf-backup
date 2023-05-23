@@ -56,13 +56,14 @@ resource "local_file" "ansible_vars_tf" {
 resource "local_file" "ansible_jinja_byhost_tf" {
   content  = <<-DOC
 ---
-- hosts: ALL
+- hosts: all
   become: yes
   become_user: splunk
   vars:
     org: ${var.splunkorg}
     splunkorg: ${var.splunkorg}
     splunk_ssh_key_arn: ${module.ssh.splunk_ssh_key_arn}
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
   tasks:
   - name: Download packaged file for apps from s3 install 
     amazon.aws.aws_s3:

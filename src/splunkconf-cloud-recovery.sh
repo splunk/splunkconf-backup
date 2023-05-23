@@ -204,8 +204,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230508 rename splunk_smartstore_site_number to splunksmartstoresitenumber
 # 20230521 add splunkenableworker tag
 # 20230522 add more support for splunkenableworker tag
+# 20230523 add ansible and boto3 install via pip for worker (as not yet via RPM for AL2023)
 
-VERSION="20230522b"
+VERSION="20230523a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2244,7 +2245,8 @@ if [[ $splunkenableworker == 1 ]]; then
   get_object ${remoteinstalldir}/ansible/inventory.yaml ${localscriptdir}
   chown ${usersplunk}. ${localscriptdir}/inventory.yaml
   chmod 600 ${localscriptdir}/inventory.yaml
-  su - ${usersplunk} -c "pip install ansible"
+  # workaround for AL2023 which not yet allow ansible via yum 
+  su - ${usersplunk} -c "pip install ansible;pip install boto3"
 fi
 
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 

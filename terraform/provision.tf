@@ -57,6 +57,8 @@ resource "local_file" "ansible_jinja_byhost_tf" {
   content  = <<-DOC
 ---
 - hosts: ALL
+  become: yes
+  become_user: splunk
   vars:
     org: ${var.splunkorg}
     splunkorg: ${var.splunkorg}
@@ -64,9 +66,9 @@ resource "local_file" "ansible_jinja_byhost_tf" {
   tasks:
   - name: Download packaged file for apps from s3 install 
     amazon.aws.aws_s3:
-      bucket: ${local.s3_install_s3uri}
+      bucket: ${local.s3_install_bucket}
       mode: get
-      object: "packaged/{{ ansible_host }}/initialapps.tar.gz"
+      object: "packaged/{{ inventory_hostname }}/initialapps.tar.gz"
       dest: "/opt/splunk/var/install"
     register: getresult
   - debug: 

@@ -238,6 +238,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_ia_lifecycle" {
 
 locals {
   s3_install_s3uri="s3://${aws_s3_bucket.s3_install.bucket}"
+  s3_install_bucket=aws_s3_bucket.s3_install.bucket
 }
 
 output "s3_install_arn" {

@@ -208,7 +208,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230523 update boto3 deployment logic
 # 20230529 convert to loop for worker deployment file and add one more file
 
-VERSION="20230520a"
+VERSION="20230529b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2245,15 +2245,23 @@ if [[ $splunkenableworker == 1 ]]; then
   get_object ${remoteinstalldir}/ansible/getmycredentials.sh ${localscriptdir}
   chown ${usersplunk}. ${localscriptdir}/getmycredentials.sh
   chmod 700 ${localscriptdir}/getmycredentials.sh
-  for fi in "ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml inventory.yaml splunk_ansible_inventory_create.yml"
+  FILELIST="ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml inventory.yaml splunk_ansible_inventory_create.yml"
+  for fi in $FILELIST
   do
     get_object ${remoteinstalldir}/ansible/${fi} ${localscriptdir}
-    chown ${usersplunk}. ${localscriptdir}/${fi}
-    chmod 600 ${localscriptdir}/${fi}
+    if [ -e ${localscriptdir}/${fi} ]; then
+      echo "INFO: file ${localscriptdir}/${fi} deployed from ${remoteinstalldir}/ansible/${fi}" 
+      chown ${usersplunk}. ${localscriptdir}/${fi}
+      chmod 600 ${localscriptdir}/${fi}
+    else
+      echo "WARNING : file ${localscriptdir}/${fi} not FOUND, please check as it should have been deployed via TF"
+    fi}
   done
   # workaround for AL2023 which not yet allow ansible via yum 
   if [ $splunkconnectedmode == 1 ]; then
     pip install ansible
+  else 
+    echo "not deploying ansible du to splunkconnectedmode setting ($splunkconnectedmode), make sure you have deployed it yourself or change setting"
   fi
 fi
 

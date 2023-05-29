@@ -10,6 +10,7 @@
 # 20230522 fallback to cp version
 # 20230529 add playbook for inventory creation
 
+VERSION="20230529b"
 
 # first arg = bucket install
 # second arg = bucket backup
@@ -25,3 +26,5 @@ aws s3 cp ./inventory.yaml s3://${s3_install}/install/ansible/ --storage-class S
 aws s3 cp ./ansible_jinja_tf.yml s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
 aws s3 cp ./ansible_jinja_byhost_tf.yml s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
 aws s3 cp ./splunk_ansible_inventory_create.yml s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
+# j2
+aws s3 cp ./j2/splunk_ansible_inventory_template.j2 s3://${s3_install}/install/ansible/j2 --storage-class STANDARD_IA

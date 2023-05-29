@@ -109,6 +109,7 @@ resource "local_file" "splunk_ansible_inventory" {
   content  = <<-DOC
 ---
 - hosts: 127.0.0.1
+  gather_facts: false
   vars:
     hostsh: ${local.sh-dns-name}
     hostds: ${local.ds-dns-name}
@@ -119,7 +120,22 @@ resource "local_file" "splunk_ansible_inventory" {
     hoststd: ${local.std-dns-name}
     hostlm: ${local.lm-dns-name}
     hostworker: ${local.worker-dns-name}
+    region: ${var.region-primary}
   tasks:
+  tasks:
+    - name: Fetch priv key via SSM
+      aws_ssm_parameter:
+        region: ${var.region-primary}
+        names: "splunk_ssh_key"
+      register: splunk_ssh_key_ssm
+
+    - name: Display ssh key 
+      debug:
+        var: splunk_ssh_key_ssm.parameters[0].value
+    - name: Store key in file so we can reuse
+      copy:
+        content: "{{ splunk_ssh_key_ssm.parameters[0].value }}"
+        dest: "./mykey-${var.region-primary}.priv"
     - name: create ansible inventory with splunk ansible roles
       template:
         src: "j2/splunk_ansible_inventory_template.j2"

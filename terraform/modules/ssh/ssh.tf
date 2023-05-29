@@ -33,3 +33,17 @@ resource "aws_secretsmanager_secret_version" "splunk_ssh_key" {
   secret_string = tls_private_key.splunk_ssh_key.private_key_openssh
 }
 
+# adding SSM version as this make it cheaper and easier to use for ansible later on
+
+resource "aws_ssm_parameter" "splunk_ssh_key" {
+  name        = "splunk_ssh_key"
+  description = "priv key to connect to instances"
+  type        = "String"
+  value       = tls_private_key.splunk_ssh_key.private_key_openssh
+  overwrite   = true
+
+  tags = {
+    environment = var.splunktargetenv
+  }
+}
+

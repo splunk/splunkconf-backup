@@ -2,7 +2,8 @@ data "template_file" "pol-splunk-ec2worker-secret" {
   template = file("policy-aws/pol-splunk-ec2worker-secret.json.tpl")
   vars = {
     secret          = aws_secretsmanager_secret.splunk_admin.arn
-    secret2          = module.ssh.splunk_ssh_key_arn
+    secret2         = module.ssh.splunk_ssh_key_arn
+    ssmkey          = module.ssh.splunk_ssh_key_ssm_arn
     profile         = var.profile
     splunktargetenv = var.splunktargetenv
   }

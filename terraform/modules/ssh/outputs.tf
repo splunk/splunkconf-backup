@@ -14,3 +14,8 @@ output "splunk_ssh_key_arn" {
   value = aws_secretsmanager_secret.splunk_ssh_key.id
   description = "splunk_ssh awssecretsmanager arn (to be used to get the key if authorized)"
 }
+
+output "splunk_ssh_key_ssm_arn" {
+  value = aws_ssm_parameter.splunk_ssh_key.arn
+  description = "splunk_ssh ssm  arn (to be used to get the key if authorized)"
+}

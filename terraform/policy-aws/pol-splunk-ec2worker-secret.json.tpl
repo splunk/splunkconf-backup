@@ -12,6 +12,12 @@
             "Effect": "Allow",
             "Action": "secretsmanager:GetSecretValue",
             "Resource": "${secret2}"
+        },
+        {
+            "Sid": "Getssmprivkey",
+            "Effect": "Allow",
+            "Action": "ssm:DescribeParameters",
+            "Resource": "${ssmkey}"
         }
     ]
 }

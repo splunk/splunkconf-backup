@@ -208,7 +208,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230523 update boto3 deployment logic
 # 20230529 convert to loop for worker deployment file and add one more file
 
-VERSION="20230529d"
+VERSION="20230529e"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2234,7 +2234,7 @@ else
   echo "${remoteinstalldir}/splunkconf-prepare-es-from-s3.sh not existing, please consider add it if willing to deploy ES" 
 fi
 
-
+# *********************************** WORKER ****************************************************
 # on all hosts 
 if [ $splunkconnectedmode == 1 ]; then
   pip install boto3
@@ -2247,18 +2247,35 @@ if [[ $splunkenableworker == 1 ]]; then
   get_object ${remoteinstalldir}/ansible/getmycredentials.sh ${localscriptdir}
   chown ${usersplunk}. ${localscriptdir}/getmycredentials.sh
   chmod 700 ${localscriptdir}/getmycredentials.sh
-  mkdir -p ${localscriptdir}/j2
-  chown ${usersplunk}. ${localscriptdir}/j2
-  FILELIST="ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml inventory.yaml splunk_ansible_inventory_create.yml j2/splunk_ansible_inventory_template.j2"
+  localworkerdir=${localscriptdir}
+  remoteworkerdir=${remoteinstalldir}/ansible
+  FILELIST="ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml inventory.yaml splunk_ansible_inventory_create.yml"
   for fi in $FILELIST
   do
-    get_object ${remoteinstalldir}/ansible/${fi} ${localscriptdir}
-    if [ -e "${localscriptdir}/${fi}" ]; then
-      echo "INFO: file ${localscriptdir}/${fi} deployed from ${remoteinstalldir}/ansible/${fi}" 
-      chown ${usersplunk}. ${localscriptdir}/${fi}
-      chmod 600 ${localscriptdir}/${fi}
+    get_object ${remoteworkerdir}/${fi} ${localworkerdir}
+    if [ -e "${localworkerdir}/${fi}" ]; then
+      echo "INFO: file ${localworkerdir}/${fi} deployed from ${remoteworkerdir}/${fi}" 
+      chown ${usersplunk}. ${localworkerdir}/${fi}
+      chmod 600 ${localworkerdir}/${fi}
     else
-      echo "WARNING : file ${localscriptdir}/${fi} not FOUND, please check as it should have been deployed via TF"
+      echo "WARNING : file ${localworkerdir}/${fi} not FOUND, please check as it should have been deployed via TF (remote location = ${remoteworkerdir}/${fi})"
+    fi
+  done
+  # j2 
+  mkdir -p ${localscriptdir}/j2
+  chown ${usersplunk}. ${localscriptdir}/j2
+  localworkerdir=${localscriptdir}/j2
+  remoteworkerdir=${remoteinstalldir}/ansible/j2
+  FILELIST="splunk_ansible_inventory_template.j2"
+  for fi in $FILELIST
+  do
+    get_object ${remoteworkerdir}/${fi} ${localworkerdir}
+    if [ -e "${localworkerdir}/${fi}" ]; then
+      echo "INFO: file ${localworkerdir}/${fi} deployed from ${remoteworkerdir}/${fi}" 
+      chown ${usersplunk}. ${localworkerdir}/${fi}
+      chmod 600 ${localworkerdir}/${fi}
+    else
+      echo "WARNING : file ${localworkerdir}/${fi} not FOUND, please check as it should have been deployed via TF (remote location = ${remoteworkerdir}/${fi})"
     fi
   done
   # workaround for AL2023 which not yet allow ansible via yum 

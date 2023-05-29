@@ -16,7 +16,12 @@
         {
             "Sid": "Getssmprivkey",
             "Effect": "Allow",
-            "Action": "ssm:DescribeParameters",
+            "Action": [
+              "ssm:DescribeParameters",
+              "ssm:GetParametersByPath",
+              "ssm:GetParameters",
+              "ssm:GetParameter"
+            ],
             "Resource": "${ssmkey}"
         }
     ]

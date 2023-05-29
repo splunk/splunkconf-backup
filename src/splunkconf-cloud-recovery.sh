@@ -2249,7 +2249,7 @@ if [[ $splunkenableworker == 1 ]]; then
   for fi in $FILELIST
   do
     get_object ${remoteinstalldir}/ansible/${fi} ${localscriptdir}
-    if [ -e ${localscriptdir}/${fi} ]; then
+    if [ -e "${localscriptdir}/${fi}" ]; then
       echo "INFO: file ${localscriptdir}/${fi} deployed from ${remoteinstalldir}/ansible/${fi}" 
       chown ${usersplunk}. ${localscriptdir}/${fi}
       chmod 600 ${localscriptdir}/${fi}

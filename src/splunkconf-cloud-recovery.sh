@@ -206,8 +206,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230522 add more support for splunkenableworker tag
 # 20230523 add ansible and boto3 install via pip for worker (as not yet via RPM for AL2023)
 # 20230523 update boto3 deployment logic
+# 20230529 convert to loop for worker deployment file and add one more file
 
-VERSION="20230523b"
+VERSION="20230520a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2241,18 +2242,15 @@ fi
 # only on worker
 if [[ $splunkenableworker == 1 ]]; then
   echo "INFO: worker role : getting ansible files"  
-  get_object ${remoteinstalldir}/ansible/ansible_jinja_tf.yml ${localscriptdir}
-  chown ${usersplunk}. ${localscriptdir}/ansible_jinja_tf.yml
-  chmod 600 ${localscriptdir}/ansible_jinja_tf.yml
-  get_object ${remoteinstalldir}/ansible/ansible_jinja_byhost_tf.yml ${localscriptdir}
-  chown ${usersplunk}. ${localscriptdir}/ansible_jinja_byhost_tf.yml
-  chmod 600 ${localscriptdir}/ansible_jinja_byhost_tf.yml
   get_object ${remoteinstalldir}/ansible/getmycredentials.sh ${localscriptdir}
   chown ${usersplunk}. ${localscriptdir}/getmycredentials.sh
   chmod 700 ${localscriptdir}/getmycredentials.sh
-  get_object ${remoteinstalldir}/ansible/inventory.yaml ${localscriptdir}
-  chown ${usersplunk}. ${localscriptdir}/inventory.yaml
-  chmod 600 ${localscriptdir}/inventory.yaml
+  for fi in "ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml inventory.yaml splunk_ansible_inventory_create.yml"
+  do
+    get_object ${remoteinstalldir}/ansible/${fi} ${localscriptdir}
+    chown ${usersplunk}. ${localscriptdir}/${fi}
+    chmod 600 ${localscriptdir}/${fi}
+  done
   # workaround for AL2023 which not yet allow ansible via yum 
   if [ $splunkconnectedmode == 1 ]; then
     pip install ansible

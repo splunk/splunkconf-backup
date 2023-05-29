@@ -1,0 +1,41 @@
+# Inventory organization is made to match Splunk ansible roles
+# Not all variables are set as we only need deployment playbooks 
+# We may add more variables as needed, some would be dynamically fetched at run time
+all:
+  children:
+    splunk_cluster_master:
+      hosts:
+        {{ cm }}:
+          splunk: &id005
+            admin_user: admin
+            allow_upgrade: true
+            app_paths:
+              default: /opt/splunk/etc/apps
+              deployment: /opt/splunk/etc/deployment-apps
+              httpinput: /opt/splunk/etc/apps/splunk_httpinput
+              idxc: /opt/splunk/etc/manager-apps
+              shc: /opt/splunk/etc/shcluster/apps
+    splunk_deployer:
+      hosts:
+        shc_deployerurl:
+    splunk_indexer:
+      hosts:
+        {{ idx }}:
+    splunk_license_master:
+      hosts:
+        {{ lm }}:
+    splunk_search_head:
+      hosts:
+        {{ sh }}:
+    splunk_monitor:
+      hosts:
+        {{ mc }}:
+    splunk_deploymenrt_server:
+      hosts:
+        {{ ds }}:
+    splunk_heavy_forwarder:
+      hosts:
+        {{ hf }}:
+    splunk_standalone:
+      hosts:
+        {{ std }}:

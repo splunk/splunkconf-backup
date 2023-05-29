@@ -42,8 +42,8 @@ resource "aws_ssm_parameter" "splunk_ssh_key" {
   value       = tls_private_key.splunk_ssh_key.private_key_openssh
   overwrite   = true
 
-  tags = {
-    environment = var.splunktargetenv
-  }
+#  tags = {
+#    environment = var.splunktargetenv
+#  }
 }
 

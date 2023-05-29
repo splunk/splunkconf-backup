@@ -47,7 +47,12 @@ module "ssh" {
 
 output "splunk_ssh_key_arn" {
   value       = module.ssh.splunk_ssh_key_arn
-  description = "splunk_ssh awssecretsmanager arn (to be used to get the key if authorized)"
+  description = "splunk_ssh awssecretsmanager arn (to be used to get the key if authorized)(deprecated, please use the ssm version)"
+}
+
+output "splunk_ssh_key_ssm_arn" {
+  value       = module.ssh.splunk_ssh_key_ssm_arn
+  description = "splunk_ssh aws ssm arn (to be used to get the key if authorized)"
 }
 
 module "kms" {

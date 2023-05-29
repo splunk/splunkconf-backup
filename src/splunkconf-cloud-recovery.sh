@@ -208,7 +208,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230523 update boto3 deployment logic
 # 20230529 convert to loop for worker deployment file and add one more file
 
-VERSION="20230529b"
+VERSION="20230529c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2255,7 +2255,7 @@ if [[ $splunkenableworker == 1 ]]; then
       chmod 600 ${localscriptdir}/${fi}
     else
       echo "WARNING : file ${localscriptdir}/${fi} not FOUND, please check as it should have been deployed via TF"
-    fi}
+    fi
   done
   # workaround for AL2023 which not yet allow ansible via yum 
   if [ $splunkconnectedmode == 1 ]; then

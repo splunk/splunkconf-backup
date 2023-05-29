@@ -132,7 +132,7 @@ resource "local_file" "splunk_ansible_inventory" {
         var: splunk_ssh_key_ssm
     - name: Store key in file so we can reuse
       copy:
-        content: "{{ splunk_ssh_key_ssm }}"
+        content: "{{ splunk_ssh_key_ssm.ansible_facts.splunk_ssh_key_ssm }}"
         dest: "./mykey-${var.region-primary}.priv"
     - name: create ansible inventory with splunk ansible roles
       template:

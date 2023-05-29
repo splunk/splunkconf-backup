@@ -125,14 +125,14 @@ resource "local_file" "splunk_ansible_inventory" {
   tasks:
     - name: Fetch priv key via SSM
       set_fact:
-        splunk_ssh_key_ssm: "{{ lookup('amazon.aws.aws_ssm', 'names=splunk_ssh_key region=${var.region-primary}', wantlist=True) }}"
+        splunk_ssh_key_ssm: "{{ lookup('amazon.aws.aws_ssm', 'splunk_ssh_key', region=${var.region-primary}) }}"
       register: splunk_ssh_key_ssm
     - name: Display ssh key 
       debug:
-        var: splunk_ssh_key_ssm.parameters[0].value
+        var: splunk_ssh_key_ssm
     - name: Store key in file so we can reuse
       copy:
-        content: "{{ splunk_ssh_key_ssm.parameters[0].value }}"
+        content: "{{ splunk_ssh_key_ssm }}"
         dest: "./mykey-${var.region-primary}.priv"
     - name: create ansible inventory with splunk ansible roles
       template:

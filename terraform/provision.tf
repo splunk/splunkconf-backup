@@ -134,6 +134,7 @@ resource "local_file" "splunk_ansible_inventory" {
       copy:
         content: "{{ splunk_ssh_key_ssm.ansible_facts.splunk_ssh_key_ssm }}"
         dest: "./mykey-${var.region-primary}.priv"
+        mode: '600'
     - name: create ansible inventory with splunk ansible roles
       template:
         src: "j2/splunk_ansible_inventory_template.j2"

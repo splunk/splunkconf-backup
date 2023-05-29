@@ -208,7 +208,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230523 update boto3 deployment logic
 # 20230529 convert to loop for worker deployment file and add one more file
 
-VERSION="20230529c"
+VERSION="20230529d"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2238,6 +2238,8 @@ fi
 # on all hosts 
 if [ $splunkconnectedmode == 1 ]; then
   pip install boto3
+else 
+  echo "INFO: boto3 deployment via pip disabled du to splunkconnectedmode=$splunkconnectedmode"
 fi
 # only on worker
 if [[ $splunkenableworker == 1 ]]; then
@@ -2245,7 +2247,9 @@ if [[ $splunkenableworker == 1 ]]; then
   get_object ${remoteinstalldir}/ansible/getmycredentials.sh ${localscriptdir}
   chown ${usersplunk}. ${localscriptdir}/getmycredentials.sh
   chmod 700 ${localscriptdir}/getmycredentials.sh
-  FILELIST="ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml inventory.yaml splunk_ansible_inventory_create.yml"
+  mkdir -p ${localscriptdir}/j2
+  chown ${usersplunk}. ${localscriptdir}/j2
+  FILELIST="ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml inventory.yaml splunk_ansible_inventory_create.yml j2/splunk_ansible_inventory_template.j2"
   for fi in $FILELIST
   do
     get_object ${remoteinstalldir}/ansible/${fi} ${localscriptdir}

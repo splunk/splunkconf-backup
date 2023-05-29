@@ -14,6 +14,14 @@
             "Resource": "${secret2}"
         },
         {
+            "Sid": "Describessm",
+            "Effect": "Allow",
+            "Action": [
+                    "ssm:DescribeParameters"
+            ],
+            "Resource": "*"
+        },
+        {
             "Sid": "Getssmprivkey",
             "Effect": "Allow",
             "Action": [

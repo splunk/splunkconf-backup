@@ -26,7 +26,7 @@ locals {
   idx-dns-name          = "${local.dns-prefix}${var.idx}.${var.dns-zone-name}"
   cm-dns-name           = "${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
   ds-dns-name           = "${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
-  atd-dns-name           = "${local.dns-prefix}${var.std}.${var.dns-zone-name}"
+  std-dns-name          = "${local.dns-prefix}${var.std}.${var.dns-zone-name}"
   hf-dns-name           = "${local.dns-prefix}${var.hf}.${var.dns-zone-name}"
   lm-dns-name           = "${local.dns-prefix}${var.lm}.${var.dns-zone-name}"
 

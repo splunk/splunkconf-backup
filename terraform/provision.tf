@@ -117,7 +117,7 @@ resource "local_file" "splunk_ansible_inventory" {
     hostmc: ${local.mc-dns-name}
     hosthf: ${local.hf-dns-name}
     hoststd: ${local.std-dns-name}
-    hostlm: ${local.std-dns-name}
+    hostlm: ${local.lm-dns-name}
     hostworker: ${local.worker-dns-name}
   tasks:
     - name: create ansible inventory with splunk ansible roles

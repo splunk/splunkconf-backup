@@ -5,7 +5,7 @@ all:
   children:
     splunk_cluster_master:
       hosts:
-        {{ cm }}:
+        {{ hostcm }}:
           splunk: &id005
             admin_user: admin
             allow_upgrade: true
@@ -20,22 +20,22 @@ all:
         shc_deployerurl:
     splunk_indexer:
       hosts:
-        {{ idx }}:
+        {{ hostidx }}:
     splunk_license_master:
       hosts:
-        {{ lm }}:
+        {{ hostlm }}:
     splunk_search_head:
       hosts:
-        {{ sh }}:
+        {{ hostsh }}:
     splunk_monitor:
       hosts:
-        {{ mc }}:
+        {{ hostmc }}:
     splunk_deploymenrt_server:
       hosts:
-        {{ ds }}:
+        {{ hostds }}:
     splunk_heavy_forwarder:
       hosts:
-        {{ hf }}:
+        {{ hosthf }}:
     splunk_standalone:
       hosts:
-        {{ std }}:
+        {{ hoststd }}:

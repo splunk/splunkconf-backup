@@ -105,6 +105,31 @@ all:
   filename = "./inventory.yaml"
 }
 
+resource "local_file" "splunk_ansible_inventory" {
+  content  = <<-DOC
+---
+- hosts: 127.0.0.1
+  vars:
+    hostsh: ${local.sh-dns-name}
+    hostds: ${local.ds-dns-name}
+    hostcm: ${local.cm-dns-name}
+    hostidx: ${local.idx-dns-name}
+    hostmc: ${local.mc-dns-name}
+    hosthf: ${local.hf-dns-name}
+    hoststd: ${local.std-dns-name}
+    hostlm: ${local.std-dns-name}
+    hostworker: ${local.worker-dns-name}
+  tasks:
+    - name: create ansible inventory with splunk ansible roles
+      template:
+        src: "j2/splunk_ansible_inventory_template.j2"
+        dest: "j2/splunk_ansible_inventory.yml"
+        mode: 0640
+
+    DOC
+  filename = "./splunk_ansible_inventory_create.yml"
+}
+
 
 resource "null_resource" "bucket_sync_worker" {
   triggers = {

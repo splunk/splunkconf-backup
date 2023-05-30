@@ -207,8 +207,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230523 add ansible and boto3 install via pip for worker (as not yet via RPM for AL2023)
 # 20230523 update boto3 deployment logic
 # 20230529 convert to loop for worker deployment file and add one more file
+# 20230530 up to 9.0.4.1
 
-VERSION="20230529e"
+VERSION="20230530a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1267,7 +1268,7 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update at reinstanciation, make sure you know what you do !
-splbinary="splunk-9.0.4-de405f4a7979-linux-2.6-x86_64.rpm"
+splbinary="splunk-9.0.4.1-419ad9369127-linux-2.6-x86_64.rpm"
 
 
 if [ "$splunkmode" == "uf" ]; then 
@@ -1298,7 +1299,7 @@ if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
   else
     echo "RPM not present in install, trying to download directly (ent version)"
     ###### change from version on splunk.com : add -q , add ${localinstalldir}/ and add quotes around 
-    `wget -q -O ${localinstalldir}/splunk-9.0.4-de405f4a7979-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/9.0.4/linux/splunk-9.0.4-de405f4a7979-linux-2.6-x86_64.rpm"`
+    `wget -q -O ${localinstalldir}/splunk-9.0.4.1-419ad9369127-linux-2.6-x86_64.rpm "https://download.splunk.com/products/splunk/releases/9.0.4.1/linux/splunk-9.0.4.1-419ad9369127-linux-2.6-x86_64.rpm"`
   fi
   if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install (or fix the wget with wget -q -O ... if you just copied paste wget))  " >> /var/log/splunkconf-cloud-recovery-info.log

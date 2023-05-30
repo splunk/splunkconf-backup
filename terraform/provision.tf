@@ -54,9 +54,9 @@ resource "local_file" "ansible_vars_tf" {
     set_fact:
       splunk_pwd: "{{ lookup('amazon.aws.aws_ssm', 'splunk_ssh_key', region=${var.region-primary}) }}"
     register: splunk_pwd
-    - name: Display  splunk pwd
-      debug:
-        var: splunk_pwd
+  - name: Display  splunk pwd
+    debug:
+      var: splunk_pwd
     DOC
   filename = "./ansible_jinja_tf.yml"
 }
@@ -64,6 +64,18 @@ resource "local_file" "ansible_vars_tf" {
 resource "local_file" "ansible_jinja_byhost_tf" {
   content  = <<-DOC
 ---
+- hosts: 127.0.0.1
+  become: yes
+  become_user: splunk
+  tasks:
+  - name: get secret for admin
+    debug: msg="{{ lookup('amazon.aws.aws_secret', '${aws_secretsmanager_secret.splunk_admin.id}', region=${var.region-primary}, on_denied='warn')}}"
+    set_fact:
+      splunk_pwd: "{{ lookup('amazon.aws.aws_ssm', 'splunk_ssh_key', region=${var.region-primary}) }}"
+    register: splunk_pwd
+  - name: Display  splunk pwd
+    debug:
+      var: splunk_pwd
 - hosts: all
   become: yes
   become_user: splunk
@@ -73,6 +85,9 @@ resource "local_file" "ansible_jinja_byhost_tf" {
     splunk_ssh_key_arn: ${module.ssh.splunk_ssh_key_arn}
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
   tasks:
+  - name: Display  splunk pwd
+    debug:
+      var: splunk_pwd
   - name: Download packaged file for apps from s3 install 
     amazon.aws.aws_s3:
       bucket: ${local.s3_install_bucket}

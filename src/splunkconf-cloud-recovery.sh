@@ -208,8 +208,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230523 update boto3 deployment logic
 # 20230529 convert to loop for worker deployment file and add one more file
 # 20230530 up to 9.0.4.1
+# 20230530 add ansible build inventory
 
-VERSION="20230530a"
+VERSION="20230530b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2285,6 +2286,8 @@ if [[ $splunkenableworker == 1 ]]; then
   else 
     echo "not deploying ansible du to splunkconnectedmode setting ($splunkconnectedmode), make sure you have deployed it yourself or change setting"
   fi
+  echo "building inventory file"
+  su - ${usersplunk} -c "cd scripts;ansible-playbook splunk_ansible_inventory_create.yml" 
 fi
 
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 

@@ -44,8 +44,9 @@
 # 20230118 improve messages
 # 20230118 increase max_upload_size check to 2048 to match current ES doc and improve messages
 # 20230118 add setting to not restart between install and setup 
+# 20230530 add sha for 7.1.1
 
-VERSION="20230118c"
+VERSION="20230530a"
 
 SCRIPTNAME="installes"
 
@@ -235,7 +236,8 @@ fi
 #ESAPP="splunk-enterprise-security_700.spl";
 #ESAPP="splunk-enterprise-security_701.spl";
 #ESAPP="splunk-enterprise-security_702.spl";
-ESAPP="splunk-enterprise-security_710.spl";
+#ESAPP="splunk-enterprise-security_710.spl";
+ESAPP="splunk-enterprise-security_711.spl";
 
 read -p "ESAPP file name (default : ${ESAPP})" input
 ESAPP=${input:-$ESAPP}
@@ -270,10 +272,11 @@ fi
 # SHA256 checksum (splunk-enterprise-security_701.spl) cf3d4afc06bd20f5ab039c01a533b1f5c29c6fbe3dc9dbcf5ef177ef66f36cac
 # SHA256 checksum (splunk-enterprise-security_702.spl) 44cd5e63dfdef0e945aa5cf9cd919b50644dc3dee6faaf6d5b29a8c3e4e732ed
 # SHA256 checksum (splunk-enterprise-security_710.spl) a45bc6a1a583426e8f587bc0693dbf0296fa61ca2cd9d927e1cf99cab9c351cd
+# SHA256 checksum (splunk-enterprise-security_711.spl) b871297c0a518f7362a8a0b6cf829fcefc4bdd24602d0b75d79bb1bc38050e1d
 
 # SHA256 checksum (splunk-es-content-update_3240.tgz) 49aca3ab3bb1291f988459708e9a589aacc5b64caed493831a00546c36181ea6
 
-EXPECTEDSHA="a45bc6a1a583426e8f587bc0693dbf0296fa61ca2cd9d927e1cf99cab9c351cd"
+EXPECTEDSHA="b871297c0a518f7362a8a0b6cf829fcefc4bdd24602d0b75d79bb1bc38050e1d"
 
 echo_log "please verify sha256 to check for integrity (corruption , truncation during file download....)"
 echo "INFO: expected sha256=${EXPECTEDSHA}"

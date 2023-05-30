@@ -148,7 +148,7 @@ resource "local_file" "splunk_ansible_inventory" {
   tasks:
     - name: Fetch priv key via SSM
       set_fact:
-        splunk_ssh_key_ssm: "{{ lookup('amazon.aws.aws_ssm', 'splunk_ssh_key', region=${var.region-primary}) }}"
+        splunk_ssh_key_ssm: "{{ lookup('amazon.aws.aws_ssm', 'splunk_ssh_key', region='${var.region-primary}') }}"
       register: splunk_ssh_key_ssm
     - name: Display ssh key 
       debug:

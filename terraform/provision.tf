@@ -51,7 +51,12 @@ resource "local_file" "ansible_vars_tf" {
       chdir: "../helpers"
   - name: get secret for admin
     debug: msg="{{ lookup('amazon.aws.aws_secret', '${aws_secretsmanager_secret.splunk_admin.id}', region=${var.region-primary}, on_denied='warn')}}"
-
+    set_fact:
+      splunk_pwd: "{{ lookup('amazon.aws.aws_ssm', 'splunk_ssh_key', region=${var.region-primary}) }}"
+    register: splunk_pwd
+    - name: Display  splunk pwd
+      debug:
+        var: splunk_pwd
     DOC
   filename = "./ansible_jinja_tf.yml"
 }

@@ -15,39 +15,39 @@ all:
               httpinput: /opt/splunk/etc/apps/splunk_httpinput
               idxc: /opt/splunk/etc/manager-apps
               shc: /opt/splunk/etc/shcluster/apps
-            roleshort: cm
+          roleshort: cm
     splunk_deployer:
       hosts:
         shc_deployerurl:
-            roleshort: shc
+          roleshort: shc
     splunk_indexer:
       hosts:
         {{ hostidx }}:
-            roleshort: idx
-    splunk_license_master:
-      hosts:
-        {{ hostlm }}:
-            roleshort: lm
+          roleshort: idx
+#    splunk_license_master:
+#      hosts:
+#        {{ hostlm }}:
+#          roleshort: lm
     splunk_search_head:
       hosts:
         {{ hostsh }}:
-            roleshort: sh
+          roleshort: sh
     splunk_monitor:
       hosts:
         {{ hostmc }}:
-            roleshort: mc
+          roleshort: mc
     splunk_deployment_server:
       hosts:
         {{ hostds }}:
-            roleshort: ds
+          roleshort: ds
     splunk_heavy_forwarder:
       hosts:
         {{ hosthf }}:
-            roleshort: hf
+          roleshort: hf
     splunk_standalone:
       hosts:
         {{ hoststd }}:
-            roleshort: std
+          roleshort: std
   vars:
     ansible_user: ec2-user
     ansible_ssh_private_key_file: ./mykey-{{ region }}.priv

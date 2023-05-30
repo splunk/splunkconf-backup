@@ -69,7 +69,7 @@ resource "local_file" "ansible_jinja_byhost_tf" {
     amazon.aws.aws_s3:
       bucket: ${local.s3_install_bucket}
       mode: get
-      object: "packaged/{{ inventory_hostname }}/initialapps.tar.gz"
+      object: "packaged/{{ roleshort }}/initialapps.tar.gz"
       dest: "/opt/splunk/var/install/initialapps.tar.gz"
     register: getresult
   - debug: 

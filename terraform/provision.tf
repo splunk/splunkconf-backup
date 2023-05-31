@@ -63,7 +63,7 @@ resource "local_file" "ansible_vars_tf" {
 resource "local_file" "ansible_jinja_byhost_tf" {
   content  = <<-DOC
 ---
-- hosts: 127.0.0.1
+- hosts: localhost
   become: yes
   become_user: splunk
   tasks:
@@ -85,7 +85,7 @@ resource "local_file" "ansible_jinja_byhost_tf" {
   tasks:
   - name: Display  splunk pwd
     debug:
-      var: hostvars['localhost']['splunk_pwd']
+      var: hostvars['localhost']['splunk_pwd'].ansible_facts.splunk_pwd
   - name: Download packaged file for apps from s3 install 
     amazon.aws.aws_s3:
       bucket: ${local.s3_install_bucket}

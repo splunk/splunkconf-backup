@@ -26,8 +26,9 @@
 # 20230513 add org variable
 # 20230514 add version var
 # 20230514 extend args to make CERTSDIR a arg
+# 20230605 add extra package by apps already individually packaged
 
-VERSION="202305514c"
+VERSION="20230605a"
 
 function package() {
   for i in $TARGET
@@ -36,6 +37,7 @@ function package() {
     /bin/mkdir -v -p ${PDIR}/$i
     echo "looking for candidates for package ${PDIR}/$i/initial${SUFFIX}apps.tar.gz for org=$ORG from files in $APPDIR with these apps template : $APPS"
     APPS2=""
+    APPS3=""
     for A in $APPS 
     do
       if [ -d $APPDIR/$A ]; then
@@ -46,7 +48,10 @@ function package() {
           cp -rp $APPDIR/$A $APPDIR/$B
         fi
         APPS2="${APPS2} $B"
+        APPS3="${APPS3} $APPDIR/$B"
         echo "ORG=$ORG, A=$A, B=$B"
+        echo "Packaging app $B in ${PDIR}/$i/$B.tar.gz from files in $APPDIR/$B"
+        tar -C "$APPDIR" -zcf "${PDIR}/$i/$B.tar.gz" $APPDIR/$B
       else
         echo "KO : app dir $A does not exist"
       fi
@@ -54,6 +59,8 @@ function package() {
     if [[ $APPS2 ]]; then
       echo "Creating package ${PDIR}/$i/initial${SUFFIX}apps.tar.gz from files in $APPDIR including these apps template : $APPS2"
       tar -C "$APPDIR" -zcf "${PDIR}/$i/initial${SUFFIX}apps.tar.gz" $APPS2
+      echo "Creating apps package ${PDIR}/$i/apps${SUFFIX}.tar.gz from files in $APPDIR including these packaged apps  : $APPS3"
+      tar -C "$APPDIR" -zcf "${PDIR}/$i/apps${SUFFIX}.tar.gz" $APPS3
     else
       echo "empty app list , not doing tar for ${PDIR}/$i/initial${SUFFIX}apps.tar.gz  "
     fi

@@ -412,7 +412,7 @@ variable "associate_public_ip" {
 }
 
 variable "backup-retention" {
-  description "Number of days before removing old backups from S3 (only for versions)"
+  description= "Number of days before removing old backups from S3 (only for versions)"
   type    = number
   default = 31
   validation {
@@ -427,7 +427,7 @@ variable "deleteddata-retention" {
   type    = number
   default = 7
   validation {
-    condition     = var. deleteddata-retention >= 0
+    condition     = var.deleteddata-retention >= 0
     error_message = "deleteddata-retention need to be positive number (in days)"
   }
 }

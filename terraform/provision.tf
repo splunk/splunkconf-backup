@@ -176,24 +176,25 @@ resource "local_file" "ansible_jinja_byhost_tf" {
 #  - name: apply packaged apps
 #    command: "/bin/bash ./scripts/applypackaged.sh ${var.splunkorg} ${var.base-apps-target-dir} packaged 0 disabled sh idx cm mc ds std"
 
-resource "local_file" "ansible_inventory" {
-  content  = <<-DOC
-all:
-  hosts:
-    sh:
-      ansible_host: ${local.sh-dns-name}
-    cm:
-      ansible_host: ${local.cm-dns-name}
-    ds:
-      ansible_host: ${local.ds-dns-name}
-    mc:
-      ansible_host: ${local.mc-dns-name}
-  vars:
-    ansible_user: ec2-user
-    ansible_ssh_private_key_file: ./mykey-${var.region-primary}.priv
-    DOC
-  filename = "./inventory.yaml"
-}
+# replaced by jinja version
+#resource "local_file" "ansible_inventory" {
+#  content  = <<-DOC
+#all:
+#  hosts:
+#    sh:
+#      ansible_host: ${local.sh-dns-name}
+#    cm:
+#      ansible_host: ${local.cm-dns-name}
+#    ds:
+#      ansible_host: ${local.ds-dns-name}
+#    mc:
+#      ansible_host: ${local.mc-dns-name}
+#  vars:
+#    ansible_user: ec2-user
+#    ansible_ssh_private_key_file: ./mykey-${var.region-primary}.priv
+#    DOC
+#  filename = "./inventory.yaml"
+#}
 
 resource "local_file" "splunk_ansible_inventory" {
   content  = <<-DOC

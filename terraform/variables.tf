@@ -412,13 +412,23 @@ variable "associate_public_ip" {
 }
 
 variable "backup-retention" {
+  description "Number of days before removing old backups from S3 (only for versions)"
   type    = number
-  default = 7
+  default = 31
+  validation {
+    condition     = var.backup-retention >= 31
+    error_message = "backup-retention need to be at least 31 days (to match S3-IA pricing structure)"
+  }
 }
 
 variable "deleteddata-retention" {
+  description = "number of days to keep data after it is deleted by Splunk (set to 0 for immediate removal or if enabling versioning at splunk level)"
   type    = number
   default = 7
+  validation {
+    condition     = var. deleteddata-retention >= 0
+    error_message = "deleteddata-retention need to be positive number (in days)"
+  }
 }
 
 variable "s2days-1-ia" {

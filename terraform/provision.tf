@@ -11,6 +11,7 @@ resource "local_file" "ansible_vars_tf" {
   content  = <<-DOC
 ---
 - hosts: 127.0.0.1
+  gather_facts: false
   vars:
     pass4symmkeyidx: ${local.splunkpass4symmkeyidx}
     pass4symmkeyidxdiscovery: ${local.splunkpass4symmkeyidxdiscovery}
@@ -24,7 +25,23 @@ resource "local_file" "ansible_vars_tf" {
     smartstore_site_number: ${var.splunksmartstoresitenumber}
     dns_zone_name: ${var.dns-zone-name}
     splunk_ssh_key_arn: ${module.ssh.splunk_ssh_key_arn}
+    backup-retention: ${var.backup-retention}
+    deleteddata-retention: ${var.deleteddata-retention}
   tasks:
+  - name: download splunk ansible
+    get_url:
+      url: https://github.com/splunk/splunk-ansible/archive/refs/heads/develop.zip
+      dest: splunk-ansible.zip
+      mode: '060'
+      validate_certs: true
+    register: ansible_zip
+  - name: unzip splunk ansible
+    unarchive: 
+      src: splunk-ansible.zip 
+      dest: .
+      copy: no
+    with_items:
+    - "{{ ansible_zip.stdout }}"
   - name: create directories for target jinja
     file:
       path: ${var.base-apps-target-dir}/{{ item.path }}
@@ -66,6 +83,11 @@ resource "local_file" "ansible_jinja_byhost_tf" {
 - hosts: localhost
   become: yes
   become_user: splunk
+  gather_facts: false
+  vars:
+     splunk:
+      admin_user: "admin"
+      svc_port: '8089'
   tasks:
   - name: get secret for admin
     set_fact:
@@ -75,7 +97,8 @@ resource "local_file" "ansible_jinja_byhost_tf" {
     debug:
       var: splunk_pwd
   - set_fact:
-      splunk['password']: "{{ splunk_pwd }}"
+      splunk:
+        "{{ splunk | combine({'password': '{{ splunk_pwd.ansible_facts.splunk_pwd }}' }) }}"
   - name: Display  splunk pwd v2
     debug:
       var: splunk.password
@@ -87,7 +110,17 @@ resource "local_file" "ansible_jinja_byhost_tf" {
     splunkorg: ${var.splunkorg}
     splunk_ssh_key_arn: ${module.ssh.splunk_ssh_key_arn}
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+    splunk:
+      admin_user: "admin"
+      svc_port: '8089'
   tasks:
+  - name: set fact for splunk var
+    set_fact:
+      splunk:
+        "{{ hostvars['localhost']['splunk'] }}"
+  - name: debug var splunk
+    debug:
+      var: splunk
   - name: Display  splunk pwd
     debug:
       var: hostvars['localhost']['splunk_pwd'].ansible_facts.splunk_pwd
@@ -100,7 +133,7 @@ resource "local_file" "ansible_jinja_byhost_tf" {
     register: getresultapps
   - debug: 
       msg="{{ getresultapps.msg }}" 
-    when: getresult.changed
+    when: getresultapps.changed
   - name: Download packaged file for apps from s3 install 
     amazon.aws.aws_s3:
       bucket: ${local.s3_install_bucket}
@@ -116,6 +149,27 @@ resource "local_file" "ansible_jinja_byhost_tf" {
       src: "/opt/splunk/var/install/initialapps.tar.gz"
       dest: /opt/splunk/etc/apps/
       remote_src: yes
+  - name: Check for required restarts
+    uri:
+      url: "{{ cert_prefix }}://127.0.0.1:{{ splunk.svc_port }}/services/messages/restart_required?output_mode=json"
+      method: GET
+      user: "{{ splunk.admin_user }}"
+      password: "{{ splunk.password }}"
+      force_basic_auth: yes
+      validate_certs: false
+      status_code: 200,404
+      timeout: 10
+      use_proxy: no
+    register: restart_required
+    changed_when: restart_required.status == 200
+    until: restart_required is succeeded
+    retries: 5
+    delay: "{{ retry_delay }}"
+    no_log: "{{ hide_password }}"
+    notify:
+      - Restart the splunkd service
+  - debug:
+      msg="{{ restart_required }}" 
     DOC
   filename = "./ansible_jinja_byhost_tf.yml"
 }

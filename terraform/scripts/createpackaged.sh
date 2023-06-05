@@ -27,8 +27,9 @@
 # 20230514 add version var
 # 20230514 extend args to make CERTSDIR a arg
 # 20230605 add extra package by apps already individually packaged
+# 20230605 fix paths
 
-VERSION="20230605a"
+VERSION="20230605b"
 
 function package() {
   for i in $TARGET
@@ -48,10 +49,10 @@ function package() {
           cp -rp $APPDIR/$A $APPDIR/$B
         fi
         APPS2="${APPS2} $B"
-        APPS3="${APPS3} $APPDIR/$B"
+        APPS3="${APPS3} $B.tar.gz"
         echo "ORG=$ORG, A=$A, B=$B"
         echo "Packaging app $B in ${PDIR}/$i/$B.tar.gz from files in $APPDIR/$B"
-        tar -C "$APPDIR" -zcf "${PDIR}/$i/$B.tar.gz" $APPDIR/$B
+        tar -C "$APPDIR" -zcf "${PDIR}/$i/$B.tar.gz" $B
       else
         echo "KO : app dir $A does not exist"
       fi
@@ -120,15 +121,15 @@ for TARGET in $ROLELIST
 do
   echo "processing TARGET=$TARGET"
   if [[ $TARGET == std* ]]; then  
-    APPS="org_all_search_base org_all_ui_tls org_all_indexes org_es_indexes org_indexer_volume_indexes org_indexer_s2_indexes"
+    APPS="org_search_base org_all_ui_tls org_all_indexes org_es_indexes org_indexer_volume_indexes org_indexer_s2_indexes"
     SUFFIX=""
     package
     APPS="org_all_tls"
     init_tls
   elif [[ $TARGET == cm* ]]; then  
-    APPS="org_all_search_base org_all_ui_tls org_manager_multisite org_search_outputs-disableindexing org_to-site_forwarder_central_outputs org_site_0_base org_manager_deploymentclient org_full_license_peer"
+    APPS="org_search_base org_all_ui_tls org_manager_multisite org_search_outputs-disableindexing org_to-site_forwarder_central_outputs org_site_0_base org_manager_deploymentclient org_full_license_peer"
     # lm on cm case
-    APPS="org_all_search_base org_all_ui_tls org_manager_multisite org_search_outputs-disableindexing org_to-site_forwarder_central_outputs org_site_0_base org_manager_deploymentclient"
+    APPS="org_search_base org_all_ui_tls org_manager_multisite org_search_outputs-disableindexing org_to-site_forwarder_central_outputs org_site_0_base org_manager_deploymentclient"
     SUFFIX=""
     #TARGET="cm cm1 cm2 cm3 cm4 cm5"
     package
@@ -141,14 +142,14 @@ do
     package
   elif [[ $TARGET == ds* ]]; then
     # deploymentserver_base renamed here
-    APPS="org_all_search_base org_all_ui_tls org_deploymentserver_base org_search_outputs-disableindexing org_full_license_peer org_to-site_forwarder_central_outputs"
+    APPS="org_search_base org_all_ui_tls org_deploymentserver_base org_search_outputs-disableindexing org_full_license_peer org_to-site_forwarder_central_outputs"
     SUFFIX=""
     #TARGET="ds ds1 ds2 ds3 ds4 ds5"
     package
     APPS="org_all_tls"
     init_tls
 
-    APPS="org_all_search_base org_all_ui_tls org_search_outputs-disableindexing org_full_license_peer org_to-site_forwarder_central_outputs org_indexer_base org_all_indexes org_es_indexes org_indexer_volume_indexes org_indexer_s2_indexes org_search_volume_indexes"
+    APPS="org_search_base org_all_ui_tls org_search_outputs-disableindexing org_full_license_peer org_to-site_forwarder_central_outputs org_indexer_base org_all_indexes org_es_indexes org_indexer_volume_indexes org_indexer_s2_indexes org_search_volume_indexes"
     SUFFIX="ds"
     #TARGET="ds ds1 ds2 ds3 ds4 ds5"
     package
@@ -160,7 +161,7 @@ do
     APPS="org_all_tls"
     init_tls
   elif [[ $TARGET == mc* ]]; then
-    APPS="org_all_search_base org_all_ui_tls org_search_outputs-disableindexing org_full_license_peer org_to-site_forwarder_central_outputs org_monitoringconsole_search_base"
+    APPS="org_search_base org_all_ui_tls org_search_outputs-disableindexing org_full_license_peer org_to-site_forwarder_central_outputs org_monitoringconsole_search_base"
     SUFFIX=""
     #TARGET="mc mc1 mc2 mc3"
     package
@@ -174,35 +175,35 @@ do
     APPS="org_all_tls"
     init_tls
   elif [[ $TARGET == "ihf" ]]; then
-    APPS="org_all_search_base org_all_ui_tls org_full_license_peer splunk_httpinput 00_org_ia_tuning org_1s2_indexer_indexes splunk_ingest_actions"
+    APPS="org_search_base org_all_ui_tls org_full_license_peer splunk_httpinput 00_org_ia_tuning org_1s2_indexer_indexes splunk_ingest_actions"
     SUFFIX=""
     #TARGET="ihf"
     package
     APPS="org_all_tls"
     init_tls
   elif [[ $TARGET == "ihf2" ]]; then
-    APPS="org_all_search_base org_all_ui_tls org_full_license_peer splunk_httpinput 00_org_ia_tuning org_2s2_indexer_indexes splunk_ingest_actions"
+    APPS="org_search_base org_all_ui_tls org_full_license_peer splunk_httpinput 00_org_ia_tuning org_2s2_indexer_indexes splunk_ingest_actions"
     SUFFIX=""
     #TARGET="ihf2"
     package
     APPS="org_all_tls"
     init_tls
   elif [[ $TARGET == "ihf3" ]]; then
-    APPS="org_all_search_base org_all_ui_tls org_full_license_peer splunk_httpinput 00_org_ia_tuning org_3s2_indexer_indexes splunk_ingest_actions"
+    APPS="org_search_base org_all_ui_tls org_full_license_peer splunk_httpinput 00_org_ia_tuning org_3s2_indexer_indexes splunk_ingest_actions"
     SUFFIX=""
     #TARGET="ihf3"
     package
     APPS="org_all_tls"
     init_tls
   elif [[ $TARGET == "ihf4" ]]; then
-    APPS="org_all_search_base org_all_ui_tls org_full_license_peer splunk_httpinput 00_org_ia_tuning org_4s2_indexer_indexes splunk_ingest_actions"
+    APPS="org_search_base org_all_ui_tls org_full_license_peer splunk_httpinput 00_org_ia_tuning org_4s2_indexer_indexes splunk_ingest_actions"
     SUFFIX=""
     #TARGET="ihf4"
     package
     APPS="org_all_tls"
     init_tls
   elif [[ $TARGET == "ihf5" ]]; then
-    APPS="org_all_search_base org_all_ui_tls org_full_license_peer splunk_httpinput 00_org_ia_tuning org_5s2_indexer_indexes splunk_ingest_actions"
+    APPS="org_search_base org_all_ui_tls org_full_license_peer splunk_httpinput 00_org_ia_tuning org_5s2_indexer_indexes splunk_ingest_actions"
     SUFFIX=""
     #TARGET="ihf5"
     package

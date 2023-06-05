@@ -25,8 +25,8 @@ resource "local_file" "ansible_vars_tf" {
     smartstore_site_number: ${var.splunksmartstoresitenumber}
     dns_zone_name: ${var.dns-zone-name}
     splunk_ssh_key_arn: ${module.ssh.splunk_ssh_key_arn}
-    backup-retention: ${var.backup-retention}
-    deleteddata-retention: ${var.deleteddata-retention}
+    backupretention: ${var.backup-retention}
+    deleteddataretention: ${var.deleteddata-retention}
   tasks:
   - name: download splunk ansible
     get_url:

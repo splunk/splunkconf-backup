@@ -74,6 +74,11 @@ resource "local_file" "ansible_jinja_byhost_tf" {
   - name: Display  splunk pwd
     debug:
       var: splunk_pwd
+  - set_fact:
+      splunk['password']: "{{ splunk_pwd }}"
+  - name: Display  splunk pwd v2
+    debug:
+      var: splunk.password
 - hosts: all
   become: yes
   become_user: splunk
@@ -86,6 +91,16 @@ resource "local_file" "ansible_jinja_byhost_tf" {
   - name: Display  splunk pwd
     debug:
       var: hostvars['localhost']['splunk_pwd'].ansible_facts.splunk_pwd
+  - name: Download apps packaged file for apps from s3 install 
+    amazon.aws.aws_s3:
+      bucket: ${local.s3_install_bucket}
+      mode: get
+      object: "packaged/{{ roleshort }}/apps.tar.gz"
+      dest: "/opt/splunk/var/install/apps.tar.gz"
+    register: getresultapps
+  - debug: 
+      msg="{{ getresultapps.msg }}" 
+    when: getresult.changed
   - name: Download packaged file for apps from s3 install 
     amazon.aws.aws_s3:
       bucket: ${local.s3_install_bucket}
@@ -96,7 +111,7 @@ resource "local_file" "ansible_jinja_byhost_tf" {
   - debug: 
       msg="{{ getresult.msg }}" 
     when: getresult.changed
-  - name: Unarchive a file that needs to be downloaded (added in 2.0)
+  - name: Unarchive a file that needs to be downloaded (version initialapps disabled to use the install by app logic))
     ansible.builtin.unarchive:
       src: "/opt/splunk/var/install/initialapps.tar.gz"
       dest: /opt/splunk/etc/apps/

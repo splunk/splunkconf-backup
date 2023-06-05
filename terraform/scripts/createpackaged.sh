@@ -29,7 +29,7 @@
 # 20230605 add extra package by apps already individually packaged
 # 20230605 fix paths
 
-VERSION="20230605b"
+VERSION="20230605c"
 
 function package() {
   for i in $TARGET
@@ -60,8 +60,8 @@ function package() {
     if [[ $APPS2 ]]; then
       echo "Creating package ${PDIR}/$i/initial${SUFFIX}apps.tar.gz from files in $APPDIR including these apps template : $APPS2"
       tar -C "$APPDIR" -zcf "${PDIR}/$i/initial${SUFFIX}apps.tar.gz" $APPS2
-      echo "Creating apps package ${PDIR}/$i/apps${SUFFIX}.tar.gz from files in $APPDIR including these packaged apps  : $APPS3"
-      tar -C "$APPDIR" -zcf "${PDIR}/$i/apps${SUFFIX}.tar.gz" $APPS3
+      echo "Creating apps package ${PDIR}/$i/apps${SUFFIX}.tar.gz from files in ${PDIR}/$i including these packaged apps  : $APPS3"
+      tar -C "${PDIR}/$i" -zcf "${PDIR}/$i/apps${SUFFIX}.tar.gz" $APPS3
     else
       echo "empty app list , not doing tar for ${PDIR}/$i/initial${SUFFIX}apps.tar.gz  "
     fi

@@ -421,6 +421,7 @@ variable "backup-retention" {
   }
 }
 
+# note : this is passed along to base-apps-jinja to build the splunk config that match the setting
 variable "deleteddata-retention" {
   description = "number of days to keep data after it is deleted by Splunk (set to 0 for immediate removal or if enabling versioning at splunk level)"
   type    = number

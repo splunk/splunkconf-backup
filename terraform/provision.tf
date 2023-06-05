@@ -31,8 +31,8 @@ resource "local_file" "ansible_vars_tf" {
   - name: download splunk ansible
     get_url:
       url: https://github.com/splunk/splunk-ansible/archive/refs/heads/develop.zip
-      dest: splunk-ansible.zip
-      mode: '060'
+      dest: ./splunk-ansible.zip
+      mode: '0600'
       validate_certs: true
     register: ansible_zip
   - name: unzip splunk ansible
@@ -40,8 +40,6 @@ resource "local_file" "ansible_vars_tf" {
       src: splunk-ansible.zip 
       dest: .
       copy: no
-    with_items:
-    - "{{ ansible_zip.stdout }}"
   - name: create directories for target jinja
     file:
       path: ${var.base-apps-target-dir}/{{ item.path }}

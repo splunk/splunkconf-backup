@@ -211,7 +211,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230530 add ansible build inventory
 # 20230603 up to 9.0.5
 
-VERSION="20230603a"
+VERSION="20230603b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1297,7 +1297,7 @@ if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
   elif [ "$splunkmode" == "uf" ]; then 
     echo "RPM not present in install, trying to download directly (uf version)"
     ###### change from version on splunk.com : add -q , add ${localinstalldir}/ and add quotes around 
-    `wget -q -O ${localinstalldir}/splunkforwarder-9.0.5-e9494146ae5c.x86_64.rpm "https://download.splunk.com/products/universalforwarder/releases/9.0.5/linux/splunkforwarder-9.0.5-e9494146ae5c.x86_64.rpm"``
+    `wget -q -O ${localinstalldir}/splunkforwarder-9.0.5-e9494146ae5c.x86_64.rpm "https://download.splunk.com/products/universalforwarder/releases/9.0.5/linux/splunkforwarder-9.0.5-e9494146ae5c.x86_64.rpm"`
   else
     echo "RPM not present in install, trying to download directly (ent version)"
     ###### change from version on splunk.com : add -q , add ${localinstalldir}/ and add quotes around 

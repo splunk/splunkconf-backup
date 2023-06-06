@@ -199,7 +199,7 @@ resource "local_file" "ansible_jinja_byhost_tf" {
   - debug:
       msg="{{ restart_required }}" 
     DOC
-  filename = "./splunk-ansible-develop/ansible_jinja_byhost_tf.yml"
+  filename = "./ansible_jinja_byhost_tf.yml"
 }
 #  - name: apply packaged apps
 #    command: "/bin/bash ./scripts/applypackaged.sh ${var.splunkorg} ${var.base-apps-target-dir} packaged 0 disabled sh idx cm mc ds std"

@@ -9,8 +9,9 @@
 # 20230521 general form + subdir + sync
 # 20230522 fallback to cp version
 # 20230529 add playbook for inventory creation
+# 20230606 add splunk ansible deploy playbook
 
-VERSION="20230529b"
+VERSION="20230606a"
 
 # first arg = bucket install
 # second arg = bucket backup
@@ -24,6 +25,7 @@ s3_backup=$2
 aws s3 cp ../helpers/getmycredentials.sh s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
 aws s3 cp ./inventory.yaml s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
 aws s3 cp ./ansible_jinja_tf.yml s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
+aws s3 cp ./ansible_deploysplunkansible_tf.yml s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
 aws s3 cp ./ansible_jinja_byhost_tf.yml s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
 aws s3 cp ./splunk_ansible_inventory_create.yml s3://${s3_install}/install/ansible/ --storage-class STANDARD_IA
 # j2

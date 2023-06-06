@@ -210,8 +210,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230530 up to 9.0.4.1
 # 20230530 add ansible build inventory
 # 20230603 up to 9.0.5
+# 20230606 add ansible_deploysplunkansible_tf.yml to worker
 
-VERSION="20230603b"
+VERSION="20230606a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2252,7 +2253,7 @@ if [[ $splunkenableworker == 1 ]]; then
   chmod 700 ${localscriptdir}/getmycredentials.sh
   localworkerdir=${localscriptdir}
   remoteworkerdir=${remoteinstalldir}/ansible
-  FILELIST="ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml inventory.yaml splunk_ansible_inventory_create.yml"
+  FILELIST="ansible_deploysplunkansible_tf.yml ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml inventory.yaml splunk_ansible_inventory_create.yml"
   for fi in $FILELIST
   do
     get_object ${remoteworkerdir}/${fi} ${localworkerdir}

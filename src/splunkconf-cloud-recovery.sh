@@ -211,8 +211,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230530 add ansible build inventory
 # 20230603 up to 9.0.5
 # 20230606 add ansible_deploysplunkansible_tf.yml to worker
+# 20230606 and launch it automatically 
 
-VERSION="20230606a"
+VERSION="20230606b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2251,9 +2252,9 @@ if [[ $splunkenableworker == 1 ]]; then
   get_object ${remoteinstalldir}/ansible/getmycredentials.sh ${localscriptdir}
   chown ${usersplunk}. ${localscriptdir}/getmycredentials.sh
   chmod 700 ${localscriptdir}/getmycredentials.sh
-  localworkerdir=${localscriptdir}
+  localworkerdir=${localscriptdir}/splunk-ansible-develop
   remoteworkerdir=${remoteinstalldir}/ansible
-  FILELIST="ansible_deploysplunkansible_tf.yml ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml inventory.yaml splunk_ansible_inventory_create.yml"
+  FILELIST="ansible_deploysplunkansible_tf.yml ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml splunk_ansible_inventory_create.yml"
   for fi in $FILELIST
   do
     get_object ${remoteworkerdir}/${fi} ${localworkerdir}
@@ -2289,7 +2290,9 @@ if [[ $splunkenableworker == 1 ]]; then
     echo "not deploying ansible du to splunkconnectedmode setting ($splunkconnectedmode), make sure you have deployed it yourself or change setting"
   fi
   echo "building inventory file"
-  su - ${usersplunk} -c "cd scripts;ansible-playbook splunk_ansible_inventory_create.yml" 
+  su - ${usersplunk} -c "cd scripts/ansible;ansible-playbook splunk_ansible_inventory_create.yml" 
+  echo "deploying splunk ansible from github"
+  su - ${usersplunk} -c "cd scripts/ansible;ansible-playbook ansible_deploysplunkansible_tf.yml" 
 fi
 
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 

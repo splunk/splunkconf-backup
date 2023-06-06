@@ -79,13 +79,28 @@ resource "local_file" "ansible_jinja_byhost_tf" {
   content  = <<-DOC
 ---
 - hosts: localhost
+  roles:
+    - splunk_common
   become: yes
   become_user: splunk
-  gather_facts: false
+  gather_facts: true
   vars:
-     splunk:
+    splunk:
+      role: "splunk_common"
+      user: "splunk"
+      group: "splunk"
+      home: "/opt/splunk"
       admin_user: "admin"
       svc_port: '8089'
+      enable_service: true
+      exec: "/opt/splunk/bin/splunk"
+      build_type: "splunk"
+      build_location: "/opt/splunk/var/install/splunk-9.0.5-e9494146ae5c.x86_64.rpm"
+      service_name: "splunk.service"
+      allow_upgrade: false
+    splunk_target_version: "9.0.5"
+    retry_delay: 30
+    retry_num: 5
   tasks:
   - name: get secret for admin
     set_fact:
@@ -111,6 +126,8 @@ resource "local_file" "ansible_jinja_byhost_tf" {
     splunk:
       admin_user: "admin"
       svc_port: '8089'
+    retry_delay: 30
+    retry_num: 5
   tasks:
   - name: set fact for splunk var
     set_fact:
@@ -169,7 +186,7 @@ resource "local_file" "ansible_jinja_byhost_tf" {
   - debug:
       msg="{{ restart_required }}" 
     DOC
-  filename = "./ansible_jinja_byhost_tf.yml"
+  filename = "./splunk-ansible-develop/ansible_jinja_byhost_tf.yml"
 }
 #  - name: apply packaged apps
 #    command: "/bin/bash ./scripts/applypackaged.sh ${var.splunkorg} ${var.base-apps-target-dir} packaged 0 disabled sh idx cm mc ds std"

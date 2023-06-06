@@ -12,6 +12,8 @@ resource "local_file" "ansible_deploysplunkansible_tf" {
 ---
 - hosts: 127.0.0.1
   gather_facts: false
+  connection: local
+  become: false 
   tasks:
   - name: download splunk ansible from github
     get_url:
@@ -85,6 +87,7 @@ resource "local_file" "ansible_vars_tf" {
   filename = "./ansible_jinja_tf.yml"
 }
 
+# fixme : more vars here
 resource "local_file" "ansible_jinja_byhost_tf" {
   content  = <<-DOC
 ---
@@ -226,6 +229,8 @@ resource "local_file" "splunk_ansible_inventory" {
 ---
 - hosts: 127.0.0.1
   gather_facts: false
+  connection: local
+  become: false
   vars:
     hostsh: ${local.sh-dns-name}
     hostds: ${local.ds-dns-name}
@@ -249,12 +254,12 @@ resource "local_file" "splunk_ansible_inventory" {
     - name: Store key in file so we can reuse
       copy:
         content: "{{ splunk_ssh_key_ssm.ansible_facts.splunk_ssh_key_ssm }}"
-        dest: "./mykey-${var.region-primary}.priv"
+        dest: "../mykey-${var.region-primary}.priv"
         mode: '600'
     - name: create ansible inventory with splunk ansible roles
       template:
-        src: "j2/splunk_ansible_inventory_template.j2"
-        dest: "j2/splunk_ansible_inventory.yml"
+        src: "../j2/splunk_ansible_inventory_template.j2"
+        dest: "../j2/splunk_ansible_inventory.yml"
         mode: 0640
 
     DOC

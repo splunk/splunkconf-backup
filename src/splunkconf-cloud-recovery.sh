@@ -213,7 +213,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230606 add ansible_deploysplunkansible_tf.yml to worker
 # 20230606 and launch it automatically 
 
-VERSION="20230606b"
+VERSION="20230606d"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2290,9 +2290,9 @@ if [[ $splunkenableworker == 1 ]]; then
     echo "not deploying ansible du to splunkconnectedmode setting ($splunkconnectedmode), make sure you have deployed it yourself or change setting"
   fi
   echo "building inventory file"
-  su - ${usersplunk} -c "cd scripts/ansible;ansible-playbook splunk_ansible_inventory_create.yml" 
+  su - ${usersplunk} -c "cd scripts/splunk-ansible-develope;ansible-playbook splunk_ansible_inventory_create.yml -i 127.0.0.1," 
   echo "deploying splunk ansible from github"
-  su - ${usersplunk} -c "cd scripts/ansible;ansible-playbook ansible_deploysplunkansible_tf.yml" 
+  su - ${usersplunk} -c "cd scripts/splunk-ansible-develop;ansible-playbook ansible_deploysplunkansible_tf.yml -i 127.0.0.1," 
 fi
 
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 

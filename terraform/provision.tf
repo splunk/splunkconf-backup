@@ -7,6 +7,28 @@ locals {
   base-apps-target-dir  = var.base-apps-target-dir
 }
 
+resource "local_file" "ansible_deploysplunkansible_tf" {
+  content  = <<-DOC
+---
+- hosts: 127.0.0.1
+  gather_facts: false
+  tasks:
+  - name: download splunk ansible from github
+    get_url:
+      url: https://github.com/splunk/splunk-ansible/archive/refs/heads/develop.zip
+      dest: ./splunk-ansible.zip
+      mode: '0600'
+      validate_certs: true
+    register: ansible_zip
+  - name: unzip splunk ansible 
+    unarchive:
+      src: splunk-ansible.zip
+      dest: .
+      copy: no
+    DOC
+  filename = "./ansible_deploysplunkansible_tf.yml"
+}
+
 resource "local_file" "ansible_vars_tf" {
   content  = <<-DOC
 ---
@@ -28,18 +50,6 @@ resource "local_file" "ansible_vars_tf" {
     backupretention: ${var.backup-retention}
     deleteddataretention: ${var.deleteddata-retention}
   tasks:
-  - name: download splunk ansible
-    get_url:
-      url: https://github.com/splunk/splunk-ansible/archive/refs/heads/develop.zip
-      dest: ./splunk-ansible.zip
-      mode: '0600'
-      validate_certs: true
-    register: ansible_zip
-  - name: unzip splunk ansible
-    unarchive: 
-      src: splunk-ansible.zip 
-      dest: .
-      copy: no
   - name: create directories for target jinja
     file:
       path: ${var.base-apps-target-dir}/{{ item.path }}
@@ -259,5 +269,5 @@ resource "null_resource" "bucket_sync_worker" {
   provisioner "local-exec" {
     command = "./scripts/copytos3-worker.sh ${aws_s3_bucket.s3_install.id} ${aws_s3_bucket.s3_backup.id}"
   }
-  depends_on = [null_resource.build-idx-scripts, null_resource.build-nonidx-scripts, aws_s3_bucket_lifecycle_configuration.s3_install_lifecycle, aws_s3_bucket_lifecycle_configuration.s3_backup_lifecycle, aws_s3_bucket_versioning.s3_install_versioning, aws_s3_bucket_versioning.s3_backup_versioning, local_file.ansible_vars_tf, local_file.ansible_jinja_byhost_tf]
+  depends_on = [null_resource.build-idx-scripts, null_resource.build-nonidx-scripts, aws_s3_bucket_lifecycle_configuration.s3_install_lifecycle, aws_s3_bucket_lifecycle_configuration.s3_backup_lifecycle, aws_s3_bucket_versioning.s3_install_versioning, aws_s3_bucket_versioning.s3_backup_versioning, local_file.ansible_vars_tf, local_file.ansible_jinja_byhost_tf local.ansible_deploysplunkansible_tf]
 }

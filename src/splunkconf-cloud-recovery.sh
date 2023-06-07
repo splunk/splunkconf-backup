@@ -212,8 +212,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230603 up to 9.0.5
 # 20230606 add ansible_deploysplunkansible_tf.yml to worker
 # 20230606 and launch it automatically 
+# 20230607 split ansible template deployment for worker
 
-VERSION="20230606d"
+VERSION="20230607a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2252,9 +2253,24 @@ if [[ $splunkenableworker == 1 ]]; then
   get_object ${remoteinstalldir}/ansible/getmycredentials.sh ${localscriptdir}
   chown ${usersplunk}. ${localscriptdir}/getmycredentials.sh
   chmod 700 ${localscriptdir}/getmycredentials.sh
-  localworkerdir=${localscriptdir}/splunk-ansible-develop
   remoteworkerdir=${remoteinstalldir}/ansible
-  FILELIST="ansible_deploysplunkansible_tf.yml ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml splunk_ansible_inventory_create.yml"
+  # ansible template deployed in scripts dir
+  localworkerdir=${localscriptdir}
+  FILELIST="ansible_deploysplunkansible_tf.yml"
+  for fi in $FILELIST
+  do
+    get_object ${remoteworkerdir}/${fi} ${localworkerdir}
+    if [ -e "${localworkerdir}/${fi}" ]; then
+      echo "INFO: file ${localworkerdir}/${fi} deployed from ${remoteworkerdir}/${fi}" 
+      chown ${usersplunk}. ${localworkerdir}/${fi}
+      chmod 600 ${localworkerdir}/${fi}
+    else 
+      echo "WARNING : file ${localworkerdir}/${fi} not FOUND, please check as it should have been deployed via TF (remote location = ${remoteworkerdir}/${fi})"
+    fi    
+  done
+  # ansible template deployed in ansible dir
+  localworkerdir=${localscriptdir}/splunk-ansible-develop
+  FILELIST="ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml splunk_ansible_inventory_create.yml"
   for fi in $FILELIST
   do
     get_object ${remoteworkerdir}/${fi} ${localworkerdir}
@@ -2266,7 +2282,7 @@ if [[ $splunkenableworker == 1 ]]; then
       echo "WARNING : file ${localworkerdir}/${fi} not FOUND, please check as it should have been deployed via TF (remote location = ${remoteworkerdir}/${fi})"
     fi
   done
-  # j2 
+  # jinja j2 
   mkdir -p ${localscriptdir}/j2
   chown ${usersplunk}. ${localscriptdir}/j2
   localworkerdir=${localscriptdir}/j2

@@ -112,7 +112,7 @@ resource "aws_subnet" "subnet_priv_3" {
 
 resource "aws_eip" "nat_gateway" {
   count = local.use_nat_gateway ? 1 : 0
-  vpc   = true
+  domain= "vpc"
 }
 
 resource "aws_nat_gateway" "nat_gateway1" {

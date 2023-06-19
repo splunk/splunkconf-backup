@@ -7,6 +7,15 @@ resource "aws_security_group" "splunk-bastion" {
   }
 }
 
+resource "aws_security_group" "splunk-std" {
+  name        = "splunk-std"
+  description = "Security group for Splunk standalone"
+  vpc_id      = local.master_vpc_id
+  tags = {
+    Name = "splunk-std"
+  }
+}
+
 resource "aws_security_group" "splunk-cm" {
   name        = "splunk-cm"
   description = "Security group for Splunk CM(MN)"

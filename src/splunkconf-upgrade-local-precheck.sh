@@ -14,8 +14,10 @@
 # 20221205 check for splunkacceptlicense tag and ask for it if not present
 # 20230118 format messages to start with OK or KO
 # 20230118 typo fix in test
+# 20230622 enable disconnectedmode logic
+# 20230622 add logic to autoupdate at start 
 
-VERSION="20230118b"
+VERSION="20230622a"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -106,7 +108,7 @@ PACKAGELIST="aws-cli curl python3-pip zstd"
 get_packages () {
 
   if [ $splunkconnectedmode == 3 ]; then
-    echo "INFO : not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True ${PACKAGELIST} -y"
+    echo "INFO : not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True ${PACKAGELIST} -y followed by pip3 install awscli --upgrade"
   else 
     # perl needed for swap (regex) and splunkconf-init.pl
     # openjdk not needed by recovery itself but for app that use java such as dbconnect , itsi...
@@ -125,6 +127,7 @@ get_packages () {
     # disable as scan in permanence and not needed for splunk
     systemctl stop log4j-cve-2021-44228-hotpatch
     systemctl disable log4j-cve-2021-44228-hotpatch
+    pip3 install awscli --upgrade 2>&1 >/dev/null
   fi #splunkconnectedmode
 }
 
@@ -135,9 +138,11 @@ get_packages () {
 #yum update -y
 # just in case the AMI doesn't have it (it is preinstalled on aws ami)
 # requirement access to repo that provide aws-cli (epel)
-yum install --setopt=skip_missing_names_on_install=True aws-cli curl python3-pip zstd -y 2>&1 >/dev/null
+#yum install --setopt=skip_missing_names_on_install=True aws-cli curl python3-pip zstd -y 2>&1 >/dev/null
 #yum install python3-pip -y 2>&1 >/dev/null
-pip3 install awscli --upgrade 2>&1 >/dev/null
+#pip3 install awscli --upgrade 2>&1 >/dev/null
+get_packages
+
 
 # setting up token (IMDSv2)
 TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`

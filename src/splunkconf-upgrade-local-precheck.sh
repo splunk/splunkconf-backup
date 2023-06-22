@@ -17,7 +17,7 @@
 # 20230622 enable disconnectedmode logic
 # 20230622 add logic to autoupdate at start 
 
-VERSION="20230622c"
+VERSION="20230622d"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -83,18 +83,19 @@ function check_cloud() {
 set_connectedmode () {
   if [ -z ${splunkconnectedmode+x} ]; then
      # variable not set -> default is auto
+     echo "splunkconencted unset, using 0"
      splunkconnectedmode=0
   fi
   # FIXME here add logic for auto detect 
   # for now assuming connected
-  if [ $splunkconnectedmode == 0 ]; then
+  if [[ $splunkconnectedmode == 0 ]]; then
     echo "switching from auto to fully connected mode"
     splunkconnectedmode=1
-  elif [ $splunkconnectedmode == 1 ]; then
+  elif [[ $splunkconnectedmode == 1 ]]]; then
     echo "splunkconnectmode was set to fully connected"
-  elif [ $splunkconnectedmode == 2 ]; then
+  elif [[ $splunkconnectedmode == 2 ]]; then
     echo "splunkconnectmode was set to download via package manager (ie yum,...) only"
-  elif [ $splunkconnectedmode == 3 ]; then
+  elif [[ $splunkconnectedmode == 3 ]]; then
     echo "splunkconnectmode was set to no connection. Assuming you have deployed all the requirement yourself"
   else
     echo "splunkconnectmode=${splunkconnectedmode} is not a expected value, falling back to fully connected"

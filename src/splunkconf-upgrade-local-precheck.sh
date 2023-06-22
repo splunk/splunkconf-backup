@@ -17,7 +17,7 @@
 # 20230622 enable disconnectedmode logic
 # 20230622 add logic to autoupdate at start 
 
-VERSION="20230622b"
+VERSION="20230622c"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -144,10 +144,6 @@ splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=res
 splunktargetbinary=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunktargetbinary | cut -f 5`
 splunkacceptlicense=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunkacceptlicense | cut -f 5`
 splunkconnectedmode=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunkconnectemode | cut -f 5`
-if [ -z "$splunkconnectedmode" ]; then
-  echo "missing tag splunkconnectedmode, setting to auto (0)"
-  splunkconnectedmode=0
-fi
 if [ -z "$splunks3installbucket" ]; then
   echo "KO: ATTENTION TAGS NOT SET in instance tags, please correct and relaunch"
   INSTANCEFILE="/etc/instance-tags"
@@ -169,6 +165,7 @@ remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"
 mkdir -p $localinstalldir
 
+set_connectedmode
 
 echo "splunkconf-upgrade-local-precheck PROG=$PROG VERSION=$VERSION"
 
@@ -183,7 +180,8 @@ else
   if [ -e "$localinstalldir/splunkconf-upgrade-local-precheck-2.sh" ]; then 
     echo "launching latest version via $localinstalldir/splunkconf-upgrade-local-precheck-2.sh"
     chmod +x $localinstalldir/splunkconf-upgrade-local-precheck-2.sh
-    ./$localinstalldir/splunkconf-upgrade-local-precheck-2.sh
+    $localinstalldir/splunkconf-upgrade-local-precheck-2.sh
+    exit 0
   else
     echo"KO: Missing $remoteinstalldir/splunkconf-upgrade-local-precheck.sh (or permission issue) -> Exiting, please correct and relaunch"
   fi

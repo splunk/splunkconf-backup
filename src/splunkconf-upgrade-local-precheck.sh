@@ -18,7 +18,7 @@
 # 20230622 add logic to autoupdate at start 
 # 20230622 improve logging messages
 
-VERSION="20230622i"
+VERSION="20230622j"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -223,7 +223,7 @@ do
   if [ -e "$localinstalldir/$i" ]; then
     chmod +x $localinstalldir/$i
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
+    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i | head 1`
     if [ -z "$VER" ]; then
       #echo "KO: after download $i : undefined version"
       VER2="undefinedversion"
@@ -256,7 +256,7 @@ for i in splunkconf-prepare-es-from-s3.sh
 do
     if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
+    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i | head 1`
     if [ -z "$VER" ]; then
       echo "KO: predownload             $i : undefined version"
     else
@@ -271,7 +271,7 @@ do
     chown splunk. $localinstalldir/$i
     chmod +x $localinstalldir/$i
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
+    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i | head 1`
     if [ -z "$VER" ]; then
        echo "KO: after download : $i undefined version"
     else
@@ -299,7 +299,7 @@ if [ -e "/tmp/$splunktargetbinary" ]; then
   echo "OK: RPM $splunktargetbinary is present in s3 install"
 else
   if (( splunkconnectedmode == 1 )); then
-    echo "WARNING: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value (we will try to download $splunktargetbinaryi automatically)"
+    echo "WARNING: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value (we will try to download $splunktargetbinary automatically)"
   else
     echo "KO: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value (you are running in disconnected mode)"
   fi

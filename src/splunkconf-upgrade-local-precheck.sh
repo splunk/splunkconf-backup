@@ -17,7 +17,7 @@
 # 20230622 enable disconnectedmode logic
 # 20230622 add logic to autoupdate at start 
 
-VERSION="20230622d"
+VERSION="20230622e"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -88,14 +88,14 @@ set_connectedmode () {
   fi
   # FIXME here add logic for auto detect 
   # for now assuming connected
-  if [[ $splunkconnectedmode == 0 ]]; then
+  if [ "$splunkconnectedmode" -eq 0 ]; then
     echo "switching from auto to fully connected mode"
     splunkconnectedmode=1
-  elif [[ $splunkconnectedmode == 1 ]]]; then
+  elif [ "$splunkconnectedmode" -eq 1 ]; then
     echo "splunkconnectmode was set to fully connected"
-  elif [[ $splunkconnectedmode == 2 ]]; then
+  elif [ "$splunkconnectedmode" -eq 2 ]; then
     echo "splunkconnectmode was set to download via package manager (ie yum,...) only"
-  elif [[ $splunkconnectedmode == 3 ]]; then
+  elif [ "$splunkconnectedmode" -eq 3 ]; then
     echo "splunkconnectmode was set to no connection. Assuming you have deployed all the requirement yourself"
   else
     echo "splunkconnectmode=${splunkconnectedmode} is not a expected value, falling back to fully connected"
@@ -110,7 +110,7 @@ set_connectedmode () {
 PACKAGELIST="aws-cli curl python3-pip zstd"
 get_packages () {
   echo "DEBUG: splunkconnectedmode=$splunkconnectemode"
-  if [ $splunkconnectedmode == 3 ]; then
+  if [ "$splunkconnectedmode" -eq 3 ]; then
     echo "INFO : not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True ${PACKAGELIST} -y followed by pip3 install awscli --upgrade"
   else 
     # perl needed for swap (regex) and splunkconf-init.pl

@@ -108,7 +108,6 @@ set_connectedmode () {
 #PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd"
 PACKAGELIST="aws-cli curl python3-pip zstd"
 get_packages () {
-
   if [ $splunkconnectedmode == 3 ]; then
     echo "INFO : not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True ${PACKAGELIST} -y followed by pip3 install awscli --upgrade"
   else 
@@ -144,6 +143,11 @@ REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://
 splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunks3installbucket | cut -f 5`
 splunktargetbinary=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunktargetbinary | cut -f 5`
 splunkacceptlicense=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunkacceptlicense | cut -f 5`
+splunkconnectedmode=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunkconnectemode | cut -f 5`
+if [ -z "$splunkconnectedmode" ]; then
+  echo "missing tag splunkconnectedmode, setting to auto (0)"
+  splunkconnectedmode=0
+fi
 if [ -z "$splunks3installbucket" ]; then
   echo "KO: ATTENTION TAGS NOT SET in instance tags, please correct and relaunch"
   INSTANCEFILE="/etc/instance-tags"
@@ -156,7 +160,7 @@ if [ -z "$splunks3installbucket" ]; then
     exit 1
   fi
 elif [ -z "$splunkacceptlicense" ]; then
-  echo "KO: ATTENTION please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add splunkaccceptlicense tag to this instance and relaunch"f 
+  echo "KO: ATTENTION please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add splunkaccceptlicense tag to this instance and relaunch" 
   exit 1
 else
   echo "OK: Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
@@ -176,8 +180,13 @@ if [[ "$PROG" =~ 2\.txt$ ]]; then
 else
   # we are updating ourselve, it may break if done in place so we use another path
   aws s3 cp $remoteinstalldir/splunkconf-upgrade-local-precheck.sh  $localinstalldir/splunkconf-upgrade-local-precheck-2.sh --quiet
-  chmod +x $localinstalldir/splunkconf-upgrade-local-precheck-2.sh
-  ./$localinstalldir/splunkconf-upgrade-local-precheck-2.sh
+  if [ -e "$localinstalldir/splunkconf-upgrade-local-precheck-2.sh" ]; then 
+    echo "launching latest version via $localinstalldir/splunkconf-upgrade-local-precheck-2.sh"
+    chmod +x $localinstalldir/splunkconf-upgrade-local-precheck-2.sh
+    ./$localinstalldir/splunkconf-upgrade-local-precheck-2.sh
+  else
+    echo"KO: Missing $remoteinstalldir/splunkconf-upgrade-local-precheck.sh (or permission issue) -> Exiting, please correct and relaunch"
+  fi
 fi
 
 # disabled as we just want to upgrade splunk here

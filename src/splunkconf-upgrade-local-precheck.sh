@@ -17,7 +17,7 @@
 # 20230622 enable disconnectedmode logic
 # 20230622 add logic to autoupdate at start 
 
-VERSION="20230622g"
+VERSION="20230622h"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -175,7 +175,7 @@ echo "splunkconf-upgrade-local-precheck PROG=$PROG VERSION=$VERSION"
 if [[ "$PROG" =~ .*2\.sh$ ]]; then
   echo "we are already running latest version, continuing"
   echo "replacing in place version (for next time)"
-  cp -p ./$localinstalldir/splunkconf-upgrade-local-precheck-2.sh ./$localinstalldir/splunkconf-upgrade-local-precheck.sh
+  cp -p $localinstalldir/splunkconf-upgrade-local-precheck-2.sh $localinstalldir/splunkconf-upgrade-local-precheck.sh
 else
   # we are updating ourselve, it may break if done in place so we use another path
   aws s3 cp $remoteinstalldir/splunkconf-upgrade-local-precheck.sh  $localinstalldir/splunkconf-upgrade-local-precheck-2.sh --quiet

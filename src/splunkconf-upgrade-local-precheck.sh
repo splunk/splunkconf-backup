@@ -108,6 +108,7 @@ set_connectedmode () {
 #PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd"
 PACKAGELIST="aws-cli curl python3-pip zstd"
 get_packages () {
+  echo "DEBUG: splunkconnectedmode=$splunkconnectemode"
   if [ $splunkconnectedmode == 3 ]; then
     echo "INFO : not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True ${PACKAGELIST} -y followed by pip3 install awscli --upgrade"
   else 

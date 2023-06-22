@@ -18,7 +18,7 @@
 # 20230622 add logic to autoupdate at start 
 # 20230622 improve logging messages
 
-VERSION="20230622k"
+VERSION="20230622l"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -223,7 +223,7 @@ do
   if [ -e "$localinstalldir/$i" ]; then
     chmod +x $localinstalldir/$i
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i | head -1`
+    VER=`grep ^VERSION $localinstalldir/$i | head -1 || grep ^\\$VERSION $localinstalldir/$i | head -1`
     if [ -z "$VER" ]; then
       #echo "KO: after download $i : undefined version"
       VER2="undefinedversion"
@@ -256,7 +256,7 @@ for i in splunkconf-prepare-es-from-s3.sh
 do
     if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i | head -1`
+    VER=`grep ^VERSION $localinstalldir/$i | head -1 || grep ^\\$VERSION $localinstalldir/$i | head -1`
     if [ -z "$VER" ]; then
       echo "KO: predownload             $i : undefined version"
     else
@@ -271,7 +271,7 @@ do
     chown splunk. $localinstalldir/$i
     chmod +x $localinstalldir/$i
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i | head -1`
+    VER=`grep ^VERSION $localinstalldir/$i | head -1 || grep ^\\$VERSION $localinstalldir/$i | head -1`
     if [ -z "$VER" ]; then
        echo "KO: after download : $i undefined version"
     else

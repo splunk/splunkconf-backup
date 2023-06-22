@@ -206,7 +206,7 @@ for i in $FILELIST
 do
   if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl 
-    VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
+    VER=`grep ^VERSION $localinstalldir/$i | head -1 || grep ^\\$VERSION $localinstalldir/$i | head -1`
     #echo "VER=$VER"
     if [ -z "$VER" ]; then
       #echo "KO: predownload             $i : undefined version "

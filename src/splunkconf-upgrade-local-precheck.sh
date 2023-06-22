@@ -17,7 +17,7 @@
 # 20230622 enable disconnectedmode logic
 # 20230622 add logic to autoupdate at start 
 
-VERSION="20230622f"
+VERSION="20230622g"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -88,7 +88,7 @@ set_connectedmode () {
   fi
   # FIXME here add logic for auto detect 
   # for now assuming connected
-  if (( splunkconnectedmode -eq 0 )); then
+  if (( splunkconnectedmode == 0 )); then
     echo "switching from auto to fully connected mode"
     splunkconnectedmode=1
   elif (( splunkconnectedmode == 1 )); then
@@ -172,7 +172,7 @@ set_connectedmode
 echo "splunkconf-upgrade-local-precheck PROG=$PROG VERSION=$VERSION"
 
 
-if [[ "$PROG" =~ 2\.txt$ ]]; then
+if [[ "$PROG" =~ .*2\.sh$ ]]; then
   echo "we are already running latest version, continuing"
   echo "replacing in place version (for next time)"
   cp -p ./$localinstalldir/splunkconf-upgrade-local-precheck-2.sh ./$localinstalldir/splunkconf-upgrade-local-precheck.sh

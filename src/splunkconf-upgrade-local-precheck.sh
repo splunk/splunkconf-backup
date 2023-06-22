@@ -16,8 +16,9 @@
 # 20230118 typo fix in test
 # 20230622 enable disconnectedmode logic
 # 20230622 add logic to autoupdate at start 
+# 20230622 improve logging messages
 
-VERSION="20230622h"
+VERSION="20230622i"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -206,14 +207,17 @@ do
   if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl 
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
-    echo "VER=$VER"
+    #echo "VER=$VER"
     if [ -z "$VER" ]; then
-      echo "KO: predownload             $i : undefined version "
+      #echo "KO: predownload             $i : undefined version "
+      VER1="undefinedversion"
     else
-      echo "OK: predownload             $i $VER"
+      #echo "OK: predownload             $i $VER"
+      VER1=$VER
     fi
   else
-    echo "WARNING : script $localinstalldir/$i missing before download\n" 
+    #echo "WARNING : script $localinstalldir/$i missing before download\n" 
+    VER1="missinglocal"
   fi
   aws s3 cp $remoteinstalldir/$i  $localinstalldir --quiet
   if [ -e "$localinstalldir/$i" ]; then
@@ -221,13 +225,20 @@ do
     # 2 versions of grep, 1 for bash, 1 for perl
     VER=`grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i`
     if [ -z "$VER" ]; then
-       echo "KO: after download $i : undefined version"
+      #echo "KO: after download $i : undefined version"
+      VER2="undefinedversion"
+      STATUS="KO"
     else
-      echo "OK: after download script $i present. version=$VER"
+      #echo "OK: after download script $i present. version=$VER"
+      VER2=$VER
+      STATUS="OK"
     fi
   else
-    echo "KO: script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"  
+    #echo "KO: script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"  
+    VER2="missingfromremote"
+    STATUS="KO"
   fi
+  echo "STATUS=$STATUS file=$i $VER1->$VER2"
 done
 if [ -e "$localinstalldir/splunkconf-cloud-recovery.sh" ]; then
   if [ -e "$localinstalldir/splunkconf-aws-recovery.sh" ]; then
@@ -287,7 +298,11 @@ aws s3 cp $remoteinstalldir/$splunktargetbinary /tmp --quiet
 if [ -e "/tmp/$splunktargetbinary" ]; then
   echo "OK: RPM $splunktargetbinary is present in s3 install"
 else
-  echo "KO: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value (unless you run in auto mode)"
+  if (( splunkconnectedmode == 1 )); then
+    echo "WARNING: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value (we will try to download $splunktargetbinaryi automatically)"
+  else
+    echo "KO: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value (you are running in disconnected mode)"
+  fi
 fi
 
 #echo "INFO: launch me a second time if this script version changed, that will make sure you run with the latest one"

@@ -17,13 +17,15 @@
 # 20230622 enable disconnectedmode logic
 # 20230622 add logic to autoupdate at start 
 
-VERSION="20230622a"
+VERSION="20230622b"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
    echo "Exiting ! This recovery script need to be run as root !"
    exit 1
 fi
+
+PROG=$0
 
 METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
 function check_cloud() {
@@ -134,16 +136,6 @@ get_packages () {
 
 
 
-# disabled as we just want to upgrade splunk here
-#yum update -y
-# just in case the AMI doesn't have it (it is preinstalled on aws ami)
-# requirement access to repo that provide aws-cli (epel)
-#yum install --setopt=skip_missing_names_on_install=True aws-cli curl python3-pip zstd -y 2>&1 >/dev/null
-#yum install python3-pip -y 2>&1 >/dev/null
-#pip3 install awscli --upgrade 2>&1 >/dev/null
-get_packages
-
-
 # setting up token (IMDSv2)
 TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
 # lets get the splunks3splunkinstall from instance tags
@@ -173,12 +165,32 @@ remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"
 mkdir -p $localinstalldir
 
+
+echo "splunkconf-upgrade-local-precheck PROG=$PROG VERSION=$VERSION"
+
+
+if [[ "$PROG" =~ 2\.txt$ ]]; then
+  echo "we are already running latest version, continuing"
+  echo "replacing in place version (for next time)"
+  cp -p ./$localinstalldir/splunkconf-upgrade-local-precheck-2.sh ./$localinstalldir/splunkconf-upgrade-local-precheck.sh
+else
+  # we are updating ourselve, it may break if done in place so we use another path
+  aws s3 cp $remoteinstalldir/splunkconf-upgrade-local-precheck.sh  $localinstalldir/splunkconf-upgrade-local-precheck-2.sh --quiet
+  chmod +x $localinstalldir/splunkconf-upgrade-local-precheck-2.sh
+  ./$localinstalldir/splunkconf-upgrade-local-precheck-2.sh
+fi
+
+# disabled as we just want to upgrade splunk here
+#yum update -y
+# just in case the AMI doesn't have it (it is preinstalled on aws ami)
+# requirement access to repo that provide aws-cli (epel)
+#yum install --setopt=skip_missing_names_on_install=True aws-cli curl python3-pip zstd -y 2>&1 >/dev/null
+#yum install python3-pip -y 2>&1 >/dev/null
+#pip3 install awscli --upgrade 2>&1 >/dev/null
+get_packages
+
+
 FILELIST="splunkconf-aws-recovery.sh splunkconf-cloud-recovery.sh splunkconf-swapme.pl splunkconf-upgrade-local.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-init.pl"
-
-echo "splunkconf-upgrade-local-precheck  VERSION=$VERSION"
-
-
-
 # get latest versions
 for i in $FILELIST
 do
@@ -269,10 +281,9 @@ else
   echo "KO: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value (unless you run in auto mode)"
 fi
 
-# we are updating ourselve, last action as it may break here
+#echo "INFO: launch me a second time if this script version changed, that will make sure you run with the latest one"
 
-aws s3 cp $remoteinstalldir/splunkconf-upgrade-local-precheck.sh  $localinstalldir --quiet
-chmod +x $localinstalldir/splunkconf-upgrade-local-precheck.sh
-echo "INFO: end of splunkconf upgrade precheck script"
-echo "INFO: launch me a second time if this script version changed, that will make sure you run with the latest one"
+echo "INFO: end of splunkconf upgrade precheck script (updated version=$VERSION, no need to rerun it)"
+echo "removing secondary script (ie ourself)"
+rm ./$localinstalldir/splunkconf-upgrade-local-precheck-2.sh
 

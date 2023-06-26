@@ -21,7 +21,7 @@
 # 20230626 improve logging also for es precheck
 # 20230626 improve mesages 
 
-VERSION="20230626e"
+VERSION="20230626f"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -335,7 +335,7 @@ fi
 # no longer needed
 #echo "INFO: launch me a second time if this script version changed, that will make sure you run with the latest one"
 
-echo "INFO: Sumaary ok=$nbok,ko=$nbko,total=$total"
+echo "INFO: Update Summary ok=$nbok,ko=$nbko,total=$total"
 
 echo "INFO: removing secondary script as no longer needed"
 echo "INFO: end of splunkconf upgrade precheck script (updated version=$VERSION, no need to rerun it)"

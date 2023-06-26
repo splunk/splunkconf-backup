@@ -21,7 +21,7 @@
 # 20230626 improve logging also for es precheck
 # 20230626 improve messages 
 
-VERSION="20230626g"
+VERSION="20230626h"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -93,10 +93,10 @@ set_connectedmode () {
   # FIXME here add logic for auto detect 
   # for now assuming connected
   if (( splunkconnectedmode == 0 )); then
-    echo "INFO: switching from auto to fully connected mode"
+    echo "INFO: splunkconnectedmode=auto -> assuming fully connected mode"
     splunkconnectedmode=1
   elif (( splunkconnectedmode == 1 )); then
-    echo "INFO: splunkconnectmode was set to fully connected"
+    echo "INFO: splunkconnectmode =  fully connected"
   elif (( splunkconnectedmode == 2 )); then
     echo "INFO: splunkconnectmode was set to download via package manager (ie yum,...) only"
   elif (( splunkconnectedmode == 3 )); then
@@ -162,7 +162,7 @@ if [ -z "$splunks3installbucket" ]; then
     exit 1
   fi
 elif [ -z "$splunkacceptlicense" ]; then
-  echo "KO: ATTENTION please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add splunkaccceptlicense tag to this instance and relaunch" 
+  echo "KO: ATTENTION please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add splunkaccceptlicense=yes tag to this instance metadata and relaunch" 
   exit 1
 else
   echo "OK: Good ! Tag present and set : splunks3installbucket=$splunks3installbucket, splunkacceptlicense=$splunkacceptlicense"
@@ -177,7 +177,7 @@ echo "splunkconf-upgrade-local-precheck PROG=$PROG VERSION=$VERSION"
 
 
 if [[ "$PROG" =~ .*2\.sh$ ]]; then
-  echo "we are already running latest versioni ($VERSION), continuing"
+  echo "we are already running latest version ($VERSION), continuing"
   echo "replacing in place version (for next time)"
   cp -p $localinstalldir/splunkconf-upgrade-local-precheck-2.sh $localinstalldir/splunkconf-upgrade-local-precheck.sh
 else

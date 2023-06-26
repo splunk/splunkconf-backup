@@ -19,9 +19,9 @@
 # 20230622 improve logging messages
 # 20230626 rework multiple version log case
 # 20230626 improve logging also for es precheck
-# 20230626 improve mesages
+# 20230626 improve mesages 
 
-VERSION="20230626d"
+VERSION="20230626e"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -113,7 +113,7 @@ set_connectedmode () {
 #PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd"
 PACKAGELIST="aws-cli curl python3-pip zstd"
 get_packages () {
-  echo "DEBUG: splunkconnectedmode=$splunkconnectemode"
+  #echo "DEBUG: splunkconnectedmode=$splunkconnectedmode"
   if (( splunkconnectedmode == 3 )); then
     echo "INFO : not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True ${PACKAGELIST} -y followed by pip3 install awscli --upgrade"
   else 
@@ -203,11 +203,16 @@ fi
 #pip3 install awscli --upgrade 2>&1 >/dev/null
 get_packages
 
+# initiaze counters
+total=0
+nbok=0
+nbko=0
 
 FILELIST="splunkconf-aws-recovery.sh splunkconf-cloud-recovery.sh splunkconf-swapme.pl splunkconf-upgrade-local.sh splunkconf-upgrade-local-setsplunktargetbinary.sh splunkconf-init.pl"
 # get latest versions
 for i in $FILELIST
 do
+  ((total+=1))
   if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl 
     # after getting version, we only take the first one because for cloud recovery we create a script with version string in it , whihc duplicate string
@@ -233,15 +238,18 @@ do
       #echo "KO: after download $i : undefined version"
       VER2="undefinedversion"
       STATUS="KO"
+      ((nbko+=1))
     else
       #echo "OK: after download script $i present. version=$VER"
       VER2=$VER
       STATUS="OK"
+      ((nbok+=1))
     fi
   else
     #echo "KO: script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"  
     VER2="missingfromremote"
     STATUS="KO"
+    ((nbko+=1))
   fi
   echo "STATUS=$STATUS file=$i $VER1->$VER2"
 done
@@ -259,7 +267,8 @@ localinstalldir="/opt/splunk/scripts"
 mkdir -p $localinstalldir
 for i in splunkconf-prepare-es-from-s3.sh
 do
-    if [ -e "$localinstalldir/$i" ]; then
+  ((total+=1))
+  if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl
     VER=`(grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i ) | head -1`
     if [ -z "$VER" ]; then
@@ -284,15 +293,18 @@ do
       #echo "KO: after download : $i undefined version"
       VER2="undefinedversion"
       STATUS="KO"
+      ((nbko+=1))
     else
       #echo "OK: after download script $i present. version=$VER"
       VER2=$VER
       STATUS="OK"
+      ((nbok+=1))
     fi
   else
     #echo "KO: script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"
     VER2="missingfromremote"
     STATUS="KO"
+    ((nbko+=1))
   fi
   echo "STATUS=$STATUS file=$i $VER1->$VER2"
 
@@ -322,6 +334,8 @@ fi
 
 # no longer needed
 #echo "INFO: launch me a second time if this script version changed, that will make sure you run with the latest one"
+
+echo "INFO: Sumaary ok=$nbok,ko=$nbko,total=$total"
 
 echo "INFO: removing secondary script as no longer needed"
 echo "INFO: end of splunkconf upgrade precheck script (updated version=$VERSION, no need to rerun it)"

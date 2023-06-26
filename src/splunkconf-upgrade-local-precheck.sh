@@ -19,9 +19,9 @@
 # 20230622 improve logging messages
 # 20230626 rework multiple version log case
 # 20230626 improve logging also for es precheck
-# 20230626 improve mesages 
+# 20230626 improve messages 
 
-VERSION="20230626f"
+VERSION="20230626g"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -165,7 +165,7 @@ elif [ -z "$splunkacceptlicense" ]; then
   echo "KO: ATTENTION please read and accept Splunk license at https://www.splunk.com/en_us/legal/splunk-software-license-agreement-bah.html then add splunkaccceptlicense tag to this instance and relaunch" 
   exit 1
 else
-  echo "OK: Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
+  echo "OK: Good ! Tag present and set : splunks3installbucket=$splunks3installbucket, splunkacceptlicense=$splunkacceptlicense"
 fi
 remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"

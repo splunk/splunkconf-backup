@@ -17,8 +17,9 @@
 # 20230622 enable disconnectedmode logic
 # 20230622 add logic to autoupdate at start 
 # 20230622 improve logging messages
+@ 20230626 rework multiple version log case
 
-VERSION="20230622l"
+VERSION="20230626a"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -174,7 +175,7 @@ echo "splunkconf-upgrade-local-precheck PROG=$PROG VERSION=$VERSION"
 
 
 if [[ "$PROG" =~ .*2\.sh$ ]]; then
-  echo "we are already running latest version, continuing"
+  echo "we are already running latest versioni ($VERSION), continuing"
   echo "replacing in place version (for next time)"
   cp -p $localinstalldir/splunkconf-upgrade-local-precheck-2.sh $localinstalldir/splunkconf-upgrade-local-precheck.sh
 else
@@ -186,7 +187,8 @@ else
     $localinstalldir/splunkconf-upgrade-local-precheck-2.sh
     exit 0
   else
-    echo"KO: Missing $remoteinstalldir/splunkconf-upgrade-local-precheck.sh (or permission issue) -> Exiting, please correct and relaunch"
+    echo "KO: Missing $remoteinstalldir/splunkconf-upgrade-local-precheck.sh (or permission issue) -> Exiting, please correct and relaunch"
+    exit 1
   fi
 fi
 
@@ -206,7 +208,8 @@ for i in $FILELIST
 do
   if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl 
-    VER=`grep ^VERSION $localinstalldir/$i | head -1 || grep ^\\$VERSION $localinstalldir/$i | head -1`
+    # after getting version, we only take the first one because for cloud recovery we create a script with version string in it , whihc duplicate string
+    VER=`(grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i ) | head -1`
     #echo "VER=$VER"
     if [ -z "$VER" ]; then
       #echo "KO: predownload             $i : undefined version "

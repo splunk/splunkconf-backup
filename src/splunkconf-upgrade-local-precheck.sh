@@ -19,8 +19,9 @@
 # 20230622 improve logging messages
 # 20230626 rework multiple version log case
 # 20230626 improve logging also for es precheck
+# 20230626 improve mesages
 
-VERSION="20230626c"
+VERSION="20230626d"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -92,19 +93,19 @@ set_connectedmode () {
   # FIXME here add logic for auto detect 
   # for now assuming connected
   if (( splunkconnectedmode == 0 )); then
-    echo "switching from auto to fully connected mode"
+    echo "INFO: switching from auto to fully connected mode"
     splunkconnectedmode=1
   elif (( splunkconnectedmode == 1 )); then
-    echo "splunkconnectmode was set to fully connected"
+    echo "INFO: splunkconnectmode was set to fully connected"
   elif (( splunkconnectedmode == 2 )); then
-    echo "splunkconnectmode was set to download via package manager (ie yum,...) only"
+    echo "INFO: splunkconnectmode was set to download via package manager (ie yum,...) only"
   elif (( splunkconnectedmode == 3 )); then
-    echo "splunkconnectmode was set to no connection. Assuming you have deployed all the requirement yourself"
+    echo "INFO: splunkconnectmode was set to no connection. Assuming you have deployed all the requirement yourself"
   else
-    echo "splunkconnectmode=${splunkconnectedmode} is not a expected value, falling back to fully connected"
+    echo "WARNING: splunkconnectmode=${splunkconnectedmode} is not a expected value, falling back to fully connected"
     splunkconnectedmode=1
   fi
-  echo "splunkconnectedmode=${splunkconnectedmode}"
+  echo "INFO: splunkconnectedmode=${splunkconnectedmode}"
 }
 
 
@@ -319,9 +320,12 @@ else
   fi
 fi
 
+# no longer needed
 #echo "INFO: launch me a second time if this script version changed, that will make sure you run with the latest one"
 
+echo "INFO: removing secondary script as no longer needed"
 echo "INFO: end of splunkconf upgrade precheck script (updated version=$VERSION, no need to rerun it)"
-echo "removing secondary script (ie ourself)"
+echo "INFO: please run splunkconf-upgrade-local.sh when ready and if no errors above"
+echo "INFO: make sure you have completed all other upgrade requirements before (see doc) and that you upgrade in the right order"
 rm $localinstalldir/splunkconf-upgrade-local-precheck-2.sh
 

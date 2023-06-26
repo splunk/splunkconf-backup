@@ -114,6 +114,7 @@ resource "local_file" "ansible_jinja_byhost_tf" {
     splunk_target_version: "9.0.5"
     retry_delay: 30
     retry_num: 5
+    cert_prefix: "false"
   tasks:
   - name: get secret for admin
     set_fact:
@@ -192,7 +193,9 @@ resource "local_file" "ansible_jinja_byhost_tf" {
     changed_when: restart_required.status == 200
     until: restart_required is succeeded
     retries: 5
+    cert_prefix: "false"
     delay: "{{ retry_delay }}"
+    hide_password: "false"
     no_log: "{{ hide_password }}"
     notify:
       - Restart the splunkd service

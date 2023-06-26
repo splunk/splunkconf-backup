@@ -17,9 +17,10 @@
 # 20230622 enable disconnectedmode logic
 # 20230622 add logic to autoupdate at start 
 # 20230622 improve logging messages
-@ 20230626 rework multiple version log case
+# 20230626 rework multiple version log case
+# 20230626 improve logging also for es precheck
 
-VERSION="20230626a"
+VERSION="20230626c"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -226,7 +227,7 @@ do
   if [ -e "$localinstalldir/$i" ]; then
     chmod +x $localinstalldir/$i
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i | head -1 || grep ^\\$VERSION $localinstalldir/$i | head -1`
+    VER=`(grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i ) | head -1`
     if [ -z "$VER" ]; then
       #echo "KO: after download $i : undefined version"
       VER2="undefinedversion"
@@ -259,14 +260,17 @@ for i in splunkconf-prepare-es-from-s3.sh
 do
     if [ -e "$localinstalldir/$i" ]; then
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i | head -1 || grep ^\\$VERSION $localinstalldir/$i | head -1`
+    VER=`(grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i ) | head -1`
     if [ -z "$VER" ]; then
-      echo "KO: predownload             $i : undefined version"
+      #echo "KO: predownload             $i : undefined version"
+      VER1="undefinedversion"
     else
-      echo "OK: predownload             $i version=$VER"
+      #echo "OK: predownload             $i version=$VER"
+      VER1=$VER
     fi
   else
-    echo "WARNING : script $localinstalldir/$i missing before download\n"  
+    #echo "WARNING : script $localinstalldir/$i missing before download\n"  
+    VER1="missinglocal"
   fi
   aws s3 cp $remoteinstalldir/$i  $localinstalldir --quiet
   if [ -e "$localinstalldir/$i" ]; then
@@ -274,15 +278,22 @@ do
     chown splunk. $localinstalldir/$i
     chmod +x $localinstalldir/$i
     # 2 versions of grep, 1 for bash, 1 for perl
-    VER=`grep ^VERSION $localinstalldir/$i | head -1 || grep ^\\$VERSION $localinstalldir/$i | head -1`
+    VER=`(grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i ) | head -1`
     if [ -z "$VER" ]; then
-       echo "KO: after download : $i undefined version"
+      #echo "KO: after download : $i undefined version"
+      VER2="undefinedversion"
+      STATUS="KO"
     else
-      echo "OK: after download script $i present. version=$VER"
+      #echo "OK: after download script $i present. version=$VER"
+      VER2=$VER
+      STATUS="OK"
     fi
   else
-    echo "KO: script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"
+    #echo "KO: script $remoteinstalldir/$i is missing in s3, please add it there and relaunch this script\n"
+    VER2="missingfromremote"
+    STATUS="KO"
   fi
+  echo "STATUS=$STATUS file=$i $VER1->$VER2"
 
 done
 

@@ -216,7 +216,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230629 add more logging and extra check for not rebooting in upgrade mode
 # 20230629 more logging, use intermediate var for nbarg
 
-VERSION="20230629b"
+VERSION="20230629c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -609,7 +609,7 @@ os_update() {
 init_arg() {
 # arguments : are we launched by user-data or in upgrade mode ?
 if [ $NBARG -eq 1 ]; then
-  MODE=$1
+  MODE=$ARG1
   echo "Your command line contains 1 argument mode=$MODE" >> /var/log/splunkconf-cloud-recovery-info.log
   if [ "$MODE" == "upgrade" ]; then 
     echo "INFO : upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
@@ -781,6 +781,8 @@ fi
 
 # storing arg now for later use
 NBARG=$#
+ARG1=$1
+
 
 check_cloud
 check_sysver

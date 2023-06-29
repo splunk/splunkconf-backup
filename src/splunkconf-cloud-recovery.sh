@@ -216,7 +216,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230629 add more logging and extra check for not rebooting in upgrade mode
 # 20230629 more logging, use intermediate var for nbarg
 
-VERSION="20230629c"
+VERSION="20230629d"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -607,66 +607,67 @@ os_update() {
 # this need to be done after parameters initialisation
 # cgroup_status shouldd have ran before
 init_arg() {
-# arguments : are we launched by user-data or in upgrade mode ?
-if [ $NBARG -eq 1 ]; then
-  MODE=$ARG1
-  echo "Your command line contains 1 argument mode=$MODE" >> /var/log/splunkconf-cloud-recovery-info.log
-  if [ "$MODE" == "upgrade" ]; then 
-    echo "INFO : upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
-  else
-    echo "unknown parameter, ignoring" >> /var/log/splunkconf-cloud-recovery-info.log
-    MODE="0"
-  fi
-elif [ $NBARG -gt 1 ]; then
-  echo "ERROR: Your command line contains too many ($#) arguments. Ignoring the extra data" >> /var/log/splunkconf-cloud-recovery-info.log
-  MODE=$1
-  if [ "$MODE" == "upgrade" ]; then 
-    echo "INFO: upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
-  else
-    echo "INFO: unknown parameter, ignoring, assuming boot mode (user data)" >> /var/log/splunkconf-cloud-recovery-info.log
-    MODE="0"
-  fi
-else
-  echo "INFO: No arguments given, assuming launched by user data" >> /var/log/splunkconf-cloud-recovery-info.log
-  MODE="0"
-fi
-
-echo "INFO: running $0 version=$VERSION with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
-
-INSTALLPHASE=1
-# 1 update/cgroup only
-# 2 normal install
-# 3 exit mode
-
-# in user data mode, updates and cgroupv1 handling
-if [[ "$MODE" -eq 0 ]]; then
-  echo "INFO: user-data mode"
-  SECONDSTART="/var/lib/cloud/scripts/per-boot/splunkconf-secondstart.sh"
-  # check by provider as it is different
-  if [[ $cloud_type == 1 ]]; then
-    # AWS
-    if [ -e "/root/second_boot.check" ]; then 
-      echo "ERROR : we are launched a 3rd time, which is not supposed to happen, please investigate"
-      echo "INFO: second boot already ran, exiting to prevent boot loop (AWS)"
-      if [ -e "${SECONDSTART}" ]; then 
-        rm ${SECONDSTART}
-      fi
-      INSTALLPHASE=3
-      exit 1
-    elif [ -e "/root/first_boot.check" ]; then 
-      echo "INFO: First boot already ran, going to normal install mode (AWS)"
-      if [ -e "${SECONDSTART}" ]; then 
-        rm ${SECONDSTART}
-      fi
-      touch "/root/second_boot.check"
-      INSTALLPHASE=2
+  echo "INFO: in init_arg"
+  # arguments : are we launched by user-data or in upgrade mode ?
+  if [ $NBARG -eq 1 ]; then
+    MODE=$ARG1
+    echo "Your command line contains 1 argument mode=$MODE" >> /var/log/splunkconf-cloud-recovery-info.log
+    if [ "$MODE" == "upgrade" ]; then 
+      echo "INFO : upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
     else
-      echo "INFO: This is First boot, setting up logic for second boot (AWS)"
-      INSTALLPHASE=1
-      if [ -e "${SECONDSTART}" ]; then 
-        rm ${SECONDSTART}
-      fi
-      cat <<EOF >> ${SECONDSTART}
+      echo "unknown parameter, ignoring" >> /var/log/splunkconf-cloud-recovery-info.log
+      MODE="0"
+    fi
+  elif [ $NBARG -gt 1 ]; then
+    echo "ERROR: Your command line contains too many ($#) arguments. Ignoring the extra data" >> /var/log/splunkconf-cloud-recovery-info.log
+    MODE=$ARG1
+    if [ "$MODE" == "upgrade" ]; then 
+      echo "INFO: upgrade mode" >> /var/log/splunkconf-cloud-recovery-info.log
+    else
+      echo "INFO: unknown parameter, ignoring, assuming boot mode (user data)" >> /var/log/splunkconf-cloud-recovery-info.log
+      MODE="0"
+    fi
+  else
+    echo "INFO: No arguments given, assuming launched by user data" >> /var/log/splunkconf-cloud-recovery-info.log
+    MODE="0"
+  fi
+
+  echo "INFO: running $0 version=$VERSION with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
+
+  INSTALLPHASE=1
+  # 1 update/cgroup only
+  # 2 normal install
+  # 3 exit mode
+
+  # in user data mode, updates and cgroupv1 handling
+  if [[ "$MODE" -eq 0 ]]; then
+    echo "INFO: user-data mode"
+    SECONDSTART="/var/lib/cloud/scripts/per-boot/splunkconf-secondstart.sh"
+    # check by provider as it is different
+    if [[ $cloud_type == 1 ]]; then
+      # AWS
+      if [ -e "/root/second_boot.check" ]; then 
+        echo "ERROR : we are launched a 3rd time, which is not supposed to happen, please investigate"
+        echo "INFO: second boot already ran, exiting to prevent boot loop (AWS)"
+        if [ -e "${SECONDSTART}" ]; then 
+          rm ${SECONDSTART}
+        fi
+        INSTALLPHASE=3
+        exit 1
+      elif [ -e "/root/first_boot.check" ]; then 
+        echo "INFO: First boot already ran, going to normal install mode (AWS)"
+        if [ -e "${SECONDSTART}" ]; then 
+          rm ${SECONDSTART}
+        fi
+        touch "/root/second_boot.check"
+        INSTALLPHASE=2
+      else
+        echo "INFO: This is First boot, setting up logic for second boot (AWS)"
+        INSTALLPHASE=1
+        if [ -e "${SECONDSTART}" ]; then 
+          rm ${SECONDSTART}
+        fi
+        cat <<EOF >> ${SECONDSTART}
 #!/bin/bash -x 
 exec >> /var/log/splunkconf-cloud-recovery-secondboot.log 2>&1
  
@@ -683,67 +684,67 @@ mv /var/log/splunkconf-cloud-recovery-info.log /var/log/splunkconf-cloud-recover
 
 echo "end of running splunkconf-secondboot.sh"
 EOF
-      #echo $INPUT > ${SECONDSTART}
-      chmod a+x ${SECONDSTART}
-    fi
-  elif [[ $cloud_type == 2 ]]; then
-    # GCP
-    if [ -e "/root/second_boot.check" ]; then
-      echo "INFO : we are launched a 3rd time, which is normal on GCP but then we are no longer in install mode"
-      echo "INFO: second boot already ran, exiting (GCP)"
-      INSTALLPHASE=3
-    elif [ -e "/root/first_boot.check" ]; then
-      echo "INFO: First boot already ran, going to normal install mode (GCP)"
-      touch "/root/second_boot.check"
-      INSTALLPHASE=2
-    else
-      INSTALLPHASE=1
-      echo "This is first boot"
-    fi
-    # GCP after reboot if we already ran then we set hostname
-    if [ -e "/etc/instance-tags" ]; then 
-      . /etc/instance-tags
-      instancename=$splunkinstanceType 
-      echo "splunkinstanceType : instancename=${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
-      if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
-        echo "Setting hostname to ${instancename} via hostnamectl method" >> /var/log/splunkconf-cloud-recovery-info.log
-        hostnamectl set-hostname ${instancename}
+        #echo $INPUT > ${SECONDSTART}
+        chmod a+x ${SECONDSTART}
+      fi
+    elif [[ $cloud_type == 2 ]]; then
+      # GCP
+      if [ -e "/root/second_boot.check" ]; then
+        echo "INFO : we are launched a 3rd time, which is normal on GCP but then we are no longer in install mode"
+        echo "INFO: second boot already ran, exiting (GCP)"
+        INSTALLPHASE=3
+      elif [ -e "/root/first_boot.check" ]; then
+        echo "INFO: First boot already ran, going to normal install mode (GCP)"
+        touch "/root/second_boot.check"
+        INSTALLPHASE=2
+      else
+        INSTALLPHASE=1
+        echo "This is first boot"
+      fi
+      # GCP after reboot if we already ran then we set hostname
+      if [ -e "/etc/instance-tags" ]; then 
+        . /etc/instance-tags
+        instancename=$splunkinstanceType 
+        echo "splunkinstanceType : instancename=${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
+        if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
+          echo "Setting hostname to ${instancename} via hostnamectl method" >> /var/log/splunkconf-cloud-recovery-info.log
+          hostnamectl set-hostname ${instancename}
+        fi
+      fi
+      if [[ "${INSTALLPHASE}" == 3 ]]; then
+        echo "GCP : exit ok"
+        exit 0
       fi
     fi
-    if [[ "${INSTALLPHASE}" == 3 ]]; then
-      echo "GCP : exit ok"
-      exit 0
-    fi
-  fi
-  if [[ "${INSTALLPHASE}" == 1 ]]; then
-    # common actions at first boot in user data mode
-    echo "INFO: Doing first boot actions"
-    touch "/root/first_boot.check"
-    NEEDREBOOT=0
-    os_update
-    force_cgroupv1
-    TODAY=`date '+%Y%m%d-%H%M_%u'`;
-    if [[ $NEEDREBOOT = 0 ]]; then
-      echo "no need to reboot, forcing setting to second_boot"
-      if [ -e "${SECONDSTART}" ]; then 
-        rm ${SECONDSTART}
+    if [[ "${INSTALLPHASE}" == 1 ]]; then
+      # common actions at first boot in user data mode
+      echo "INFO: Doing first boot actions"
+      touch "/root/first_boot.check"
+      NEEDREBOOT=0
+      os_update
+      force_cgroupv1
+      TODAY=`date '+%Y%m%d-%H%M_%u'`;
+      if [[ $NEEDREBOOT = 0 ]]; then
+        echo "no need to reboot, forcing setting to second_boot"
+        if [ -e "${SECONDSTART}" ]; then 
+          rm ${SECONDSTART}
+        fi
+      elif [ "$MODE" == "upgrade" ]; then 
+        # not supposed to happen here
+        echo "WARNING: reboot may be needed but in upgrade mode so not rebooting"
+      else
+        echo "INFO: reboot needed (MODE=$MODE)"
+        echo "${TODAY} splunkconf-cloud-recovery.sh (version=${VERSION} ) end of script, initiating reboot via init 6 (needreboot set)" >> /var/log/splunkconf-cloud-recovery-info.log
+        echo "#************************************* END with reboot ***************************************"
+        init 6
+        exit 0
       fi
-    elif [ "$MODE" == "upgrade" ]; then 
-      # not supposed to happen here
-      echo "WARNING: reboot may be needed but in upgrade mode so not rebooting"
-    else
-      echo "INFO: reboot needed"
-      echo "${TODAY} splunkconf-cloud-recovery.sh (version=${VERSION} ) end of script, initiating reboot via init 6 (needreboot set)" >> /var/log/splunkconf-cloud-recovery-info.log
-      echo "#************************************* END with reboot ***************************************"
-      init 6
-      exit 0
     fi
-  fi
-else
-  echo "INFO: not in MODE=0"
-fi  # MODE = 0 (user-data)
+  else
+    echo "INFO: not in MODE=0 (MODE=$MODE)"
+  fi  # MODE = 0 (user-data)
 
-echo "INFO: INSTALLPHASE=${INSTALLPHASE}" 
+  echo "INFO: INSTALLPHASE=${INSTALLPHASE} (MODE=$MODE)i, end if init_arg" 
 
 }
 

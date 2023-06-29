@@ -214,8 +214,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230606 and launch it automatically 
 # 20230607 split ansible template deployment for worker
 # 20230629 add more logging and extra check for not rebooting in upgrade mode
+# 20230629 more logging, use intermediate var for nbarg
 
-VERSION="20230629a"
+VERSION="20230629b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -607,7 +608,7 @@ os_update() {
 # cgroup_status shouldd have ran before
 init_arg() {
 # arguments : are we launched by user-data or in upgrade mode ?
-if [ $# -eq 1 ]; then
+if [ $NBARG -eq 1 ]; then
   MODE=$1
   echo "Your command line contains 1 argument mode=$MODE" >> /var/log/splunkconf-cloud-recovery-info.log
   if [ "$MODE" == "upgrade" ]; then 
@@ -616,7 +617,7 @@ if [ $# -eq 1 ]; then
     echo "unknown parameter, ignoring" >> /var/log/splunkconf-cloud-recovery-info.log
     MODE="0"
   fi
-elif [ $# -gt 1 ]; then
+elif [ $NBARG -gt 1 ]; then
   echo "ERROR: Your command line contains too many ($#) arguments. Ignoring the extra data" >> /var/log/splunkconf-cloud-recovery-info.log
   MODE=$1
   if [ "$MODE" == "upgrade" ]; then 
@@ -630,7 +631,7 @@ else
   MODE="0"
 fi
 
-echo "INFO: running with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
+echo "INFO: running $0 version=$VERSION with MODE=${MODE}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 INSTALLPHASE=1
 # 1 update/cgroup only
@@ -728,6 +729,7 @@ EOF
         rm ${SECONDSTART}
       fi
     elif [ "$MODE" == "upgrade" ]; then 
+      # not supposed to happen here
       echo "WARNING: reboot may be needed but in upgrade mode so not rebooting"
     else
       echo "INFO: reboot needed"
@@ -737,21 +739,48 @@ EOF
       exit 0
     fi
   fi
+else
+  echo "INFO: not in MODE=0"
 fi  # MODE = 0 (user-data)
 
 echo "INFO: INSTALLPHASE=${INSTALLPHASE}" 
 
 }
 
-
-
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
 echo "#*************************************  START  ********************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
+echo "#******************************************************************************************************"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
    echo "ERROR: Exiting ! This recovery script need to be run as root !" 
    exit 1
 fi
+
+# storing arg now for later use
+NBARG=$#
 
 check_cloud
 check_sysver

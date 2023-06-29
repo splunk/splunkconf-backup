@@ -213,8 +213,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230606 add ansible_deploysplunkansible_tf.yml to worker
 # 20230606 and launch it automatically 
 # 20230607 split ansible template deployment for worker
+# 20230629 add more logging and extra check for not rebooting in upgrade mode
 
-VERSION="20230607a"
+VERSION="20230629a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -726,9 +727,11 @@ EOF
       if [ -e "${SECONDSTART}" ]; then 
         rm ${SECONDSTART}
       fi
+    elif [ "$MODE" == "upgrade" ]; then 
+      echo "WARNING: reboot may be needed but in upgrade mode so not rebooting"
     else
       echo "INFO: reboot needed"
-      echo "${TODAY} splunkconf-cloud-recovery.sh end of script, initiating reboot via init 6" >> /var/log/splunkconf-cloud-recovery-info.log
+      echo "${TODAY} splunkconf-cloud-recovery.sh (version=${VERSION} ) end of script, initiating reboot via init 6 (needreboot set)" >> /var/log/splunkconf-cloud-recovery-info.log
       echo "#************************************* END with reboot ***************************************"
       init 6
       exit 0
@@ -2316,5 +2319,5 @@ tag_replacement
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 #NOW=`(date "+%Y/%m/%d %H:%M:%S")`
-echo "INFO: ${TODAY} splunkconf-cloud-recovery.sh end of script run" >> /var/log/splunkconf-cloud-recovery-info.log
+echo "INFO: ${TODAY} splunkconf-cloud-recovery.sh (version=${VERSION}) end of script run" >> /var/log/splunkconf-cloud-recovery-info.log
 echo "#************************************* END ***************************************"

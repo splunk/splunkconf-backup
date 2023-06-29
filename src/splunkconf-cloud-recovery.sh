@@ -215,8 +215,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230607 split ansible template deployment for worker
 # 20230629 add more logging and extra check for not rebooting in upgrade mode
 # 20230629 more logging, use intermediate var for nbarg
+# 20230629 fix upgrade detection test
 
-VERSION="20230629d"
+VERSION="20230629e"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -640,7 +641,7 @@ init_arg() {
   # 3 exit mode
 
   # in user data mode, updates and cgroupv1 handling
-  if [[ "$MODE" -eq 0 ]]; then
+  if [[ "$MODE" == 0 ]]; then
     echo "INFO: user-data mode"
     SECONDSTART="/var/lib/cloud/scripts/per-boot/splunkconf-secondstart.sh"
     # check by provider as it is different

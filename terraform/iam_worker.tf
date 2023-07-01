@@ -1,13 +1,13 @@
-data "template_file" "pol-splunk-ec2worker-secret" {
-  template = file("policy-aws/pol-splunk-ec2worker-secret.json.tpl")
-  vars = {
-    secret          = aws_secretsmanager_secret.splunk_admin.arn
-    secret2         = module.ssh.splunk_ssh_key_arn
-    ssmkey          = module.ssh.splunk_ssh_key_ssm_arn
-    profile         = var.profile
-    splunktargetenv = var.splunktargetenv
-  }
-}
+#data "template_file" "pol-splunk-ec2worker-secret" {
+#  template = file("policy-aws/pol-splunk-ec2worker-secret.json.tpl")
+#  vars = {
+#    secret          = aws_secretsmanager_secret.splunk_admin.arn
+#    secret2         = module.ssh.splunk_ssh_key_arn
+#    ssmkey          = module.ssh.splunk_ssh_key_ssm_arn
+#    profile         = var.profile
+#    splunktargetenv = var.splunktargetenv
+#  }
+#}
 
 resource "aws_iam_policy" "pol-splunk-ec2worker-secret" {
   name_prefix = "splunkconf_ec2workersecret_"
@@ -15,7 +15,17 @@ resource "aws_iam_policy" "pol-splunk-ec2worker-secret" {
   #name_prefix = local.name-prefix-pol-splunk-ec2
   description = "This policy include policy for Splunk EC2 Worker instances to access needed secret in AWS secrets"
   provider    = aws.region-primary
-  policy      = data.template_file.pol-splunk-ec2worker-secret.rendered
+  policy      = templatefile(
+"policy-aws/pol-splunk-ec2worker-secret.json.tpl",
+{
+   secret          = aws_secretsmanager_secret.splunk_admin.arn
+    secret2         = module.ssh.splunk_ssh_key_arn
+    ssmkey          = module.ssh.splunk_ssh_key_ssm_arn
+    profile         = var.profile
+    splunktargetenv = var.splunktargetenv
+}
+
+)
 }
 
 

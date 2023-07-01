@@ -1,12 +1,12 @@
-data "template_file" "pol-splunk-ec2" {
-  template = file("policy-aws/pol-splunk-ec2.json.tpl")
-  vars = {
-    s3_install      = aws_s3_bucket.s3_install.arn
-    profile         = var.profile
-    splunktargetenv = var.splunktargetenv
-    region          = var.region-primary
-  }
-}
+#data "template_file" "pol-splunk-ec2" {
+#  template = file("policy-aws/pol-splunk-ec2.json.tpl")
+#  vars = {
+#    s3_install      = aws_s3_bucket.s3_install.arn
+#    profile         = var.profile
+#    splunktargetenv = var.splunktargetenv
+#    region          = var.region-primary
+#  }
+#}
 
 locals {
   name-prefix-pol-splunk-ec2 = "pol-splunk-ec2-${var.profile}-$(var.region-primary}-${var.splunktargetenv}"
@@ -30,17 +30,25 @@ resource "aws_iam_policy" "pol-splunk-ec2" {
   #name_prefix = local.name-prefix-pol-splunk-ec2
   description = "This policy include shared policy for Splunk EC2 instances"
   provider    = aws.region-primary
-  policy      = data.template_file.pol-splunk-ec2.rendered
+  policy      = templatefile("policy-aws/pol-splunk-ec2.json.tpl",
+{
+ s3_install      = aws_s3_bucket.s3_install.arn,
+    profile         = var.profile,
+    splunktargetenv = var.splunktargetenv,
+    region          = var.region-primary
+
+}
+)
 }
 
-data "template_file" "pol-splunk-ec2worker" {
-  template = file("policy-aws/pol-splunk-ec2worker.json.tpl")
-  vars = {
-    s3_install      = aws_s3_bucket.s3_install.arn
-    profile         = var.profile
-    splunktargetenv = var.splunktargetenv
-  }
-}
+#data "template_file" "pol-splunk-ec2worker" {
+#  template = file("policy-aws/pol-splunk-ec2worker.json.tpl")
+#  vars = {
+#    s3_install      = aws_s3_bucket.s3_install.arn
+#    profile         = var.profile
+#    splunktargetenv = var.splunktargetenv
+#  }
+#}
 
 resource "aws_iam_policy" "pol-splunk-ec2worker" {
   name_prefix = "splunkconf_ec2worker_"
@@ -48,18 +56,26 @@ resource "aws_iam_policy" "pol-splunk-ec2worker" {
   #name_prefix = local.name-prefix-pol-splunk-ec2
   description = "This policy include shared policy for Splunk EC2 Worker instances"
   provider    = aws.region-primary
-  policy      = data.template_file.pol-splunk-ec2worker.rendered
+  policy      = templatefile(
+  "policy-aws/pol-splunk-ec2worker.json.tpl",
+  {
+   s3_install      = aws_s3_bucket.s3_install.arn,
+    profile         = var.profile,
+    splunktargetenv = var.splunktargetenv
+
+  }
+ )
 }
 
 # warning this force splunksecrets.tf to be present as it define this
-data "template_file" "pol-splunk-writesecret" {
-  template = file("policy-aws/pol-splunk-writesecret.json.tpl")
-  vars = {
-    secret          = aws_secretsmanager_secret.splunk_admin.id
-    profile         = var.profile
-    splunktargetenv = var.splunktargetenv
-  }
-}
+#data "template_file" "pol-splunk-writesecret" {
+#  template = file("policy-aws/pol-splunk-writesecret.json.tpl")
+#  vars = {
+#    secret          = aws_secretsmanager_secret.splunk_admin.id
+#    profile         = var.profile
+#    splunktargetenv = var.splunktargetenv
+#  }
+#}
 
 resource "aws_iam_policy" "pol-splunk-writesecret" {
   name_prefix = "splunkconf_writesecret_"
@@ -67,20 +83,27 @@ resource "aws_iam_policy" "pol-splunk-writesecret" {
   #name_prefix = local.name-prefix-pol-splunk-ec2
   description = "This policy only allow to write secret for splunk admin (but not retrieve it) It is only used at creation time"
   provider    = aws.region-primary
-  policy      = data.template_file.pol-splunk-writesecret.rendered
-}
-
-
-
-data "template_file" "pol-splunk-splunkconf-backup" {
-  template = file("policy-aws/pol-splunk-splunkconf-backup.json.tpl")
-
-  vars = {
-    s3_backup       = aws_s3_bucket.s3_backup.arn
-    profile         = var.profile
+  policy      = templatefile(
+  "policy-aws/pol-splunk-writesecret.json.tpl",
+  {
+   secret          = aws_secretsmanager_secret.splunk_admin.id,
+    profile         = var.profile,
     splunktargetenv = var.splunktargetenv
   }
+)
 }
+
+
+
+#data "template_file" "pol-splunk-splunkconf-backup" {
+#  template = file("policy-aws/pol-splunk-splunkconf-backup.json.tpl")
+#
+#  vars = {
+#    s3_backup       = aws_s3_bucket.s3_backup.arn
+#    profile         = var.profile
+#    splunktargetenv = var.splunktargetenv
+#  }
+#}
 
 resource "aws_iam_policy" "pol-splunk-splunkconf-backup" {
   name_prefix = "splunkconf_splunkconf-backup_"
@@ -90,36 +113,51 @@ resource "aws_iam_policy" "pol-splunk-splunkconf-backup" {
   #}
   description = "This policy allow instance to upload backup and fetch files for restauration in the bucket used for backups. Note that instances cant delete backups as this is completely managed by a lifecycle policy by design"
   provider    = aws.region-primary
-  policy      = data.template_file.pol-splunk-splunkconf-backup.rendered
-}
-
-
-data "template_file" "pol-splunk-s3-replication-backup" {
-  template = file("policy-aws/pol-splunk-s3-replication.tpl")
-
-  vars = {
-    s3_bucket_source_arn      = aws_s3_bucket.s3_backup.arn
-    s3_bucket_destination_arn = aws_s3_bucket.s3_backup_secondary.arn
-    profile                   = var.profile
-    splunktargetenv           = var.splunktargetenv
+  policy      = templatefile(
+    "policy-aws/pol-splunk-splunkconf-backup.json.tpl",
+    {
+   s3_backup       = aws_s3_bucket.s3_backup.arn,
+    profile         = var.profile,
+    splunktargetenv = var.splunktargetenv
   }
+  )
 }
+
+
+#data "template_file" "pol-splunk-s3-replication-backup" {
+#  template = file("policy-aws/pol-splunk-s3-replication.tpl")
+#
+#  vars = {
+#    s3_bucket_source_arn      = aws_s3_bucket.s3_backup.arn
+#    s3_bucket_destination_arn = aws_s3_bucket.s3_backup_secondary.arn
+#    profile                   = var.profile
+#    splunktargetenv           = var.splunktargetenv
+#  }
+#}
 
 resource "aws_iam_policy" "pol-splunk-s3-replication-backup" {
   name_prefix = "splunkconf_s3_replication_backup_"
   description = "This policy allow replication between s3 backup bucket"
-  policy      = data.template_file.pol-splunk-s3-replication-backup.rendered
+  policy      = templatefile(
+"policy-aws/pol-splunk-s3-replication.tpl",
+{
+  s3_bucket_source_arn      = aws_s3_bucket.s3_backup.arn,
+    s3_bucket_destination_arn = aws_s3_bucket.s3_backup_secondary.arn,
+    profile                   = var.profile,
+    splunktargetenv           = var.splunktargetenv
+}
+)
 }
 
-data "template_file" "pol-splunk-route53-updatednsrecords" {
-  template = file("policy-aws/pol-splunk-route53-updatednsrecords.json.tpl")
-
-  vars = {
-    zone-id         = local.dnszone_id
-    profile         = var.profile
-    splunktargetenv = var.splunktargetenv
-  }
-}
+#data "template_file" "pol-splunk-route53-updatednsrecords" {
+#  template = file("policy-aws/pol-splunk-route53-updatednsrecords.json.tpl")
+#
+#  vars = {
+#    zone-id         = local.dnszone_id
+#    profile         = var.profile
+#    splunktargetenv = var.splunktargetenv
+#  }
+#}
 
 resource "aws_iam_policy" "pol-splunk-route53-updatednsrecords" {
   name_prefix = "splunkconf_route53_updatednsrecords_"
@@ -129,18 +167,26 @@ resource "aws_iam_policy" "pol-splunk-route53-updatednsrecords" {
   #}
   description = "Allow to update dns records from ec2 instance at instance creation"
   provider    = aws.region-primary
-  policy      = data.template_file.pol-splunk-route53-updatednsrecords.rendered
-}
-
-data "template_file" "pol-splunk-smartstore" {
-  template = file("policy-aws/pol-splunk-smartstore.json.tpl")
-
-  vars = {
-    s3_data         = aws_s3_bucket.s3_data.arn
-    profile         = var.profile
+  policy      = templatefile(
+"policy-aws/pol-splunk-route53-updatednsrecords.json.tpl",
+{
+  zone-id         = local.dnszone_id,
+    profile         = var.profile,
     splunktargetenv = var.splunktargetenv
-  }
+
 }
+)
+}
+
+#data "template_file" "pol-splunk-smartstore" {
+#  template = file("policy-aws/pol-splunk-smartstore.json.tpl")
+#
+#  vars = {
+#    s3_data         = aws_s3_bucket.s3_data.arn
+#    profile         = var.profile
+#    splunktargetenv = var.splunktargetenv
+#  }
+#}
 
 resource "aws_iam_policy" "pol-splunk-smartstore" {
   # ... other configuration ...
@@ -150,19 +196,28 @@ resource "aws_iam_policy" "pol-splunk-smartstore" {
   name_prefix = "splunkconf_s3_smartstore_"
   description = "Permissions needed for Splunk SmartStore"
   provider    = aws.region-primary
-  policy      = data.template_file.pol-splunk-smartstore.rendered
-}
-
-data "template_file" "pol-splunk-s3ia" {
-  template = file("policy-aws/pol-splunk-s3ia.json.tpl")
-
-  vars = {
-    s3_ia           = aws_s3_bucket.s3_ia.arn
-    s3_iaprefix     = var.s3_iaprefix
-    profile         = var.profile
+  policy      = templatefile(
+"policy-aws/pol-splunk-smartstore.json.tpl",
+{
+   s3_data         = aws_s3_bucket.s3_data.arn,
+    profile         = var.profile,
     splunktargetenv = var.splunktargetenv
-  }
+
 }
+
+)
+}
+
+#data "template_file" "pol-splunk-s3ia" {
+#  template = file("policy-aws/pol-splunk-s3ia.json.tpl")
+#
+#  vars = {
+#    s3_ia           = aws_s3_bucket.s3_ia.arn
+#    s3_iaprefix     = var.s3_iaprefix
+#    profile         = var.profile
+#    splunktargetenv = var.splunktargetenv
+#  }
+#}
 
 locals {
 

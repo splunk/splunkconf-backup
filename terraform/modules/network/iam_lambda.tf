@@ -35,7 +35,7 @@ resource "aws_iam_policy" "pol-splunk-lambda-asg" {
   description = "Permissions needed specific for ASG Lambda execution"
   #provider    = aws.region-primary
   policy      = templatefile(
-"policy-aws/pol-splunk-asg.json.tpl"
+"policy-aws/pol-splunk-asg.json.tpl",{}
 )
 }
 
@@ -53,7 +53,7 @@ resource "aws_iam_policy" "pol-splunk-cloudwatch-write" {
   description = "Permissions needed for writing logs "
   #provider    = aws.region-primary
   policy      = templatefile(
-"policy-aws/cloudwatchwritepolicy.json"
+"policy-aws/cloudwatchwritepolicy.json",{}
 )
 }
 

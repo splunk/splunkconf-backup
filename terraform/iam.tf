@@ -253,7 +253,15 @@ resource "aws_iam_policy" "pol-splunk-s3ia" {
   name_prefix = "splunkconf_s3_ia_"
   description = "Permissions needed for Splunk S3 IA"
   provider    = aws.region-primary
-  policy      = data.template_file.pol-splunk-s3ia.rendered
+  policy      = templatefile(
+"policy-aws/pol-splunk-s3ia.json.tpl",
+ {
+    s3_ia           = aws_s3_bucket.s3_ia.arn
+    s3_iaprefix     = var.s3_iaprefix
+    profile         = var.profile
+    splunktargetenv = var.splunktargetenv
+  }
+)
 }
 
 

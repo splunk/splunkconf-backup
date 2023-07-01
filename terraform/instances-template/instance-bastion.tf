@@ -25,17 +25,17 @@ resource "aws_iam_role_policy_attachment" "bastion-attach-splunk-ec2" {
   policy_arn = aws_iam_policy.pol-splunk-bastion.arn
 }
 
-
-resource "aws_security_group_rule" "hf_from_bastion_ssh" {
-  provider                 = aws.region-primary
-  security_group_id        = aws_security_group.splunk-hf.id
-  type                     = "ingress"
-  from_port                = 22
-  to_port                  = 22
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.splunk-bastion.id
-  description              = "allow SSH connection from bastion host"
-}
+# commented as in instance hf
+#resource "aws_security_group_rule" "hf_from_bastion_ssh" {
+#  provider                 = aws.region-primary
+#  security_group_id        = aws_security_group.splunk-hf.id
+#  type                     = "ingress"
+#  from_port                = 22
+#  to_port                  = 22
+#  protocol                 = "tcp"
+#  source_security_group_id = aws_security_group.splunk-bastion.id
+#  description              = "allow SSH connection from bastion host"
+#}
 
 resource "aws_security_group_rule" "bastion_from_splunkadmin-networks_ssh" {
   provider          = aws.region-primary

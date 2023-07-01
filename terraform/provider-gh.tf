@@ -9,7 +9,6 @@
 
 # Configure the GitHub Provider
 provider "github" {
- count = ( var.enableprovision ? 1 : 0 )
  token = var.ghtoken # or `GITHUB_TOKEN
  #owner = var.ghowner
  read_delay_ms = 1000

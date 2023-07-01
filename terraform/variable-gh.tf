@@ -8,36 +8,36 @@ variable enableprovision {
 variable ghtoken {
   description = "github pat token allowed to create and manage repo"
   type = string
-  default="notset"
+  default=""
 }
 
 variable ghowner {
   description = "github owner (where to create repo)"
   type = string
-  default="notset"
+  default=""
 }
 
 variable ghrepo {
   description = "github repo name"
   type = string
-  default="notset"
+  default=""
 }
 
 variable ghclonepat {
   description="pat token given to you for cloning"
   type=string
-  default="notset"
+  default=""
 }
 
 variable ghcloneuser {
   description="gh user for cloned repo"
   type=string
-  default="notset"
+  default=""
 }
 
 variable ghclonerepo {
   description="cloned repo name"
   type=string
-  default="notset"
+  default=""
 }
 

@@ -1,13 +1,13 @@
-data "template_file" "pol-splunk-kms" {
-  template = file("policy-aws/pol-splunk-kms.json.tpl")
-
-  vars = {
-    kmsarn = local.splunkkmsarn
-    #kmsarn          = aws_kms_key.splunkkms.arn
-    profile         = var.profile
-    splunktargetenv = var.splunktargetenv
-  }
-}
+#data "template_file" "pol-splunk-kms" {
+#  template = file("policy-aws/pol-splunk-kms.json.tpl")
+#
+#  vars = {
+#    kmsarn = local.splunkkmsarn
+#    #kmsarn          = aws_kms_key.splunkkms.arn
+#    profile         = var.profile
+#    splunktargetenv = var.splunktargetenv
+#  }
+#}
 
 resource "aws_iam_policy" "pol-splunk-kms" {
   # ... other configuration ...
@@ -16,7 +16,15 @@ resource "aws_iam_policy" "pol-splunk-kms" {
   #}
   description = "Permissions needed for KMS"
   provider    = aws.region-primary
-  policy      = data.template_file.pol-splunk-kms.rendered
+  policy      = templatefile(
+"policy-aws/pol-splunk-kms.json.tpl",
+{
+    kmsarn = local.splunkkmsarn
+    #kmsarn          = aws_kms_key.splunkkms.arn
+    profile         = var.profile
+    splunktargetenv = var.splunktargetenv
+  }
+)
 }
 
 

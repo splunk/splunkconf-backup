@@ -218,8 +218,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230629 fix upgrade detection test
 # 20230629 more manager_uri support and more tag replacement for idx discovery
 @ 20230629 up to 9.1.0 
+# 20230701 add splunkrsyncmode tag to enable test rsync mode
 
-VERSION="20230629h"
+VERSION="20230701a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -873,6 +874,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkenableunifiedpartition=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkenableunifiedpartition`
   splunksmartstoresitenumber=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksmartstoresitenumber`
   splunkenableworker=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkenableworker`
+  splunkrsyncmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkrsyncmode`
   #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
@@ -918,6 +920,11 @@ fi
 if [ -z ${splunkenableworker+x} ]; then 
   echo "splunkenableworker is unset, falling back to default value 0 (disabled)"
   splunkenableworker=0
+fi
+
+if [ -z ${splunkrsyncmode+x} ]; then 
+  echo "splunkrsyncmode is unset, falling back to default value 0 (disabled)"
+  splunkrsyncmode=0
 fi
 
 if [[ "cloud_type" -eq 1 ]]; then
@@ -1242,6 +1249,23 @@ fi
 
 # manually create the splunk user so that it will exist for next step   
 useradd --home-dir ${SPLUNK_HOME} --comment "Splunk Server" ${splunkuser} --shell /bin/bash 
+
+if (( splunkrsyncmode == 1 )); then
+  if [[ "cloud_type" -eq 1 ]]; then
+    # aws
+    echo "rsync over ssh mode, trying to setup keys"
+    splunksshkeypriv=`aws ssm get-parameter --name splunk_ssh_key_rsync_priv --query "Parameter.Value" --output text --region $region`;
+    splunksshkeyppub=`aws ssm get-parameter --name splunk_ssh_key_rsync_pub --query "Parameter.Value" --output text --region $region`;
+    mkdir -p ${SPLUNK_HOME}/.ssh
+    chmog u=rw,og-rwx ${SPLUNK_HOME}/.ssh
+    echo $splunksshkeypriv > ${SPLUNK_HOME}/.ssh/id_rsa
+    echo $splunksshkeypub >> ${SPLUNK_HOME}/.ssh/authorized_keys
+    chmod u=rw,go= ${SPLUNK_HOME}/.ssh/id_rsa
+    chmod u=rw,go= ${SPLUNK_HOME}/.ssh/authorized_keys
+  else
+    echo "fixme : rsync mode not implemented  with cloud_type=$cloud_type "
+  fi
+fi
 
 # install addition os packages 
 PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd pip"

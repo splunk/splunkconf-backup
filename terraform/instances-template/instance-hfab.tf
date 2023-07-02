@@ -43,22 +43,25 @@ ssmkey1          = aws_ssm_parameter.splunk_ssh_key_rsync_priv.arn
   }
 }
 
-#resource "aws_iam_policy" "pol-splunk-ec2-rsyncssm" {
-#  name_prefix = "splunkconf_ec2-rsyncssm_"
-#  # ... other configuration ...
-#  #name_prefix = local.name-prefix-pol-splunk-ec2
-#  description = "This policy include policy for Splunk EC2 HF  instance in rsync mode to access needed SSM in AWS SSM"
-#  provider    = aws.region-primary
-#  policy      = templatefile("policy-aws/pol-splunk-ec2-rsyncssm.json.tpl",{ssmkey1          = aws_ssm_parameter.splunk_ssh_key_rsync_priv.arn
-#    ssmkey2          = aws_ssm_parameter.splunk_ssh_key_rsync_pub.arn})
-#}
+resource "aws_iam_policy" "pol-splunk-ec2-rsyncssm" {
+  name_prefix = "splunkconf_ec2-rsyncssm_"
+  # ... other configuration ...
+  #name_prefix = local.name-prefix-pol-splunk-ec2
+  description = "This policy include policy for Splunk EC2 HF  instance in rsync mode to access needed SSM in AWS SSM"
+  provider    = aws.region-primary
+  policy      = templatefile("policy-aws/pol-splunk-ec2-rsyncssm.json.tpl",{
+    ssmkey1          = aws_ssm_parameter.splunk_ssh_key_rsync_priv.arn
+    ssmkey2          = aws_ssm_parameter.splunk_ssh_key_rsync_pub.arn
+  }
+  )
+}
 
 
-#resource "aws_iam_role_policy_attachment" "hf-attach-splunk-ec2-rsyncssm" {
-#  #name       = "worker-attach-splunk-ec2-rsyncssm"
-#  role       = aws_iam_role.role-splunk-hf.name
-#  policy_arn = aws_iam_policy.pol-splunk-ec2-rsyncssm.arn
-#}
+resource "aws_iam_role_policy_attachment" "hf-attach-splunk-ec2-rsyncssm" {
+  #name       = "worker-attach-splunk-ec2-rsyncssm"
+  role       = aws_iam_role.role-splunk-hf.name
+  policy_arn = aws_iam_policy.pol-splunk-ec2-rsyncssm.arn
+}
 
 
 

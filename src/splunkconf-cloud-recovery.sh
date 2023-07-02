@@ -1255,7 +1255,7 @@ if (( splunkrsyncmode == 1 )); then
     # aws
     echo "rsync over ssh mode, trying to setup keys"
     mkdir -p ${SPLUNK_HOME}/.ssh
-    chmod u=rw,og-rwx ${SPLUNK_HOME}/.ssh
+    chmod u=rwx,og-rwx ${SPLUNK_HOME}/.ssh
     chown ${splunkuser}. ${SPLUNK_HOME}/.ssh
     splunksshkeypriv=`aws ssm get-parameter --name splunk_ssh_key_rsync_priv --query "Parameter.Value" --output text --region $REGION`;
     echo $splunksshkeypriv > ${SPLUNK_HOME}/.ssh/id_rsa

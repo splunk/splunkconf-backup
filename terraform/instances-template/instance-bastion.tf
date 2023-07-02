@@ -204,6 +204,9 @@ resource "local_file" "ansible_bastion_vars_tf" {
     hostidx: ${local.idx-dns-name}
     hostmc: ${local.mc-dns-name}
     hostworker: ${local.worker-dns-name}
+    hosthf: ${local.hf-dns-name}
+    hosthfa: ${local.hfa-dns-name}
+    hosthfb: ${local.hfb-dns-name}
   tasks:
     - name: create ssh config file to use bastion
       template:

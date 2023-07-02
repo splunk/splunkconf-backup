@@ -220,7 +220,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 @ 20230629 up to 9.1.0 
 # 20230701 add splunkrsyncmode tag to enable test rsync mode
 
-VERSION="20230701a"
+VERSION="20230701b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1254,10 +1254,10 @@ if (( splunkrsyncmode == 1 )); then
   if [[ "cloud_type" -eq 1 ]]; then
     # aws
     echo "rsync over ssh mode, trying to setup keys"
-    splunksshkeypriv=`aws ssm get-parameter --name splunk_ssh_key_rsync_priv --query "Parameter.Value" --output text --region $region`;
-    splunksshkeyppub=`aws ssm get-parameter --name splunk_ssh_key_rsync_pub --query "Parameter.Value" --output text --region $region`;
+    splunksshkeypriv=`aws ssm get-parameter --name splunk_ssh_key_rsync_priv --query "Parameter.Value" --output text --region $REGION`;
+    splunksshkeyppub=`aws ssm get-parameter --name splunk_ssh_key_rsync_pub --query "Parameter.Value" --output text --region $REGION`;
     mkdir -p ${SPLUNK_HOME}/.ssh
-    chmog u=rw,og-rwx ${SPLUNK_HOME}/.ssh
+    chmod u=rw,og-rwx ${SPLUNK_HOME}/.ssh
     echo $splunksshkeypriv > ${SPLUNK_HOME}/.ssh/id_rsa
     echo $splunksshkeypub >> ${SPLUNK_HOME}/.ssh/authorized_keys
     chmod u=rw,go= ${SPLUNK_HOME}/.ssh/id_rsa

@@ -28,6 +28,8 @@ locals {
   ds-dns-name           = "${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
   std-dns-name          = "${local.dns-prefix}${var.std}.${var.dns-zone-name}"
   hf-dns-name           = "${local.dns-prefix}${var.hf}.${var.dns-zone-name}"
+  hfa-dns-name           = "${local.dns-prefix}${var.hf}a.${var.dns-zone-name}"
+  hfb-dns-name           = "${local.dns-prefix}${var.hf}b.${var.dns-zone-name}"
   lm-dns-name           = "${local.dns-prefix}${var.lm}.${var.dns-zone-name}"
 
 }

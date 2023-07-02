@@ -86,6 +86,39 @@ Host MC-a
         ProxyJump bastion
 {% endif %}
 
+Host HF-a
+        HostName {{ hosthf }}
+        IdentityFile {{ privkeypathforhost }}
+        user {{ hostuser }}
+        LocalForward 18010 127.0.0.1:8000
+{%- if use_doublebastion == "yes" %}
+        ProxyJump bastion2,bastion
+{% else %}
+        ProxyJump bastion
+{% endif %}
+
+Host HFa-a
+        HostName {{ hosthfa }}
+        IdentityFile {{ privkeypathforhost }}
+        user {{ hostuser }}
+        LocalForward 18011 127.0.0.1:8000
+{%- if use_doublebastion == "yes" %}
+        ProxyJump bastion2,bastion
+{% else %}
+        ProxyJump bastion
+{% endif %}
+
+Host HFb-a
+        HostName {{ hosthfb }}
+        IdentityFile {{ privkeypathforhost }}
+        user {{ hostuser }}
+        LocalForward 18012 127.0.0.1:8000
+{%- if use_doublebastion == "yes" %}
+        ProxyJump bastion2,bastion
+{% else %}
+        ProxyJump bastion
+{% endif %}
+
 Host worker-a
         HostName {{ hostworker }}
         IdentityFile {{ privkeypathforhost }}

@@ -35,13 +35,13 @@ resource "aws_ssm_parameter" "splunk_ssh_key_rsync_pub" {
 }
 
 
-data "template_file" "pol-splunk-ec2-rsyncssm" {
-  template = file("policy-aws/pol-splunk-ec2-rsyncssm.json.tpl")
-  vars = {
-ssmkey1          = aws_ssm_parameter.splunk_ssh_key_rsync_priv.arn
-    ssmkey2          = aws_ssm_parameter.splunk_ssh_key_rsync_pub.arn
-  }
-}
+#data "template_file" "pol-splunk-ec2-rsyncssm" {
+#  template = file("policy-aws/pol-splunk-ec2-rsyncssm.json.tpl")
+#  vars = {
+#ssmkey1          = aws_ssm_parameter.splunk_ssh_key_rsync_priv.arn
+#    ssmkey2          = aws_ssm_parameter.splunk_ssh_key_rsync_pub.arn
+#  }
+#}
 
 resource "aws_iam_policy" "pol-splunk-ec2-rsyncssm" {
   name_prefix = "splunkconf_ec2-rsyncssm_"

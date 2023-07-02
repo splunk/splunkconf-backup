@@ -1257,12 +1257,10 @@ if (( splunkrsyncmode == 1 )); then
     mkdir -p ${SPLUNK_HOME}/.ssh
     chmod u=rwx,og-rwx ${SPLUNK_HOME}/.ssh
     chown ${splunkuser}. ${SPLUNK_HOME}/.ssh
-    splunksshkeypriv=`aws ssm get-parameter --name splunk_ssh_key_rsync_priv --query "Parameter.Value" --output text --region $REGION`;
-    echo $splunksshkeypriv > ${SPLUNK_HOME}/.ssh/id_rsa
+    aws ssm get-parameter --name splunk_ssh_key_rsync_priv --query "Parameter.Value" --output text --region $REGION > ${SPLUNK_HOME}/.ssh/id_rsa
     chown ${splunkuser}. ${SPLUNK_HOME}/.ssh/id_rsa
     chmod u=rw,go= ${SPLUNK_HOME}/.ssh/id_rsa
-    splunksshkeypub=`aws ssm get-parameter --name splunk_ssh_key_rsync_pub --query "Parameter.Value" --output text --region $REGION`;
-    echo $splunksshkeypub >> ${SPLUNK_HOME}/.ssh/authorized_keys
+    aws ssm get-parameter --name splunk_ssh_key_rsync_pub --query "Parameter.Value" --output text --region $REGION >> ${SPLUNK_HOME}/.ssh/authorized_keys
     chown ${splunkuser}. ${SPLUNK_HOME}/.ssh/authorized_keys
     chmod u=rw,go= ${SPLUNK_HOME}/.ssh/authorized_keys
   else

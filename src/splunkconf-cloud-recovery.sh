@@ -217,10 +217,11 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230629 more logging, use intermediate var for nbarg
 # 20230629 fix upgrade detection test
 # 20230629 more manager_uri support and more tag replacement for idx discovery
-@ 20230629 up to 9.1.0 
+# 20230629 up to 9.1.0 
 # 20230701 add splunkrsyncmode tag to enable test rsync mode
+# 20230701 change hf to not be farm by default 
 
-VERSION="20230701b"
+VERSION="20230701rcb"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2070,7 +2071,7 @@ tag_replacement
 # updating splunkconf-backup app from s3
 # important : version on s3 should be up2date as it is prioritary over backups and other content
 # only if it is not a indexer 
-if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
+if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
   get_object ${remoteinstallsplunkconfbackup} ${localinstalldir}
   if [ -e "${localinstalldir}/splunkconf-backup.tar.gz" ]; then
     # backup old version just in case

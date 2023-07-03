@@ -1,4 +1,4 @@
-#!/bin/bash  
+#!/bin/bash  -x
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
 # Copyright 2022 Splunk Inc.
@@ -86,8 +86,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20230206 add autodisable for scripts, uf detection, autokvdump disable for uf or kvstore disabled, add logic for empty statelist case with specific log, fix missing var for 2 dir in statelist (rel mode)
 # 20230208 add action to some log entries 
 # 20230327 fix typo in modinputs path
+# 20230703 add more logic for rsync mode
 
-VERSION="20230327a"
+VERSION="20230703a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -410,8 +411,13 @@ function do_remote_copy() {
       fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} kvdump may be incomplete, not copying to remote" 
   #elif [ "${LFIC}" != "disabled" ]; then
   else
-    debug_log "doing remote copy with ${CPCMD} ${LFIC} ${RFIC} ${OPTION}"
-    ${CPCMD} ${LFIC} ${RFIC} ${OPTION}
+    if (( REMOTETECHNO == 4 )); then
+      debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${REMOTERSYNCDIR} "
+      ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${REMOTERSYNCDIR}
+    else
+      debug_log "doing remote copy with ${CPCMD} ${LFIC} ${RFIC} ${OPTION}"
+      ${CPCMD} ${LFIC} ${RFIC} ${OPTION}
+    fi
     RES=$?
     END=$(($(date +%s%N)));
     #let DURATIONNS=(END-START)
@@ -567,7 +573,9 @@ if [ -z ${splunks3backupbucket+x} ]; then
       debug_log "name=remotebackup src=remotebackup result=configured"
     fi
   else 
-    if [[ "cloud_type" -eq 2 ]]; then
+    if (( REMOTETECHNO == 4 )); then 
+      debug_log "remote techno=4 and running in cloud , not using tags"
+    elif [[ "cloud_type" -eq 2 ]]; then
       debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
       # we already have the scheme in var for gcp
       REMOTEBACKUPDIR="${s3backupbucket}/splunkconf-backup"
@@ -580,7 +588,9 @@ if [ -z ${splunks3backupbucket+x} ]; then
   fi
 else
   s3backupbucket=$splunks3backupbucket
-  if [[ "cloud_type" -eq 2 ]]; then
+  if (( REMOTETECHNO == 4 )); then 
+      debug_log "remote techno=4 , not using tags"
+  elif [[ "cloud_type" -eq 2 ]]; then
     debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=true";
       # we already have the scheme in var for gcp
     REMOTEBACKUPDIR="${s3backupbucket}/splunkconf-backup"
@@ -656,7 +666,7 @@ fi
 
 # FIXME : opti : relax check to only exit if global or kvdump/kvstore mode
 debug_log "checking for a ongoing kvdump restore"
-if [ -e "/opt/splunk/var/run/splunkconf-kvrestore.lock" ]; then
+if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
   fail_log "splunkconf-restore is currently running a kvdump, stopping to avoid creating a incomplete backup."
   ERROR=1
   ERROR_MESSAGE="kvdumprestorelock"
@@ -1079,9 +1089,13 @@ if [ $DOREMOTEBACKUP -eq 1 ]; then
 	fi
   fi
 fi
-  # now we add the instance name or backup from different instances would collide
-  REMOTEBACKUPDIR="${REMOTEBACKUPDIR}/${INSTANCE}"
-  # first run we are creating that instance dir
+  if (( REMOTETECHNO == 4 ));then
+    debug_log "renotetechno=4 (rsync) not adding instance name to remotebackup dir"
+  else
+    # now we add the instance name or backup from different instances would collide
+    REMOTEBACKUPDIR="${REMOTEBACKUPDIR}/${INSTANCE}"
+    # first run we are creating that instance dir
+  fi
 
   if [ ${REMOTETECHNO} -eq 1 ]; then 
   # nas
@@ -1100,7 +1114,7 @@ fi
   elif [ ${REMOTETECHNO} -eq 4 ]; then
     # remote via rsync over ssh
     debug_log "backup via rsync over ssh"
-    # dir creation remote here FIXME
+    # no need to for remote dir creation, rsync will create backups dir automatically if not present
   else
     fail_log "cant do remote backup. unknown remotetechno ${REMOTETECHNO}. Please fix configuration settings"
     exit 1
@@ -1178,15 +1192,21 @@ fi
 # second option depend on recent ssh , instead it is possible to disable via =no or use other mean to accept the key before the script run
     OPTION=" -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
   elif [ ${REMOTETECHNO} -eq 4 ]; then
-    CPCMD="rsync -a -e \"ssh -oBatchMode=yes -oStrictHostKeyChecking=accept-new \" ";
+    # we use archive mode, we ask to delete extra file on remote (this is needed to reduce risk of filling remote disk which would prevent syncing backups. It also avoid to have to do a remote purge. It is important to have extra space in rsync mode on both nodes
+    CPCMD="rsync -a --delete -e ";
 # second option depend on recent ssh , instead it is possible to disable via =no or use other mean to accept the key before the script run
-    OPTION=" -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
+    OPTION=" ssh -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
+    # special case for rsync the option will be added just after CPCMD and quoted
   fi
   if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
     TYPE="remote"
     OBJECT="etc"
     LFIC=${LFICETC}
     RFIC=${FICETC}
+    if [ ${REMOTETECHNO} -eq 4 ]; then
+      LOCALSYNCDIR="$LOCALBACKUPDIR/"
+      REMOTERSYNCDIR="${REMOTEBACKUPDIR}${LOCALBACKUPDIR}"
+    fi
     do_remote_copy;
   fi
 
@@ -1194,6 +1214,10 @@ fi
     OBJECT="scripts"
     LFIC=${LFICSCRIPT}
     RFIC=${FICSCRIPT}
+    if [ ${REMOTETECHNO} -eq 4 ]; then
+      LOCALSYNCDIR="$LOCALBACKUPDIR/"
+      REMOTERSYNCDIR="${REMOTEBACKUPDIR}${LOCALBACKUPDIR}"
+    fi
     do_remote_copy;
   fi
 
@@ -1201,11 +1225,19 @@ fi
     OBJECT="kvdump"
     LFIC=${LFICKVDUMP}
     RFIC=${FICKVDUMP}
+    if [ ${REMOTETECHNO} -eq 4 ]; then
+      LOCALSYNCDIR="${SPLUNK_DB}/kvstorebackup/"
+      REMOTERSYNCDIR="${REMOTEBACKUPDIR}${SPLUNK_DB}/kvstorebackup/"
+    fi
     do_remote_copy;
   elif [[ "$MODE" == "0" ]] || [[ "$MODE" == "kvauto" ]]; then
     OBJECT="kvstore"
     LFIC=${LFICKVSTORE}
     RFIC=${FICKVSTORE}
+    if [ ${REMOTETECHNO} -eq 4 ]; then
+      LOCALSYNCDIR="$LOCALBACKUPDIR/"
+      REMOTERSYNCDIR="${REMOTEBACKUPDIR}${LOCALBACKUPDIR}"
+    fi
     do_remote_copy;
   fi
 
@@ -1213,6 +1245,10 @@ fi
     OBJECT="state"
     LFIC=${LFICSTATE}
     RFIC=${FICSTATE}
+    if [ ${REMOTETECHNO} -eq 4 ]; then
+      LOCALSYNCDIR="$LOCALBACKUPDIR/"
+      REMOTERSYNCDIR="${REMOTEBACKUPDIR}${LOCALBACKUPDIR}"
+    fi
     do_remote_copy;
   fi
 if [ $DOREMOTEBACKUP -eq 0 ]; then

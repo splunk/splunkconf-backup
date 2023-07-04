@@ -1,4 +1,4 @@
-#!/bin/bash  -x
+#!/bin/bash
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
 # Copyright 2022 Splunk Inc.
@@ -411,7 +411,10 @@ function do_remote_copy() {
       fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} kvdump may be incomplete, not copying to remote" 
   #elif [ "${LFIC}" != "disabled" ]; then
   else
-    if (( REMOTETECHNO == 4 )); then
+    if (( REMOTETECHNO == 3 )); then
+      debug_log "doing remote copy (rcp) with ${CPCMD} ${OPTION} ${LFIC} ${RCPREMOTEUSER}@${RCPHOST}:${RFIC}"
+      ${CPCMD} ${OPTION} ${LFIC} ${RCPREMOTEUSER}@${RCPHOST}:${RFIC}
+    elif (( REMOTETECHNO == 4 )); then
       debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${REMOTERSYNCDIR} "
       ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${REMOTERSYNCDIR}
     else
@@ -573,7 +576,9 @@ if [ -z ${splunks3backupbucket+x} ]; then
       debug_log "name=remotebackup src=remotebackup result=configured"
     fi
   else 
-    if (( REMOTETECHNO == 4 )); then 
+    if (( REMOTETECHNO == 3 )); then 
+      debug_log "remote techno=3 and running in cloud , not using tags"
+    elif (( REMOTETECHNO == 4 )); then 
       debug_log "remote techno=4 and running in cloud , not using tags"
     elif [[ "cloud_type" -eq 2 ]]; then
       debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
@@ -588,7 +593,9 @@ if [ -z ${splunks3backupbucket+x} ]; then
   fi
 else
   s3backupbucket=$splunks3backupbucket
-  if (( REMOTETECHNO == 4 )); then 
+  if (( REMOTETECHNO == 3 )); then 
+      debug_log "remote techno=3 and running in cloud , not using tags"
+  elif (( REMOTETECHNO == 4 )); then 
       debug_log "remote techno=4 , not using tags"
   elif [[ "cloud_type" -eq 2 ]]; then
     debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=true";
@@ -1190,13 +1197,19 @@ fi
   elif [ ${REMOTETECHNO} -eq 3 ]; then
     CPCMD="scp";
 # second option depend on recent ssh , instead it is possible to disable via =no or use other mean to accept the key before the script run
-    OPTION=" -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
+    OPTION="-oConnectTimeout=30 -oServerAliveInterval=60 -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
+    RESMKDIR=`ssh $OPTION  ${RCPREMOTEUSER}@${RCPHOST} mkdir -p ${REMOTEBACKUPDIR}`
   elif [ ${REMOTETECHNO} -eq 4 ]; then
-    # we use archive mode, we ask to delete extra file on remote (this is needed to reduce risk of filling remote disk which would prevent syncing backups. It also avoid to have to do a remote purge. It is important to have extra space in rsync mode on both nodes
-    CPCMD="rsync -a --delete -e ";
-# second option depend on recent ssh , instead it is possible to disable via =no or use other mean to accept the key before the script run
-    OPTION=" ssh -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
+    OPTION=" ssh -oConnectTimeout=30 -oServerAliveInterval=60 -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
+    # second option depend on recent ssh , instead it is possible to disable via =no or use other mean to accept the key before the script run
     # special case for rsync the option will be added just after CPCMD and quoted
+    if ((  RSYNCREMOTEDELETE == 1 )); then 
+      # we use archive mode, we ask to delete extra file on remote (this is needed to reduce risk of filling remote disk which would prevent syncing backups. It also avoid to have to do a remote purge. It is important to have extra space in rsync mode on both nodes
+      CPCMD="rsync -a --delete -e ";
+    else
+      # do not delete via rsync  (you should have enabled another way of purging remote content of the remote disk could fill up and the second instance not have the right backup and be non fonctional when needed
+      CPCMD="rsync -a -e ";
+    fi
   fi
   if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
     TYPE="remote"
@@ -1250,6 +1263,16 @@ fi
       REMOTERSYNCDIR="${REMOTEBACKUPDIR}${LOCALBACKUPDIR}"
     fi
     do_remote_copy;
+  fi
+  if [ ${REMOTETECHNO} -eq 4 ]; then
+    if ((  RSYNCREMOTEDELETE == 2 )); then 
+      debug_log "INFO: launching remote splunkconf-purgebackups.sh"
+      RESPURGE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh`
+    fi
+    if (( RSYNCDISABLEREMOTE == 1 )); then
+      debug_log "INFO: launching remote splunkconf-purgebackups.sh"
+      RESSTOP=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} "${SPLUNK_HOME}/bin/splunk status && ${SPLUNK_HOME}/bin/splunk stop"`
+    fi
   fi
 if [ $DOREMOTEBACKUP -eq 0 ]; then
 	debug_log "no remote backup requested"

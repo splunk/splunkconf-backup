@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 
 # Copyright 2022 Splunk Inc.
@@ -43,8 +43,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20220326 add support for rel and zstd types by relaxing form detection
 # 20220326 change starving condition to fail even if that is probably du to external condition in order to try to be more visible that we have a problem + only log when all the types have been tried 
 # 20220327 improve logging by adding freespace info
+# 20230704 add rcp purge support
 
-VERSION="20220327"
+VERSION="20230704a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -357,8 +358,15 @@ else
   # servername is more reliable ithan host in dynamic env like AWS
   INSTANCE=$SERVERNAME
   REMOTEBACKUPDIR="${REMOTEBACKUPDIR}/${INSTANCE}"
-  debug_log "INSTANCE=${INSTANCE}, REMOTEBACKUPDIR=${REMOTEBACKUPDIR}"
-  if [ -d "${REMOTEBACKUPDIR}" ]; then
+  debug_log "INSTANCE=${INSTANCE}, REMOTEBACKUPDIR=${REMOTEBACKUPDIR} REMOTETECHNO=${REMOTETECHNO}"
+  if (( REMOTETECHNO == 3 )); then
+    debug_log "purge on remote rcp"
+    CPCMD="scp";
+    # second option depend on recent ssh , instead it is possible to disable via =no or use other mean to accept the key before the script run
+    OPTION="-oConnectTimeout=30 -oServerAliveInterval=60 -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
+    RESSCPPU=`scp $OPTION  ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup-helper.sh ${RCPREMOTEUSER}@${RCPHOST}: `
+    RESMKDIR=`ssh $OPTION  ${RCPREMOTEUSER}@${RCPHOST} ./splunkconf-purgebackup-helper.sh $REMOTEBACKUPDIR $REMOTEBACKUPRETENTIONDAYS $REMOTEMAXSIZE ` 
+  elif [ -d "${REMOTEBACKUPDIR}" ]; then
     debug_log "Starting to purging old backups"
 # FIXME : reuse exclusion_list logic to always keep one backup for remote nas condition
     /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*etc*tar.*" -mtime +${REMOTEBACKUPRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=etc result=success purge remote etc backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=etc result=fail   error purging remote etc backup "
@@ -377,7 +385,7 @@ else
     # delete on size, we try to delete a whole set of backups so we hopefully have enough space for a new whole set of backups 
     while [ `du -c ${REMOTEBACKUPDIR}/backup* | cut -f1 | tail -1` -gt ${REMOTEMAXSIZE} ];
     do 
-      OBJECT
+      #OBJECT
       OLDESTFILE=`ls -t ${REMOTEBACKUPDIR}/backup* | tail -n1`;
       rm -f ${OLDESTFILE} && echo_log "action=purge type=$TYPE reason=size file=${OLDESTFILE} result=success" ||  fail_log "action=purge type=remote reason=size file=${OLDESTFILE} result=fail"
     done;

@@ -220,8 +220,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230629 up to 9.1.0 
 # 20230701 add splunkrsyncmode tag to enable test rsync mode
 # 20230701 change hf to not be farm by default 
+# 20230707 up to 9.1.0.1
 
-VERSION="20230701rcb"
+VERSION="20230707a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1339,11 +1340,11 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update at reinstanciation, make sure you know what you do !
-splbinary="splunk-9.1.0-1c86ca0bacc3.x86_64.rpm"
+splbinary="splunk-9.1.0.1-77f73c9edb85.x86_64.rpm"
 
 
 if [ "$splunkmode" == "uf" ]; then 
-  splbinary="splunkforwarder-9.1.0-1c86ca0bacc3.x86_64.rpm"
+  splbinary="splunkforwarder-9.1.0.1-77f73c9edb85.x86_64.rpm"
   echo "switching to uf binary ${splbinary} if not set in tag"
 fi
 
@@ -1366,11 +1367,11 @@ if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
   elif [ "$splunkmode" == "uf" ]; then 
     echo "RPM not present in install, trying to download directly (uf version)"
     ###### change from version on splunk.com : add -q , add ${localinstalldir}/ and add quotes around 
-    `wget -q -O ${localinstalldir}/splunkforwarder-9.1.0-1c86ca0bacc3.x86_64.rpm "https://download.splunk.com/products/universalforwarder/releases/9.1.0/linux/splunkforwarder-9.1.0-1c86ca0bacc3.x86_64.rpm"`
+    `wget -q -O ${localinstalldir}/splunkforwarder-9.1.0.1-77f73c9edb85.x86_64.rpm "https://download.splunk.com/products/universalforwarder/releases/9.1.0.1/linux/splunkforwarder-9.1.0.1-77f73c9edb85.x86_64.rpm"`
   else
     echo "RPM not present in install, trying to download directly (ent version)"
     ###### change from version on splunk.com : add -q , add ${localinstalldir}/ and add quotes around 
-    `wget -q -O ${localinstalldir}/splunk-9.1.0-1c86ca0bacc3.x86_64.rpm "https://download.splunk.com/products/splunk/releases/9.1.0/linux/splunk-9.1.0-1c86ca0bacc3.x86_64.rpm"`
+    `wget -q -O ${localinstalldir}/splunk-9.1.0.1-77f73c9edb85.x86_64.rpm "https://download.splunk.com/products/splunk/releases/9.1.0.1/linux/splunk-9.1.0.1-77f73c9edb85.x86_64.rpm"`
   fi
   if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     echo "ERROR FATAL : ${splbinary} is not present in s3 -> please verify the version specified is present in s3 install (or fix the wget with wget -q -O ... if you just copied paste wget))  " >> /var/log/splunkconf-cloud-recovery-info.log

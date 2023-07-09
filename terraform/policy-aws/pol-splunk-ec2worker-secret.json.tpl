@@ -31,6 +31,17 @@
               "ssm:GetParameter"
             ],
             "Resource": "${ssmkey}"
+        },
+        {
+            "Sid": "Getssmpatrunner",
+            "Effect": "Allow",
+            "Action": [
+              "ssm:DescribeParameters",
+              "ssm:GetParametersByPath",
+              "ssm:GetParameters",
+              "ssm:GetParameter"
+            ],
+            "Resource": "${ssmkeyrunner}"
         }
     ]
 }

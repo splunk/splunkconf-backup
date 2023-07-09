@@ -2379,6 +2379,11 @@ if [[ $splunkenableworker == 1 ]]; then
   su - ${usersplunk} -c "cd scripts/splunk-ansible-develope;ansible-playbook splunk_ansible_inventory_create.yml -i 127.0.0.1," 
   echo "deploying splunk ansible from github"
   su - ${usersplunk} -c "cd scripts/splunk-ansible-develop;ansible-playbook ansible_deploysplunkansible_tf.yml -i 127.0.0.1," 
+  # deploying runner
+  su - ${usersplunk} -c "mkdir actions-runner && cd actions-runner;curl -o actions-runner-linux-x64-2.305.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.305.0/actions-runner-linux-x64-2.305.0.tar.gz;tar xzf ./actions-runner-linux-x64-2.305.0.tar.gz"
+  patrunner=`aws ssm get-parameter --name splunkpatjinjarunner --query "Parameter.Value" --output text --region $REGION`
+  echo "DEBUG: patrunner=$patrunner"
+  su - ${usersplunk} -c "cd actions-runner;./config.sh --url https://github.com/matplouic/my-base-apps-repo6 --token ALB4GN5NBJE3SFTCPCCDLATEVLZAI;nohup ./run.sh &"
 fi
 
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 

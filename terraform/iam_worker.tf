@@ -21,7 +21,7 @@ resource "aws_iam_policy" "pol-splunk-ec2worker-secret" {
    secret          = aws_secretsmanager_secret.splunk_admin.arn
     secret2         = module.ssh.splunk_ssh_key_arn
     ssmkey          = module.ssh.splunk_ssh_key_ssm_arn
-    ssmkeyrunner    =   count = ( var.enableprovision ? var.ghtoken : "" )
+    ssmkeyrunner    = ( var.enableprovision ? var.ghtoken : "" )
     profile         = var.profile
     splunktargetenv = var.splunktargetenv
 }

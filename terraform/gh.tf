@@ -13,7 +13,7 @@ resource "github_repository" "baseapprepo" {
 }
 
 resource "aws_ssm_parameter" "splunkpatjinjarunner" {
-#  count = ( var.enableprovision ? 1 : 0 )
+  count = ( var.enableprovision ? 1 : 0 )
   name        = "splunkpatjinjarunner"
   description = "pat for runner to attach to custom jinja git"
   type        = "String"

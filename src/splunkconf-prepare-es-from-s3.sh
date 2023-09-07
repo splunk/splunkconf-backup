@@ -16,8 +16,11 @@
 # 20221009 update for 7.0.2
 # 20230118 update for 7.1.0
 # 20230530 update for 7.1.1
+# 20230907 update for 7.2.0
 
-VERSION="20230530"
+VERSION="20230907"
+
+ESAPP="splunk-enterprise-security_720.spl"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
@@ -56,7 +59,6 @@ else
   echo "KO: installes.sh is NOT present in s3 install at $remoteinstalldir:  Please upload scripts to s3 install"
 fi
 
-ESAPP="splunk-enterprise-security_711.spl"
 
 aws s3 cp $remoteappsdir/$ESAPP  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESAPP" ]; then

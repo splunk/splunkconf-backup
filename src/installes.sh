@@ -47,7 +47,7 @@
 # 20230530 add sha for 7.1.1
 # 20230907 add sha for 7.2.0
 
-VERSION="20230907a"
+VERSION="20230907b"
 
 SCRIPTNAME="installes"
 
@@ -279,7 +279,7 @@ fi
 
 # SHA256 checksum (splunk-es-content-update_3240.tgz) 49aca3ab3bb1291f988459708e9a589aacc5b64caed493831a00546c36181ea6
 
-EXPECTEDSHA=aa0782af46e32e329bf4eaaf6996476a302a480e20d76255410f6970ce5f5687b"
+EXPECTEDSHA="a0782af46e32e329bf4eaaf6996476a302a480e20d76255410f6970ce5f5687b"
 
 echo_log "please verify sha256 to check for integrity (corruption , truncation during file download....)"
 echo "INFO: expected sha256=${EXPECTEDSHA}"

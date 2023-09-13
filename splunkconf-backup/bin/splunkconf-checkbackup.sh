@@ -11,6 +11,9 @@ exec > /tmp/splunkconf-checkbackup-debug.log  2>&1
 # 20201105 add python3 protection with AWS1 support and test for conf file inclusion to improve logging
 # 20220327 relax form protection for std
 # 20230202 fix typos and false positive in check
+# 20230913 add debug code for local conf inclusion
+
+VERSION="20230913a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -145,11 +148,12 @@ SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
 
 # include VARs
 debug_log "loading splunkconf-backup.conf file"
+
 if [[ -f "./default/splunkconf-backup.conf" ]]; then
   . ./default/splunkconf-backup.conf
   debug_log "splunkconf-backup.conf default succesfully included"
 else
-  debug_log "splunkconf-backup.conf default  not found or not readable. Using defaults from script"
+  debug_log "splunkconf-backup.conf default  not found or not readable. Using defaults from script "
 fi
 
 if [[ -f "./local/splunkconf-backup.conf" ]]; then
@@ -158,9 +162,13 @@ if [[ -f "./local/splunkconf-backup.conf" ]]; then
 else
   debug_log "splunkconf-backup.conf local not present, using only default"
 fi
+# take over over default and local
 if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
-  . ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (debug_log "splunkconf-backup.conf system local succesfully included")
+  . ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "splunkconf-backup.conf system local succesfully included")
+else
+  debug_log "splunkconf-backup.conf in system/local not present, no need to include it"
 fi
+
 
 LOCALKVDUMPDIR="${SPLUNK_DB}/kvstorebackup"
 

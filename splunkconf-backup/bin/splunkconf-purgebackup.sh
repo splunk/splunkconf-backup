@@ -44,8 +44,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20220326 change starving condition to fail even if that is probably du to external condition in order to try to be more visible that we have a problem + only log when all the types have been tried 
 # 20220327 improve logging by adding freespace info
 # 20230704 add rcp purge support
+# 20230913 add more debug log for system local conf file
 
-VERSION="20230704a"
+VERSION="20230913a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -196,6 +197,8 @@ else
 fi
 if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
   . ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (debug_log "splunkconf-backup.conf system local succesfully included")
+else
+  debug_log "splunkconf-backup.conf in system/local not present, no need to include it"
 fi
 
 LOCALKVDUMPDIR="${SPLUNK_DB}/kvstorebackup"

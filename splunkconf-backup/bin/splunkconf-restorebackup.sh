@@ -52,6 +52,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20200414 add comments about possible error/solution when restore fail in some conditions
 # 20201105 add /bin to PATH as required for AWS1
 # 20220326 add preventive log file rotation and improve logging by moving part to debug
+# 20230913 add version variable, sync code for splunkconf-backup.conf detection
+
+VERSION="20230913a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -197,6 +200,26 @@ debug_log "checking that we were not launched by root for security reasons"
 if [[ $EUID -eq 0 ]]; then
    fail_log "Exiting ! This script must be run as splunk user, not root !" 
    exit 1
+fi
+
+if [[ -f "./default/splunkconf-backup.conf" ]]; then
+  . ./default/splunkconf-backup.conf
+  debug_log "splunkconf-backup.conf default succesfully included"
+else
+  debug_log "splunkconf-backup.conf default  not found or not readable. Using defaults from script "
+fi
+
+if [[ -f "./local/splunkconf-backup.conf" ]]; then
+  . ./local/splunkconf-backup.conf
+  debug_log "splunkconf-backup.conf local succesfully included"
+else
+  debug_log "splunkconf-backup.conf local not present, using only default"
+fi
+# take over over default and local
+if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
+  . ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "splunkconf-backup.conf system local succesfully included")
+else
+  debug_log "splunkconf-backup.conf in system/local not present, no need to include it"
 fi
 
 rotate_log;

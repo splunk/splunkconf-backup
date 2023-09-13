@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
 # Copyright 2022 Splunk Inc.
@@ -87,8 +87,11 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20230208 add action to some log entries 
 # 20230327 fix typo in modinputs path
 # 20230703 add more logic for rsync mode
+# 20230913 fix system local detection and add debug log when not existing
+# 20230913 fix debug message for clone conflict situation in rsync mode
+# 20230913 fix variables for rsync mode
 
-VERSION="20230703a"
+VERSION="20230913b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -415,8 +418,8 @@ function do_remote_copy() {
       debug_log "doing remote copy (rcp) with ${CPCMD} ${OPTION} ${LFIC} ${RCPREMOTEUSER}@${RCPHOST}:${RFIC}"
       ${CPCMD} ${OPTION} ${LFIC} ${RCPREMOTEUSER}@${RCPHOST}:${RFIC}
     elif (( REMOTETECHNO == 4 )); then
-      debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${REMOTERSYNCDIR} "
-      ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${REMOTERSYNCDIR}
+      debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR} "
+      ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}
     else
       debug_log "doing remote copy with ${CPCMD} ${LFIC} ${RFIC} ${OPTION}"
       ${CPCMD} ${LFIC} ${RFIC} ${OPTION}
@@ -463,6 +466,13 @@ if [[ -f "./local/splunkconf-backup.conf" ]]; then
 else
   debug_log "splunkconf-backup.conf local not present, using only default"   
 fi 
+# take over over default and local
+if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
+  . ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "splunkconf-backup.conf system local succesfully included") 
+else
+  debug_log "splunkconf-backup.conf in system/local not present, no need to include it"
+fi
+
 
 check_cloud
 debug_log "cloud_type=$cloud_type"
@@ -609,9 +619,9 @@ else
   fi
 fi
 
-
-if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
-  . ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "splunkconf-backup.conf system local succesfully included") 
+if (( REMOTETECHNO == 4 )); then 
+      debug_log "remote techno=4 (rsync) setting REMOTEBACKUPDIR to empty as we rsync to same path"
+      REMOTEBACKUPDIR=""
 fi
 
 if [[ -f "${APPDIR}/lookups/splunkconf-exclude.csv" ]]; then
@@ -1266,11 +1276,11 @@ fi
   fi
   if [ ${REMOTETECHNO} -eq 4 ]; then
     if ((  RSYNCREMOTEDELETE == 2 )); then 
-      debug_log "INFO: launching remote splunkconf-purgebackups.sh"
+      debug_log "INFO: launching remote splunkconf-purgebackup.sh"
       RESPURGE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh`
     fi
     if (( RSYNCDISABLEREMOTE == 1 )); then
-      debug_log "INFO: launching remote splunkconf-purgebackups.sh"
+      debug_log "INFO: Disabling remote splunk (just in case as should be already stopped to prevent a clone conflict  situation"
       RESSTOP=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} "${SPLUNK_HOME}/bin/splunk status && ${SPLUNK_HOME}/bin/splunk stop"`
     fi
   fi

@@ -222,8 +222,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230701 change hf to not be farm by default 
 # 20230707 up to 9.1.0.1
 # 20230822 up to 9.1.0.2
+# 20231025 autodisable ssg on idx to cleanup logging
 
-VERSION="20230822a"
+VERSION="20231025a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1841,6 +1842,11 @@ if [ "$MODE" != "upgrade" ]; then
     # giving back files to splunk user
     chown -R ${usersplunk}. $SPLUNK_HOME/etc/apps/${splunkorg}_site${sitenum}_base
     echo "Setting Indexer on site: $site" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "Disabling SSG app (not needed/used on this instance)" >> /var/log/splunkconf-cloud-recovery-info.log
+    mkdir -p "$SPLUNK_HOME/etc/apps/splunk_secure_gateway/local"
+    echo -e "#This configuration was automatically generated to disable ssg on indexers\n[install] \nstate = disabled" > $SPLUNK_HOME/etc/apps/splunk_secure_gateway/local/app.conf
+    # giving back files to splunk user
+    chown -R ${usersplunk}. $SPLUNK_HOME/etc/apps/splunk_secure_gateway
     if [ $SYSVER -eq "6" ]; then
       echo "running non systemd os , we wont add a custom service to terminate"
     else

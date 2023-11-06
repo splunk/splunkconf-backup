@@ -224,6 +224,9 @@ resource "aws_launch_template" "splunk-hf" {
     ebs {
       volume_size = var.disk-size-hf
       volume_type = "gp3"
+      encrypted= local.splunkencryption
+      # fixme : add iam for this
+      #kms_key_id = local.splunkkmsarn
     }
   }
   #  ebs_optimized = true

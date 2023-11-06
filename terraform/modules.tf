@@ -61,3 +61,9 @@ module "kms" {
     aws = aws.region-primary
   }
 }
+
+output "splunk_kms_arn" {
+  value       = module.kms.splunkkmsarn
+  description = "splunk kms arn"
+}
+

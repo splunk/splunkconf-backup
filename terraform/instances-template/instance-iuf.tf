@@ -152,7 +152,8 @@ resource "aws_autoscaling_group" "autoscaling-splunk-iuf" {
   }
   tag {
     key                 = "splunkdnsnames"
-    value               = var.iuf
+    # use iufnames here instead of iuf so we can publish multiple entries (as iuf is a single name)
+    value               = var.iufnames
     propagate_at_launch = false
   }
   tag {

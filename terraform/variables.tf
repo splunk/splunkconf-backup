@@ -167,6 +167,24 @@ variable "instance-type-iuf-default" {
   default = "t3a.small"
 }
 
+variable "iuf" {
+  description = "iuf single name"
+  type    = string
+  default = "iuf"
+}
+
+variable "iufnames" {
+  description = "iuf dns name(s)"
+  type    = string
+  default = "iuf if"
+}
+
+variable "disk-size-iuf" {
+  description = "disk size for iuf in G"
+  type        = number
+  default     = 25
+}
+
 variable "ihf-nb" {
   description = "target intermediate hf number in ASG"
   type        = number
@@ -398,17 +416,6 @@ variable "disk-size-std" {
   description = "disk size in G"
   type        = number
   default     = 300
-}
-
-variable "iuf" {
-  type    = string
-  default = "iuf3"
-}
-
-variable "disk-size-iuf" {
-  description = "disk size in G"
-  type        = number
-  default     = 35
 }
 
 variable "associate_public_ip" {

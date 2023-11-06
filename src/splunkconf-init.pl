@@ -117,6 +117,7 @@
 # 20230414 small systemd file update
 # 20230416 add support for kernel 6+ where path changed for cgroup (service would not start at all without this)
 # 20230419 reverting change as dont work correctly and add info to tell to disable cgroupv2 which change path and allow splunk service to start
+# 20231106 improve logging for generated password 
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -619,6 +620,8 @@ if (-e $SPLPASSWDFILE) {
     $hash=""; 
     if ($splunkpwdinit eq "yes") {
       # pre generating new hash before checking AWS to reduce race condition risk 
+      $gen=0;
+      $valid=0;
       do {
         $gen++;
         $res=`openssl rand -base64 $length`;
@@ -627,19 +630,23 @@ if (-e $SPLPASSWDFILE) {
         $res =~ s/^([^=]+)[=]*$/$1/;
         print "$res";
         if (($res =~ /\d/) && ($res =~/[\\\/\+\-\,\.\%\$]+[=]*/)) {
-          print "res looks ok, using generated value\n";
+          print "INFO: res looks ok, using generated value (gen=$gen)\n";
           $hash=`$SPLUNK_HOME/bin/splunk hash-passwd $res`;
           if ($hash =~ /^\$6\$/) {
             chomp($hash);
-            print "ok hash $hash\n";
+            print "INFO: ok hash $hash (gen=$gen)\n";
             $valid=1;
+          } else {
+            print "INFO: incorrect hash, will retry\n";
           }
-         }
+        } else {
+            print "INFO: generated not matching requirement, will retry (gen=$gen)\n";
+        }
       } until ($valid==1 || $gen>=$maxgen );
       if ($valid==1) {
-        print "pwd gen ok in $gen attempts\n";
+        print "INFO: pwd gen ok in $gen attempt(s)\n";
       } else {
-        print "pwd gen ko after $gen attempts. Impossible to generate a valid pwd, something is wrong, please check and correct os and splunk installation\n";
+        print "ERROR: pwd gen ko after $gen attempts. Impossible to generate a valid pwd, something is wrong, please check and correct os and splunk installation\n";
       }
     }
     my $ssmhash=`aws ssm get-parameter --name splunk-user-seed --query "Parameter.Value" --output text --region $region`;
@@ -655,9 +662,19 @@ if (-e $SPLPASSWDFILE) {
       print "user seed not present via ssm and splunkpwdinit set, seeding SSM and secrets manager with new password\n";
       print "writing hash=$hash to SSM param splunk-user-seed in region $region\n";
       my $ssmputres=`  aws ssm put-parameter --name splunk-user-seed --value '$hash' --type String  --region $region`;
-      print "result of ssm put-parameters : $ssmputres\n";
+      print "INFO: result of ssm put-parameters for SSM splunk-user-seed : $ssmputres\n";
+      if ($ssmputres) {
+        print "ERROR: SSM  write\n";
+      } else {
+        print "OK: SSM write\n";
+      }
       my $secres=`aws secretsmanager put-secret-value --secret-id $splunkpwdarn --secret-string '$res' --region $region`;
-      print "result of secretsmanager put-secret-value : $secres\n";
+      print "INFO: result of secretsmanager put-secret-value for secret-id $splunkpwdarn : $secres\n";
+      if ($secres) {
+        print "ERROR: secrets manager write\n";
+      } else {
+        print "OK: secrets manager write\n";
+      }
       $found=1;
     } else {
       print "initial ssm get failed, waiting a bit for other instance with splunkpwdinit set to start and populate it\n";

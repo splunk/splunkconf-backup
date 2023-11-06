@@ -124,6 +124,9 @@ resource "aws_launch_template" "splunk-bastion" {
     ebs {
       volume_size = 15
       volume_type = "gp3"
+      encrypted= local.splunkencryption
+      # fixme : add iam for this
+      #kms_key_id = local.splunkkmsarn
     }
   }
   #  ebs_optimized = true

@@ -25,6 +25,13 @@ variable "splunkconnectedmode" {
   default     = "0"
 }
 
+
+variable "splunkencryption" {
+  description = "use encryption at rest"
+  type        = bool
+  default     = "true"
+}
+
 variable "instance-type-indexer-min" {
   type    = string
   default = "t3a.medium"

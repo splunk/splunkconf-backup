@@ -224,8 +224,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230822 up to 9.1.0.2
 # 20231025 autodisable ssg on idx to cleanup logging
 # 20231108 fix typo 
+# 20231108 improve curl outputs 
 
-VERSION="20231108a"
+VERSION="20231108b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -830,57 +831,57 @@ if [[ "cloud_type" -eq 1 ]]; then
   fi
 elif [[ "cloud_type" -eq 2 ]]; then
   # GCP
-  splunkinstanceType=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
+  splunkinstanceType=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
   if [ -z ${splunkinstanceType+x} ]; then
     echo "GCP : Missing splunkinstanceType in instance metadata"
   else 
     # > to overwrite any old file here (upgrade case)
     echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
   fi
-  splunks3installbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
+  splunks3installbucket=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
   if [ -z ${splunks3installbucket+x} ]; then
     echo "GCP : Missing splunks3installbucket in instance metadata"
   else 
     echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
   fi
-  splunks3backupbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
+  splunks3backupbucket=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
   if [ -z ${splunks3backupbucket+x} ]; then
     echo "GCP : Missing splunks3backupbucket in instance metadata"
   else 
     echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
   fi
-  splunks3databucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
+  splunks3databucket=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
   if [ -z ${splunks3databucket+x} ]; then
     echo "GCP : Missing splunks3databucket in instance metadata"
   else 
     echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
   fi
-  splunkorg=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkorg`
-  splunkdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszone`
-  splunkdnszoneid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszoneid`
-  numericprojectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/numeric-project-id`
-  projectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/project-id`
-  splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
-  splunkcloudmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkcloudmode`
-  splunkconnectedmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkconnectedmode`
-  splunkosupdatemode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkosupdatemode`
-  splunkdsnb=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdsnb`
-  splunksystemd=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksystemd`
-  splunksystemdservicefile=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksystemdservicefile`
-  splunksystemdpolkit=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksystemdpolkit`
-  splunkdisablewlm=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdisablewlm`
-  splunkuser=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkuser`
-  splunkgroup=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkgroup`
-  splunkmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkmode`
-  splunkdnsmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnsmode`
-  splunkacceptlicense=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkacceptlicense`
-  splunkpwdinit=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdinit`
-  splunkpwdarn=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdarn`
-  splunkenableunifiedpartition=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkenableunifiedpartition`
-  splunksmartstoresitenumber=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksmartstoresitenumber`
-  splunkenableworker=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkenableworker`
-  splunkrsyncmode=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkrsyncmode`
-  #=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
+  splunkorg=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkorg`
+  splunkdnszone=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszone`
+  splunkdnszoneid=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszoneid`
+  numericprojectid=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/numeric-project-id`
+  projectid=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/project-id`
+  splunkawsdnszone=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
+  splunkcloudmode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkcloudmode`
+  splunkconnectedmode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkconnectedmode`
+  splunkosupdatemode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkosupdatemode`
+  splunkdsnb=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdsnb`
+  splunksystemd=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksystemd`
+  splunksystemdservicefile=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksystemdservicefile`
+  splunksystemdpolkit=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksystemdpolkit`
+  splunkdisablewlm=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdisablewlm`
+  splunkuser=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkuser`
+  splunkgroup=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkgroup`
+  splunkmode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkmode`
+  splunkdnsmode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnsmode`
+  splunkacceptlicense=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkacceptlicense`
+  splunkpwdinit=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdinit`
+  splunkpwdarn=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpwdarn`
+  splunkenableunifiedpartition=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkenableunifiedpartition`
+  splunksmartstoresitenumber=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksmartstoresitenumber`
+  splunkenableworker=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkenableworker`
+  splunkrsyncmode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkrsyncmode`
+  #=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
 
@@ -1797,7 +1798,7 @@ if [ "$MODE" != "upgrade" ]; then
     fi
     if [[ "cloud_type" -eq 2 ]]; then
       # gcp
-      AZONE=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/zone`
+      AZONE=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/zone`
     else # 1= AWS    
       AZONE=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone  `
     fi
@@ -2388,7 +2389,7 @@ if [[ $splunkenableworker == 1 ]]; then
   echo "deploying splunk ansible from github"
   su - ${usersplunk} -c "cd scripts/splunk-ansible-develop;ansible-playbook ansible_deploysplunkansible_tf.yml -i 127.0.0.1," 
   # deploying runner
-  su - ${usersplunk} -c "mkdir actions-runner && cd actions-runner;curl -o actions-runner-linux-x64-2.305.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.305.0/actions-runner-linux-x64-2.305.0.tar.gz;tar xzf ./actions-runner-linux-x64-2.305.0.tar.gz"
+  su - ${usersplunk} -c "mkdir actions-runner && cd actions-runner;curl --silent --show-error -o actions-runner-linux-x64-2.305.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.305.0/actions-runner-linux-x64-2.305.0.tar.gz;tar xzf ./actions-runner-linux-x64-2.305.0.tar.gz"
   patrunner=`aws ssm get-parameter --name splunkpatjinjarunner --query "Parameter.Value" --output text --region $REGION`
   echo "DEBUG: patrunner=$patrunner"
   #su - ${usersplunk} -c "cd actions-runner;./config.sh --url https://${apprepo} --token ${patrunner} ;nohup ./run.sh &"

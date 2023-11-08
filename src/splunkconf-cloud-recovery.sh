@@ -223,8 +223,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230707 up to 9.1.0.1
 # 20230822 up to 9.1.0.2
 # 20231025 autodisable ssg on idx to cleanup logging
+# 20231108 fix typo 
 
-VERSION="20231025a"
+VERSION="20231108a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2382,8 +2383,8 @@ if [[ $splunkenableworker == 1 ]]; then
   else 
     echo "not deploying ansible du to splunkconnectedmode setting ($splunkconnectedmode), make sure you have deployed it yourself or change setting"
   fi
-  echo "building inventory file"
-  su - ${usersplunk} -c "cd scripts/splunk-ansible-develope;ansible-playbook splunk_ansible_inventory_create.yml -i 127.0.0.1," 
+  echo "building inventory file with ansible"
+  su - ${usersplunk} -c "cd scripts/splunk-ansible-develop;ansible-playbook splunk_ansible_inventory_create.yml -i 127.0.0.1," 
   echo "deploying splunk ansible from github"
   su - ${usersplunk} -c "cd scripts/splunk-ansible-develop;ansible-playbook ansible_deploysplunkansible_tf.yml -i 127.0.0.1," 
   # deploying runner

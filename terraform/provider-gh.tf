@@ -10,7 +10,7 @@
 # Configure the GitHub Provider
 provider "github" {
  token = var.ghtoken # or `GITHUB_TOKEN
- #owner = var.ghowner
+ owner = var.ghowner
  read_delay_ms = 1000
 }
 

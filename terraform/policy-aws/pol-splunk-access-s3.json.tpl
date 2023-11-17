@@ -2,7 +2,7 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "Access S3 prefix ${s3_bucket}/${s3_prefix}",
+            "Sid": "AccessS3prefix",
             "Effect": "Allow",
             "Action": [
                 "s3:PutObject",
@@ -15,7 +15,7 @@
             ]
         },
         {
-            "Sid": "Access S3 bucket ${s3_bucket}",
+            "Sid": "AccessS3bucket",
             "Effect": "Allow",
             "Action": [
                 "s3:GetObject",

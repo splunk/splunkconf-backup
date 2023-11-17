@@ -26,18 +26,18 @@ variable ghrepo {
 variable ghclonepat {
   description="pat token given to you for cloning"
   type=string
-  default=""
+  default="patclonenotset"
 }
 
 variable ghcloneuser {
   description="gh user for cloned repo"
   type=string
-  default=""
+  default="cloneusernotset"
 }
 
 variable ghclonerepo {
-  description="cloned repo name"
+  description="cloned repo name (do not use empty value)"
   type=string
-  default=""
+  default="notset"
 }
 

@@ -32,14 +32,14 @@ resource "null_resource" "clonegitfromorigbaseappsjinja" {
   #  always_run = "${timestamp()}"
   #}
   provisioner "local-exec" {
-    command = "rm -r ${var.ghclonerepo};git clone https://${var.ghclonepat}@github.com/${var.ghcloneuser}/${var.ghclonerepo}"
+    command = "[[ -d \"${var.ghclonerepo}\" ]] && rm -r ${var.ghclonerepo};git clone https://${var.ghclonepat}@github.com/${var.ghcloneuser}/${var.ghclonerepo}.git"
   }
 }
 
 resource "null_resource" "newgitpopulate" {
   count = ( var.enableprovision ? 1 : 0 )
    provisioner "local-exec" {
-     command = "rm -rf ${var.ghrepo};git clone https://${var.ghtoken}@github.com/${var.ghowner}/${var.ghrepo};cd ${var.ghrepo};cp -rp ../${var.ghclonerepo}/* .;git add --all;git commit -m \"copy files from original repo ${var.ghclonerepo}\";git push origin main"
+     command = "[[ -d \"${var.ghrepo}\" ]] && rm -rf ${var.ghrepo};git clone https://${var.ghtoken}@github.com/${var.ghowner}/${var.ghrepo}.git;cd ${var.ghrepo};cp -rp ../${var.ghclonerepo}/* .;git add --all;git commit -m \"copy files from original repo ${var.ghclonerepo}\";git push origin main"
   }
   depends_on = [null_resource.clonegitfromorigbaseappsjinja,github_repository.baseapprepo]
 

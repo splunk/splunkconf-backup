@@ -27,6 +27,14 @@ resource "aws_iam_role_policy_attachment" "hf-attach-splunk-splunkconf-backup" {
   provider   = aws.region-primary
 }
 
+#resource "aws_iam_role_policy_attachment" "hf-attach-splunk-s3-hf" {
+#  #name       = "hf-attach-splunk-splunkconf-backup"
+#  role = aws_iam_role.role-splunk-hf.name
+#  #roles      = [aws_iam_role.role-splunk-hf.name]
+#  policy_arn = aws_iam_policy.pol-splunk-s3-hf.arn
+#  provider   = aws.region-primary
+#}
+
 resource "aws_iam_role_policy_attachment" "hf-attach-splunk-route53-updatednsrecords" {
   #name       = "hf-attach-splunk-route53-updatednsrecords"
   #roles      = [aws_iam_role.role-splunk-hf.name]

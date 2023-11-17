@@ -31,7 +31,7 @@
               "ssm:GetParameter"
             ],
             "Resource": "${ssmkey}"
-        }%{ if enableprovision == 1 },
+        }%{ if enableprovision != 0 },
         {
             "Sid": "Getssmpatrunner",
             "Effect": "Allow",

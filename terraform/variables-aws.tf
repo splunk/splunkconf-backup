@@ -102,13 +102,13 @@ variable "ssmamicustompath" {
 }
 
 variable "s3_bucket_1" {
-  description = "s3 bucket to access""
+  description = "s3 bucket to access"
   type        = string
   default     = "notset"
 }
 
 variable "s3_prefix_1" {
-  description = "s3 prefix to access""
+  description = "s3 prefix to access"
   type        = string
   default     = "notset"
 }

@@ -279,3 +279,7 @@ resource "null_resource" "bucket_sync_worker" {
   }
   depends_on = [null_resource.build-idx-scripts, null_resource.build-nonidx-scripts, aws_s3_bucket_lifecycle_configuration.s3_install_lifecycle, aws_s3_bucket_lifecycle_configuration.s3_backup_lifecycle, aws_s3_bucket_versioning.s3_install_versioning, aws_s3_bucket_versioning.s3_backup_versioning, local_file.ansible_vars_tf, local_file.ansible_jinja_byhost_tf, local_file.ansible_deploysplunkansible_tf]
 }
+
+
+
+

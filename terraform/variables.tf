@@ -176,7 +176,7 @@ variable "iuf" {
 variable "iufnames" {
   description = "iuf dns name(s)"
   type    = string
-  default = "iuf if"
+  default = "iuf iuf1 iuf2 iuf3 iuf4 iuf5 if if1 if2 if3 if4 if5"
 }
 
 variable "disk-size-iuf" {

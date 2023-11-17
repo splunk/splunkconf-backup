@@ -225,8 +225,11 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20231025 autodisable ssg on idx to cleanup logging
 # 20231108 fix typo 
 # 20231108 improve curl outputs 
+# 20231111 fix missing dir creation for worker use case
+# 20231111 fix incorrect arg for dwnloading playbook for worker use case + improve logging
+# 20231112 fix path for worker splunk ansible 
 
-VERSION="20231108b"
+VERSION="20231112a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2336,9 +2339,10 @@ if [[ $splunkenableworker == 1 ]]; then
   # ansible template deployed in scripts dir
   localworkerdir=${localscriptdir}
   FILELIST="ansible_deploysplunkansible_tf.yml"
+  echo "Getting ${FILELIST} which is used to download Splunk ansible from github"
   for fi in $FILELIST
   do
-    get_object ${remoteworkerdir}/${fi} ${localworkerdir}
+    get_object ${remoteworkerdir}/${fi} ${localworkerdir}/${fi}
     if [ -e "${localworkerdir}/${fi}" ]; then
       echo "INFO: file ${localworkerdir}/${fi} deployed from ${remoteworkerdir}/${fi}" 
       chown ${usersplunk}. ${localworkerdir}/${fi}
@@ -2349,10 +2353,13 @@ if [[ $splunkenableworker == 1 ]]; then
   done
   # ansible template deployed in ansible dir
   localworkerdir=${localscriptdir}/splunk-ansible-develop
+  echo "INFO: creating ${localworkerdir} as needed and giving to ${usersplunk} user (we may not have yet deployed splunk ansible at his point so the dir would need to be created) "
+  mkdir -p ${localworkerdir}
+  chown ${usersplunk}. ${localworkerdir}
   FILELIST="ansible_jinja_tf.yml ansible_jinja_byhost_tf.yml splunk_ansible_inventory_create.yml"
   for fi in $FILELIST
   do
-    get_object ${remoteworkerdir}/${fi} ${localworkerdir}
+    get_object ${remoteworkerdir}/${fi} ${localworkerdir}/${fi}
     if [ -e "${localworkerdir}/${fi}" ]; then
       echo "INFO: file ${localworkerdir}/${fi} deployed from ${remoteworkerdir}/${fi}" 
       chown ${usersplunk}. ${localworkerdir}/${fi}
@@ -2387,7 +2394,8 @@ if [[ $splunkenableworker == 1 ]]; then
   echo "building inventory file with ansible"
   su - ${usersplunk} -c "cd scripts/splunk-ansible-develop;ansible-playbook splunk_ansible_inventory_create.yml -i 127.0.0.1," 
   echo "deploying splunk ansible from github"
-  su - ${usersplunk} -c "cd scripts/splunk-ansible-develop;ansible-playbook ansible_deploysplunkansible_tf.yml -i 127.0.0.1," 
+  # playbook is in scripts folder here
+  su - ${usersplunk} -c "cd scripts;ansible-playbook ansible_deploysplunkansible_tf.yml -i 127.0.0.1," 
   # deploying runner
   su - ${usersplunk} -c "mkdir actions-runner && cd actions-runner;curl --silent --show-error -o actions-runner-linux-x64-2.305.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.305.0/actions-runner-linux-x64-2.305.0.tar.gz;tar xzf ./actions-runner-linux-x64-2.305.0.tar.gz"
   patrunner=`aws ssm get-parameter --name splunkpatjinjarunner --query "Parameter.Value" --output text --region $REGION`

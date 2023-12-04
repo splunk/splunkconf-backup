@@ -1,6 +1,12 @@
 #!/bin/bash -x
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
+# in normal condition
+#!/bin/bash
+# only for debug
+#!/bin/bash -x
+
+
 # Copyright 2022 Splunk Inc.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -90,8 +96,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20230913 fix system local detection and add debug log when not existing
 # 20230913 fix debug message for clone conflict situation in rsync mode
 # 20230913 fix variables for rsync mode
+# 20231204 add mode for init
 
-VERSION="20230913b"
+VERSION="20231204a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -455,22 +462,22 @@ APPDIR=`pwd`
 debug_log "app=splunkconf-backup result=running SPLUNK_HOME=$SPLUNK_HOME splunkconfappdir=${APPDIR} loading splukconf-backup.conf file"
 if [[ -f "./default/splunkconf-backup.conf" ]]; then
   . ./default/splunkconf-backup.conf
-  debug_log "splunkconf-backup.conf default succesfully included"
+  debug_log "INFO: splunkconf-backup.conf default succesfully included"
 else
-  debug_log "splunkconf-backup.conf default  not found or not readable. Using defaults from script "
+  debug_log "INFO: splunkconf-backup.conf default  not found or not readable. Using defaults from script "
 fi
 
 if [[ -f "./local/splunkconf-backup.conf" ]]; then
   . ./local/splunkconf-backup.conf
-  debug_log "splunkconf-backup.conf local succesfully included"
+  debug_log "INFO: splunkconf-backup.conf local succesfully included"
 else
-  debug_log "splunkconf-backup.conf local not present, using only default"   
+  debug_log "INFO: splunkconf-backup.conf local not present, using only default"   
 fi 
 # take over over default and local
 if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
-  . ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "splunkconf-backup.conf system local succesfully included") 
+  . ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "INFO: splunkconf-backup.conf system local succesfully included") 
 else
-  debug_log "splunkconf-backup.conf in system/local not present, no need to include it"
+  debug_log "INFO: splunkconf-backup.conf in system/local not present, no need to include it"
 fi
 
 
@@ -487,13 +494,13 @@ CHECK=1
 
 if ! command -v curl &> /dev/null
 then
-  warn_log "oops ! command curl could not be found !"
+  warn_log "ERROR: oops ! command curl could not be found ! trying without by may be needed especially for cloud env"
   CHECK=0  
 fi
 
 if ! command -v aws &> /dev/null
 then
-  debug_log "command aws not detected, assuming we are not running inside aws"
+  debug_log "INFO: command aws not detected, assuming we are not running inside aws"
   CHECK=0
 fi
 
@@ -639,6 +646,8 @@ if [[ $EUID -eq 0 ]]; then
    exit 1
 fi
 
+
+# ARGUMENT CHECK
 if [ $# -eq 1 ]; then
   debug_log "Your command line contains $# argument"
   MODE=$1
@@ -649,7 +658,18 @@ else
   debug_log "No arguments given, running with traditional mode and doing all the backups as stated in conf"
   MODE="0"
 fi
-debug_log "splunkconf-backup running with MODE=${MODE}"
+case $MODE in
+  "0"|"etc"|"state"|"kvauto"|"kvdump"|"kvstore"|"scripts"|"init") debug_log "argument valid" ;;
+  *) fail_log "argument $MODE is NOT a valid value, please fix"; exit 1;;
+esac
+INIT=0
+if [ "${MODE}" == "init" ]; then
+  # we set mode 0 to have all backups run and also set init to 1
+  debug_log "running in init mode"
+  MODE="0"
+  INIT=1
+fi
+debug_log "splunkconf-backup running with MODE=${MODE} and INIT=${INIT}"
 
 if [ -z ${BACKUP+x} ]; then fail_log "BACKUP not defined in ENVSPL file. Not doing backup as requested!"; exit 0; else debug_log "BACKUP=${BACKUP}"; fi
 if [ -z ${LOCALBACKUPDIR+x} ]; then echo_log "LOCALBACKUPDIR not defined in ENVSPLBACKUP file. CANT BACKUP !!!!"; exit 1; else debug_log "LOCALBACKUPDIR=${LOCALBACKUPDIR}"; fi

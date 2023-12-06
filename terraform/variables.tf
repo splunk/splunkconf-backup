@@ -213,6 +213,18 @@ variable "instance-type-ihf-default" {
   default = "t3a.small"
 }
 
+variable "ihf" {
+  description = "ihf single name"
+  type    = string
+  default = "ihf"
+}
+
+variable "ihfnames" {
+  description = "ihf dns name(s)"
+  type    = string
+  default = "ihf ihf1 ihf2 ihf3 ihf4 ihf5"
+}
+
 variable "disk-size-ihf" {
   description = "disk size in G for ihf"
   type        = number
@@ -369,11 +381,6 @@ variable "disk-size-mc" {
   description = "disk size in G"
   type        = number
   default     = 35
-}
-
-variable "ihf" {
-  type    = string
-  default = "ihf"
 }
 
 variable "hf" {

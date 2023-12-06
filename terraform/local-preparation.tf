@@ -1,5 +1,6 @@
 # from variables
 
+
 locals {
   env                   = var.splunktargetenv
   instance-type-indexer = (local.env == "min" ? var.instance-type-indexer-min : var.instance-type-indexer-default)
@@ -17,7 +18,7 @@ locals {
   mc-nb                 = (var.mc-enable ? 1 : 0)
   sh-nb                 = (var.sh-enable ? 1 : 0)
   cm-nb                 = (var.cm-enable ? 1 : 0)
-  default_tags          = merge(tomap({ Type = "Splunk", Env = local.env }), var.extra_default_tags)
+  default_tags          = merge(tomap({ Type = "Splunk", Env = local.env }), var.extra_default_tags, local.splunkit_tags)
   image_id              = (var.enable-customami ? data.aws_ssm_parameter.linuxAmicustom[0].value : local.image_id_al)
   image_id_al           = (var.enable-al2023 ? data.aws_ssm_parameter.linuxAmiAL2023.value : data.aws_ssm_parameter.linuxAmi.value)
   mc-dns-name           = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
@@ -31,6 +32,8 @@ locals {
   hfa-dns-name           = "${local.dns-prefix}${var.hf}a.${var.dns-zone-name}"
   hfb-dns-name           = "${local.dns-prefix}${var.hf}b.${var.dns-zone-name}"
   lm-dns-name           = "${local.dns-prefix}${var.lm}.${var.dns-zone-name}"
+  iuf-dns-name           = "${local.dns-prefix}${var.iuf}.${var.dns-zone-name}"
+  ihf-dns-name           = "${local.dns-prefix}${var.ihf}.${var.dns-zone-name}"
 
 }
 

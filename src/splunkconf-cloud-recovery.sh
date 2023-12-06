@@ -1037,10 +1037,10 @@ else
 fi
 # will become the name when not a indexer, see below
 instancename=$splunkinstanceType 
-if [[ "${splunkhostmode}" == "os" ]; then
+if [ "${splunkhostmode}" == "os" ]; then
   hostinstancename=`hostname --short | head 1`
   echo "using os name ${hostinstancename}"
-elif [[ "${splunkhostmode}" == "prefix" ]; then
+elif [ "${splunkhostmode}" == "prefix" ]; then
   hostinstancename=$instancename."-".`hostname --short | head 1`
   echo "building with prefix and os name ${hostinstancename}"
 else 

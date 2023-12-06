@@ -230,8 +230,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20231112 fix path for worker splunk ansible 
 # 20231117 up to 9.1.2
 # 20231120 add variable splversion and splhash to reduce typo risk when updating version
+# 20231206 add tag splunkhostmode and splunkhostmodeos
 
-VERSION="20231120a"
+VERSION="20231206b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -299,23 +300,25 @@ function check_sysver() {
 }
 
 function set_hostname() {
+  if [[ "$splunkhostmodeos" == "ami" ]]; then
+    echo "splunkhostmodeos=ami , not changing os hostname"
   # set the hostname except if this is auto or contain idx or generic name
-  if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf-farm|uf-farm|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
-    echo "specific instance name : changing hostname to ${instancename} at system level"
+  elif ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf-farm|uf-farm|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
+    echo "specific instance name ${instancename}: changing hostname to ${hostinstancename} at system level"
     if [ $SYSVER -eq "6" ]; then
       echo "Using legacy method" >> /var/log/splunkconf-cloud-recovery-info.log
       # legacy ami type , rh6 like
-      sed -i "s/HOSTNAME=localhost.localdomain/HOSTNAME=${instancename}/g" /etc/sysconfig/network
+      sed -i "s/HOSTNAME=localhost.localdomain/HOSTNAME=${hostinstancename}/g" /etc/sysconfig/network
       # dynamic change on top in case correct hostname is needed further down in this script 
-      hostname ${instancename}
+      hostname ${hostinstancename}
       # we should call a command here to force hostname immediately as splunk commands are started after
     else     
       # new ami , rh7+,...
       echo "Using new hostnamectl method" >> /var/log/splunkconf-cloud-recovery-info.log
-      hostnamectl set-hostname ${instancename}
+      hostnamectl set-hostname ${hostinstancename}
     fi
   else
-    echo "indexer -> not changing hostname"
+    echo "indexer -> not changing os hostname"
   fi
 }
 
@@ -886,6 +889,8 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunksmartstoresitenumber=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunksmartstoresitenumber`
   splunkenableworker=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkenableworker`
   splunkrsyncmode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkrsyncmode`
+  splunkhostmode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkhostmode`
+  splunkhostmodeos=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkhostmodeos`
   #=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
@@ -921,6 +926,47 @@ fi
 if [ -z ${splunkenableunifiedpartition+x} ]; then 
   echo "splunkenableunifiedpartition is unset, falling back to default value false"
   splunkenableunifiedpartition="false"
+fi
+
+# splunkhostmodeos 
+# set mode if we set hostname at system level
+# set (default)  : we will change hostname 
+# vanilla or ami : let ami set it
+
+# splunkhostmode
+# how we adapt host on splunk side 
+# instance (default)  : we set it from splunkinstancetype
+# prefix : we build a value with splunkinstancetype and os host 
+# os : we set it from os host name
+# in all cases, it will also depend if there is a backup used for this instance type, values from backup will override this
+
+if [ -z ${splunkhostmodeos+x} ]; then 
+  echo "splunkhostmodeos is unset, falling back to default value set"
+  splunkhostmodeos="set"
+elif [ "${splunkhostmodeos}" == "set" ]; then
+  echo "splunkhostmodeos=set, using default mode"
+elif [ "${splunkhostmodeos}" == "vanilla" ] || [ "${splunkhostmodeos}" == "ami" ]; then
+  echo "splunkhostmodeos=${splunkhostmodeos}, letting AMI decide"
+  splunkhostmodeos="ami"
+else 
+  echo "ATTENTION : invalid value splunkhostmodeos=${splunkhostmodeos}, falling back to set" 
+  splunkhostmodeos="set"
+fi
+  
+
+
+if [ -z ${splunkhostmode+x} ]; then 
+  echo "splunkhostmode is unset, falling back to default value splunkinstancetype"
+  splunkhostmode="splunkinstancetype"
+elif [ "${splunkhostmode}" == "splunkinstancetype" ]; then
+  echo "splunkhostmode=splunkinstancetype, using default mode"
+elif [ "${splunkhostmode}" == "prefix" ]; then 
+  echo "splunkhostmode=prefix, will use prefix mode ie start with the splunk name then use the initial host. This is useful for farm to both differentiate instances (for DC/DS and reporting) and having a easy form for serverclasses"
+elif [ "${splunkhostmode}" == "os" ]; then
+  echo "splunkhostmode=os, using what the os set (ie let splunk decide)"
+else
+  echo "ATTENTION : invalid value splunkhostmode=${splunkhostmode}, falling back to splunkinstancetype" 
+  splunkhostmode="splunkinstancetype"
 fi
 
 if [ -z ${splunksmartstoresitenumber+x} ]; then 
@@ -991,8 +1037,17 @@ else
 fi
 # will become the name when not a indexer, see below
 instancename=$splunkinstanceType 
-echo "splunkinstanceType : instancename=${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
-
+if [[ "${splunkhostmode}" == "os" ]; then
+  hostinstancename=`hostname --short | head 1`
+  echo "using os name ${hostinstancename}"
+elif [[ "${splunkhostmode}" == "prefix" ]; then
+  hostinstancename=$instancename."-".`hostname --short | head 1`
+  echo "building with prefix and os name ${hostinstancename}"
+else 
+  hostinstancename=$instancename
+  echo "using instancetype ,  not using host name . ${hostinstancename}"
+fi
+echo "splunkinstanceType : instancename=${instancename},hostinstancename=${hostinstancename}" >> /var/log/splunkconf-cloud-recovery-info.log
 
 set_hostname
 
@@ -1782,20 +1837,20 @@ if [ "$MODE" != "upgrade" ]; then
     echo "specific instance name : changing hostname to ${instancename} "
     # first time actions 
     # set instance names if splunk instance was already started (in the ami or from the backup...) 
-    sed -i -e 's/ip\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}/${instancename}/g' ${SPLUNK_HOME}/etc/system/local/inputs.conf
-    sed -i -e 's/ip\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}/${instancename}/g' ${SPLUNK_HOME}/etc/system/local/server.conf
+    sed -i -e 's/ip\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}/${hostinstancename}/g' ${SPLUNK_HOME}/etc/system/local/inputs.conf
+    sed -i -e 's/ip\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}/${hostinstancename}/g' ${SPLUNK_HOME}/etc/system/local/server.conf
     if [ ! -f "${SPLUNK_HOME}/etc/system/local/inputs.conf"  ]; then
       # Splunk was never started  (ie we just deployed in the recovery above)
-      echo "initializing inputs.conf with ${instancename}\n"
+      echo "initializing inputs.conf with ${hostinstancename}\n"
       echo "[default]" > ${SPLUNK_HOME}/etc/system/local/inputs.conf
-      echo "host = ${instancename}" >> ${SPLUNK_HOME}/etc/system/local/inputs.conf
+      echo "host = ${hostinstancename}" >> ${SPLUNK_HOME}/etc/system/local/inputs.conf
       chown ${usersplunk}. ${SPLUNK_HOME}/etc/system/local/inputs.conf
     fi
     if [ ! -f "${SPLUNK_HOME}/etc/system/local/server.conf"  ]; then
       # Splunk was never started  (ie we just deployed in the recovery above)
-      echo "initializing server.conf with ${instancename}\n"
+      echo "initializing server.conf with ${hostinstancename}\n"
       echo "[general]" > ${SPLUNK_HOME}/etc/system/local/server.conf
-      echo "serverName = ${instancename}" >> ${SPLUNK_HOME}/etc/system/local/server.conf
+      echo "serverName = ${hostinstancename}" >> ${SPLUNK_HOME}/etc/system/local/server.conf
       chown ${usersplunk}. ${SPLUNK_HOME}/etc/system/local/server.conf
     fi
   elif [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then

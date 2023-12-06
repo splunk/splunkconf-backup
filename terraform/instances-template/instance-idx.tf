@@ -169,13 +169,13 @@ resource "aws_security_group_rule" "idx_from_all_icmp" {
 #  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
 #}
 
-resource "aws_security_group_rule" "idx_from_lbhec_8088" {
+resource "aws_security_group_rule" "idx_from_lbhecidx_8088" {
   security_group_id        = aws_security_group.splunk-idx.id
   type                     = "ingress"
   from_port                = 8088
   to_port                  = 8088
   protocol                 = "tcp"
-  source_security_group_id = aws_security_group.splunk-lbhec.id
+  source_security_group_id = aws_security_group.splunk-lbhecidx.id
   description              = "allow ELB to send HEC to IDX"
 }
 
@@ -425,17 +425,17 @@ resource "aws_launch_template" "splunk-idx" {
 }
 
 # ***************** LB HEC **********************
-resource "aws_security_group" "splunk-lbhec" {
-  name        = "splunk-lbhec"
+resource "aws_security_group" "splunk-lbhecidx" {
+  name        = "splunk-lbhecidx"
   description = "Security group for Splunk LB for HEC to idx"
   vpc_id      = local.master_vpc_id
   tags = {
-    Name = "splunk-lbhec"
+    Name = "splunk-lbhecidx"
   }
 }
 
-resource "aws_security_group_rule" "lbhec_from_all_icmp" {
-  security_group_id = aws_security_group.splunk-lbhec.id
+resource "aws_security_group_rule" "lbhecidx_from_all_icmp" {
+  security_group_id = aws_security_group.splunk-lbhecidx.id
   type              = "ingress"
   from_port         = -1
   to_port           = -1
@@ -444,8 +444,8 @@ resource "aws_security_group_rule" "lbhec_from_all_icmp" {
   description       = "allow icmp (ping, icmp path discovery, unreachable,...)"
 }
 
-#resource "aws_security_group_rule" "lbhec_from_all_icmpv6" {
-#  security_group_id = aws_security_group.splunk-lbhec.id
+#resource "aws_security_group_rule" "lbhecidx_from_all_icmpv6" {
+#  security_group_id = aws_security_group.splunk-lbhecidx.id
 #  type              = "ingress"
 #  from_port         = -1
 #  to_port           = -1
@@ -454,8 +454,8 @@ resource "aws_security_group_rule" "lbhec_from_all_icmp" {
 #  description       = "allow icmp v6 (ping, icmp path discovery, unreachable,...)"
 #}
 
-resource "aws_security_group_rule" "lbhec_from_networks_8088" {
-  security_group_id = aws_security_group.splunk-lbhec.id
+resource "aws_security_group_rule" "lbhecidx_from_networks_8088" {
+  security_group_id = aws_security_group.splunk-lbhecidx.id
   type              = "ingress"
   from_port         = 8088
   to_port           = 8088
@@ -517,7 +517,7 @@ resource "aws_lb" "idxhec-noack" {
   #count = var.enable-idx-hecelb ? 1: 0
   name               = "idxhec-noack"
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhec.id]
+  security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhecidx.id]
   subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
 }
 
@@ -527,7 +527,7 @@ resource "aws_lb" "idxhec-ack" {
   #count = var.enable-idx-hecelb ? 1: 0
   name               = "idxhec-ack"
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhec.id]
+  security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhecidx.id]
   subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
 }
 
@@ -594,6 +594,16 @@ resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" {
   #aws_route53_record.validation_route53_record_elb_hec.*.fqdn,
   #]
   validation_record_fqdns = [for record in aws_route53_record.validation_route53_record_elb_hec : record.fqdn]
+}
+
+output "idx-elb-ihfhec-noack-dns-name" {
+  value = one(aws_lb.idxhec-noack[*].dns_name)
+  description = "idx ELB HEC no ack dns name"
+} 
+  
+output "idx-elb-ihfhec-ack-dns-name" {
+  value = one(aws_lb.idxhec-ack[*].dns_name)
+  description = "idx ELB HEC ack dns name"
 }
 
 output "idx-dns-name" {

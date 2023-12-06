@@ -205,6 +205,7 @@ resource "aws_launch_template" "splunk-iuf" {
       splunkorg             = var.splunkorg
       splunktargetenv       = var.splunktargetenv
       # special UF
+      splunkmode          = "uf"
       splunktargetbinary  = var.splunktargetbinaryuf
       splunktargetcm      = var.cm
       splunktargetlm      = var.lm

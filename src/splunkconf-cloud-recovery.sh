@@ -726,10 +726,7 @@ EOF
         . /etc/instance-tags
         instancename=$splunkinstanceType 
         echo "splunkinstanceType : instancename=${instancename}" >> /var/log/splunkconf-cloud-recovery-info.log
-        if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
-          echo "Setting hostname to ${instancename} via hostnamectl method" >> /var/log/splunkconf-cloud-recovery-info.log
-          hostnamectl set-hostname ${instancename}
-        fi
+        set_hostname
       fi
       if [[ "${INSTALLPHASE}" == 3 ]]; then
         echo "GCP : exit ok"
@@ -941,11 +938,11 @@ fi
 # in all cases, it will also depend if there is a backup used for this instance type, values from backup will override this
 
 if [ -z ${splunkhostmodeos+x} ]; then 
-  echo "splunkhostmodeos is unset, falling back to default value set"
-  splunkhostmodeos="set"
+  echo "splunkhostmodeos is unset, falling back to default value ami"
+  splunkhostmodeos="ami"
 elif [ "${splunkhostmodeos}" == "set" ]; then
   echo "splunkhostmodeos=set, using default mode"
-elif [ "${splunkhostmodeos}" == "vanilla" ] || [ "${splunkhostmodeos}" == "ami" ]; then
+elif [ "${splunkhostmodeos}" == "vanilla" ] || [ "${splunkhostmodeos}" == "os" ] || [ "${splunkhostmodeos}" == "ami" ]; then
   echo "splunkhostmodeos=${splunkhostmodeos}, letting AMI decide"
   splunkhostmodeos="ami"
 else 
@@ -1038,10 +1035,11 @@ fi
 # will become the name when not a indexer, see below
 instancename=$splunkinstanceType 
 if [ "${splunkhostmode}" == "os" ]; then
-  hostinstancename=`hostname --short | head 1`
+  hostinstancename=`hostname --short | head -1`
   echo "using os name ${hostinstancename}"
 elif [ "${splunkhostmode}" == "prefix" ]; then
-  hostinstancename=$instancename."-".`hostname --short | head 1`
+  shorthost=`hostname --short | head -1`
+  hostinstancename="${instancename}-${shorthost}"
   echo "building with prefix and os name ${hostinstancename}"
 else 
   hostinstancename=$instancename
@@ -1834,7 +1832,7 @@ if [ "$MODE" != "upgrade" ]; then
   # set the hostname except if this is auto or contain idx or generic name
   # below is the exception criteria (ie indexer, uf  we cant set the name for example as there can be multiple instance of the same type)
   if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|hf|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then 
-    echo "specific instance name : changing hostname to ${instancename} "
+    echo "specific instance name : changing hostname to ${hostinstancename} "
     # first time actions 
     # set instance names if splunk instance was already started (in the ami or from the backup...) 
     sed -i -e 's/ip\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}/${hostinstancename}/g' ${SPLUNK_HOME}/etc/system/local/inputs.conf

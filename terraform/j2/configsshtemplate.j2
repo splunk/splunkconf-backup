@@ -123,6 +123,31 @@ Host HFb-a
         ProxyJump bastion
 {% endif %}
 
+Host IUF-a
+        HostName {{ hostiuf }}
+        IdentityFile {{ privkeypathforhost }}
+        user {{ hostuser }}
+        LocalForward 18013 127.0.0.1:8000
+
+{%- if use_doublebastion == "yes" %}
+        ProxyJump bastion2,bastion
+{% else %}
+        ProxyJump bastion
+{% endif %}
+
+Host IHF-a
+        HostName {{ hostihf }}
+        IdentityFile {{ privkeypathforhost }}
+        user {{ hostuser }}
+        LocalForward 18014 127.0.0.1:8000
+
+{%- if use_doublebastion == "yes" %}
+        ProxyJump bastion2,bastion
+{% else %}
+        ProxyJump bastion
+{% endif %}
+
+
 Host worker-a
         HostName {{ hostworker }}
         IdentityFile {{ privkeypathforhost }}

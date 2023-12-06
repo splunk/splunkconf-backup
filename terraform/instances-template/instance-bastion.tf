@@ -210,6 +210,8 @@ resource "local_file" "ansible_bastion_vars_tf" {
     hosthf: ${local.hf-dns-name}
     hosthfa: ${local.hfa-dns-name}
     hosthfb: ${local.hfb-dns-name}
+    hostiuf: ${local.iuf-dns-name}
+    hostihf: ${local.ihf-dns-name}
   tasks:
     - name: create ssh config file to use bastion
       template:

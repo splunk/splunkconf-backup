@@ -53,8 +53,10 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20201105 add /bin to PATH as required for AWS1
 # 20220326 add preventive log file rotation and improve logging by moving part to debug
 # 20230913 add version variable, sync code for splunkconf-backup.conf detection
+# 20231204 small log change + add SPLUNK_HOME variable for lock file
+# 20231204 serialize to do full back after kvdump restore 
 
-VERSION="20230913a"
+VERSION="20231204b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -222,6 +224,11 @@ else
   debug_log "splunkconf-backup.conf in system/local not present, no need to include it"
 fi
 
+###### LOCK   #######
+# we need to set lock asap so if other input start it will see the lock
+`touch ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
+
+###### Rotate ########
 rotate_log;
 
 debug_log "sleeping one minute to prevent race condition at kvstore start"
@@ -231,6 +238,10 @@ debug_log "done sleeping, starting real restore"
 
 if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
 	fail_log "minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} result=insufficientspaceleft ERROR : Insufficient disk space left , disabling restore ! Please fix "
+        if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
+          `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
+          echo_log "cleaning up kvstore restore lock"
+        fi
 	exit 1
 else
 	echo_log "minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} result=success min free available check OK"
@@ -238,8 +249,26 @@ fi
 
 #if [ -z ${BACKUP+x} ]; then fail_log "BACKUP not defined in ENVSPL file. Not doing backup as requested!"; exit 0; else echo_log "BACKUP=${BACKUP}"; fi
 #if [ -z ${LOCALBACKUPDIR+x} ]; then echo_log "LOCALBACKUPDIR not defined in ENVSPLBACKUP file. CANT BACKUP !!!!"; exit 1; else echo_log "LOCALBACKUPDIR=${LOCALBACKUPDIR}"; fi
-if [ -z ${SPLUNK_HOME+x} ]; then fail_log "SPLUNK_HOME not defined in default or ENVSPLBACKUP file. CANT BACKUP !!!!"; exit 1; else echo_log "SPLUNK_HOME=${SPLUNK_HOME}"; fi
-if [ -z ${SPLUNK_DB+x} ]; then fail_log "SPLUNK_DB not defined in default or ENVSPLBACKUP file. CANT BACKUP !!!!"; exit 1; else echo_log "SPLUNK_DB=${SPLUNK_DB}"; fi
+if [ -z ${SPLUNK_HOME+x} ]; then 
+  fail_log "SPLUNK_HOME not defined in default or ENVSPLBACKUP file. CANT BACKUP !!!!"; 
+  if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
+    `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
+    echo_log "cleaning up kvstore restore lock"
+  fi
+  exit 1
+else 
+  echo_log "SPLUNK_HOME=${SPLUNK_HOME}"
+fi
+if [ -z ${SPLUNK_DB+x} ]; then 
+  fail_log "SPLUNK_DB not defined in default or ENVSPLBACKUP file. CANT BACKUP !!!!";
+  if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
+    `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
+    echo_log "cleaning up kvstore restore lock"
+  fi
+  exit 1
+else 
+  echo_log "SPLUNK_DB=${SPLUNK_DB}"
+fi
 
 
 HOST=`hostname`;
@@ -298,7 +327,6 @@ FIC="disabled"
     if [ -e "${LFICKVDUMP}" ]; then 
        # we are restoring as the backup file has been pushed there by the recovery script
       MESS1="MGMTURL=${MGMTURL} KVARCHIVE=${KVARCHIVE}";
-      `touch /opt/splunk/var/run/splunkconf-kvrestore.lock`
       RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/restore -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}"`
       echo_log "KVDUMP RESTORE RES=$RES"
 # if splunk cant find the file, it will outout sonething like that, which will be in the error message (but should not happen because -e check above) 
@@ -362,13 +390,12 @@ FIC="disabled"
       LFICKVDUMP2=${LFICKVDUMP}."processed"
       # backuprestore dir should be owned by splunk or the operation will fail and the restore op will occur at each start which you dont want !
       `mv ${LFICKVDUMP} ${LFICKVDUMP2}` || fail_log "cant rename ${LFICKVDUMP} . Please correct asap and give write permission to splunk user on backuprestore dir at ${SPLUNK_DB}/kvstorebackup OR the restore operation will be repeated at next Splunk start, which you probably dont want !";
-      `rm /opt/splunk/var/run/splunkconf-kvrestore.lock`
     else
       echo_log "Splunk started but not in restore situation, Nothing to do, all fine";
-      if [ -e "/opt/splunk/var/run/splunkconf-kvrestore.lock" ]; then
-        `rm /opt/splunk/var/run/splunkconf-kvrestore.lock`
-        warn_log "cleaning up stale kvstore restore lock! This is not expected, please investigate and check for issues that could have killed the restore in the middle !"
-      fi
+      #if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
+      #  `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
+      #  warn_log "ERROR: cleaning up stale kvstore restore lock! This is not expected, please investigate and check for issues that could have killed the restore in the middle !"
+      #fi
     fi
   else
     echo_log "object=kvdump action=unsupportedversion splunk_version not yet 7.1, cant use online kvdump restore, nothing to do here, please restore outside this script"
@@ -377,5 +404,9 @@ FIC="disabled"
    fi
 #fi
 
+if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
+  `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
+  echo_log "cleaning up kvstore restore lock"
+fi
 echo_log "end of splunkconf_restore script"
 

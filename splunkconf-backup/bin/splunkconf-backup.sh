@@ -97,6 +97,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20230913 fix debug message for clone conflict situation in rsync mode
 # 20230913 fix variables for rsync mode
 # 20231204 add mode for init
+# 20231207 make REMOTES3STORAGECLASS a variable with default value STANDARD_IA
 
 VERSION="20231204a"
 
@@ -187,6 +188,8 @@ REMOTETECHNO=2
 # type : 0=auto 1 = date versioned backup (preferred for local),2 = only one backup file (dangerous, we need other feature to do versioning like filesystem (btrfs) , classic backup on top, ... 3 = only one backup, no instance name in it (they are still sorted by instance directory, may be easier for automatic reuse by install scripts)
 # auto -> S3 =0 (because s3 can store multiple versions of same file), NAS=1
 REMOTETYPE=0
+
+REMOTES3STORAGECLASS="STANDARD_IA"
 
 # RSYNC OVER SSH options
 # RSYNCMODE
@@ -445,12 +448,57 @@ function do_remote_copy() {
 
 ###### start
 
-# addin a random sleep to reduce backup concurrency + a potential conflict when we run at the limit in term of size (one backup type could eat the space before purge run)
-sleep $((1 + RANDOM % 30))
-
+########  initialization for logging ##############
 # %u is day of week , we may use this later for custom purge logic
 TODAY=`date '+%Y%m%d-%H%M%Z_%u'`;
 ID=`date '+%s'`;
+
+#######  ROOT CHECK  #####################
+debug_log "checking that we were not launched by root for security reasons"
+# check that we are not launched by root
+if [[ $EUID -eq 0 ]]; then
+   fail_log "Exiting ! This script must be run as splunk user, not root !" 
+   exit 1
+fi
+ 
+
+# ARGUMENT CHECK
+if [ $# -eq 1 ]; then
+  debug_log "Your command line contains $# argument"
+  MODE=$1 
+elif [ $# -gt 1 ]; then
+  warn_log "Your command line contains too many ($#) arguments. Ignoring the extra data"
+  MODE=$1
+else
+  debug_log "No arguments given, running with traditional mode and doing all the backups as stated in conf"
+  MODE="0"
+fi
+case $MODE in
+  "0"|"etc"|"state"|"kvauto"|"kvdump"|"kvstore"|"scripts"|"init") debug_log "argument valid" ;;
+  *) fail_log "argument $MODE is NOT a valid value, please fix"; exit 1;;
+esac
+INIT=0
+if [ "${MODE}" == "init" ]; then
+  # we set mode 0 to have all backups run and also set init to 1
+  debug_log "running in init mode, setting up lock to prevent concurrent backup at init"
+  MODE="0"
+  INIT=1
+  `touch ${SPLUNK_HOME}/var/run/splunkconf-init.lock`
+fi
+debug_log "splunkconf-backup running with MODE=${MODE} and INIT=${INIT}"
+
+regclass="^[A-Z_]+$"
+if [[ "${REMOTES3STORAGECLASS}" =~ $regclass ]]; then
+  debug_log "REMOTES3STORAGECLASS=$REMOTES3STORAGECLASS form ok"
+else
+  warn_log "invalid form  REMOTES3STORAGECLASS=$REMOTES3STORAGECLASS, using default value STANDARD_IA"
+  REMOTES3STORAGECLASS="STANDARD_IA"
+fi
+
+####### TEMPO DELAY ############################
+
+# addin a random sleep to reduce backup concurrency + a potential conflict when we run at the limit in term of size (one backup type could eat the space before purge run)
+sleep $((1 + RANDOM % 30))
 
 
 # initialization
@@ -639,38 +687,6 @@ else
 fi
 
 
-debug_log "checking that we were not launched by root for security reasons"
-# check that we are not launched by root
-if [[ $EUID -eq 0 ]]; then
-   fail_log "Exiting ! This script must be run as splunk user, not root !" 
-   exit 1
-fi
-
-
-# ARGUMENT CHECK
-if [ $# -eq 1 ]; then
-  debug_log "Your command line contains $# argument"
-  MODE=$1
-elif [ $# -gt 1 ]; then
-  warn_log "Your command line contains too many ($#) arguments. Ignoring the extra data"
-  MODE=$1
-else
-  debug_log "No arguments given, running with traditional mode and doing all the backups as stated in conf"
-  MODE="0"
-fi
-case $MODE in
-  "0"|"etc"|"state"|"kvauto"|"kvdump"|"kvstore"|"scripts"|"init") debug_log "argument valid" ;;
-  *) fail_log "argument $MODE is NOT a valid value, please fix"; exit 1;;
-esac
-INIT=0
-if [ "${MODE}" == "init" ]; then
-  # we set mode 0 to have all backups run and also set init to 1
-  debug_log "running in init mode"
-  MODE="0"
-  INIT=1
-fi
-debug_log "splunkconf-backup running with MODE=${MODE} and INIT=${INIT}"
-
 if [ -z ${BACKUP+x} ]; then fail_log "BACKUP not defined in ENVSPL file. Not doing backup as requested!"; exit 0; else debug_log "BACKUP=${BACKUP}"; fi
 if [ -z ${LOCALBACKUPDIR+x} ]; then echo_log "LOCALBACKUPDIR not defined in ENVSPLBACKUP file. CANT BACKUP !!!!"; exit 1; else debug_log "LOCALBACKUPDIR=${LOCALBACKUPDIR}"; fi
 if [ -z ${SPLUNK_HOME+x} ]; then fail_log "SPLUNK_HOME not defined in default or ENVSPLBACKUP file. CANT BACKUP !!!!"; exit 1; else debug_log "SPLUNK_HOME=${SPLUNK_HOME}"; fi
@@ -701,6 +717,11 @@ fi
 # servername is more reliable in dynamic env like AWS 
 #INSTANCE=$SERVERNAME
 
+if [ "$INIT" == "1" ]; then
+  debug_log "INIT mode"
+  #echo_log "INIT mode , removing lock file so other backup process may run"
+  #  `rm ${SPLUNK_HOME}/var/run/splunkconf-init.lock`
+fi
 # FIXME : opti : relax check to only exit if global or kvdump/kvstore mode
 debug_log "checking for a ongoing kvdump restore"
 if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
@@ -1221,7 +1242,8 @@ fi
     else 
       # aws
       CPCMD="aws s3 cp";
-      OPTION=" --quiet --storage-class STANDARD_IA";
+      OPTION=" --quiet --storage-class ${REMOTES3STORAGECLASS}";
+      #OPTION=" --quiet --storage-class STANDARD_IA";
     fi
 # --storage-class STANDARD_IA reduce cost for infrequent access objects such as backups while not decreasing availability/redundancy
   elif [ ${REMOTETECHNO} -eq 3 ]; then
@@ -1308,6 +1330,11 @@ if [ $DOREMOTEBACKUP -eq 0 ]; then
 	debug_log "no remote backup requested"
 fi
 
+
+if [ "$INIT" == "1" ]; then
+  echo_log "INIT mode , removing lock file so other backup process may run"
+  `rm ${SPLUNK_HOME}/var/run/splunkconf-init.lock`
+fi
 
 debug_log "MODE=$MODE, end of splunkconf_backup script"
 

@@ -98,8 +98,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20230913 fix variables for rsync mode
 # 20231204 add mode for init
 # 20231207 make REMOTES3STORAGECLASS a variable with default value STANDARD_IA
+# 20231208 add more settings and new mode to leverage s3api put-object instead of s3 cp as it will allow to use tags
 
-VERSION="20231204a"
+VERSION="20231208a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -190,6 +191,18 @@ REMOTETECHNO=2
 REMOTETYPE=0
 
 REMOTES3STORAGECLASS="STANDARD_IA"
+
+# you dont need to set this unless doing backup to object store on prem 
+# it is better to use tag on instance metadata so the app config is the same between different env
+REMOTEOBJECTSTOREBUCKET="auto"
+# this is the prefix
+REMOTEOBJECTSTOREPREFIX="splunkconf-backup"
+
+# 0 = auto (2 at the moment)
+# 1 = use aws s3 cp (no support for tags)
+# 2 = use aws s3-apui copy-object (support tags)
+
+AWSCOPYMODE=0
 
 # RSYNC OVER SSH options
 # RSYNCMODE
@@ -430,18 +443,21 @@ function do_remote_copy() {
     elif (( REMOTETECHNO == 4 )); then
       debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR} "
       ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}
+    elif [ ${AWSCOPYMODE} = "0" ] || [ ${AWSCOPYMODE} = "1" ]; then
+      debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}"
+      ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}
     else
-      debug_log "doing remote copy with ${CPCMD} ${LFIC} ${RFIC} ${OPTION}"
-      ${CPCMD} ${LFIC} ${RFIC} ${OPTION}
+      debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${RFIC} ${OPTION}"
+      ${CPCMD} ${LFIC} ${CPCMD2} ${RFIC} ${OPTION}
     fi
     RES=$?
     END=$(($(date +%s%N)));
     #let DURATIONNS=(END-START)
     let DURATION=(END-START)/1000000
     if [ $RES -eq 0 ]; then
-        echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}" 
+      echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}" 
     else
-         fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}"
+      fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}"
     fi
   fi
 }
@@ -504,6 +520,9 @@ sleep $((1 + RANDOM % 30))
 # initialization
 ERROR=0
 ERROR_MESS=""
+
+# what to use between cp aergument , usuaully emptu except fro s3api
+CPCMD2=""
 
 # include VARs
 APPDIR=`pwd`
@@ -632,10 +651,27 @@ fi
 
 if [ -z ${splunks3backupbucket+x} ]; then 
   if [ -z ${s3backupbucket+x} ]; then 
-    if [ "REMOTEBACKUPDIR" -eq "s3://pleaseconfigurenstancetagsorsetdirectlythes3bucketforbackupshere-splunks3splunkbackup/splunkconf-backup" ]; then 
+    if [ "${REMOTEBACKUPDIR}" = "s3://pleaseconfigurenstancetagsorsetdirectlythes3bucketforbackupshere-splunks3splunkbackup/splunkconf-backup" ] && [ "${REMOTEOBJECTSTOREBUCKET}" = "auto" ]; then 
       ## there is no tag from instance metadata so we are not in a cloud instance or that instance hasnt been configured for doing remote backups
+      # there is also the REMOTEOBJECTSTOREBUCKET with default value auto
       DOREMOTEBACKUP=0
       warn_log "name=splunks3backupbucket  src=instancetags result=unset remotebackup=disabled "; 
+    elif  [ "${REMOTEOBJECTSTOREBUCKET}" != "auto" ]; then 
+      # REMOTEOBJECTSTOREBUCKET is set lets use this
+       s3backupbucket=$REMOTEOBJECTSTOREBUCKET
+      if [[ "cloud_type" -eq 2 ]]; then
+        # GCP
+        debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
+        # we already have the scheme in var for gcp
+        REMOTEBACKUPDIR="${s3backupbucket}/${REMOTEOBJECTSTOREPREFIX}"
+        #REMOTEBACKUPDIR="${s3backupbucket}/splunkconf-backup"
+        debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+      else
+        debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
+        REMOTEBACKUPDIR="s3://${s3backupbucket}/${REMOTEOBJECTSTOREPREFIX}"
+        #REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
+        debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+      fi
     else
       # on prem with remote backup configured or static configuration in cloud 
       debug_log "name=remotebackup src=remotebackup result=configured"
@@ -646,13 +682,16 @@ if [ -z ${splunks3backupbucket+x} ]; then
     elif (( REMOTETECHNO == 4 )); then 
       debug_log "remote techno=4 and running in cloud , not using tags"
     elif [[ "cloud_type" -eq 2 ]]; then
+      # GCP
       debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
       # we already have the scheme in var for gcp
-      REMOTEBACKUPDIR="${s3backupbucket}/splunkconf-backup"
+      REMOTEBACKUPDIR="${s3backupbucket}/${REMOTEOBJECTSTOREPREFIX}"
+      #REMOTEBACKUPDIR="${s3backupbucket}/splunkconf-backup"
       debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
     else
       debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
-      REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
+      REMOTEBACKUPDIR="s3://${s3backupbucket}/${REMOTEOBJECTSTOREPREFIX}"
+      #REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
       debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
     fi
   fi
@@ -663,13 +702,16 @@ else
   elif (( REMOTETECHNO == 4 )); then 
       debug_log "remote techno=4 , not using tags"
   elif [[ "cloud_type" -eq 2 ]]; then
+    # GCP
     debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=true";
       # we already have the scheme in var for gcp
-    REMOTEBACKUPDIR="${s3backupbucket}/splunkconf-backup"
+    REMOTEBACKUPDIR="${s3backupbucket}/${REMOTEOBJECTSTOREPREFIX}"
+    #REMOTEBACKUPDIR="${s3backupbucket}/splunkconf-backup"
     debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
   else
     debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=true";
-    REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
+    REMOTEBACKUPDIR="s3://${s3backupbucket}/${REMOTEOBJECTSTOREPREFIX}"
+    #REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
     debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
   fi
 fi
@@ -712,7 +754,7 @@ elif [ ${#SERVERNAME} -ge 2 ]; then
   debug_log "using servername for instance, instance=${INSTANCE} src=servername"
 else 
   INSTANCE=$HOST
-  debug_log "using host for instance, instance=${INSTANCE} src=host"
+  debug_log "ATTENTION : servername missing, falllback to using host for instance, instance=${INSTANCE} src=host"
 fi
 # servername is more reliable in dynamic env like AWS 
 #INSTANCE=$SERVERNAME
@@ -1152,6 +1194,7 @@ fi
   else
     # now we add the instance name or backup from different instances would collide
     REMOTEBACKUPDIR="${REMOTEBACKUPDIR}/${INSTANCE}"
+    REMOTEOBJECTSTOREPREFIX="${REMOTEOBJECTSTOREPREFIX}/${INSTANCE}"
     # first run we are creating that instance dir
   fi
 
@@ -1181,12 +1224,18 @@ fi
 
   cd /
   if [ ${BACKUPTYPE} -eq 2 ]; then
+    # full etc mode
     if [ ${REMOTETYPE} -eq 2 ]; then
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk$-{extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
         FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
+        SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk$-{extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
+        SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
+        SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
+        SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
+        SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
         debug_log "backup type will be etc full no date";
     elif [ ${REMOTETYPE} -eq 3 ]; then
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-full.tar.${EXTENSION}";
@@ -1194,6 +1243,11 @@ fi
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state.tar.${EXTENSION}";
+        SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-full.tar.${EXTENSION}";
+        SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts.tar.${EXTENSION}";
+        SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore.tar.${EXTENSION}";
+        SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump.tar.${EXTENSIONKV}";
+        SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state.tar.${EXTENSION}";
         debug_log "backup type will be etc full no date no instance";
     else
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-full-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
@@ -1201,15 +1255,26 @@ fi
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-full-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSIONKV}";
+        SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         debug_log "backup type will be etc full (date versioned backup mode with instance name)";
     fi
   else
+    # targeted mode (default)
     if [ ${REMOTETYPE} -eq 2 ]; then
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-targeted-${INSTANCE}.tar.${EXTENSION}";
         FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
+        SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-targeted-${INSTANCE}.tar.${EXTENSION}";
+        SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
+        SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
+        SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
+        SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted no date";
     elif [ ${REMOTETYPE} -eq 3 ]; then
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-targeted.tar.${EXTENSION}";
@@ -1217,6 +1282,11 @@ fi
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state.tar.${EXTENSION}";
+        SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-targeted.tar.${EXTENSION}";
+        SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts.tar.${EXTENSION}";
+        SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore.tar.${EXTENSION}";
+        SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump.tar.${EXTENSIONKV}";
+        SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted no date no instance ";
     else
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-targeted-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
@@ -1224,6 +1294,11 @@ fi
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-targeted-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSIONKV}";
+        SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted (date versioned backup mode)";
     fi
   fi
@@ -1241,9 +1316,17 @@ fi
       OPTION="";
     else 
       # aws
-      CPCMD="aws s3 cp";
-      OPTION=" --quiet --storage-class ${REMOTES3STORAGECLASS}";
-      #OPTION=" --quiet --storage-class STANDARD_IA";
+      if [ ${AWSCOPYMODE} = "0" ] || [ ${AWSCOPYMODE} = "1" ]; then
+        # we use s3api because it allow to set tags at same time which s3 cp doenst suppport at the moment
+        CPCMD="aws s3api put-object --bucket ${s3backupbucket} --body ";
+        CPCMD2="--key "
+        # quiet doesnt exist with s3api
+        OPTION=" --storage-class ${REMOTES3STORAGECLASS}";
+      else
+        CPCMD="aws s3 cp";
+        OPTION=" --quiet --storage-class ${REMOTES3STORAGECLASS}";
+        #OPTION=" --quiet --storage-class STANDARD_IA";
+      fi
     fi
 # --storage-class STANDARD_IA reduce cost for infrequent access objects such as backups while not decreasing availability/redundancy
   elif [ ${REMOTETECHNO} -eq 3 ]; then
@@ -1268,6 +1351,7 @@ fi
     OBJECT="etc"
     LFIC=${LFICETC}
     RFIC=${FICETC}
+    SRFIC=${SFICETC}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"
       REMOTERSYNCDIR="${REMOTEBACKUPDIR}${LOCALBACKUPDIR}"
@@ -1279,6 +1363,7 @@ fi
     OBJECT="scripts"
     LFIC=${LFICSCRIPT}
     RFIC=${FICSCRIPT}
+    SRFIC=${SFICSCRIPT}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"
       REMOTERSYNCDIR="${REMOTEBACKUPDIR}${LOCALBACKUPDIR}"
@@ -1290,6 +1375,7 @@ fi
     OBJECT="kvdump"
     LFIC=${LFICKVDUMP}
     RFIC=${FICKVDUMP}
+    SRFIC=${SFICKVDUMP}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="${SPLUNK_DB}/kvstorebackup/"
       REMOTERSYNCDIR="${REMOTEBACKUPDIR}${SPLUNK_DB}/kvstorebackup/"
@@ -1299,6 +1385,7 @@ fi
     OBJECT="kvstore"
     LFIC=${LFICKVSTORE}
     RFIC=${FICKVSTORE}
+    SRFIC=${SFICKVSTORE}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"
       REMOTERSYNCDIR="${REMOTEBACKUPDIR}${LOCALBACKUPDIR}"
@@ -1310,6 +1397,7 @@ fi
     OBJECT="state"
     LFIC=${LFICSTATE}
     RFIC=${FICSTATE}
+    SRFIC=${SFICSTATE}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"
       REMOTERSYNCDIR="${REMOTEBACKUPDIR}${LOCALBACKUPDIR}"

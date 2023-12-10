@@ -55,8 +55,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20230913 add version variable, sync code for splunkconf-backup.conf detection
 # 20231204 small log change + add SPLUNK_HOME variable for lock file
 # 20231204 serialize to do full back after kvdump restore 
+# 20232120 more serialize at start with purge followed by init backuo
 
-VERSION="20231204b"
+VERSION="20231210b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -408,5 +409,11 @@ if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
   `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
   echo_log "cleaning up kvstore restore lock"
 fi
+
+echo_log "launching initial purgebackupi (to maximize chance to have enpigh space for doing backups now)"
+$SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh 
+echo_log "launching initial backup"
+$SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init
+
 echo_log "end of splunkconf_restore script"
 

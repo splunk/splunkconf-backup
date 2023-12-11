@@ -55,7 +55,7 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20230913 add version variable, sync code for splunkconf-backup.conf detection
 # 20231204 small log change + add SPLUNK_HOME variable for lock file
 # 20231204 serialize to do full back after kvdump restore 
-# 20232120 more serialize at start with purge followed by init backuo
+# 20232120 more serialize at start with purge followed by init backup
 
 VERSION="20231210b"
 

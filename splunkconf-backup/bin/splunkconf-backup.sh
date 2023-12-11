@@ -99,8 +99,10 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20231204 add mode for init
 # 20231207 make REMOTES3STORAGECLASS a variable with default value STANDARD_IA
 # 20231208 add more settings and new mode to leverage s3api put-object instead of s3 cp as it will allow to use tags
+# 20231210 add initial tags for s3 
+# 20231211 add frequency tag + add call to purgebackup before each backup for init mode + remove random delay at start for init mode
 
-VERSION="20231208a"
+VERSION="20231211a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -297,6 +299,12 @@ function fail_log {
   echo_log_ext  "FAIL id=$ID $1" 
 }
 
+
+function splunkconf_purgebackup { 
+  debug_log "calling purge backup in order to maximize space avaialble before doing new backup"
+  ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh
+} 
+
 function splunkconf_checkspace { 
   CURRENTAVAIL=`df --output=avail -k  ${LOCALBACKUPDIR} | tail -1`
   if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
@@ -443,8 +451,10 @@ function do_remote_copy() {
     elif (( REMOTETECHNO == 4 )); then
       debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR} "
       ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}
-    elif [ ${AWSCOPYMODE} = "0" ] || [ ${AWSCOPYMODE} = "1" ]; then
+    elif [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
       debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}"
+      # Attention , we do tags at the same time so if iam are in correctly set the whole put is going to fail
+      # This is why we default now to do it in 2 steps
       ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}
     else
       debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${RFIC} ${OPTION}"
@@ -456,6 +466,17 @@ function do_remote_copy() {
     let DURATION=(END-START)/1000000
     if [ $RES -eq 0 ]; then
       echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}" 
+      if [[ "cloud_type" -eq 1 ]]; then
+        # AWS
+        debug_log "setting tag via aws s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
+        aws s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS}
+        RES=$?
+        if [ $RES -eq 0 ]; then
+          echo_log "action=tag type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC}" 
+        else
+          echo_log "action=tag type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} Please check IAM for s3:PutObjectTagging" 
+        fi
+      fi
     else
       fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}"
     fi
@@ -512,16 +533,18 @@ else
 fi
 
 ####### TEMPO DELAY ############################
-
-# addin a random sleep to reduce backup concurrency + a potential conflict when we run at the limit in term of size (one backup type could eat the space before purge run)
-sleep $((1 + RANDOM % 30))
-
+if [ "$INIT" == "1" ]; then
+  debug_log "no delay as we are in init mode and delay was already part of splunkconf restore"
+else
+  # addin a random sleep to reduce backup concurrency + a potential conflict when we run at the limit in term of size (one backup type could eat the space before purge run)
+  sleep $((1 + RANDOM % 30))
+fi
 
 # initialization
 ERROR=0
 ERROR_MESS=""
 
-# what to use between cp aergument , usuaully emptu except fro s3api
+# what to use between cp aergument , usuaully empty except fro s3api
 CPCMD2=""
 
 # include VARs
@@ -828,6 +851,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
 	MESS1="backuptype=etctargetedinstanceversion ";
     fi
   fi
+  splunkconf_purgebackup;
   splunkconf_checkspace;
   if [ $ERROR -ne 0 ]; then
     fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}" 
@@ -881,6 +905,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
     FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
     MESS1="backuptype=scriptstargetedinstanceversion ";
   fi
+  splunkconf_purgebackup;
   splunkconf_checkspace;
   if [ -z ${BACKUPSCRIPTS+x} ] || [ $BACKUPSCRIPTS -eq 0 ]; then
     # we echo here to have it appear in logs as it will allow to identify disabled versus missing case
@@ -952,6 +977,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
     kvbackupmode=taronline
     MESSVER="currentversion=$ver, minimalversionover=${minimalversion}";
     btoolkvstore=`${SPLUNK_HOME}/bin/splunk btool server list kvstore | grep disabled`;
+    splunkconf_purgebackup;
     splunkconf_checkspace;
     if [[ $btoolkvstore =~ "true" ]] || [[ $btoolkvstore =~ "1" ]]; then
       echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=kvstoredisabledonsplunkbyconfig";
@@ -1133,6 +1159,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
     done
     debug_log "STATELIST=${STATELIST} STATELIST2=${STATELIST2}" 
     if [ ! -z "${STATELIST2}" ]; then 
+      splunkconf_purgebackup;
       splunkconf_checkspace;
       if [ $ERROR -ne 0 ]; then
         fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
@@ -1316,12 +1343,32 @@ fi
       OPTION="";
     else 
       # aws
-      if [ ${AWSCOPYMODE} = "0" ] || [ ${AWSCOPYMODE} = "1" ]; then
+      tagname="frequency"
+      hournumber=`date +"%H"`
+      # day of week (1..7); 1 is Monday
+      weekdaynumber=`date +"%u"`
+      dayofmonthnumber=`date +"%d"`
+      # we use different hours to flag backups so if a month start also is a week start, we can keep 2 backups
+      # we do not use 2 and 3 as there may be a summer/winter time event
+      # also we take a backup during night
+      if [ "${dayofmonthnumber}" = "1" ] && [ "${hournumber}" = "4" ]; then
+        # first day of month  at 4
+        S3TAGS="TagSet=[{Key=${tagname},Value=monthly}]"
+      elif [ "${weekdaynumber}" = "1" ] && [ "${hournumber}" = "5" ]; then
+        # monday at 5
+        S3TAGS="TagSet=[{Key=${tagname},Value=weekly}]"
+      elif [ "${hournumber}" = "6" ]; then
+        # every day at 6
+        S3TAGS="TagSet=[{Key=${tagname},Value=daily}]"
+      else
+        S3TAGS="TagSet=[{Key=${tagname},Value=hourly}]"
+      fi
+      if [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
         # we use s3api because it allow to set tags at same time which s3 cp doenst suppport at the moment
         CPCMD="aws s3api put-object --bucket ${s3backupbucket} --body ";
         CPCMD2="--key "
         # quiet doesnt exist with s3api
-        OPTION=" --storage-class ${REMOTES3STORAGECLASS}";
+        OPTION=" --storage-class ${REMOTES3STORAGECLASS} --tagging ${S3TAGS}";
       else
         CPCMD="aws s3 cp";
         OPTION=" --quiet --storage-class ${REMOTES3STORAGECLASS}";

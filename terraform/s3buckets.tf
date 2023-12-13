@@ -102,12 +102,14 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle" {
   bucket   = aws_s3_bucket.s3_backup.id
 
   rule {
-    id = "purge-old-noncurrent-versionned-backup"
+    id = "purge-old-noncurrent-versionned-backup-global"
+    # this will catch up all objects so we purge those without tags but it will be added to the other by tag so make sure this is consistent
     filter {
       prefix = "splunkconf-backup/"
     }
     noncurrent_version_expiration {
-      noncurrent_days = var.backup-retention
+      newer_noncurrent_versions = var.backup-min-versions 
+      noncurrent_days = var.backup-retention-days
     }
     abort_incomplete_multipart_upload {
       days_after_initiation = 1
@@ -117,6 +119,64 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle" {
     }
     status = "Enabled"
   }
+  rule {
+    id = "purge-hourly-backup-bytag"
+    filter {
+      and {
+        prefix = "splunkconf-backup/"
+        tags = { frequency = "hourly" }
+      }
+    }
+    noncurrent_version_expiration {
+      newer_noncurrent_versions = var.backup-min-versions-hourly 
+      noncurrent_days = var.backup-retention-days-hourly
+    }
+    status = "Enabled"
+  }
+  rule {
+    id = "purge-daily-backup-bytag"
+    filter {
+      and {
+        prefix = "splunkconf-backup/"
+        tags = { frequency = "daily" }
+      }
+    }
+    noncurrent_version_expiration {
+      newer_noncurrent_versions = var.backup-min-versions-daily 
+      noncurrent_days = var.backup-retention-days-daily
+    }
+    status = "Enabled"
+  }
+  rule {
+    id = "purge-weekly-backup-bytag"
+    filter {
+      and {
+        prefix = "splunkconf-backup/"
+        tags = { frequency = "weekly" }
+      }
+    }
+    noncurrent_version_expiration {
+      newer_noncurrent_versions = var.backup-min-versions-weekly 
+      noncurrent_days = var.backup-retention-days-weekly
+    }
+    status = "Enabled"
+  }
+  rule {
+    id = "purge-monthly-backup-bytag"
+    filter {
+      and {
+        prefix = "splunkconf-backup/"
+        tags = { frequency = "monthly" }
+      }
+    }
+    noncurrent_version_expiration {
+      newer_noncurrent_versions = var.backup-min-versions-monthly 
+      noncurrent_days = var.backup-retention-days-monthly
+    }
+    status = "Enabled"
+  }
+
+
 }
 
 resource "aws_s3_bucket" "s3_data" {

@@ -432,13 +432,105 @@ variable "associate_public_ip" {
   #default = "false"
 }
 
-variable "backup-retention" {
+variable "backup-retention-days" {
   description= "Number of days before removing old backups from S3 (only for versions)"
   type    = number
   default = 31
   validation {
-    condition     = var.backup-retention >= 31
-    error_message = "backup-retention need to be at least 31 days (to match S3-IA pricing structure)"
+    condition     = var.backup-retention-days >= 31
+    error_message = "backup-retention-days need to be at least 31 days (to match S3-IA pricing structure)"
+  }
+}
+
+variable backup-min-versions {
+  description = "Minimum number of non current versions backup to keep"
+  type = number
+  default = 10
+  validation {    
+    condition     = var.backup-min-versions >= 1
+    error_message = "backup-min-versions need to be at least 1"
+  }
+}
+
+variable "backup-retention-days-hourly" {
+  description= "Number of days before removing old backups from S3 tagged with frequency=hourly (only for versions)"
+  type    = number
+  default = 1
+  validation {    
+    condition     = var.backup-retention-days-hourly >= 1
+    #condition     = var.backup-retention-days-hourly >= 31
+    error_message = "backup-retention-days-hourly need to be at least 1 days (to match S3-IA pricing structure)"
+    #error_message = "backup-retention-days-hourly need to be at least 31 days (to match S3-IA pricing structure)"
+  }
+}
+
+variable backup-min-versions-hourly {
+  description = "Minimum number of non current versions backup tagged with frequency=hourly to keep"
+  type = number
+  default = 10
+  validation {    
+    condition     = var.backup-min-versions-hourly >= 1
+    error_message = "backup-min-versions-hourly need to be at least 1"
+  }
+}
+
+variable "backup-retention-days-daily" {
+  description= "Number of days before removing old backups from S3 tagged with frequency=daily (only for versions)"
+  type    = number
+  default = 60
+  validation {    
+    condition     = var.backup-retention-days-daily >= 31
+    error_message = "backup-retention-days-daily need to be at least 31 days (to match S3-IA pricing structure)"
+  }
+}
+
+variable backup-min-versions-daily {
+  description = "Minimum number of non current versions backup tagged with frequency=daily to keep"
+  type = number
+  default = 10
+  validation {    
+    condition     = var.backup-min-versions-daily >= 1
+    error_message = "backup-min-versions-daily need to be at least 1"
+  }
+}
+
+variable "backup-retention-days-weekly" {
+  description= "Number of days before removing old backups from S3 tagged with frequency=weekly (only for versions)"
+  type    = number
+  default = 120 
+  validation {
+    condition     = var.backup-retention-days-weekly >= 31
+    error_message = "backup-retention-days-weekly need to be at least 31 days (to match S3-IA pricing structure)"
+  }
+}
+
+variable backup-min-versions-weekly {
+  description = "Minimum number of non current versions backup tagged with frequency=weekly to keep"
+  type = number
+  default = 10
+  validation {    
+    condition     = var.backup-min-versions-weekly >= 1
+    error_message = "backup-min-versions-weekly need to be at least 1"
+  }
+}
+
+variable "backup-retention-days-monthly" {
+  description= "Number of days before removing old backups from S3 tagged with frequency=monthly (only for versions)"
+  type    = number
+  default = 365 
+  validation {
+    condition     = var.backup-retention-days-monthly >= 31
+    error_message = "backup-retention-days-monthly need to be at least 31 days (to match S3-IA pricing structure)"
+  }
+}
+
+variable backup-min-versions-monthly {
+  description = "Minimum number of non current versions backup tagged with frequency=monthly to keep"
+  type = number
+  default = 10
+  validation {    
+    condition     = var.backup-min-versions-monthly >= 1
+    error_message = "backup-min-versions-monthly need to be at least 1"
   }
 }
 

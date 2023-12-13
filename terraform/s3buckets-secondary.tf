@@ -126,7 +126,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_secondary_lifecycle"
       prefix = "splunkconf-backup/"
     }
     noncurrent_version_expiration {
-      noncurrent_days = var.backup-retention
+      noncurrent_days = var.backup-retention-days
     }
     abort_incomplete_multipart_upload {
       days_after_initiation = 1

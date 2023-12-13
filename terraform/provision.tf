@@ -49,7 +49,7 @@ resource "local_file" "ansible_vars_tf" {
     smartstore_site_number: ${var.splunksmartstoresitenumber}
     dns_zone_name: ${var.dns-zone-name}
     splunk_ssh_key_arn: ${module.ssh.splunk_ssh_key_arn}
-    backupretention: ${var.backup-retention}
+    backupretention: ${var.backup-retention-days}
     deleteddataretention: ${var.deleteddata-retention}
   tasks:
   - name: create directories for target jinja

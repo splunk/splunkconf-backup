@@ -231,8 +231,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20231117 up to 9.1.2
 # 20231120 add variable splversion and splhash to reduce typo risk when updating version
 # 20231206 add tag splunkhostmode and splunkhostmodeos
+# 20231213 bug fix with sed command for servername replacement
 
-VERSION="20231206b"
+VERSION="20231213a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1835,8 +1836,8 @@ if [ "$MODE" != "upgrade" ]; then
     echo "specific instance name : changing hostname to ${hostinstancename} "
     # first time actions 
     # set instance names if splunk instance was already started (in the ami or from the backup...) 
-    sed -i -e 's/ip\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}/${hostinstancename}/g' ${SPLUNK_HOME}/etc/system/local/inputs.conf
-    sed -i -e 's/ip\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}/${hostinstancename}/g' ${SPLUNK_HOME}/etc/system/local/server.conf
+    sed -i -e "s/ip\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}/${hostinstancename}/g" ${SPLUNK_HOME}/etc/system/local/inputs.conf
+    sed -i -e "s/ip\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}\-[0-9]\{1,3\}/${hostinstancename}/g" ${SPLUNK_HOME}/etc/system/local/server.conf
     if [ ! -f "${SPLUNK_HOME}/etc/system/local/inputs.conf"  ]; then
       # Splunk was never started  (ie we just deployed in the recovery above)
       echo "initializing inputs.conf with ${hostinstancename}\n"

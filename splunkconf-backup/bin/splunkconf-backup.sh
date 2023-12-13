@@ -101,8 +101,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20231208 add more settings and new mode to leverage s3api put-object instead of s3 cp as it will allow to use tags
 # 20231210 add initial tags for s3 
 # 20231211 add frequency tag + add call to purgebackup before each backup for init mode + remove random delay at start for init mode
+# 20231213 use different storage class depending on frequency 
 
-VERSION="20231211a"
+VERSION="20231213a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -192,7 +193,21 @@ REMOTETECHNO=2
 # auto -> S3 =0 (because s3 can store multiple versions of same file), NAS=1
 REMOTETYPE=0
 
-REMOTES3STORAGECLASS="STANDARD_IA"
+#REMOTES3STORAGECLASS="STANDARD_IA"
+REMOTES3STORAGECLASS="auto"
+
+# STD as we keep it less than 30 days
+#REMOTES3STORAGECLASSHOURLY="STANDARD"
+REMOTES3STORAGECLASSHOURLY="auto"
+
+#REMOTES3STORAGECLASSDAILY="STANDARD-IA"
+REMOTES3STORAGECLASSDAILY="auto"
+
+#REMOTES3STORAGECLASSWEEKLY="STANDARD-IA"
+REMOTES3STORAGECLASSWEEKLY="auto"
+
+#REMOTES3STORAGECLASSMONTHLY="STANDARD-IA"
+REMOTES3STORAGECLASSMONTHLY="auto"
 
 # you dont need to set this unless doing backup to object store on prem 
 # it is better to use tag on instance metadata so the app config is the same between different env
@@ -525,12 +540,47 @@ fi
 debug_log "splunkconf-backup running with MODE=${MODE} and INIT=${INIT}"
 
 regclass="^[A-Z_]+$"
-if [[ "${REMOTES3STORAGECLASS}" =~ $regclass ]]; then
+if [[ "${REMOTES3STORAGECLASS}" = "auto" ]]; then
+  REMOTES3STORAGECLASS="STANDARD_IA"
+elif [[ "${REMOTES3STORAGECLASS}" =~ $regclass ]]; then
   debug_log "REMOTES3STORAGECLASS=$REMOTES3STORAGECLASS form ok"
 else
   warn_log "invalid form  REMOTES3STORAGECLASS=$REMOTES3STORAGECLASS, using default value STANDARD_IA"
   REMOTES3STORAGECLASS="STANDARD_IA"
 fi
+if [[ "${REMOTES3STORAGECLASSHOURLY}" = "auto" ]]; then
+  REMOTES3STORAGECLASSHOURLY="STANDARD"
+elif [[ "${REMOTES3STORAGECLASSHOURLY}" =~ $regclass ]]; then
+  debug_log "REMOTES3STORAGECLASSHOURLY={$REMOTES3STORAGECLASSHOURLY} form ok"
+else
+  warn_log "invalid form  REMOTES3STORAGECLASSHOURLY=${REMOTES3STORAGECLASSHOURLY}, using default value STANDARD"
+  REMOTES3STORAGECLASSHOURLY="STANDARD"
+fi
+if [[ "${REMOTES3STORAGECLASSDAILY}" = "auto" ]]; then
+  REMOTES3STORAGECLASSDAILY="STANDARD_IA"
+elif [[ "${REMOTES3STORAGECLASSDAILY}" =~ $regclass ]]; then
+  debug_log "REMOTES3STORAGECLASSDAILY={$REMOTES3STORAGECLASSDAILY} form ok"
+else
+  warn_log "invalid form  REMOTES3STORAGECLASSDAYLY=${REMOTES3STORAGECLASSDAILY}, using default value STANDARD_IA"
+  REMOTES3STORAGECLASSDAILY="STANDARD_IA"
+fi
+if [[ "${REMOTES3STORAGECLASSWEEKLY}" = "auto" ]]; then
+  REMOTES3STORAGECLASSWEEKLY="STANDARD_IA"
+elif [[ "${REMOTES3STORAGECLASSWEEKLY}" =~ $regclass ]]; then
+  debug_log "REMOTES3STORAGECLASSWEEKLY={$REMOTES3STORAGECLASSWEEKLY} form ok"
+else
+  warn_log "invalid form  REMOTES3STORAGECLASSWEEKLY=${REMOTES3STORAGECLASSWEEKLY}, using default value STANDARD_IA"
+  REMOTES3STORAGECLASSWEEKLY="STANDARD_IA"
+fi
+if [[ "${REMOTES3STORAGECLASSMONTH}" = "auto" ]]; then
+  REMOTES3STORAGECLASSMONTHLY="STANDARD_IA"
+elif [[ "${REMOTES3STORAGECLASSMONTHLY}" =~ $regclass ]]; then
+  debug_log "REMOTES3STORAGECLASSMONTHLY={$REMOTES3STORAGECLASSMONTHLY} form ok"
+else
+  warn_log "invalid form  REMOTES3STORAGECLASSMONTHLY=${REMOTES3STORAGECLASSMONTHLY}, using default value STANDARD_IA"
+  REMOTES3STORAGECLASSMONTHLY="STANDARD_IA"
+fi
+
 
 ####### TEMPO DELAY ############################
 if [ "$INIT" == "1" ]; then
@@ -1354,24 +1404,28 @@ fi
       if [ "${dayofmonthnumber}" = "1" ] && [ "${hournumber}" = "4" ]; then
         # first day of month  at 4
         S3TAGS="TagSet=[{Key=${tagname},Value=monthly}]"
+        REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSMONTHLY}
       elif [ "${weekdaynumber}" = "1" ] && [ "${hournumber}" = "5" ]; then
         # monday at 5
         S3TAGS="TagSet=[{Key=${tagname},Value=weekly}]"
+        REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSWEEKLY}
       elif [ "${hournumber}" = "6" ]; then
         # every day at 6
         S3TAGS="TagSet=[{Key=${tagname},Value=daily}]"
+        REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSDAILY}
       else
         S3TAGS="TagSet=[{Key=${tagname},Value=hourly}]"
+        REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSHOURLY}
       fi
       if [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
         # we use s3api because it allow to set tags at same time which s3 cp doenst suppport at the moment
         CPCMD="aws s3api put-object --bucket ${s3backupbucket} --body ";
         CPCMD2="--key "
         # quiet doesnt exist with s3api
-        OPTION=" --storage-class ${REMOTES3STORAGECLASS} --tagging ${S3TAGS}";
+        OPTION=" --storage-class ${REMOTES3STORAGECLASSCURRENT} --tagging ${S3TAGS}";
       else
         CPCMD="aws s3 cp";
-        OPTION=" --quiet --storage-class ${REMOTES3STORAGECLASS}";
+        OPTION=" --quiet --storage-class ${REMOTES3STORAGECLASSCURRENT}";
         #OPTION=" --quiet --storage-class STANDARD_IA";
       fi
     fi

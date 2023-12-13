@@ -102,8 +102,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20231210 add initial tags for s3 
 # 20231211 add frequency tag + add call to purgebackup before each backup for init mode + remove random delay at start for init mode
 # 20231213 use different storage class depending on frequency 
+# 20231212 REMOTESTORAGE auto arg check fix
 
-VERSION="20231213a"
+VERSION="20231213b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -539,49 +540,6 @@ if [ "${MODE}" == "init" ]; then
 fi
 debug_log "splunkconf-backup running with MODE=${MODE} and INIT=${INIT}"
 
-regclass="^[A-Z_]+$"
-if [[ "${REMOTES3STORAGECLASS}" = "auto" ]]; then
-  REMOTES3STORAGECLASS="STANDARD_IA"
-elif [[ "${REMOTES3STORAGECLASS}" =~ $regclass ]]; then
-  debug_log "REMOTES3STORAGECLASS=$REMOTES3STORAGECLASS form ok"
-else
-  warn_log "invalid form  REMOTES3STORAGECLASS=$REMOTES3STORAGECLASS, using default value STANDARD_IA"
-  REMOTES3STORAGECLASS="STANDARD_IA"
-fi
-if [[ "${REMOTES3STORAGECLASSHOURLY}" = "auto" ]]; then
-  REMOTES3STORAGECLASSHOURLY="STANDARD"
-elif [[ "${REMOTES3STORAGECLASSHOURLY}" =~ $regclass ]]; then
-  debug_log "REMOTES3STORAGECLASSHOURLY={$REMOTES3STORAGECLASSHOURLY} form ok"
-else
-  warn_log "invalid form  REMOTES3STORAGECLASSHOURLY=${REMOTES3STORAGECLASSHOURLY}, using default value STANDARD"
-  REMOTES3STORAGECLASSHOURLY="STANDARD"
-fi
-if [[ "${REMOTES3STORAGECLASSDAILY}" = "auto" ]]; then
-  REMOTES3STORAGECLASSDAILY="STANDARD_IA"
-elif [[ "${REMOTES3STORAGECLASSDAILY}" =~ $regclass ]]; then
-  debug_log "REMOTES3STORAGECLASSDAILY={$REMOTES3STORAGECLASSDAILY} form ok"
-else
-  warn_log "invalid form  REMOTES3STORAGECLASSDAYLY=${REMOTES3STORAGECLASSDAILY}, using default value STANDARD_IA"
-  REMOTES3STORAGECLASSDAILY="STANDARD_IA"
-fi
-if [[ "${REMOTES3STORAGECLASSWEEKLY}" = "auto" ]]; then
-  REMOTES3STORAGECLASSWEEKLY="STANDARD_IA"
-elif [[ "${REMOTES3STORAGECLASSWEEKLY}" =~ $regclass ]]; then
-  debug_log "REMOTES3STORAGECLASSWEEKLY={$REMOTES3STORAGECLASSWEEKLY} form ok"
-else
-  warn_log "invalid form  REMOTES3STORAGECLASSWEEKLY=${REMOTES3STORAGECLASSWEEKLY}, using default value STANDARD_IA"
-  REMOTES3STORAGECLASSWEEKLY="STANDARD_IA"
-fi
-if [[ "${REMOTES3STORAGECLASSMONTH}" = "auto" ]]; then
-  REMOTES3STORAGECLASSMONTHLY="STANDARD_IA"
-elif [[ "${REMOTES3STORAGECLASSMONTHLY}" =~ $regclass ]]; then
-  debug_log "REMOTES3STORAGECLASSMONTHLY={$REMOTES3STORAGECLASSMONTHLY} form ok"
-else
-  warn_log "invalid form  REMOTES3STORAGECLASSMONTHLY=${REMOTES3STORAGECLASSMONTHLY}, using default value STANDARD_IA"
-  REMOTES3STORAGECLASSMONTHLY="STANDARD_IA"
-fi
-
-
 ####### TEMPO DELAY ############################
 if [ "$INIT" == "1" ]; then
   debug_log "no delay as we are in init mode and delay was already part of splunkconf restore"
@@ -619,6 +577,49 @@ if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
 else
   debug_log "INFO: splunkconf-backup.conf in system/local not present, no need to include it"
 fi
+
+regclass="^[A-Z_]+$"
+if [[ "${REMOTES3STORAGECLASS}" = "auto" ]]; then
+  REMOTES3STORAGECLASS="STANDARD_IA"
+elif [[ "${REMOTES3STORAGECLASS}" =~ $regclass ]]; then
+  debug_log "REMOTES3STORAGECLASS=$REMOTES3STORAGECLASS form ok"
+else
+  warn_log "invalid form  REMOTES3STORAGECLASS=$REMOTES3STORAGECLASS, using default value STANDARD_IA"
+  REMOTES3STORAGECLASS="STANDARD_IA"
+fi
+if [[ "${REMOTES3STORAGECLASSHOURLY}" = "auto" ]]; then
+  REMOTES3STORAGECLASSHOURLY="STANDARD"
+elif [[ "${REMOTES3STORAGECLASSHOURLY}" =~ $regclass ]]; then
+  debug_log "REMOTES3STORAGECLASSHOURLY={$REMOTES3STORAGECLASSHOURLY} form ok"
+else
+  warn_log "invalid form  REMOTES3STORAGECLASSHOURLY=${REMOTES3STORAGECLASSHOURLY}, using default value STANDARD"
+  REMOTES3STORAGECLASSHOURLY="STANDARD"
+fi
+if [[ "${REMOTES3STORAGECLASSDAILY}" = "auto" ]]; then
+  REMOTES3STORAGECLASSDAILY="STANDARD_IA"
+elif [[ "${REMOTES3STORAGECLASSDAILY}" =~ $regclass ]]; then
+  debug_log "REMOTES3STORAGECLASSDAILY={$REMOTES3STORAGECLASSDAILY} form ok"
+else
+  warn_log "invalid form  REMOTES3STORAGECLASSDAYLY=${REMOTES3STORAGECLASSDAILY}, using default value STANDARD_IA"
+  REMOTES3STORAGECLASSDAILY="STANDARD_IA"
+fi
+if [[ "${REMOTES3STORAGECLASSWEEKLY}" = "auto" ]]; then
+  REMOTES3STORAGECLASSWEEKLY="STANDARD_IA"
+elif [[ "${REMOTES3STORAGECLASSWEEKLY}" =~ $regclass ]]; then
+  debug_log "REMOTES3STORAGECLASSWEEKLY={$REMOTES3STORAGECLASSWEEKLY} form ok"
+else
+  warn_log "invalid form  REMOTES3STORAGECLASSWEEKLY=${REMOTES3STORAGECLASSWEEKLY}, using default value STANDARD_IA"
+  REMOTES3STORAGECLASSWEEKLY="STANDARD_IA"
+fi
+if [[ "${REMOTES3STORAGECLASSMONTHLY}" = "auto" ]]; then
+  REMOTES3STORAGECLASSMONTHLY="STANDARD_IA"
+elif [[ "${REMOTES3STORAGECLASSMONTHLY}" =~ $regclass ]]; then
+  debug_log "REMOTES3STORAGECLASSMONTHLY={$REMOTES3STORAGECLASSMONTHLY} form ok"
+else
+  warn_log "invalid form  REMOTES3STORAGECLASSMONTHLY=${REMOTES3STORAGECLASSMONTHLY}, using default value STANDARD_IA"
+  REMOTES3STORAGECLASSMONTHLY="STANDARD_IA"
+fi
+
 
 
 check_cloud

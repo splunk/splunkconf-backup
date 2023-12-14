@@ -103,8 +103,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20231211 add frequency tag + add call to purgebackup before each backup for init mode + remove random delay at start for init mode
 # 20231213 use different storage class depending on frequency 
 # 20231212 REMOTESTORAGE auto arg check fix
+# 20231214 padding fix for date comamnd (for frequency feature)
 
-VERSION="20231213b"
+VERSION="20231214a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -1395,14 +1396,16 @@ fi
     else 
       # aws
       tagname="frequency"
-      hournumber=`date +"%H"`
+      # - disable padding with 0
+      hournumber=`date +"%-H"`
       # day of week (1..7); 1 is Monday
-      weekdaynumber=`date +"%u"`
-      dayofmonthnumber=`date +"%d"`
+      weekdaynumber=`date +"%-u"`
+      dayofmonthnumber=`date +"%-d"`
+      debug_log "hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber"
       # we use different hours to flag backups so if a month start also is a week start, we can keep 2 backups
       # we do not use 2 and 3 as there may be a summer/winter time event
       # also we take a backup during night
-      if [ "${dayofmonthnumber}" = "1" ] && [ "${hournumber}" = "4" ]; then
+      if [ "${dayofmonthnumber}" = "1" ] && [ "${hournumber}" = "04" ]; then
         # first day of month  at 4
         S3TAGS="TagSet=[{Key=${tagname},Value=monthly}]"
         REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSMONTHLY}

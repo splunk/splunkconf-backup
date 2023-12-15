@@ -232,7 +232,8 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20231120 add variable splversion and splhash to reduce typo risk when updating version
 # 20231206 add tag splunkhostmode and splunkhostmodeos
 # 20231213 bug fix with sed command for servername replacement
-# 20231115 more bug fix with sed command for servername replacement
+# 20231215 more bug fix with sed command for servername replacement
+# 20231215 disabling splunksecrets deployment as can now be done mostly via splunk command line
 
 VERSION="20231215a"
 
@@ -811,6 +812,10 @@ cgroup_status
 echo "cloud_type=$cloud_type, sysver=$SYSVER"
 
 # setting variables
+
+# disabling splunksecrets deployment as can now be done mostly via splunk command line  
+splunksecretsdeploymentenable=0
+
 
 INSTANCEFILE="/etc/instance-tags"
 
@@ -1553,19 +1558,23 @@ if [ "$SYSVER" -eq 6 ]; then
   fi
   # enable the system tuning 
   sysctl --system;/etc/rc.d/rc.local 
-  echo "#****************************************** splunksecrets deployment ***********************************"
-  # deploying splunk secrets
-  if [ $splunkconnectedmode == 1 ] || [ $splunkconnectedmode == 2 ]; then 
-    yum install -y python36-pip
-  fi
-  if [ $splunkconnectedmode == 1 ]; then 
-    pip install --upgrade pip
-  fi
-  sleep 1
-  # this is now problematic to install on AWS1 which is so old
-  if [ $splunkconnectedmode == 1 ]; then 
-    pip install splunksecrets
-    pip-3.6 install splunksecrets
+  if [ "$splunksecretsdeploymentenable" = "1" ]; then
+    echo "#****************************************** splunksecrets deployment ***********************************"
+    # deploying splunk secrets
+    if [ $splunkconnectedmode == 1 ] || [ $splunkconnectedmode == 2 ]; then 
+      yum install -y python36-pip
+    fi
+    if [ $splunkconnectedmode == 1 ]; then 
+      pip install --upgrade pip
+    fi
+    sleep 1
+    # this is now problematic to install on AWS1 which is so old
+    if [ $splunkconnectedmode == 1 ]; then 
+      pip install splunksecrets
+      pip-3.6 install splunksecrets
+    fi
+  else 
+    echo "splunksecrets deployment disabled, please use splunk command line support"
   fi
 else
   # RH7/8 AWS2 like

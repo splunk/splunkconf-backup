@@ -104,8 +104,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20231213 use different storage class depending on frequency 
 # 20231212 REMOTESTORAGE auto arg check fix
 # 20231214 padding fix for date comamnd (for frequency feature)
+# 20231216 stale lock prevention added
 
-VERSION="20231214a"
+VERSION="20231216a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -500,6 +501,21 @@ function do_remote_copy() {
   fi
 }
 
+function checklock() {
+  if [ -e "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" ]; then
+    count=$(/usr/bin/find "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" -mmin +${lockmindelay} -delete -print | wc -l)  
+    if [ $count -gt 0 ]; then 
+       warn_log "ATTENTION: we had to remove stale lock file at "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" , this is unexpected, please investigate" 
+    fi
+    if [ -e "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" ]; then
+      ERROR=1
+      ERROR_MESSAGE="${lockname}lock"
+      fail_log ${lockmessage}
+      exit 1
+    fi
+  fi
+}
+
 ###### start
 
 ########  initialization for logging ##############
@@ -792,8 +808,21 @@ else
 fi
 
 if (( REMOTETECHNO == 4 )); then 
-      debug_log "remote techno=4 (rsync) setting REMOTEBACKUPDIR to empty as we rsync to same path"
-      REMOTEBACKUPDIR=""
+  debug_log "remote techno=4 (rsync) setting REMOTEBACKUPDIR to empty as we rsync to same path"
+  REMOTEBACKUPDIR=""
+  if [ ${REMOTETECHNO} -eq 4 ]; then
+    OPTION=" ssh -oConnectTimeout=30 -oServerAliveInterval=60 -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
+    if (( RSYNCDISABLEREMOTE == 1 )); then
+      debug_log "INFO: Disabling remote splunk (just in case as should be already stopped to prevent a clone conflict  situation"
+      RESSTOP=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} "${SPLUNK_HOME}/bin/splunk status && ${SPLUNK_HOME}/bin/splunk stop"`
+      RESSTATUS=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} "${SPLUNK_HOME}/bin/splunk status"`
+      echo_log "mode=init remotestopstatus=$RESSTOP remotestatus=$RESSTATUS"
+    fi
+    if ((  RSYNCREMOTEDELETE == 2 )); then
+      debug_log "INFO: launching remote splunkconf-purgebackup.sh"
+      RESPURGE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh`
+    fi
+  fi
 fi
 
 if [[ -f "${APPDIR}/lookups/splunkconf-exclude.csv" ]]; then
@@ -838,15 +867,19 @@ if [ "$INIT" == "1" ]; then
   debug_log "INIT mode"
   #echo_log "INIT mode , removing lock file so other backup process may run"
   #  `rm ${SPLUNK_HOME}/var/run/splunkconf-init.lock`
+else
+  debug_log "not in init mode, checking for init lock"
+  lockname="init"
+  lockmindelay=50
+  lockmessage="splunkconf-backup is currently running in init mode, stopping backup creation to avoid conflic"
+  checklock;
 fi
 # FIXME : opti : relax check to only exit if global or kvdump/kvstore mode
 debug_log "checking for a ongoing kvdump restore"
-if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
-  fail_log "splunkconf-restore is currently running a kvdump, stopping to avoid creating a incomplete backup."
-  ERROR=1
-  ERROR_MESSAGE="kvdumprestorelock"
-  exit 1
-fi
+lockname="kvrestore"
+lockmindelay=120
+lockmessage="splunkconf-restore is currently running a kvdump, stopping backup creation to avoid creating a incomplete backup"
+checklock;
 
 # creating dir
 

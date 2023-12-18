@@ -26,6 +26,7 @@
 ./etc/apps/launcher/default
 ./etc/apps/launcher/appserver
 ./etc/apps/launcher/README
+./etc/apps/splunk-rolling-upgrade
 ./etc/apps/sample_app
 ./etc/apps/search/bin
 ./etc/apps/search/default
@@ -53,6 +54,7 @@
 ./etc/apps/splunk-dashboard-studio/appserver
 ./etc/apps/splunk-dashboard-studio/locale
 ./etc/apps/splunk-dashboard-studio/bin
+./etc/apps/splunk_essentials_8_0/
 ./etc/apps/splunk_monitoring_console/README
 ./etc/apps/splunk_monitoring_console/bin
 ./etc/apps/python_upgrade_readiness_app

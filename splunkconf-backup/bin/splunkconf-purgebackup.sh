@@ -45,8 +45,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20220327 improve logging by adding freespace info
 # 20230704 add rcp purge support
 # 20230913 add more debug log for system local conf file
+# 20231217 add lock file as can now be called through backup
 
-VERSION="20230913a"
+VERSION="20231217a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -163,6 +164,23 @@ function splunkconf_checkspace {
     return 0
   fi
 }
+
+function checklock() {
+  if [ -e "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" ]; then
+    count=$(/usr/bin/find "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" -mmin +${lockmindelay} -delete -print | wc -l) 
+    if [ $count -gt 0 ]; then
+       warn_log "ATTENTION: we had to remove stale lock file at "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" , this is unexpected, please investigate" 
+    fi 
+    if [ -e "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" ]; then
+      ERROR=1
+      ERROR_MESSAGE="${lockname}lock"
+      fail_log ${lockmessage}
+      exit 1
+    fi
+  fi
+}
+
+
 ###### start
 
 # %u is day of week , we may use this for custom purge
@@ -201,18 +219,28 @@ else
   debug_log "splunkconf-backup.conf in system/local not present, no need to include it"
 fi
 
+debug_log "checking for purge lock"
+lockname="purge"
+lockmindelay=5
+lockmessage="splunkconf-purgebackup is currently running, stopping purgebackup to avoid conflic"
+checklock;
+
+`touch ${SPLUNK_HOME}/var/run/splunkconf-purge.lock`
+
 LOCALKVDUMPDIR="${SPLUNK_DB}/kvstorebackup"
 
-if [ -z ${LOCALBACKUPRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPRETENTIONDAYS. Exiting !"; exit 1; else debug_log "LOCALBACKUPRETENTIONDAYS defined and set to ${LOCALBACKUPRETENTIONDAYS}"; fi
-if [ -z ${LOCALBACKUPKVRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPKVRETENTIONDAYS. Exiting !"; exit 1; else debug_log "LOCALBACKUPKVRETENTIONDAYS defined and set to ${LOCALBACKUPKVRETENTIONDAYS}"; fi
-if [ -z ${LOCALBACKUPSCRIPTSRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPSCRIPTSRETENTIONDAYS. Exiting !"; exit 1; else debug_log "LOCALBACKUPSCRIPTSRETENTIONDAYS defined and set to ${LOCALBACKUPSCRIPTSRETENTIONDAYS}"; fi
-if [ -z ${LOCALBACKUPMODINPUTRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPMODINPUTRETENTIONDAYS. Exiting !"; exit 1; else debug_log "LOCALBACKUPMODINPUTRETENTIONDAYS defined and set to ${LOCALBACKUPMODINPUTRETENTIONDAYS}"; fi
-if [ -z ${SPLUNK_HOME+x} ]; then fail_log "SPLUNK_HOME not defined in ENSPL file !!!!"; exit 1; else debug_log "SPLUNK_HOME defined to ${SPLUNK_HOME}"; fi
-if [ -z ${LOCALBACKUPDIR+x} ]; then fail_log "LOCALBACKUPDIR not defined in ENSPL file !!!!"; exit 1; else debug_log "LOCALBACKUPDIR defined and set to ${LOCALBACKUPDIR}"; fi
+if [ -z ${LOCALBACKUPRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPRETENTIONDAYS defined and set to ${LOCALBACKUPRETENTIONDAYS}"; fi
+if [ -z ${LOCALBACKUPKVRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPKVRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPKVRETENTIONDAYS defined and set to ${LOCALBACKUPKVRETENTIONDAYS}"; fi
+if [ -z ${LOCALBACKUPSCRIPTSRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPSCRIPTSRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPSCRIPTSRETENTIONDAYS defined and set to ${LOCALBACKUPSCRIPTSRETENTIONDAYS}"; fi
+if [ -z ${LOCALBACKUPMODINPUTRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPMODINPUTRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPMODINPUTRETENTIONDAYS defined and set to ${LOCALBACKUPMODINPUTRETENTIONDAYS}"; fi
+if [ -z ${SPLUNK_HOME+x} ]; then fail_log "SPLUNK_HOME not defined in ENSPL file !!!!"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "SPLUNK_HOME defined to ${SPLUNK_HOME}"; fi
+if [ -z ${LOCALBACKUPDIR+x} ]; then fail_log "LOCALBACKUPDIR not defined in ENSPL file !!!!"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPDIR defined and set to ${LOCALBACKUPDIR}"; fi
 if (( ${LOCALMAXSIZE} > 1000000000 )); then 
   debug_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check ok" 
 else 
   fail_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check KO ! Need to be at least 1G(1000000000). Exiting to avoid deletion of all backups on invalid value"
+  debug_log "removing lock file so other purgebackup process may run"
+  `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`
   exit 1;
 fi
 
@@ -350,10 +378,16 @@ TYPE="remote"
 
 # note : only implemented for nas type currently, implicitely you have use the date versioned files for this to work correctly
 if [ -z ${REMOTEBACKUPDIR+x} ]; then 
-  debug_log "REMOTEBACKUPDIR not defined, remote purge disabled"; exit 0; 
+  debug_log "REMOTEBACKUPDIR not defined, remote purge disabled";
+  debug_log "removing lock file so other purgebackup process may run"
+  `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`
+  exit 0;
 elif [[ ${REMOTEBACKUPDIR} == s3* ]] ; then
   # by design, we should not be able to delete here
-  debug_log "REMOTEBACKUPDIR is on s3, remote purge disabled, please use lifecycle policy in object store to remove oldest versions"; exit 0;
+  debug_log "REMOTEBACKUPDIR is on s3, remote purge disabled, please use lifecycle policy in object store to remove oldest versions"; 
+  debug_log "removing lock file so other purgebackup process may run"
+  `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`
+  exit 0;
 else
   debug_log "REMOTEBACKUP"
   # adding instance name , we only want to purge the data for this instance !
@@ -398,3 +432,5 @@ else
   fi
 fi
 
+debug_log "removing lock file so other purgebackup process may run"
+`rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`

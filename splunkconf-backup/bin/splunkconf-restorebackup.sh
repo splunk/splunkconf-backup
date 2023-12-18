@@ -413,7 +413,7 @@ fi
 echo_log "launching initial purgebackupi (to maximize chance to have enpigh space for doing backups now)"
 $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh 
 echo_log "launching initial backup"
-$SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init
+echo $sessionkey | $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init 
 
 echo_log "end of splunkconf_restore script"
 

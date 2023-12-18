@@ -1080,9 +1080,18 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       #disabled we dont want to log this for obvious security reasons debug: echo "session key is $sessionkey"
       #MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \#| cut -d ' ' -f 4|tail -1`
       MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \# | sed -r 's/.*=\s*([0-9\.:]+)/\1/' |tail -1`
+ 
+      # check pre backup
+      RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" `
+      debug_log "full kvstore status RES=$RES"
+      RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
+      debug_log "kvstore status before launching backup RES=$RES"
+      #debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running "
+
       KVARCHIVE="backupconfsplunk-kvdump-${TODAY}"
       MESS1="MGMTURL=${MGMTURL} KVARCHIVE=${KVARCHIVE}";
       START=$(($(date +%s%N)));
+      
 
 
       RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/create -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}"`

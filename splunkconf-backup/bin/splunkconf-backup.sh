@@ -105,8 +105,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20231212 REMOTESTORAGE auto arg check fix
 # 20231214 padding fix for date comamnd (for frequency feature)
 # 20231216 stale lock prevention added
+# 20231219 add setting to allow disabling tagging for s3 
 
-VERSION="20231216a"
+VERSION="20231218a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -211,6 +212,9 @@ REMOTES3STORAGECLASSWEEKLY="auto"
 
 #REMOTES3STORAGECLASSMONTHLY="STANDARD-IA"
 REMOTES3STORAGECLASSMONTHLY="auto"
+
+# by default we will tag objects send to s3, set this to 0 to disable it 
+REMOTEOBJECTSTORETAGS3="1"
 
 # you dont need to set this unless doing backup to object store on prem 
 # it is better to use tag on instance metadata so the app config is the same between different env
@@ -471,7 +475,7 @@ function do_remote_copy() {
       ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}
     elif [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
       debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}"
-      # Attention , we do tags at the same time so if iam are in correctly set the whole put is going to fail
+      # Attention , we do tags at the same time so if iam are incorrectly set the whole put is going to fail
       # This is why we default now to do it in 2 steps
       ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}
     else
@@ -486,13 +490,17 @@ function do_remote_copy() {
       echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}" 
       if [[ "cloud_type" -eq 1 ]]; then
         # AWS
-        debug_log "setting tag via aws s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
-        aws s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS}
-        RES=$?
-        if [ $RES -eq 0 ]; then
-          echo_log "action=tag type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC}" 
+        if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ]; then
+          debug_log "setting tag via aws s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
+          aws s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS}
+          RES=$?
+          if [ $RES -eq 0 ]; then
+            echo_log "action=tag type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC}" 
+          else
+            echo_log "action=tag type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} Please check IAM for s3:PutObjectTagging" 
+          fi
         else
-          echo_log "action=tag type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} Please check IAM for s3:PutObjectTagging" 
+          debug_log "tagging disabled by config"
         fi
       fi
     else
@@ -1468,7 +1476,11 @@ fi
         CPCMD="aws s3api put-object --bucket ${s3backupbucket} --body ";
         CPCMD2="--key "
         # quiet doesnt exist with s3api
-        OPTION=" --storage-class ${REMOTES3STORAGECLASSCURRENT} --tagging ${S3TAGS}";
+        if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ]; then
+          OPTION=" --storage-class ${REMOTES3STORAGECLASSCURRENT} --tagging ${S3TAGS}";
+        else
+          OPTION=" --storage-class ${REMOTES3STORAGECLASSCURRENT}";
+        fi
       else
         CPCMD="aws s3 cp";
         OPTION=" --quiet --storage-class ${REMOTES3STORAGECLASSCURRENT}";

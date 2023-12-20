@@ -303,10 +303,14 @@ function echo_log_ext {
 
 
 function debug_log {
-  DEBUG=0   
-  # uncomment for debugging
-  #DEBUG=1   
-  if [ "$DEBUG" == "1" ]; then 
+  # set DEBUG=1 in conf file or splunkbackupdebug=1 via tag to enable debugging
+  if [ -z ${splunkbackupdebug+x} ]; then
+    splunkbackupdebug=0
+  fi
+  if [ -z ${DEBUG+x} ]; then 
+    DEBUG=0
+  fi
+  if [ "$DEBUG" == "1" ] || [ "$splunkbackupdebug" == "1" ] ; then 
     DA=`date`
     echo_log_ext  "DEBUG $DA id=$ID $1"
   fi 

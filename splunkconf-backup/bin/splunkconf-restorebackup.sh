@@ -149,11 +149,16 @@ function echo_log_ext {
 }
 
 function debug_log {
-  DEBUG="0";
-  # change me here, not yet in conf file
-  #DEBUG="1";
-  if [ $DEBUG -ne "0" ]; then
-    echo_log_ext  "DEBUG id=$ID $1"
+  # set DEBUG=1 in conf file or splunkbackupdebug=1 via tag to enable debugging
+  if [ -z ${splunkbackupdebug+x} ]; then
+    splunkbackupdebug=0
+  fi
+  if [ -z ${DEBUG+x} ]; then
+    DEBUG=0
+  fi
+  if [ "$DEBUG" == "1" ] || [ "$splunkbackupdebug" == "1" ] ; then
+    DA=`date`
+    echo_log_ext  "DEBUG $DA id=$ID $1"
   fi
 }
 

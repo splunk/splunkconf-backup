@@ -231,6 +231,9 @@ AWSCOPYMODE=0
 # RSYNC OVER SSH options
 # RSYNCMODE
 
+# enable autorestore via rsync over ssh
+RSYNCAUTORESTORE=1
+
 # WHAT TO BACKUP
 # this can be used for : rollback, doing diff , moving conf to new server, ....
 # this is not meant to backup files binaries, var , index, ....
@@ -473,6 +476,12 @@ function do_remote_copy() {
     elif (( REMOTETECHNO == 4 )); then
       debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR} "
       ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}
+      if ((  RSYNCAUTORESTORE == 1 )); then
+        debug_log "INFO: launching rsync autorestore with $OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorerebackup.sh ${TYPE}restore ${RFIC}"
+        RESAUTORESTORE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorerebackup.sh ${TYPE}restore ${RFIC}`
+      else 
+        debug_log "autorestore via rsync disabled by config"
+      fi
     elif [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
       debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}"
       # Attention , we do tags at the same time so if iam are incorrectly set the whole put is going to fail
@@ -818,7 +827,7 @@ fi
 if (( REMOTETECHNO == 4 )); then 
   debug_log "remote techno=4 (rsync) setting REMOTEBACKUPDIR to empty as we rsync to same path"
   REMOTEBACKUPDIR=""
-  if [ ${REMOTETECHNO} -eq 4 ]; then
+  #if [ ${REMOTETECHNO} -eq 4 ]; then
     OPTION=" ssh -oConnectTimeout=30 -oServerAliveInterval=60 -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
     if (( RSYNCDISABLEREMOTE == 1 )); then
       debug_log "INFO: Disabling remote splunk (just in case as should be already stopped to prevent a clone conflict  situation"
@@ -830,7 +839,7 @@ if (( REMOTETECHNO == 4 )); then
       debug_log "INFO: launching remote splunkconf-purgebackup.sh"
       RESPURGE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh`
     fi
-  fi
+  #fi
 fi
 
 if [[ -f "${APPDIR}/lookups/splunkconf-exclude.csv" ]]; then

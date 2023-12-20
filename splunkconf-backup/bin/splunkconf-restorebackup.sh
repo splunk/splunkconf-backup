@@ -225,6 +225,54 @@ else
   debug_log "splunkconf-backup.conf in system/local not present, no need to include it"
 fi
 
+
+
+# ARGUMENT CHECK
+if [ $# -eq 2 ]; then
+  debug_log "Your command line contains $# argument"
+  MODE=$1
+  FILE=$2
+elif [ $# -gt 2 ]; then
+  warn_log "Your command line contains too many ($#) arguments. Ignoring the extra data"
+  MODE=$1
+  FILE=$2
+elif [ $# -eq 1 ]; then
+  debug_log "Your command line contains $# argument"
+  MODE=$1
+  FILE=""
+  if [ "${MODE}" = "kvdumprestore" ]; then
+    debug_log "OK: got one arg only but this is kvdumprestore situation from input at start"
+  else
+    fail_log "ATTENTION: invalid MODE=$MODE or missing second arg for file. Exiting, please correct arguments"
+    exit 1
+  fi
+else
+  debug_log "No arguments given, running with kvdump restore and assuming called via inputs (or it will block)"
+  MODE="kvdumprestore"
+fi
+
+# set root for restore here if not kvdump
+RESTOREPATH=$SPLUNK_HOME
+
+debug_log "$0 running with MODE=${MODE}"
+
+case $MODE in
+  "etcrestore"|"staterestore"|"scriptsrestore") 
+     debug_log "argument valid, we are in autorestoremode with MODE=$MODE and FILE=$FILE"
+     if [ -e $FILE ]; then
+       tar -C ${RESTOREPATH} -xf $FILE
+       exit 0
+     else
+       fail_log "MODE=$MODE  file=$FILE file is not present on filesystem, something wrong , impossible to restore it,please investigate"
+       exit 1
+     fi
+   ;;
+  "kvdumprestore") debug_log "argument valid , we are in kvdump restor emode" ;;
+  *) fail_log "argument $MODE is NOT a valid value, please fix"; exit 1;;
+esac
+
+# from here we are in kvdump restore mode called via input at start time
+
 ###### LOCK   #######
 # we need to set lock asap so if other input start it will see the lock
 `touch ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`

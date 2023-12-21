@@ -12,6 +12,11 @@ variable "splunkacceptlicense" {
   }
 }
 
+variable "splunkbackupdebug" {
+  description = "0= disable debug logging (can also be enabled by conf file) , 1 = enable debug log for splunkconf-backup app in splunkconf-backup.log"
+  type = number
+  default = 0
+}
 
 variable "splunkcloudmode" {
   description = "1 = send to splunkcloud only with provided configuration, 2 = clone to splunkcloud with provided configuration (partially implemeted -> behave like 1 at the moment, 3 = byol or manual config to splunkcloud(default)"

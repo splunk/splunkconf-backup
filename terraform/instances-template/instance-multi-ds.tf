@@ -286,6 +286,7 @@ resource "aws_launch_template" "splunk-ds" {
       splunkosupdatemode    = var.splunkosupdatemode
       splunkconnectedmode   = var.splunkconnectedmode
       splunkacceptlicense   = var.splunkacceptlicense
+      splunkbackupdebug     = var.splunkbackupdebug
       # this is needed for multi ds only
       # we only deploy by tar in that case
       splunktargetbinary = var.splunktar

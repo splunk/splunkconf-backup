@@ -305,6 +305,7 @@ resource "aws_launch_template" "splunk-ds" {
       splunkosupdatemode    = var.splunkosupdatemode
       splunkconnectedmode   = var.splunkconnectedmode
       splunkacceptlicense   = var.splunkacceptlicense
+      splunkbackupdebug     = var.splunkbackupdebug
       splunkpwdinit         = var.splunkpwdinit
       splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
       splunkenableworker    = ( var.ds-enableworker ? "1" : "0" )

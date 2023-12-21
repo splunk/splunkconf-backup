@@ -303,6 +303,7 @@ resource "aws_launch_template" "splunk-cm" {
       splunkosupdatemode    = var.splunkosupdatemode
       splunkconnectedmode   = var.splunkconnectedmode
       splunkacceptlicense   = var.splunkacceptlicense
+      splunkbackupdebug     = var.splunkbackupdebug
     }
   }
   metadata_options {

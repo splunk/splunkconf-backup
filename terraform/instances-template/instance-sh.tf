@@ -304,6 +304,7 @@ resource "aws_launch_template" "splunk-sh" {
       splunkosupdatemode    = var.splunkosupdatemode
       splunkconnectedmode   = var.splunkconnectedmode
       splunkacceptlicense   = var.splunkacceptlicense
+      splunkbackupdebug     = var.splunkbackupdebug
     }
   }
   metadata_options {

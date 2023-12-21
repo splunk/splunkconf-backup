@@ -1,6 +1,13 @@
 #!/bin/bash
 exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 
+
+# in normal condition
+#!/bin/bash
+# only for very verbose debug
+#!/bin/bash -x
+# you may enable debug logging via config file or tag
+
 # Copyright 2022 Splunk Inc.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");

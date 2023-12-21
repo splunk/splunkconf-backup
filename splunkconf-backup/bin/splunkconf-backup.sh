@@ -3,8 +3,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 
 # in normal condition
 #!/bin/bash
-# only for debug
+# only for really verbose debug
 #!/bin/bash -x
+# you can enable debug log via config file or tag
 
 
 # Copyright 2022 Splunk Inc.

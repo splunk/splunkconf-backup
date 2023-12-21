@@ -1,6 +1,13 @@
 #!/bin/bash  
 exec > /tmp/splunkconf-restore-debug.log  2>&1
 
+# in normal condition
+#!/bin/bash
+# only for really verbose debug
+#!/bin/bash -x
+# you may enable debug logging by setting debug variable in configuration file or via tag
+
+
 # Copyright 2022 Splunk Inc.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,8 +63,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20231204 small log change + add SPLUNK_HOME variable for lock file
 # 20231204 serialize to do full back after kvdump restore 
 # 20232120 more serialize at start with purge followed by init backup
+# 20231221 add support for controlling debug level via external config setting or tag
 
-VERSION="20231210b"
+VERSION="20231221a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -465,7 +473,7 @@ fi
 
 echo_log "launching initial purgebackupi (to maximize chance to have enpigh space for doing backups now)"
 $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh 
-echo_log "launching initial backup"
+echo_log "launching initial backup via $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init"
 echo $sessionkey | $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init 
 
 echo_log "end of splunkconf_restore script"

@@ -17,10 +17,12 @@
 # 20230118 update for 7.1.0
 # 20230530 update for 7.1.1
 # 20230907 update for 7.2.0
+# 20231220 update for 7.3.0
 
-VERSION="20230907"
+VERSION="20231220"
 
-ESAPP="splunk-enterprise-security_720.spl"
+ESAPP="splunk-enterprise-security_730.spl"
+ESCU="splunk-es-content-update_4170.tgz"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
@@ -67,7 +69,6 @@ else
   echo "KO: ES install file $ESAPP is NOT present in s3 install at $remoteappsdir: Please upload correct ES app version to s3 install or update this script is you want to use a different version"
 fi
 
-ESCU="splunk-es-content-update_420.tgz"
 
 aws s3 cp $remoteappsdir/$ESCU  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESCU" ]; then

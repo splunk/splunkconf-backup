@@ -226,7 +226,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20231108 fix typo 
 # 20231108 improve curl outputs 
 # 20231111 fix missing dir creation for worker use case
-# 20231111 fix incorrect arg for dwnloading playbook for worker use case + improve logging
+# 20231111 fix incorrect arg for downloading playbook for worker use case + improve logging
 # 20231112 fix path for worker splunk ansible 
 # 20231117 up to 9.1.2
 # 20231120 add variable splversion and splhash to reduce typo risk when updating version
@@ -234,8 +234,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20231213 bug fix with sed command for servername replacement
 # 20231215 more bug fix with sed command for servername replacement
 # 20231215 disabling splunksecrets deployment as can now be done mostly via splunk command line
+# 20240109 set deploymentclient so ds comm works when hostmode in ami mode
 
-VERSION="20231215a"
+VERSION="20240109a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1157,7 +1158,8 @@ else
       #    ]
       #}
 
-      NAME=`hostname --short`
+      NAME=$instancename
+      #NAME=`hostname --short`
       DOMAIN=$splunkdnszone
       FULLNAME=$NAME"."$DOMAIN
 
@@ -1863,6 +1865,12 @@ if [ "$MODE" != "upgrade" ]; then
       echo "[general]" > ${SPLUNK_HOME}/etc/system/local/server.conf
       echo "serverName = ${hostinstancename}" >> ${SPLUNK_HOME}/etc/system/local/server.conf
       chown ${usersplunk}. ${SPLUNK_HOME}/etc/system/local/server.conf
+    fi
+    if [ ! -f "${SPLUNK_HOME}/etc/system/local/deploymentclient.conf"  ]; then
+      echo "initializing deploymentclient.conf with ${hostinstancename}\n"
+      echo "[deployment-client]" > ${SPLUNK_HOME}/etc/system/local/deploymentclient.conf
+      echo "clientName = ${hostinstancename}" >> ${SPLUNK_HOME}/etc/system/local/deploymentclient.conf
+      chown ${usersplunk}. ${SPLUNK_HOME}/etc/system/local/deploymentclient.conf
     fi
   elif [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
     echo "#****************************************** AUTO ZONE DETECTION ***********************************"

@@ -235,8 +235,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20231215 more bug fix with sed command for servername replacement
 # 20231215 disabling splunksecrets deployment as can now be done mostly via splunk command line
 # 20240109 set deploymentclient so ds comm works when hostmode in ami mode
+# 20230125 up to 9.1.3
 
-VERSION="20240109a"
+VERSION="20240125a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1410,9 +1411,9 @@ fi # if not upgrade
 
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
-# note : if you update here, that could update at reinstanciation, make sure you know what you do !
-splversion="9.1.2"
-splhash="b6b9c8185839"
+# note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
+splversion="9.1.3"
+splhash="d95b3299fa65"
 splversionhash=${splversion}-${splhash}""
 #splbinary="splunk-9.1.2-b6b9c8185839.x86_64.rpm"
 splbinary="splunk-${splversionhash}.x86_64.rpm"

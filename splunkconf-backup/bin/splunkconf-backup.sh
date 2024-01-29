@@ -107,8 +107,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20231214 padding fix for date comamnd (for frequency feature)
 # 20231216 stale lock prevention added
 # 20231219 add setting to allow disabling tagging for s3 
+# 20240126 add endpoint s3 option for s3 compliant destinatioxans
 
-VERSION="20231218a"
+VERSION="20240126a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -226,6 +227,10 @@ REMOTEOBJECTSTOREPREFIX="splunkconf-backup"
 # 0 = auto (2 at the moment)
 # 1 = use aws s3 cp (no support for tags)
 # 2 = use aws s3-apui copy-object (support tags)
+
+# for on prem s3, specify the endpoint url as http(s)://mys3endpoint , otherwise let the auto setting
+# this will add  --endpoint-url $REMOTES3ENDPOINTURL to aws commands
+REMOTES3ENDPOINTURL="auto"
 
 AWSCOPYMODE=0
 
@@ -658,6 +663,18 @@ else
   warn_log "invalid form  REMOTES3STORAGECLASSMONTHLY=${REMOTES3STORAGECLASSMONTHLY}, using default value STANDARD_IA"
   REMOTES3STORAGECLASSMONTHLY="STANDARD_IA"
 fi
+
+regclass="^http[s]{0,1}\:\/\/[a-zA-Z0-9_\.\/]+$"
+if [[ "${REMOTES3ENDPOINTURL}" = "auto" ]]; then
+  S3ENDPOINTOPTION=""
+elif [[ "${REMOTES3ENDPOINTURL}" =~ $regclass ]]; then
+  S3ENDPOINTOPTION=" --endpoint-url ${REMOTES3ENDPOINTURL} "
+  debug_log "will add  ${S3ENDPOINTOPTION} to s3 commands"
+else
+  warn_log "invalid form for endpoint url, please use http(s)://my_endpoint, ignoring option  "
+  S3ENDPOINTOPTION=""
+fi
+
 
 
 
@@ -1487,7 +1504,7 @@ fi
       fi
       if [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
         # we use s3api because it allow to set tags at same time which s3 cp doenst suppport at the moment
-        CPCMD="aws s3api put-object --bucket ${s3backupbucket} --body ";
+        CPCMD="aws ${S3ENDPOINTOPTION} s3api put-object --bucket ${s3backupbucket} --body ";
         CPCMD2="--key "
         # quiet doesnt exist with s3api
         if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ]; then
@@ -1496,7 +1513,7 @@ fi
           OPTION=" --storage-class ${REMOTES3STORAGECLASSCURRENT}";
         fi
       else
-        CPCMD="aws s3 cp";
+        CPCMD="aws ${S3ENDPOINTOPTION} s3 cp";
         OPTION=" --quiet --storage-class ${REMOTES3STORAGECLASSCURRENT}";
         #OPTION=" --quiet --storage-class STANDARD_IA";
       fi

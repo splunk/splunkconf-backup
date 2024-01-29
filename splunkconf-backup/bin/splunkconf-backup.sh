@@ -107,7 +107,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20231214 padding fix for date comamnd (for frequency feature)
 # 20231216 stale lock prevention added
 # 20231219 add setting to allow disabling tagging for s3 
-# 20240126 add endpoint s3 option for s3 compliant destinatioxans
+# 20240126 add endpoint s3 option for s3 compliant destinations
 
 VERSION="20240126a"
 

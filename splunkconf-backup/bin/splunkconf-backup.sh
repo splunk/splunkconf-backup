@@ -108,8 +108,10 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20231216 stale lock prevention added
 # 20231219 add setting to allow disabling tagging for s3 
 # 20240126 add endpoint s3 option for s3 compliant destinations
+# 20230129 add more logging for endpoint-url setting
+# 20230130 more endpoint-url support and fixes
 
-VERSION="20240126a"
+VERSION="20240130a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -506,17 +508,17 @@ function do_remote_copy() {
     #let DURATIONNS=(END-START)
     let DURATION=(END-START)/1000000
     if [ $RES -eq 0 ]; then
-      echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}" 
+      echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} ${S3ENDPOINTLOGMESSAGE}" 
       if [[ "cloud_type" -eq 1 ]]; then
         # AWS
         if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ]; then
-          debug_log "setting tag via aws s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
-          aws s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS}
+          debug_log "setting tag via aws ${S3ENDPOINTOPTION} s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
+          aws ${S3ENDPOINTOPTION}  s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS}
           RES=$?
           if [ $RES -eq 0 ]; then
-            echo_log "action=tag type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC}" 
+            echo_log "action=tag type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} ${S3ENDPOINTLOGMESSAGE}" 
           else
-            echo_log "action=tag type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} Please check IAM for s3:PutObjectTagging" 
+            echo_log "action=tag type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} ${S3ENDPOINTLOGMESSAGE} Please check IAM for s3:PutObjectTagging" 
           fi
         else
           debug_log "tagging disabled by config"
@@ -664,15 +666,21 @@ else
   REMOTES3STORAGECLASSMONTHLY="STANDARD_IA"
 fi
 
-regclass="^http[s]{0,1}\:\/\/[a-zA-Z0-9_\.\/]+$"
+# this regex wont work with inline bash regex as it doesnt support pcre, this is why we need to call grep to do it
+regclass="^http[s]{0,1}\:\/\/[a-zA-Z0-9_\-\.\/]+$"
 if [[ "${REMOTES3ENDPOINTURL}" = "auto" ]]; then
   S3ENDPOINTOPTION=""
-elif [[ "${REMOTES3ENDPOINTURL}" =~ $regclass ]]; then
+  S3ENDPOINTLOGMESSAGE=""
+  debug_log "REMOTES3ENDPOINTURL=auto, not adding option"
+#elif [[ "${REMOTES3ENDPOINTURL}" =~ $regclass ]]; then
+elif [ $(grep -cP $regclass <<< "${REMOTES3ENDPOINTURL}") -gt 0 ]; then
   S3ENDPOINTOPTION=" --endpoint-url ${REMOTES3ENDPOINTURL} "
+  S3ENDPOINTLOGMESSAGE=" endpoint-url=\"${REMOTES3ENDPOINTURL}\" "
   debug_log "will add  ${S3ENDPOINTOPTION} to s3 commands"
 else
   warn_log "invalid form for endpoint url, please use http(s)://my_endpoint, ignoring option  "
   S3ENDPOINTOPTION=""
+  S3ENDPOINTLOGMESSAGE=""
 fi
 
 

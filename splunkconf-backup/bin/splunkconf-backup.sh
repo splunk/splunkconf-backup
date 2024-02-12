@@ -114,8 +114,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240212 fix logic for splunks3endpointurl versus conf file + add splunkrsyncautorestore tag support
 # 20240212 add support for tag splunkrsynchost and splunkrsyncmode
 # 20240212 more autorestore fixes/support
+# 20240212 add check at start for kvstore still initializing to avoid trying to launch backup too soon
 
-VERSION="20240212e"
+VERSION="20240212f"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -342,7 +343,7 @@ function fail_log {
 
 
 function splunkconf_purgebackup { 
-  debug_log "calling purge backup in order to maximize space avaialble before doing new backup"
+  debug_log "calling purge backup in order to maximize space available before doing new backup"
   ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh
 } 
 
@@ -1166,18 +1167,30 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
  
       # check pre backup
       RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" `
-      debug_log "full kvstore status RES=$RES"
+      debug_log "PREKVDUMP backup full kvstore status RES=$RES"
       RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
-      debug_log "kvstore status before launching backup RES=$RES"
+      debug_log "PREKVDUMP kvstore status before launching backup RES=$RES"
       #debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running "
 
       KVARCHIVE="backupconfsplunk-kvdump-${TODAY}"
       MESS1="MGMTURL=${MGMTURL} KVARCHIVE=${KVARCHIVE}";
+      debug_log "pre backup : checking in case kvstore is not ready like initialization at start"
+      COUNTER=50
+      RES=""
+      # wait a bit (up to 20*10= 200s) for backup to complete, especially for big kvstore/busy env (io)
+      # increase here if needed (ie take more time !)
+      until [[  $COUNTER -lt 1 || -n "$RES"  ]]; do
+        RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
+        #echo_log "RES=$RES"
+        debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running  info=prebackup"
+        let COUNTER-=1
+        sleep 10
+      done
+      # here we try to start backup anyway but if the status was not ready , something is probably wrong
       START=$(($(date +%s%N)));
-      
-
-
+      debug_log "launching kvdump backup via REST API"
       RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/create -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}"`
+
       #echo_log "KVDUMP CREATE RES=$RES"
       COUNTER=50
       RES=""
@@ -1186,7 +1199,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       until [[  $COUNTER -lt 1 || -n "$RES"  ]]; do
         RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
         #echo_log "RES=$RES"
-        debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running "
+        debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running info=postbackup"
         let COUNTER-=1
         sleep 10
       done

@@ -112,9 +112,10 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240130 more endpoint-url support and fixes
 # 20240212 add splunks3endpointurl tag support to allow test automation 
 # 20240212 fix logic for splunks3endpointurl versus conf file + add splunkrsyncautorestore tag support
-# 20230212 add support for tag splunkrsynchost and splunkrsyncmode
+# 20240212 add support for tag splunkrsynchost and splunkrsyncmode
+# 20240212 more autorestore fixes/support
 
-VERSION="20240212d"
+VERSION="20240212e"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -492,8 +493,8 @@ function do_remote_copy() {
       debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR} "
       ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}
       if (( RSYNCAUTORESTORE == 1 )); then
-        debug_log "INFO: launching rsync autorestore with $OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorerebackup.sh ${TYPE}restore ${RFIC}"
-        RESAUTORESTORE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorerebackup.sh ${TYPE}restore ${RFIC}`
+        debug_log "INFO: launching rsync autorestore with $OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}restore ${RFIC}"
+        RESAUTORESTORE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}restore ${RFIC}`
       else 
         debug_log "autorestore via rsync disabled by config"
       fi
@@ -811,8 +812,6 @@ else
   RSYNCHOST=${splunkrsynchost}
   debug_log "setting RSYNCHOST via tags. RSYNCHOST=${splunkrsynchost} This is used mainly for automated testing purpose"
 fi
-
-splunkrsyncmode
 
 if [ -z ${splunkrsyncmode+x} ]; then 
   debug_log "tag splunkrsyncmode not set"
@@ -1582,10 +1581,9 @@ fi
     fi
   fi
   if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
-    TYPE="remote"
     OBJECT="etc"
     LFIC=${LFICETC}
-    RFIC=${FICETC}
+    RFIC=${LFICETC}
     SRFIC=${SFICETC}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"
@@ -1597,7 +1595,7 @@ fi
   if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then 
     OBJECT="scripts"
     LFIC=${LFICSCRIPT}
-    RFIC=${FICSCRIPT}
+    RFIC=${LFICSCRIPT}
     SRFIC=${SFICSCRIPT}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"
@@ -1609,7 +1607,7 @@ fi
   if [ $ver \> $minimalversion ]  && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
     OBJECT="kvdump"
     LFIC=${LFICKVDUMP}
-    RFIC=${FICKVDUMP}
+    RFIC=${LFICKVDUMP}
     SRFIC=${SFICKVDUMP}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="${SPLUNK_DB}/kvstorebackup/"
@@ -1619,7 +1617,7 @@ fi
   elif [[ "$MODE" == "0" ]] || [[ "$MODE" == "kvauto" ]]; then
     OBJECT="kvstore"
     LFIC=${LFICKVSTORE}
-    RFIC=${FICKVSTORE}
+    RFIC=${LFICKVSTORE}
     SRFIC=${SFICKVSTORE}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"
@@ -1631,7 +1629,7 @@ fi
   if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
     OBJECT="state"
     LFIC=${LFICSTATE}
-    RFIC=${FICSTATE}
+    RFIC=${LFICSTATE}
     SRFIC=${SFICSTATE}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"

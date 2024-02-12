@@ -115,8 +115,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240212 add support for tag splunkrsynchost and splunkrsyncmode
 # 20240212 more autorestore fixes/support
 # 20240212 add check at start for kvstore still initializing to avoid trying to launch backup too soon
+# 20240212 improve checklock 
 
-VERSION="20240212f"
+VERSION="20240212g"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -539,13 +540,15 @@ function checklock() {
   if [ -e "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" ]; then
     count=$(/usr/bin/find "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" -mmin +${lockmindelay} -delete -print | wc -l)  
     if [ $count -gt 0 ]; then 
-       warn_log "ATTENTION: we had to remove stale lock file at "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" , this is unexpected, please investigate" 
+       warn_log "ATTENTION: we had to remove stale lock file at ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock , this is unexpected, please investigate" 
     fi
     if [ -e "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" ]; then
       ERROR=1
       ERROR_MESSAGE="${lockname}lock"
       fail_log ${lockmessage}
       exit 1
+    else
+      debug_log "fine old lock removed" 
     fi
   fi
 }
@@ -897,7 +900,7 @@ if (( REMOTETECHNO == 4 )); then
   #if [ ${REMOTETECHNO} -eq 4 ]; then
     OPTION=" ssh -oConnectTimeout=30 -oServerAliveInterval=60 -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
     if (( RSYNCDISABLEREMOTE == 1 )); then
-      debug_log "INFO: Disabling remote splunk (just in case as should be already stopped to prevent a clone conflict  situation"
+      debug_log "INFO: Disabling remote splunk (just in case as should be already stopped to prevent a clone conflict situation"
       RESSTOP=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} "${SPLUNK_HOME}/bin/splunk status && ${SPLUNK_HOME}/bin/splunk stop"`
       RESSTATUS=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} "${SPLUNK_HOME}/bin/splunk status"`
       echo_log "mode=init remotestopstatus=$RESSTOP remotestatus=$RESSTATUS"
@@ -955,7 +958,7 @@ else
   debug_log "not in init mode, checking for init lock"
   lockname="init"
   lockmindelay=50
-  lockmessage="splunkconf-backup is currently running in init mode, stopping backup creation to avoid conflic"
+  lockmessage="splunkconf-backup is currently running in init mode, stopping backup creation to avoid conflict"
   checklock;
 fi
 # FIXME : opti : relax check to only exit if global or kvdump/kvstore mode

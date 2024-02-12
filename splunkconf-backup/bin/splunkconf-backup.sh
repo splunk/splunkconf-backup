@@ -108,10 +108,11 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20231216 stale lock prevention added
 # 20231219 add setting to allow disabling tagging for s3 
 # 20240126 add endpoint s3 option for s3 compliant destinations
-# 20230129 add more logging for endpoint-url setting
-# 20230130 more endpoint-url support and fixes
+# 20240129 add more logging for endpoint-url setting
+# 20240130 more endpoint-url support and fixes
+# 20240212 add splunks3endpointurl tag support to allow test automation 
 
-VERSION="20240130a"
+VERSION="20240212a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -785,6 +786,15 @@ if [ -z ${splunks3backupbucket+x} ]; then
       warn_log "WARNING : no instance tags file at $INSTANCEFILE"
     fi
   fi
+fi
+
+
+if [ -z ${splunks3endpointurl+x} ]; then 
+  REMOTES3ENDPOINTURL="auto"
+  debug_log "endpoint url set to autoi (default)"
+else
+  REMOTES3ENDPOINTURL=${splunks3endpointurl}
+  debug_log "setting custom endpoint url via tags. This is usually not needed as AWS will figure it out unless for automated testing purpose"
 fi
 
 if [ -z ${splunks3backupbucket+x} ]; then 

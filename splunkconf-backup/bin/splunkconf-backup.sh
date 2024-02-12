@@ -111,8 +111,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240129 add more logging for endpoint-url setting
 # 20240130 more endpoint-url support and fixes
 # 20240212 add splunks3endpointurl tag support to allow test automation 
+# 20240212 fix logic for splunks3endpointurl versus conf file + add splunkrsyncautorestore tag support
 
-VERSION="20240212a"
+VERSION="20240212b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -489,7 +490,7 @@ function do_remote_copy() {
     elif (( REMOTETECHNO == 4 )); then
       debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR} "
       ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}
-      if ((  RSYNCAUTORESTORE == 1 )); then
+      if (( RSYNCAUTORESTORE == 1 )); then
         debug_log "INFO: launching rsync autorestore with $OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorerebackup.sh ${TYPE}restore ${RFIC}"
         RESAUTORESTORE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorerebackup.sh ${TYPE}restore ${RFIC}`
       else 
@@ -599,7 +600,7 @@ fi
 ERROR=0
 ERROR_MESS=""
 
-# what to use between cp aergument , usuaully empty except fro s3api
+# what to use between cp argument , usuaully empty except fro s3api
 CPCMD2=""
 
 # include VARs
@@ -665,23 +666,6 @@ elif [[ "${REMOTES3STORAGECLASSMONTHLY}" =~ $regclass ]]; then
 else
   warn_log "invalid form  REMOTES3STORAGECLASSMONTHLY=${REMOTES3STORAGECLASSMONTHLY}, using default value STANDARD_IA"
   REMOTES3STORAGECLASSMONTHLY="STANDARD_IA"
-fi
-
-# this regex wont work with inline bash regex as it doesnt support pcre, this is why we need to call grep to do it
-regclass="^http[s]{0,1}\:\/\/[a-zA-Z0-9_\-\.\/]+$"
-if [[ "${REMOTES3ENDPOINTURL}" = "auto" ]]; then
-  S3ENDPOINTOPTION=""
-  S3ENDPOINTLOGMESSAGE=""
-  debug_log "REMOTES3ENDPOINTURL=auto, not adding option"
-#elif [[ "${REMOTES3ENDPOINTURL}" =~ $regclass ]]; then
-elif [ $(grep -cP $regclass <<< "${REMOTES3ENDPOINTURL}") -gt 0 ]; then
-  S3ENDPOINTOPTION=" --endpoint-url ${REMOTES3ENDPOINTURL} "
-  S3ENDPOINTLOGMESSAGE=" endpoint-url=\"${REMOTES3ENDPOINTURL}\" "
-  debug_log "will add  ${S3ENDPOINTOPTION} to s3 commands"
-else
-  warn_log "invalid form for endpoint url, please use http(s)://my_endpoint, ignoring option  "
-  S3ENDPOINTOPTION=""
-  S3ENDPOINTLOGMESSAGE=""
 fi
 
 
@@ -790,12 +774,36 @@ fi
 
 
 if [ -z ${splunks3endpointurl+x} ]; then 
-  REMOTES3ENDPOINTURL="auto"
-  debug_log "endpoint url set to autoi (default)"
+  debug_log "tag splunks3endpointurl, using value ${REMOTES3ENDPOINTURL} from configuration files"
 else
   REMOTES3ENDPOINTURL=${splunks3endpointurl}
   debug_log "setting custom endpoint url via tags. This is usually not needed as AWS will figure it out unless for automated testing purpose"
 fi
+
+# this regex wont work with inline bash regex as it doesnt support pcre, this is why we need to call grep to do it
+regclass="^http[s]{0,1}\:\/\/[a-zA-Z0-9_\-\.\/]+$"
+if [[ "${REMOTES3ENDPOINTURL}" = "auto" ]]; then
+  S3ENDPOINTOPTION=""
+  S3ENDPOINTLOGMESSAGE=""
+  debug_log "REMOTES3ENDPOINTURL=auto, not adding option"
+#elif [[ "${REMOTES3ENDPOINTURL}" =~ $regclass ]]; then
+elif [ $(grep -cP $regclass <<< "${REMOTES3ENDPOINTURL}") -gt 0 ]; then
+  S3ENDPOINTOPTION=" --endpoint-url ${REMOTES3ENDPOINTURL} "
+  S3ENDPOINTLOGMESSAGE=" endpoint-url=\"${REMOTES3ENDPOINTURL}\" "
+  debug_log "will add  ${S3ENDPOINTOPTION} to s3 commands"
+else
+  warn_log "invalid form for endpoint url, please use http(s)://my_endpoint, ignoring option  "
+  S3ENDPOINTOPTION=""
+  S3ENDPOINTLOGMESSAGE=""
+fi
+
+if [ -z ${splunkrsyncautorestore+x} ]; then 
+  debug_log "splunkrsyncautorestore tag not set, using value from conf file rsyncautorestore=$(rsyncautorestore}"
+else
+  rsyncautorestore=${splunkrsyncautorestore}
+  debug_log "splunkrsyncautorestore tag set, rsyncautorestore=$(rsyncautorestore}"
+fi
+  
 
 if [ -z ${splunks3backupbucket+x} ]; then 
   if [ -z ${s3backupbucket+x} ]; then 

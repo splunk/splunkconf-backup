@@ -64,8 +64,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20231204 serialize to do full back after kvdump restore 
 # 20232120 more serialize at start with purge followed by init backup
 # 20231221 add support for controlling debug level via external config setting or tag
+# 20240212 fix typo in restore support for non kvdump (for autorestore)
 
-VERSION="20231221a"
+VERSION="20240212a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -280,7 +281,7 @@ case $MODE in
        exit 1
      fi
    ;;
-  "kvdumprestore") debug_log "argument valid , we are in kvdump restor emode" ;;
+  "kvdumprestore") debug_log "argument valid , we are in kvdump restore mode" ;;
   *) fail_log "argument $MODE is NOT a valid value, please fix"; exit 1;;
 esac
 

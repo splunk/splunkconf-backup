@@ -112,8 +112,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240130 more endpoint-url support and fixes
 # 20240212 add splunks3endpointurl tag support to allow test automation 
 # 20240212 fix logic for splunks3endpointurl versus conf file + add splunkrsyncautorestore tag support
+# 20230212 add support for tag splunkrsynchost and splunkrsyncmode
 
-VERSION="20240212b"
+VERSION="20240212d"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -774,7 +775,7 @@ fi
 
 
 if [ -z ${splunks3endpointurl+x} ]; then 
-  debug_log "tag splunks3endpointurl, using value ${REMOTES3ENDPOINTURL} from configuration files"
+  debug_log "tag splunks3endpointurl not set, using value ${REMOTES3ENDPOINTURL} from configuration files"
 else
   REMOTES3ENDPOINTURL=${splunks3endpointurl}
   debug_log "setting custom endpoint url via tags. This is usually not needed as AWS will figure it out unless for automated testing purpose"
@@ -798,12 +799,30 @@ else
 fi
 
 if [ -z ${splunkrsyncautorestore+x} ]; then 
-  debug_log "splunkrsyncautorestore tag not set, using value from conf file rsyncautorestore=$(rsyncautorestore}"
+  debug_log "splunkrsyncautorestore tag not set, using value from conf file rsyncautorestore=${rsyncautorestore}"
 else
   rsyncautorestore=${splunkrsyncautorestore}
-  debug_log "splunkrsyncautorestore tag set, rsyncautorestore=$(rsyncautorestore}"
+  debug_log "splunkrsyncautorestore tag set, rsyncautorestore=${rsyncautorestore}"
 fi
   
+if [ -z ${splunkrsynchost+x} ]; then 
+  debug_log "tag splunkrsynchost not set, using value ${rsynchost} from configuration files"
+else
+  RSYNCHOST=${splunkrsynchost}
+  debug_log "setting RSYNCHOST via tags. RSYNCHOST=${splunkrsynchost} This is used mainly for automated testing purpose"
+fi
+
+splunkrsyncmode
+
+if [ -z ${splunkrsyncmode+x} ]; then 
+  debug_log "tag splunkrsyncmode not set"
+elif  (( splunkrsyncmode == 1 )); then
+  REMOTETECHNO=4
+  debug_log "setting REMOTETECHNO=4 ie rsync mode as splunkrsyncmode = 1 (tag)"
+else
+  debug_log "tag splunkrsyncmode set but not equal to 1 , ignoring"
+fi
+
 
 if [ -z ${splunks3backupbucket+x} ]; then 
   if [ -z ${s3backupbucket+x} ]; then 

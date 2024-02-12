@@ -255,7 +255,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hfa" {
   mixed_instances_policy {
     launch_template {
       launch_template_specification {
-        launch_template_id = aws_launch_template.splunk-hf.id
+        launch_template_id = aws_launch_template.splunk-hfa.id
         version            = "$Latest"
       }
       override {
@@ -299,7 +299,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hfb" {
   mixed_instances_policy {
     launch_template {
       launch_template_specification {
-        launch_template_id = aws_launch_template.splunk-hf.id
+        launch_template_id = aws_launch_template.splunk-hfb.id
         version            = "$Latest"
       }
       override {
@@ -333,10 +333,10 @@ resource "aws_autoscaling_group" "autoscaling-splunk-hfb" {
 }
 
 
-resource "aws_launch_template" "splunk-hf" {
+resource "aws_launch_template" "splunk-hfa" {
   provider = aws.region-primary
   #name          = "splunk-hf"
-  name_prefix   = "splunk-hf-"
+  name_prefix   = "splunk-hfa-"
   image_id      = local.image_id
   key_name      = local.ssh_key_name
   instance_type = "t3a.nano"
@@ -360,7 +360,7 @@ resource "aws_launch_template" "splunk-hf" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name                  = var.hf
+      Name                  = "${var.hf}a"
       splunkinstanceType    = var.hf
       splunks3backupbucket  = aws_s3_bucket.s3_backup.id
       splunks3installbucket = aws_s3_bucket.s3_install.id
@@ -381,6 +381,72 @@ resource "aws_launch_template" "splunk-hf" {
       splunkpwdinit         = var.splunkpwdinit
       splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
       splunkrsyncmode       = 1
+      splunkrsynclist       = "hfa hfb"
+      splunkrsyncdnsshort   = "hfa"
+      splunkrsynchost       = "${local.dns-prefix}${var.hf}b.${var.dns-zone-name}"
+      splunkrsyncautorestore = 1
+    }
+  }
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = (var.imdsv2 == "required" ? "required" : "optional")
+    http_put_response_hop_limit = 1
+  }
+  user_data = filebase64("./user-data/user-data.txt")
+}
+
+resource "aws_launch_template" "splunk-hfb" {
+  provider = aws.region-primary
+  #name          = "splunk-hf"
+  name_prefix   = "splunk-hfb-"
+  image_id      = local.image_id
+  key_name      = local.ssh_key_name
+  instance_type = "t3a.nano"
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size = var.disk-size-hf
+      volume_type = "gp3"
+    }
+  }
+  #  ebs_optimized = true
+  iam_instance_profile {
+    name = aws_iam_instance_profile.role-splunk-hf_profile.name
+    #name = "role-splunk-hf_profile"
+  }
+  network_interfaces {
+    device_index                = 0
+    associate_public_ip_address = var.associate_public_ip
+    security_groups             = [aws_security_group.splunk-outbound.id, aws_security_group.splunk-hf.id]
+  }
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name                  = "${var.hf}b"
+      splunkinstanceType    = var.hf
+      splunks3backupbucket  = aws_s3_bucket.s3_backup.id
+      splunks3installbucket = aws_s3_bucket.s3_install.id
+      splunks3databucket    = aws_s3_bucket.s3_data.id
+      splunkdnszone         = var.dns-zone-name
+      splunkdnsmode         = "lambda"
+      splunkorg             = var.splunkorg
+      splunktargetenv       = var.splunktargetenv
+      splunktargetbinary    = var.splunktargetbinary
+      splunktargetcm        = var.cm
+      splunktargetlm        = var.lm
+      splunktargetds        = var.ds
+      splunkcloudmode       = var.splunkcloudmode
+      splunkosupdatemode    = var.splunkosupdatemode
+      splunkconnectedmode   = var.splunkconnectedmode
+      splunkacceptlicense   = var.splunkacceptlicense
+      splunkbackupdebug     = var.splunkbackupdebug
+      splunkpwdinit         = var.splunkpwdinit
+      splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
+      splunkrsyncmode       = 1
+      splunkrsynclist       = "hfa hfb"
+      splunkrsyncdnsshort   = "hfb"
+      splunkrsynchost       = "${local.dns-prefix}${var.hf}a.${var.dns-zone-name}"
+      splunkrsyncautorestore = 1
     }
   }
   metadata_options {
@@ -392,9 +458,13 @@ resource "aws_launch_template" "splunk-hf" {
 }
 
 
+output "hfa-dns-name" {
+  value       = "${local.dns-prefix}${var.hf}a.${var.dns-zone-name}"
+  description = "hf a dns name (private ip)  (first host for rsync over ssh with hf instancetype) "
+}
 
-output "hf-dns-name" {
-  value       = "${local.dns-prefix}${var.hf}.${var.dns-zone-name}"
-  description = "hf dns name (private ip)"
+output "hfb-dns-name" {
+  value       = "${local.dns-prefix}${var.hf}b.${var.dns-zone-name}"
+  description = "hf b dns name (private ip)  (second host for rsync over ssh with hf instancetype) "
 }
 

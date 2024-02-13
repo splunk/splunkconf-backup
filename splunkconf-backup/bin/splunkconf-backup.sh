@@ -118,8 +118,10 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240212 improve checklock 
 # 20240213 disable unecessary tagging when in rsync mode within AWS
 # 20230213 add remote to restore arg to differentiate local and remote kvdump
+# 20240213 pass sessionkey as ENV instead of stdin
+# 20240213 improve kvstore check to also check ready to catch more cases at Splunk start
 
-VERSION="20240213f"
+VERSION="20240213i"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -1167,7 +1169,18 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       #echo_log "splunk version 7.1+ detected : using online kvstore backup "
       # important : this need passauth correctly set or the script could block !
       # This is avoiding to hardcode password or token in the app
-      read sessionkey
+      if [ -z ${SESSIONKEY+x} ] || [ -z ${SESSIONKEY} ]; then
+        read sessionkey
+        #debug_log " sessionkey=$sessionkey"
+        if [ -z ${sessionkey+x} ] || [ -z ${sessionkey} ]; then
+          warn_log "humm we have a issue sessionkey is empty, please investigate"
+        else
+          debug_log "ok sessionkey via stdin"
+        fi
+      else
+        sessionkey=$SESSIONKEY
+        debug_log "ENV SESSIONKEY"
+      fi
       # get the management uri that match the current instance (we cant assume it is always 8089)
       #disabled we dont want to log this for obvious security reasons debug: echo "session key is $sessionkey"
       #MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \#| cut -d ' ' -f 4|tail -1`
@@ -1177,7 +1190,8 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" `
       debug_log "PREKVDUMP backup full kvstore status RES=$RES"
       RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
-      debug_log "PREKVDUMP kvstore status before launching backup RES=$RES"
+      RESREADY=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
+      debug_log "PREKVDUMP kvstore status before launching backup RES=$RESi RESREADY=$RESREADY"
       #debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running "
 
       KVARCHIVE="backupconfsplunk-kvdump-${TODAY}"
@@ -1185,12 +1199,20 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       debug_log "pre backup : checking in case kvstore is not ready like initialization at start"
       COUNTER=50
       RES=""
+      RES2=""
       # wait a bit (up to 20*10= 200s) for backup to complete, especially for big kvstore/busy env (io)
       # increase here if needed (ie take more time !)
-      until [[  $COUNTER -lt 1 || -n "$RES"  ]]; do
+      # until either we do max try or combined result from kvstorebackup ready and status ready are ok
+      until [[ $COUNTER -lt 1 || -n "$RES2" ]]; do
         RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
+        RESREADY=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
+        if [[ -n "$RES" && -n "$RESREADY" ]]; then
+          RES2=$RES
+        else
+          RES2=""
+        fi
         #echo_log "RES=$RES"
-        debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running  info=prebackup"
+        debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running  info=prebackup RES=$RES RESREADY=$RESREADY RES2=$RES"
         let COUNTER-=1
         sleep 10
       done

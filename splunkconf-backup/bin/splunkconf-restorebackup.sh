@@ -1,4 +1,4 @@
-#!/bin/bash -x 
+#!/bin/bash 
 exec > /tmp/splunkconf-restore-debug.log  2>&1
 
 # in normal condition
@@ -72,8 +72,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20240213 add remote to restore arg when called from remote for rsync usage and add link logic for kvdump
 # 20240213 fix sessionkey handling for case where init without backup being restored but we still need it to call backup at init time
 # 20240213 pass sessionkey as ENV instead of stdin
+# 20240213 add checks for ready status fpr kvstore initialization at start
 
-VERSION="20240213h"
+VERSION="20240213k"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -426,11 +427,29 @@ FIC="disabled"
       # ok we are sure we want to restore so let's check kvstore status now
       COUNTER=49
       RES=""
+
+      RESREADY=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
+      debug_log "PREKVDUMP kvstore status before launching backup RES=$RESi RESREADY=$RESREADY"
+      #debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running "
+
+      KVARCHIVE="backupconfsplunk-kvdump-${TODAY}"
+      MESS1="MGMTURL=${MGMTURL} KVARCHIVE=${KVARCHIVE}";
+      debug_log "pre backup : checking in case kvstore is not ready like initialization at start"
+      COUNTER=50
+      RES=""
+      RES2=""
       # increase here if needed (ie take more time !)
-      until [[  $COUNTER -lt 1 || -n "$RES"  ]]; do
+      # until either we do max try or combined result from kvstorebackup ready and status ready are ok
+      until [[ $COUNTER -lt 1 || -n "$RES2" ]]; do
         RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
-        #echo_log "RES=$RES"
-        echo_log "COUNTER=$COUNTER $MESSVER $MESS1 kvbackupmode=$kvbackupmode "
+        RESREADY=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
+        if [[ -n "$RES" && -n "$RESREADY" ]]; then
+          RES2=$RES
+        else
+          RES2=""
+        fi
+        #echo_log "RES=$RES" 
+        debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} info=prerestore RES=$RES RESREADY=$RESREADY RES2=$RES"
         let COUNTER-=1
         sleep 30
       done

@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
 # in normal condition

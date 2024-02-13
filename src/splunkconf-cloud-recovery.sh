@@ -236,8 +236,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20231215 disabling splunksecrets deployment as can now be done mostly via splunk command line
 # 20240109 set deploymentclient so ds comm works when hostmode in ami mode
 # 20230125 up to 9.1.3
+# 20240213 typo fix in log
 
-VERSION="20240125a"
+VERSION="20240214a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -766,7 +767,7 @@ EOF
     echo "INFO: not in MODE=0 (MODE=$MODE)"
   fi  # MODE = 0 (user-data)
 
-  echo "INFO: INSTALLPHASE=${INSTALLPHASE} (MODE=$MODE)i, end if init_arg" 
+  echo "INFO: INSTALLPHASE=${INSTALLPHASE} (MODE=$MODE), end if init_arg" 
 
 }
 

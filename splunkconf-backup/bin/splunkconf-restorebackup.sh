@@ -71,8 +71,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20240213 replace timer with kvstore check logic in case we want to restore
 # 20240213 add remote to restore arg when called from remote for rsync usage and add link logic for kvdump
 # 20240213 fix sessionkey handling for case where init without backup being restored but we still need it to call backup at init time
+# 20240213 pass sessionkey as ENV instead of stdin
 
-VERSION="20240213g"
+VERSION="20240213h"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -527,7 +528,11 @@ fi
 echo_log "launching initial purgebackup (to maximize chance to have enpigh space for doing backups now)"
 $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh 
 echo_log "launching initial backup via $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init"
-echo $sessionkey | $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init 
+SESSIONKEY=$sessionkey
+export SESSIONKEY
+##echo $sessionkey | $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init 
+# using ENV method as input doesnt work here and we dont want to pass it as a arg
+$SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init 
 
 echo_log "end of splunkconf_restore script"
 

@@ -89,7 +89,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20220409 fix double remote copy issue with kvdump/kvstore 
 # 20220823 fix regression for cm master and manager folders 
 # 20221014 remove logging for remote when unconfigured (to reduce logging footprint)
-# 20230202 optimize renote copy, change logic condition when disabled to imprive logging experience, enable disabled logging to allow dashboard to differentiate missing and disabled state, change logic so that with remote disabled, we now log a disabled entry which make easier to report on dashboard
+# 20230202 optimize remote copy, change logic condition when disabled to imprive logging experience, enable disabled logging to allow dashboard to differentiate missing and disabled state, change logic so that with remote disabled, we now log a disabled entry which make easier to report on dashboard
 # 20230206 add autodisable for scripts, uf detection, autokvdump disable for uf or kvstore disabled, add logic for empty statelist case with specific log, fix missing var for 2 dir in statelist (rel mode)
 # 20230208 add action to some log entries 
 # 20230327 fix typo in modinputs path
@@ -117,8 +117,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240212 add check at start for kvstore still initializing to avoid trying to launch backup too soon
 # 20240212 improve checklock 
 # 20240213 disable unecessary tagging when in rsync mode within AWS
+# 20230213 add remote to restore arg to differentiate local and remote kvdump
 
-VERSION="20240213c"
+VERSION="20240213f"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -496,8 +497,9 @@ function do_remote_copy() {
       debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR} "
       ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}
       if (( RSYNCAUTORESTORE == 1 )); then
-        debug_log "INFO: launching rsync autorestore with $OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}restore ${RFIC}"
-        RESAUTORESTORE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}restore ${RFIC}`
+        # we need to add remote here so the script can differentiate when called via inputs with token and remotely 
+        debug_log "INFO: launching rsync autorestore with $OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}remoterestore ${RFIC}"
+        RESAUTORESTORE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}remoterestore ${RFIC}`
       else 
         debug_log "autorestore via rsync disabled by config"
       fi
@@ -903,7 +905,7 @@ if (( REMOTETECHNO == 4 )); then
   #if [ ${REMOTETECHNO} -eq 4 ]; then
     OPTION=" ssh -oConnectTimeout=30 -oServerAliveInterval=60 -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
     if (( RSYNCDISABLEREMOTE == 1 )); then
-      debug_log "INFO: Disabling remote splunk (just in case as should be already stopped to prevent a clone conflict situation"
+      debug_log "INFO: Disabling remote splunk (just in case as should be already stopped to prevent a clone conflict situation)"
       RESSTOP=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} "${SPLUNK_HOME}/bin/splunk status && ${SPLUNK_HOME}/bin/splunk stop"`
       RESSTATUS=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} "${SPLUNK_HOME}/bin/splunk status"`
       echo_log "mode=init remotestopstatus=$RESSTOP remotestatus=$RESSTATUS"
@@ -1413,7 +1415,7 @@ if [ $DOREMOTEBACKUP -eq 1 ]; then
   fi
 fi
   if (( REMOTETECHNO == 4 ));then
-    debug_log "renotetechno=4 (rsync) not adding instance name to remotebackup dir"
+    debug_log "remotetechno=4 (rsync) not adding instance name to remotebackup dir"
   else
     # now we add the instance name or backup from different instances would collide
     REMOTEBACKUPDIR="${REMOTEBACKUPDIR}/${INSTANCE}"
@@ -1662,7 +1664,7 @@ fi
       RESPURGE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh`
     fi
     if (( RSYNCDISABLEREMOTE == 1 )); then
-      debug_log "INFO: Disabling remote splunk (just in case as should be already stopped to prevent a clone conflict  situation"
+      debug_log "INFO: Disabling remote splunk (just in case as should be already stopped to prevent a clone conflict  situation)"
       RESSTOP=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} "${SPLUNK_HOME}/bin/splunk status && ${SPLUNK_HOME}/bin/splunk stop"`
     fi
   fi

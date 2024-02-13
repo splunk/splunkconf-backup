@@ -68,8 +68,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20240212 fix for kvdumpautorestore to exit as it will be done at splunk start
 # 20240213 typo fix
 # 20230213 arg fix
+# 20240213 replace timer with kvstore check logic in case we want to restore
 
-VERSION="20240213b"
+VERSION="20240213d"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -303,9 +304,10 @@ esac
 ###### Rotate ########
 rotate_log;
 
-debug_log "sleeping one minute to prevent race condition at kvstore start"
-sleep 60
-debug_log "done sleeping, starting real restore"
+# disabled as now using a logic to check kvstore before doing restore
+#debug_log "sleeping one minute to prevent race condition at kvstore start"
+#sleep 60
+#debug_log "done sleeping, starting real restore"
 
 
 if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
@@ -397,10 +399,28 @@ FIC="disabled"
     KVARCHIVE="backupconfsplunk-kvdump-toberestored.tar.gz"
     LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}"
     if [ -e "${LFICKVDUMP}" ]; then 
+      # ok we are sure we want to restore so let's check kvstore status now
+      COUNTER=49
+      RES=""
+      # increase here if needed (ie take more time !)
+      until [[  $COUNTER -lt 1 || -n "$RES"  ]]; do
+        RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
+        #echo_log "RES=$RES"
+        echo_log "COUNTER=$COUNTER $MESSVER $MESS1 kvbackupmode=$kvbackupmode "
+        let COUNTER-=1
+        sleep 30
+      done
+      #echo_log "RES=$RES"
+      if [[ -z "$RES" ]];  then
+        warn_log "COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode result=failure ATTENTION : we didnt get ready status before trying to restore ! kvstore hasnt started in time or is not working at all"
+      else
+        echo_log "COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode dest=${LFICKVDUMP} result=success kvstore status is ok before doing restore"
+      fi
+
        # we are restoring as the backup file has been pushed there by the recovery script
       MESS1="MGMTURL=${MGMTURL} KVARCHIVE=${KVARCHIVE}";
       RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/restore -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}"`
-      echo_log "KVDUMP RESTORE RES=$RES"
+      echo_log "launching kvdump restore KVDUMP RESTORE RES=$RES"
 # if splunk cant find the file, it will outout sonething like that, which will be in the error message (but should not happen because -e check above) 
 # <?xml version="1.0" encoding="UTF-8"?>
 #<response>

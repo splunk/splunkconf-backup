@@ -145,8 +145,7 @@ function debug_log {
     DEBUG=0
   fi
   if [ "$DEBUG" == "1" ] || [ "$splunkbackupdebug" == "1" ] ; then
-    DA=`date`
-    echo_log_ext  "DEBUG $DA id=$ID $1"
+    echo_log_ext  "DEBUG id=$ID $1"
   fi
 }
 

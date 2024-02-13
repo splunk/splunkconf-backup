@@ -330,8 +330,7 @@ function debug_log {
     DEBUG=0
   fi
   if [ "$DEBUG" == "1" ] || [ "$splunkbackupdebug" == "1" ] ; then 
-    DA=`date`
-    echo_log_ext  "DEBUG $DA id=$ID $1"
+    echo_log_ext  "DEBUG id=$ID $1"
   fi 
 }
 
@@ -1692,7 +1691,7 @@ fi
       RESPURGE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh`
     fi
     if (( RSYNCDISABLEREMOTE == 1 )); then
-      debug_log "INFO: Disabling remote splunk (just in case as should be already stopped to prevent a clone conflict  situation)"
+      debug_log "INFO: Disabling remote splunk (just in case as should be already stopped to prevent a clone conflict situation)"
       RESSTOP=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} "${SPLUNK_HOME}/bin/splunk status && ${SPLUNK_HOME}/bin/splunk stop"`
     fi
   fi

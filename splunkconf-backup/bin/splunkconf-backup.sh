@@ -121,8 +121,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240213 pass sessionkey as ENV instead of stdin
 # 20240213 improve kvstore check to also check ready to catch more cases at Splunk start
 # 20240213 fix tar option with mode 0 and move sessionkey to start
+# 20230213 revert RFIC change and use LFIC for autorestore instead, remote extra spaces for endpointurl option
 
-VERSION="20240213k"
+VERSION="20240213p"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -500,8 +501,8 @@ function do_remote_copy() {
       ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}
       if (( RSYNCAUTORESTORE == 1 )); then
         # we need to add remote here so the script can differentiate when called via inputs with token and remotely 
-        debug_log "INFO: launching rsync autorestore with $OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}remoterestore ${RFIC}"
-        RESAUTORESTORE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}remoterestore ${RFIC}`
+        debug_log "INFO: launching rsync autorestore with $OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}remoterestore ${LFIC}"
+        RESAUTORESTORE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}remoterestore ${LFIC}`
       else 
         debug_log "autorestore via rsync disabled by config"
       fi
@@ -523,8 +524,8 @@ function do_remote_copy() {
       if [[ "cloud_type" -eq 1 ]]; then
         # AWS
         if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ] && [ "${REMOTETECHNO}" = "2" ]; then
-          debug_log "setting tag via aws ${S3ENDPOINTOPTION} s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
-          aws ${S3ENDPOINTOPTION}  s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS}
+          debug_log "setting tag via aws ${S3ENDPOINTOPTION}s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
+          aws ${S3ENDPOINTOPTION}s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS}
           RES=$?
           if [ $RES -eq 0 ]; then
             echo_log "action=tag type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} ${S3ENDPOINTLOGMESSAGE}" 
@@ -820,7 +821,7 @@ if [[ "${REMOTES3ENDPOINTURL}" = "auto" ]]; then
   debug_log "REMOTES3ENDPOINTURL=auto, not adding option"
 #elif [[ "${REMOTES3ENDPOINTURL}" =~ $regclass ]]; then
 elif [ $(grep -cP $regclass <<< "${REMOTES3ENDPOINTURL}") -gt 0 ]; then
-  S3ENDPOINTOPTION=" --endpoint-url ${REMOTES3ENDPOINTURL} "
+  S3ENDPOINTOPTION="--endpoint-url ${REMOTES3ENDPOINTURL} "
   S3ENDPOINTLOGMESSAGE=" endpoint-url=\"${REMOTES3ENDPOINTURL}\" "
   debug_log "will add  ${S3ENDPOINTOPTION} to s3 commands"
 else
@@ -1596,7 +1597,7 @@ fi
       fi
       if [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
         # we use s3api because it allow to set tags at same time which s3 cp doenst suppport at the moment
-        CPCMD="aws ${S3ENDPOINTOPTION} s3api put-object --bucket ${s3backupbucket} --body ";
+        CPCMD="aws ${S3ENDPOINTOPTION}s3api put-object --bucket ${s3backupbucket} --body ";
         CPCMD2="--key "
         # quiet doesnt exist with s3api
         if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ]; then
@@ -1605,7 +1606,7 @@ fi
           OPTION=" --storage-class ${REMOTES3STORAGECLASSCURRENT}";
         fi
       else
-        CPCMD="aws ${S3ENDPOINTOPTION} s3 cp";
+        CPCMD="aws ${S3ENDPOINTOPTION}s3 cp";
         OPTION=" --quiet --storage-class ${REMOTES3STORAGECLASSCURRENT}";
         #OPTION=" --quiet --storage-class STANDARD_IA";
       fi
@@ -1631,7 +1632,7 @@ fi
   if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
     OBJECT="etc"
     LFIC=${LFICETC}
-    RFIC=${LFICETC}
+    RFIC=${FICETC}
     SRFIC=${SFICETC}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"
@@ -1642,8 +1643,8 @@ fi
 
   if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then 
     OBJECT="scripts"
-    LFIC=${LFICSCRIPT}
-    RFIC=${LFICSCRIPT}
+    eFIC=${LFICSCRIPT}
+    RFIC=${FICSCRIPT}
     SRFIC=${SFICSCRIPT}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"
@@ -1655,7 +1656,7 @@ fi
   if [ $ver \> $minimalversion ]  && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
     OBJECT="kvdump"
     LFIC=${LFICKVDUMP}
-    RFIC=${LFICKVDUMP}
+    RFIC=${FICKVDUMP}
     SRFIC=${SFICKVDUMP}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="${SPLUNK_DB}/kvstorebackup/"
@@ -1665,7 +1666,7 @@ fi
   elif [[ "$MODE" == "0" ]] || [[ "$MODE" == "kvauto" ]]; then
     OBJECT="kvstore"
     LFIC=${LFICKVSTORE}
-    RFIC=${LFICKVSTORE}
+    RFIC=${FICKVSTORE}
     SRFIC=${SFICKVSTORE}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"
@@ -1677,7 +1678,7 @@ fi
   if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
     OBJECT="state"
     LFIC=${LFICSTATE}
-    RFIC=${LFICSTATE}
+    RFIC=${FICSTATE}
     SRFIC=${SFICSTATE}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"

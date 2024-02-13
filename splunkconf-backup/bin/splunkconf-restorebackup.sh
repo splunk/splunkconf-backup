@@ -1,4 +1,4 @@
-#!/bin/bash  
+#!/bin/bash -x 
 exec > /tmp/splunkconf-restore-debug.log  2>&1
 
 # in normal condition
@@ -69,8 +69,10 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20240213 typo fix
 # 20230213 arg fix
 # 20240213 replace timer with kvstore check logic in case we want to restore
+# 20240213 add remote to restore arg when called from remote for rsync usage and add link logic for kvdump
+# 20240213 fix sessionkey handling for case where init without backup being restored but we still need it to call backup at init time
 
-VERSION="20240213d"
+VERSION="20240213g"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -275,7 +277,7 @@ RESTOREPATH=$SPLUNK_HOME
 debug_log "$0 running with MODE=${MODE}"
 
 case $MODE in
-  "etcrestore"|"staterestore"|"scriptsrestore") 
+  "etcremoterestore"|"stateremoterestore"|"scriptsremoterestore") 
      debug_log "argument valid, we are in autorestoremode with MODE=$MODE and FILE=$FILE"
      if [ -e $FILE ]; then
        tar -C ${RESTOREPATH} -xf $FILE
@@ -285,9 +287,30 @@ case $MODE in
        exit 1
      fi
    ;;
+  "kvdumpremoterestore") 
+     debug_log "argument valid , we are in kvdump restore mode launched remotely so we are going to alias backup so kvdump restore at start will use it"
+     KVARCHIVE="backupconfsplunk-kvdump-toberestored.tar.gz"
+     LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}"
+     LFICKVDUMP2=${LFICKVDUMP}."processed"
+     if [ -e ${LFICKVDUMP2} ]; then
+       rm ${LFICKVDUMP2}
+       debug_log "removed ${LFICKVDUMP2}"
+     fi
+     if [ -e ${LFICKVDUMP} ]; then
+       rm ${LFICKVDUMP}
+       debug_log "removed ${LFICKVDUMP}"
+     fi
+     if [ -e $FILE ]; then
+       ln -s $FILE ${LFICKVDUMP}
+       debug_log "created link ${LFICKVDUMP} pointing to $FILE so the kvdump will be used at next splunk start"
+       exit 0
+    else
+       fail_log "MODE=$MODE  file=$FILE file is not present on filesystem, something wrong , impossible to create link to make it restored at start,please investigate"
+       exit 1
+     fi
+     ;;
   "kvdumprestore") 
-     debug_log "argument valid , we are in kvdump restore mode but launch remotely so we just stop for now, real restore will be initiated at next splunk start"
-     exit 0
+     debug_log "argument valid , we are in kvdump restore mode launched locally so we will continue on"
      ;;
   *) 
     fail_log "argument $MODE is NOT a valid value, please fix"
@@ -296,6 +319,8 @@ case $MODE in
 esac
 
 # from here we are in kvdump restore mode called via input at start time
+# important : this need passauth correctly set or the script could block !
+read sessionkey
 
 ###### LOCK   #######
 # we need to set lock asap so if other input start it will see the lock
@@ -390,8 +415,6 @@ FIC="disabled"
   if [ $ver \> $minimalversion ]; then
     kvbackupmode=kvdump
     #echo_log "splunk version 7.1+ detected : using online kvstore backup "
-    # important : this need passauth correctly set or the script could block !
-    read sessionkey
     # get the management uri that match the current instance (we cant assume it is always 8089)
     #disabled we dont want to log this for obvious security reasons debug: echo "session key is $sessionkey"
     #MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \#| cut -d ' ' -f 4|tail -1`
@@ -501,7 +524,7 @@ if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
   echo_log "cleaning up kvstore restore lock"
 fi
 
-echo_log "launching initial purgebackupi (to maximize chance to have enpigh space for doing backups now)"
+echo_log "launching initial purgebackup (to maximize chance to have enpigh space for doing backups now)"
 $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh 
 echo_log "launching initial backup via $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init"
 echo $sessionkey | $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init 

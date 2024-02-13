@@ -73,8 +73,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20240213 fix sessionkey handling for case where init without backup being restored but we still need it to call backup at init time
 # 20240213 pass sessionkey as ENV instead of stdin
 # 20240213 add checks for ready status fpr kvstore initialization at start
+# 20230213 fix kvarchive regression and typo
 
-VERSION="20240213k"
+VERSION="20240213o"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -431,7 +432,7 @@ FIC="disabled"
       debug_log "PREKVDUMP kvstore status before launching backup RES=$RESi RESREADY=$RESREADY"
       #debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running "
 
-      KVARCHIVE="backupconfsplunk-kvdump-${TODAY}"
+      #KVARCHIVE="backupconfsplunk-kvdump-${TODAY}"
       MESS1="MGMTURL=${MGMTURL} KVARCHIVE=${KVARCHIVE}";
       debug_log "pre backup : checking in case kvstore is not ready like initialization at start"
       COUNTER=50
@@ -543,7 +544,7 @@ if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
   echo_log "cleaning up kvstore restore lock"
 fi
 
-echo_log "launching initial purgebackup (to maximize chance to have enpigh space for doing backups now)"
+echo_log "launching initial purgebackup (to maximize chance to have enough space for doing backups now)"
 $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh 
 echo_log "launching initial backup via $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init"
 SESSIONKEY=$sessionkey

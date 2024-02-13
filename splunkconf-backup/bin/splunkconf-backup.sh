@@ -116,8 +116,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240212 more autorestore fixes/support
 # 20240212 add check at start for kvstore still initializing to avoid trying to launch backup too soon
 # 20240212 improve checklock 
+# 20240213 disable unecessary tagging when in rsync mode within AWS
 
-VERSION="20240212g"
+VERSION="20240213c"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -517,7 +518,7 @@ function do_remote_copy() {
       echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} ${S3ENDPOINTLOGMESSAGE}" 
       if [[ "cloud_type" -eq 1 ]]; then
         # AWS
-        if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ]; then
+        if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ] && [ "${REMOTETECHNO}" = "2" ]; then
           debug_log "setting tag via aws ${S3ENDPOINTOPTION} s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
           aws ${S3ENDPOINTOPTION}  s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS}
           RES=$?
@@ -526,6 +527,8 @@ function do_remote_copy() {
           else
             echo_log "action=tag type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} ${S3ENDPOINTLOGMESSAGE} Please check IAM for s3:PutObjectTagging" 
           fi
+        elif [ "${REMOTEOBJECTSTORETAGS3}" = "1" ]; then
+          debug_log "tagging disabled because not in S3 backup mode"
         else
           debug_log "tagging disabled by config"
         fi

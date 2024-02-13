@@ -67,8 +67,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20240212 fix typo in restore support for non kvdump (for autorestore)
 # 20240212 fix for kvdumpautorestore to exit as it will be done at splunk start
 # 20240213 typo fix
+# 20230213 arg fix
 
-VERSION="20240213a"
+VERSION="20240213b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -225,7 +226,7 @@ if [[ -f "./default/splunkconf-backup.conf" ]]; then
   . ./default/splunkconf-backup.conf
   debug_log "splunkconf-backup.conf default succesfully included"
 else
-  debug_log "splunkconf-backup.conf default  not found or not readable. Using defaults from script "
+  debug_log "splunkconf-backup.conf default not found or not readable. Using defaults from script"
 fi
 
 if [[ -f "./local/splunkconf-backup.conf" ]]; then
@@ -283,8 +284,14 @@ case $MODE in
        exit 1
      fi
    ;;
-  "kvdumprestore") debug_log "argument valid , we are in kvdump restore mode but launch remotely so we just stop for now, real restore will be initiated at next splunk start" ;exit 0;
-  *) fail_log "argument $MODE is NOT a valid value, please fix"; exit 1;
+  "kvdumprestore") 
+     debug_log "argument valid , we are in kvdump restore mode but launch remotely so we just stop for now, real restore will be initiated at next splunk start"
+     exit 0
+     ;;
+  *) 
+    fail_log "argument $MODE is NOT a valid value, please fix"
+    exit 1
+    ;;
 esac
 
 # from here we are in kvdump restore mode called via input at start time

@@ -237,8 +237,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240109 set deploymentclient so ds comm works when hostmode in ami mode
 # 20230125 up to 9.1.3
 # 20240213 typo fix in log
+# 20240213 update name for old backup app before upgrade from s3 version
 
-VERSION="20240214a"
+VERSION="20240213b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2171,7 +2172,7 @@ if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|uf|ix-site1|ix-si
   get_object ${remoteinstallsplunkconfbackup} ${localinstalldir}
   if [ -e "${localinstalldir}/splunkconf-backup.tar.gz" ]; then
     # backup old version just in case
-    tar -C "${SPLUNK_HOME}/etc/apps/" -zcf ${localinstalldir}/splunkconf-backup-${TODAY}.tar.gz ./splunkconf-backup
+    tar -C "${SPLUNK_HOME}/etc/apps/" -zcf ${localinstalldir}/splunkconf-backup-beforeupdate-${TODAY}.tar.gz ./splunkconf-backup
     # remove so we dont have leftover in local that could break app
     find "${SPLUNK_HOME}/etc/apps/splunkconf-backup" -delete
     # Note : old versions used relative path, new version without du to splunkbase packaging requirement

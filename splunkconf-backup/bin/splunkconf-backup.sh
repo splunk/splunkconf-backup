@@ -120,8 +120,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20230213 add remote to restore arg to differentiate local and remote kvdump
 # 20240213 pass sessionkey as ENV instead of stdin
 # 20240213 improve kvstore check to also check ready to catch more cases at Splunk start
+# 20240213 fix tar option with mode 0 and move sessionkey to start
 
-VERSION="20240213i"
+VERSION="20240213k"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -438,9 +439,9 @@ function do_backup_tar() {
     # MESS1
     # TARMODE is either absolute (original mode) or relative (future)
     # COMPRESSMODE is either gzip (original) or other compression algo (future)
-    debug_log "running tar for ${MODE} backup";
+    debug_log "running tar for backup with mode=${MODE} OBJECT=${OBJECT}";
 
-    if [ "$MODE" == "etc" ]; then
+    if [ "$OBJECT" == "etc" ]; then
          PARAMEXCLUDE=" --exclude-from=${TAREXCLUDEFILE} --exclude '*/dump'"
     else
          PARAMEXCLUDE=""
@@ -590,6 +591,25 @@ fi
 case $MODE in
   "0"|"etc"|"state"|"kvauto"|"kvdump"|"kvstore"|"scripts"|"init") debug_log "argument valid" ;;
   *) fail_log "argument $MODE is NOT a valid value, please fix"; exit 1;;
+esac
+case $MODE in
+  "0"|"kvauto"|"kvdump"i|"init") 
+      debug_log "MODE=$MODE reading sessionkey via env or stdin"
+      # important : this need passauth correctly set or the script could block !
+      # This is avoiding to hardcode password or token in the app
+      if [ -z ${SESSIONKEY+x} ] || [ -z ${SESSIONKEY} ]; then
+        read sessionkey
+        #debug_log " sessionkey=$sessionkey"
+        if [ -z ${sessionkey+x} ] || [ -z ${sessionkey} ]; then
+          warn_log "humm we have a issue sessionkey is empty, please investigate"
+        else
+          debug_log "ok sessionkey via stdin"
+        fi
+      else
+        sessionkey=$SESSIONKEY
+        debug_log "ENV SESSIONKEY"
+      fi
+      ;;
 esac
 INIT=0
 if [ "${MODE}" == "init" ]; then
@@ -1167,20 +1187,6 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
     elif [ $ver \> $minimalversion ]  && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
       kvbackupmode=kvdump
       #echo_log "splunk version 7.1+ detected : using online kvstore backup "
-      # important : this need passauth correctly set or the script could block !
-      # This is avoiding to hardcode password or token in the app
-      if [ -z ${SESSIONKEY+x} ] || [ -z ${SESSIONKEY} ]; then
-        read sessionkey
-        #debug_log " sessionkey=$sessionkey"
-        if [ -z ${sessionkey+x} ] || [ -z ${sessionkey} ]; then
-          warn_log "humm we have a issue sessionkey is empty, please investigate"
-        else
-          debug_log "ok sessionkey via stdin"
-        fi
-      else
-        sessionkey=$SESSIONKEY
-        debug_log "ENV SESSIONKEY"
-      fi
       # get the management uri that match the current instance (we cant assume it is always 8089)
       #disabled we dont want to log this for obvious security reasons debug: echo "session key is $sessionkey"
       #MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \#| cut -d ' ' -f 4|tail -1`

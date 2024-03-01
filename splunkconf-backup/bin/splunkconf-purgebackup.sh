@@ -53,8 +53,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20230704 add rcp purge support
 # 20230913 add more debug log for system local conf file
 # 20231217 add lock file as can now be called through backup
+# 20240301 fix regression with granular retention which was using the same setting for all types
 
-VERSION="20231217a"
+VERSION="20240301a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -267,68 +268,66 @@ EXCLUSION_LIST=""
 REASON="age" 
 # etc
 OBJECT="etc"
+RETENTIONDAYS=${LOCALBACKUPRETENTIONDAYS}
 A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
-
 # delete with exclusion of latest backup of this type
-#/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-state*tar.gz" ! -wholename $A \) -print0 | xargs --null -I {} echo "action=purge type=local reason=retentionpolicy object=state result=success localbackupdir=${LOCALBACKUPDIR} dest={} retentiondays=${LOCALBACKUPSTATERETENTIONDAYS} purge local state backup done"  
-
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 # || fail_log "action=purge type=local reason=retentionpolicy object=etc result=fail error purging local etc backup "
 
 splunkconf_checkspace
 
 # kv tar version
 OBJECT="kvstore"
+RETENTIONDAYS=${LOCALBACKUPKVRETENTIONDAYS}
 A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-${OBJECT}*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
-#/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-kvstore*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=kvstore result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPKVRETENTIONDAYS} purge local kv backup done" || fail_log "action=purge type=local reason=retentionpolicy object=kvstore result=fail error purging local kv backup "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 
 splunkconf_checkspace
 
 # kv dump version
 OBJECT="kvdump"
+RETENTIONDAYS=${LOCALBACKUPKVRETENTIONDAYS}
 A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
-#/usr/bin/find ${LOCALKVDUMPDIR} -type f \( -name "backupconfsplunk-kvdump*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=kvdump result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPKVRETENTIONDAYS} purge local kv dump done" || fail_log "action=purge type=local reason=retentionpolicy object=kvdump result=fail error purging local kv dump "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 
 splunkconf_checkspace
 
 # scripts
 OBJECT="scripts"
+RETENTIONDAYS=${LOCALBACKUPSCRIPTSRETENTIONDAYS}
 A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
-#/usr/bin/find ${LOCALBACKUPDIR} \( -name "backupconfsplunk-script*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPSCRIPTSRETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=scripts result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSCRIPTSRETENTIONDAYS} purge local scripts backup done" || fail_log "action=purge type=local reason=retentionpolicy object=scripts result=fail error purging local scripts backup "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 
 splunkconf_checkspace
 
 # modinput (for upgrade, newer version only create state)
 OBJECT="modinput"
+RETENTIONDAYS=${LOCALBACKUPMODINPUTRETENTIONDAYS}
 A="na"
 # we may remove all versions after retention as we will now have state
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
-#/usr/bin/find ${LOCALBACKUPDIR} -type f -name "backupconfsplunk-modinput*tar.gz" -mtime +${LOCALBACKUPMODINPUTRETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=modinput result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPMODINPUTRETENTIONDAYS} purge local modinput backup done" || fail_log "action=purge type=local reason=retentionpolicy object=modinput result=fail error purging local modinput backup "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 
 splunkconf_checkspace
 
 # state
 OBJECT="state"
+RETENTIONDAYS=${LOCALBACKUPSTATERETENTIONDAYS}
 A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${LOCALBACKUPRETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${LOCALBACKUPRETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
-#/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-state*tar.gz" ! -wholename $A \) -mtime +${LOCALBACKUPSTATERETENTIONDAYS} -print -delete && echo_log "action=purge type=local reason=retentionpolicy object=state result=success localbackupdir=${LOCALBACKUPDIR} retentiondays=${LOCALBACKUPSTATERETENTIONDAYS} purge local state backup done" || fail_log "action=purge type=local reason=retentionpolicy object=state result=fail error purging local state backup "
+/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 
 # delete on size
 REASON=size

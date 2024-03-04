@@ -22,7 +22,7 @@
 VERSION="20231220"
 
 ESAPP="splunk-enterprise-security_730.spl"
-ESCU="splunk-es-content-update_4170.tgz"
+ESCU="splunk-es-content-update_4250.tgz"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then

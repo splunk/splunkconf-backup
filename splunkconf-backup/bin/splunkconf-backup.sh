@@ -122,9 +122,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240213 improve kvstore check to also check ready to catch more cases at Splunk start
 # 20240213 fix tar option with mode 0 and move sessionkey to start
 # 20240213 revert RFIC change and use LFIC for autorestore instead, remote extra spaces for endpointurl option
-# 20240308 fix typo affecting remote scripts 
+# 20240308 fix typo affecting remote scripts and more debug log for do_removete_copy 
 
-VERSION="20240308a"
+VERSION="20240308b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -472,6 +472,7 @@ function do_backup_tar() {
 
 function do_remote_copy() {
   FIC=$LFIC
+  debug_log "do_remote_copy : FIC=$FIC LFIC=$FIC OBJECT=$OBJECT RENOTETECHNO=$REMOTETECHNO RFIC=$RFIC AWSCOPYMODE=$AWSCOPYMODE"
   if [ -e "$FIC" ]; then
     FILESIZE=$(/usr/bin/stat -c%s "$FIC")
   else

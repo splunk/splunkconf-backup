@@ -238,8 +238,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230125 up to 9.1.3
 # 20240213 typo fix in log
 # 20240213 update name for old backup app before upgrade from s3 version
+# update to 9.2.0.1
 
-VERSION="20240213b"
+VERSION="20240313a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1414,8 +1415,8 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
-splversion="9.1.3"
-splhash="d95b3299fa65"
+splversion="9.2.0.1"
+splhash="d8ae995bf219"
 splversionhash=${splversion}-${splhash}""
 #splbinary="splunk-9.1.2-b6b9c8185839.x86_64.rpm"
 splbinary="splunk-${splversionhash}.x86_64.rpm"

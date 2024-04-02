@@ -152,7 +152,7 @@ resource "google_compute_instance_template" "splunk-idx" {
     access_config {
     }
   }
-  metadata_startup_script = file("../buckets/bucket-install/install/user-data-gcp.txt")
+  metadata_startup_script = file("./user-data/user-data-gcp.txt")
   scheduling {
     automatic_restart = false
     preemptible       = local.env == "test" ? true : false
@@ -250,8 +250,8 @@ resource "google_compute_region_autoscaler" "splunk-idx" {
 
 
   autoscaling_policy {
-    max_replicas    = local.nb-indexers
-    min_replicas    = local.nb-indexers
+    max_replicas    = var.idx-nb
+    min_replicas    = var.idx-nb
     cooldown_period = 60
 
     cpu_utilization {

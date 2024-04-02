@@ -38,6 +38,16 @@ resource "google_compute_instance_template" "splunk-cm" {
     disable-legacy-endpoints = "TRUE"
     enable-guest-attributes  = "TRUE"
     sshKeys                  = "${var.ssh_user}:${file(var.ssh_keys)}"
+    splunktargetenv       = var.splunktargetenv
+    splunktargetbinary    = var.splunktargetbinary
+    splunktargetcm        = "${local.dns-prefix}${var.cm}"
+    splunktargetlm        = "${local.dns-prefix}${var.lm}"
+    splunktargetds        = "${local.dns-prefix}${var.ds}"
+    splunkcloudmode       = var.splunkcloudmode
+    splunkosupdatemode    = var.splunkosupdatemode
+    splunkconnectedmode   = var.splunkconnectedmode
+    splunkacceptlicense   = var.splunkacceptlicense
+
   }
 
   # service_account {
@@ -158,6 +168,20 @@ resource "google_compute_instance_template" "splunk-idx" {
     disable-legacy-endpoints = "TRUE"
     enable-guest-attributes  = "TRUE"
     sshKeys                  = "${var.ssh_user}:${file(var.ssh_keys)}"
+    splunktargetenv       = var.splunktargetenv     
+    splunktargetbinary    = var.splunktargetbinary
+    splunktargetcm        = "${local.dns-prefix}${var.cm}"
+    splunktargetlm        = "${local.dns-prefix}${var.lm}"
+    splunktargetds        = "${local.dns-prefix}${var.ds}"
+    splunkcloudmode       = var.splunkcloudmode
+    splunkosupdatemode    = var.splunkosupdatemode
+    splunkconnectedmode   = var.splunkconnectedmode
+    splunkacceptlicense   = var.splunkacceptlicense
+    # IDX special case
+    splunkcloudmode              = "3"
+    splunkenableunifiedpartition = var.splunkenableunifiedpartition
+    splunksmartstoresitenumber   = var.splunksmartstoresitenumber
+
   }
 
   # service_account {

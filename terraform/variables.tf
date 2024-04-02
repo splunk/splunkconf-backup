@@ -349,6 +349,12 @@ variable "instance-type-sh-default" {
   default = "t3a.small"
 }
 
+variable "nb-sh" {
+  description = "create sh (0=disabled,1=enabled, create more autoscaling if needed)"
+  type        = number
+  default     = 0
+}
+
 variable "disk-size-sh" {
   description = "disk size in G"
   type        = number
@@ -391,6 +397,12 @@ variable "disk-size-mc" {
 variable "hf" {
   type    = string
   default = "hf"
+}
+
+variable "nb-hf" {
+  description = "create hf (0=disabled,1=enabled, create more autoscaling if needed)"
+  type        = number
+  default     = 0
 }
 
 variable "instance-type-hf-min" {

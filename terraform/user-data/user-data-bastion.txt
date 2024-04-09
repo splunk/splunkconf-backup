@@ -21,9 +21,17 @@ REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://
 # we have to configure this here as source_dest_check not possible in terraform asg at the moment
 aws ec2 modify-instance-attribute --no-source-dest-check --instance-id $INSTANCE_ID --region $REGION  --cli-read-timeout 60 
 
+A="/var/lib/cloud/scripts/per-boot/natinstance.sh"
+cat <<EOF > $A
+echo "setting network option for nat instance"
 sysctl -w net.ipv4.ip_forward=1
 /sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 # alternative with source
 #/sbin/iptables -t nat  -A POSTROUTING -s 10.0.0.0/16 -o eth0 -j MASQUERADE
+EOF
+
+chmod u+x $A
+
+$A
 
 echo "end of user data script"

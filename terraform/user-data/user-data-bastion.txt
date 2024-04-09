@@ -19,7 +19,7 @@ TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/toke
 INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
 REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 # we have to configure this here as source_dest_check not possible in terraform asg at the moment
-aws ec2 modify-instance-attribute --no-source-dest-check --instance-id $INSTANCE_ID --region $REGION
+aws ec2 modify-instance-attribute --no-source-dest-check --instance-id $INSTANCE_ID --region $REGION  --cli-read-timeout 60 
 
 sysctl -w net.ipv4.ip_forward=1
 /sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE

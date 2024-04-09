@@ -20,7 +20,7 @@ TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/toke
 # lets get the splunks3splunkinstall from instance tags
 INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
 REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
-splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | grep splunks3installbucket | cut -f 5`
+splunks3installbucket=`aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text  --cli-read-timeout 60  | grep splunks3installbucket | cut -f 5`
 remoteinstalldir="s3://$splunks3installbucket/install"
 localinstalldir="/usr/local/bin"
 mkdir -p $localinstalldir

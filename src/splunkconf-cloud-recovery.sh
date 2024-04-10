@@ -238,7 +238,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230125 up to 9.1.3
 # 20240213 typo fix in log
 # 20240213 update name for old backup app before upgrade from s3 version
-# update to 9.2.0.1
+# 20230313 update to 9.2.0.1
 
 VERSION="20240313a"
 
@@ -378,7 +378,6 @@ set_connectedmode () {
 }
 
 get_packages () {
-
   if [ $splunkconnectedmode == 3 ]; then
     echo "not connected mode, package installation disabled. Would have done yum install --setopt=skip_missing_names_on_install=True ${PACKAGELIST} -y"
   else 
@@ -403,7 +402,6 @@ get_packages () {
 }
 
 setup_disk () {
-
     DEVNUM=1
     if [[ "$splunkenableunifiedpartition" == "true" ]]; then
       echo "Usimg unified partition mode"
@@ -459,7 +457,6 @@ setup_disk () {
         RES=`grep $MOUNTPOINT /etc/fstab`
         #echo " debug F=$RES."
         if [ -z "${RES}" ]; then
-
           #mount /dev/vgsplunkephemeral1/lvsplunkephemeral1 $MOUNTPOINT && mkdir -p $MOUNTPOINT/indexes
           echo "$MOUNTPOINT not found in /etc/fstab, adding it" >> /var/log/splunkconf-cloud-recovery-info.log
           echo "/dev/vgsplunkstorage${DEVNUM}//lvsplunkstorage${DEVNUM} $MOUNTPOINT ext4 defaults,nofail 0 2" >> /etc/fstab
@@ -533,7 +530,6 @@ setup_disk () {
     if [ -e "/data/cold" ]; then
        chown -R ${usersplunk}. /data/cold
     fi
-
 }
 
 extend_fs () {

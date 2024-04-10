@@ -394,9 +394,15 @@ get_packages () {
       exit 1
     fi
 
-    if [ 'grep PLATFORM_ID /etc/os-release | grep platform:el9' ]; then
-      echo "RH9/Centos9 like, forcing AWS SSM install in connected mode"
-      yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+    if [[ "cloud_type" -eq 1 ]]; then
+      # AWS
+      # FIXME : test if service already deployed 
+      if [ 'grep PLATFORM_ID /etc/os-release | grep platform:el9' ]; then
+        echo "RH9/Centos9 like, forcing AWS SSM install in connected mode"
+        # see https://docs.aws.amazon.com/systems-manager/latest/userguide/agent-install-centos-stream.html
+        # could be replaced by region specific to avoid dependency on global s3
+        yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+      fi
     fi
     # one yum command so yum can try to download and install in // which will improve recovery time
     yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y --skip-broken

@@ -239,8 +239,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240213 typo fix in log
 # 20240213 update name for old backup app before upgrade from s3 version
 # 20230313 update to 9.2.0.1
+# 20230410 add ssm agent deployment is centos stream9
 
-VERSION="20240313a"
+VERSION="20240410a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -393,6 +394,10 @@ get_packages () {
       exit 1
     fi
 
+    if [ 'grep PLATFORM_ID /etc/os-release | grep platform:el9' ]; then
+      echo "RH9/Centos9 like, forcing AWS SSM install in connected mode"
+      yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+    fi
     # one yum command so yum can try to download and install in // which will improve recovery time
     yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y --skip-broken
     # disable as scan in permanence and not needed for splunk

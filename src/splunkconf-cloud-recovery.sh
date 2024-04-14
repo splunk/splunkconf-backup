@@ -238,10 +238,11 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20230125 up to 9.1.3
 # 20240213 typo fix in log
 # 20240213 update name for old backup app before upgrade from s3 version
-# 20230313 update to 9.2.0.1
-# 20230410 add ssm agent deployment is centos stream9
+# 20240313 update to 9.2.0.1
+# 20240410 add ssm agent deployment for centos stream9
+# 20240415 add splunkpostextracommand to allow launching a command at the end of installation
 
-VERSION="20240410a"
+VERSION="20240415a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -907,6 +908,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkrsyncmode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkrsyncmode`
   splunkhostmode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkhostmode`
   splunkhostmodeos=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkhostmodeos`
+  splunkpostextracommand=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpostextracommand`
   #=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
@@ -998,6 +1000,12 @@ fi
 if [ -z ${splunkrsyncmode+x} ]; then 
   echo "splunkrsyncmode is unset, falling back to default value 0 (disabled)"
   splunkrsyncmode=0
+fi
+
+if [ -z ${splunkpostextracommand+x} ]; then 
+  echo "splunkpostextracommand is unset"
+else
+  echo "splunkpostextracommand is set to ${splunkpostextracommand}"
 fi
 
 if [[ "cloud_type" -eq 1 ]]; then
@@ -2497,6 +2505,13 @@ fi
 
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 
 tag_replacement
+
+if [ -z ${splunkpostextracommand+x} ]; then 
+  echo "splunkpostextracommand is unset"
+else
+  echo "splunkpostextracommand is set running command  ${splunkpostextracommand}"
+  ${splunkpostextracommand}
+fi
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 #NOW=`(date "+%Y/%m/%d %H:%M:%S")`

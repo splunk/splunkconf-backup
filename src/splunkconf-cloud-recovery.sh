@@ -241,8 +241,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240313 update to 9.2.0.1
 # 20240410 add ssm agent deployment for centos stream9
 # 20240415 add splunkpostextracommand to allow launching a command at the end of installation
+# 20240415 add splunkpostextrasyncdir
 
-VERSION="20240415a"
+VERSION="20240415b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -909,6 +910,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkhostmode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkhostmode`
   splunkhostmodeos=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkhostmodeos`
   splunkpostextracommand=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpostextracommand`
+  splunkpostextrasyncdir=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpostextrasyncdir`
   #=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
@@ -1000,6 +1002,12 @@ fi
 if [ -z ${splunkrsyncmode+x} ]; then 
   echo "splunkrsyncmode is unset, falling back to default value 0 (disabled)"
   splunkrsyncmode=0
+fi
+
+if [ -z ${splunkpostextrasyncdir+x} ]; then 
+  echo "splunkpostextrasyncdir is unset"
+else
+  echo "splunkpostextrasyncdir is set to ${splunkpostextrasyncdir}"
 fi
 
 if [ -z ${splunkpostextracommand+x} ]; then 
@@ -2506,12 +2514,22 @@ fi
 # redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 
 tag_replacement
 
-if [ -z ${splunkpostextracommand+x} ]; then 
-  echo "splunkpostextracommand is unset"
+if [ -z ${splunkpostextrasyncdir+x} ]; then 
+  echo "splunkpostextrasyncdir is unset"
 else
-  echo "splunkpostextracommand is set running command  ${splunkpostextracommand}"
-  ${splunkpostextracommand}
+  echo "splunkpostextrasyncdir is set to ${splunkpostextrasyncdir}"
+  mkdir /var/run/postinstall
+  cd /var/run/postinstall
+  # FIXME add cloudtype support here
+  aws s3 sync --no-paginate ${splunkpostextrasyncdir} .  
+  if [ -z ${splunkpostextracommand+x} ]; then 
+    echo "splunkpostextracommand is unset"
+  else
+    echo "splunkpostextracommand is set running to run command ${splunkpostextracommand} in directory /var/run/postinstall"
+    bash ./${splunkpostextracommand}
+  fi
 fi
+
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 #NOW=`(date "+%Y/%m/%d %H:%M:%S")`

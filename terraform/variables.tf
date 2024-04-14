@@ -704,3 +704,14 @@ variable "base-apps-target-dir" {
   default     = "actions-runner/_work/apptest2"
 }
 
+variable "splunkpostextrasyncdir" { 
+  type        = string
+  description = "extra folder (objects) to sync locally at post install time to be able to deploy additipnal stuff" 
+  default     = ""
+}
+
+variable "splunkpostextracommand" { 
+  type        = string
+  description = "extra command to run at post install time that has been downloaded as part of splunkpostextrasyncdir"
+  default     = ""
+}

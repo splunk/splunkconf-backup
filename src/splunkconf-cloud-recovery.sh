@@ -243,7 +243,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240415 add splunkpostextracommand to allow launching a command at the end of installation
 # 20240415 add splunkpostextrasyncdir
 
-VERSION="20240415b"
+VERSION="20240415c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2518,14 +2518,14 @@ if [ -z ${splunkpostextrasyncdir+x} ]; then
   echo "splunkpostextrasyncdir is unset"
 else
   echo "splunkpostextrasyncdir is set to ${splunkpostextrasyncdir}"
-  mkdir /var/run/postinstall
-  cd /var/run/postinstall
+  mkdir /var/lib/postinstall
+  cd /var/lib/postinstall
   # FIXME add cloudtype support here
-  aws s3 sync --no-paginate ${splunkpostextrasyncdir} .  
+  aws s3 sync --no-progress --no-paginate ${splunkpostextrasyncdir} .  
   if [ -z ${splunkpostextracommand+x} ]; then 
     echo "splunkpostextracommand is unset"
   else
-    echo "splunkpostextracommand is set running to run command ${splunkpostextracommand} in directory /var/run/postinstall"
+    echo "splunkpostextracommand is set running to run command ${splunkpostextracommand} in directory /var/lib/postinstall"
     bash ./${splunkpostextracommand}
   fi
 fi

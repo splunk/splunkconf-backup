@@ -270,6 +270,8 @@ resource "aws_launch_template" "splunk-hf" {
       splunkbackupdebug     = var.splunkbackupdebug
       splunkpwdinit         = var.splunkpwdinit
       splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {

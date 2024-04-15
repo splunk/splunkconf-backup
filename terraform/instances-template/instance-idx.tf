@@ -415,6 +415,8 @@ resource "aws_launch_template" "splunk-idx" {
       splunkbackupdebug     = var.splunkbackupdebug
       splunkenableunifiedpartition = var.splunkenableunifiedpartition
       splunksmartstoresitenumber   = var.splunksmartstoresitenumber
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {

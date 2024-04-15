@@ -334,6 +334,8 @@ resource "aws_launch_template" "splunk-sh1" {
       splunkconnectedmode   = var.splunkconnectedmode
       splunkacceptlicense   = var.splunkacceptlicense
       splunkbackupdebug     = var.splunkbackupdebug
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {
@@ -432,6 +434,8 @@ resource "aws_launch_template" "splunk-sh2" {
       splunkconnectedmode   = var.splunkconnectedmode
       splunkacceptlicense   = var.splunkacceptlicense
       splunkbackupdebug     = var.splunkbackupdebug
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {
@@ -532,6 +536,8 @@ resource "aws_launch_template" "splunk-sh3" {
       splunkconnectedmode   = var.splunkconnectedmode
       splunkacceptlicense   = var.splunkacceptlicense
       splunkbackupdebug     = var.splunkbackupdebug
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {

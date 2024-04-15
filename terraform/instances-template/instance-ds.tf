@@ -309,6 +309,8 @@ resource "aws_launch_template" "splunk-ds" {
       splunkpwdinit         = var.splunkpwdinit
       splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
       splunkenableworker    = ( var.ds-enableworker ? "1" : "0" )
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {

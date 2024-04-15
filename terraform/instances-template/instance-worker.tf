@@ -97,6 +97,8 @@ resource "aws_launch_template" "splunk-worker" {
       splunkinstanceType  = var.worker
       splunkosupdatemode  = var.splunkosupdatemode
       splunkconnectedmode = var.splunkconnectedmode
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {

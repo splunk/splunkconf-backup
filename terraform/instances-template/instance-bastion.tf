@@ -150,6 +150,8 @@ resource "aws_launch_template" "splunk-bastion" {
       #      splunkinstanceType  = var.bastion
       #      splunkosupdatemode  = var.splunkosupdatemode
       #      splunkconnectedmode = var.splunkconnectedmode
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {

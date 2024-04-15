@@ -248,6 +248,8 @@ resource "aws_launch_template" "splunk-ihf" {
       splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
       splunkhostmodeos      = "ami"
       splunkhostmode        = "prefix"
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {

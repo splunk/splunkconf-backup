@@ -385,6 +385,8 @@ resource "aws_launch_template" "splunk-hfa" {
       splunkrsyncdnsshort   = "hfa"
       splunkrsynchost       = "${local.dns-prefix}${var.hf}b.${var.dns-zone-name}"
       splunkrsyncautorestore = 1
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {
@@ -447,6 +449,8 @@ resource "aws_launch_template" "splunk-hfb" {
       splunkrsyncdnsshort   = "hfb"
       splunkrsynchost       = "${local.dns-prefix}${var.hf}a.${var.dns-zone-name}"
       splunkrsyncautorestore = 1
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {

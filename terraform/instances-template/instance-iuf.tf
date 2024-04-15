@@ -215,6 +215,8 @@ resource "aws_launch_template" "splunk-iuf" {
       splunkconnectedmode = var.splunkconnectedmode
       splunkacceptlicense = var.splunkacceptlicense
       splunkbackupdebug     = var.splunkbackupdebug
+      splunkpostextrasyncdir = var.splunkpostextrasyncdir
+      splunkpostextracommand = var.splunkpostextracommand
     }
   }
   metadata_options {

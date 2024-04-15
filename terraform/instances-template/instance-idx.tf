@@ -520,6 +520,7 @@ resource "aws_lb" "idxhec-noack" {
   #count = var.enable-idx-hecelb ? 1: 0
   name               = "idxhec-noack"
   load_balancer_type = "application"
+  drop_invalid_header_fields = true
   security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhecidx.id]
   subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
 }
@@ -530,6 +531,7 @@ resource "aws_lb" "idxhec-ack" {
   #count = var.enable-idx-hecelb ? 1: 0
   name               = "idxhec-ack"
   load_balancer_type = "application"
+  drop_invalid_header_fields = true
   security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhecidx.id]
   subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
 }

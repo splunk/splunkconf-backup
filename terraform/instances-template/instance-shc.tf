@@ -632,6 +632,7 @@ resource "aws_alb_target_group" "shc-users" {
 resource "aws_lb" "shc-users" {
   name               = "shc-users"
   load_balancer_type = "application"
+  drop_invalid_header_fields = true
   security_groups    = [aws_security_group.splunk-lb-shc-outbound.id, aws_security_group.splunk-lbsh.id]
   subnets            = [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id]
   tags = {

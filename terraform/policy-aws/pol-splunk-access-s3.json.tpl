@@ -1,8 +1,7 @@
 {
     "Version": "2012-10-17",
     "Statement": [
-#%{ if ${s3_prefix}!="notset" ~}
-##%{ if ${s3_prefix}!="notset" && ${s3_bucket}!="notset" }
+%{ if s3_prefix!="notset" }
 #        {
 #            "Sid": "AccessS3prefix",
 #            "Effect": "Allow",
@@ -27,7 +26,7 @@
 #            "Resource": [
 #                "${s3_bucket}"
 #            ]
-#%{ endif ~}
-        }
+#        }
+%{ endif }
     ]
 }

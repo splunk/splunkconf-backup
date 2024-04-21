@@ -242,8 +242,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240410 add ssm agent deployment for centos stream9
 # 20240415 add splunkpostextracommand to allow launching a command at the end of installation
 # 20240415 add splunkpostextrasyncdir
+# 20240422 set latest var for AL2023 
 
-VERSION="20240415c"
+VERSION="20240422ra
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -618,6 +619,10 @@ force_cgroupv1 () {
 
 os_update() {
   echo "#************************************* OS UPDATES MANAGEMENT ********************************************************"
+  #if [ grep PRETTY_NAME="Amazon Linux 2023"
+    echo latest | sudo tee /etc/dnf/vars/releasever
+    dnf install smart-restart
+  # fi AL2023
   if [ -z ${splunkosupdatemode+x} ]; then
     splunkosupdatemode="updateandreboot" 
   fi

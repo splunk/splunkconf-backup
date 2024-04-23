@@ -243,8 +243,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240415 add splunkpostextracommand to allow launching a command at the end of installation
 # 20240415 add splunkpostextrasyncdir
 # 20240422 set latest var for AL2023 
+# 20240423 change update logic for AL2023 to run for second boot to prevent potential conflict with SSM
 
-VERSION="20240422a"
+VERSION="20240423a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -619,10 +620,12 @@ force_cgroupv1 () {
 
 os_update() {
   echo "#************************************* OS UPDATES MANAGEMENT ********************************************************"
-  #if [ grep PRETTY_NAME="Amazon Linux 2023"
+  if [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
+    # we are running AL2023, we want to use latest release all the time then leverage smart-restart to minimize reboot need
+    # see https://docs.aws.amazon.com/linux/al2023/ug/managing-repos-os-updates.html
     echo latest | sudo tee /etc/dnf/vars/releasever
     dnf install smart-restart
-  # fi AL2023
+  fi #AL2023
   if [ -z ${splunkosupdatemode+x} ]; then
     splunkosupdatemode="updateandreboot" 
   fi
@@ -636,8 +639,14 @@ os_update() {
     if [ "${splunkosupdatemode}" = "noreboot" ]; then
       echo "tag splunkosupdatemode set to no reboot"
       # we do not disable here as cgroups disabling may have asked for reboot
+    elif [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
+       if [ -e "/run/smart-restart/reboot-hint-marker" ]; then 
+          NEEDREBOOT=1
+       else 
+          echo "AL2023 and smart-restart or no update to apply, no need to reboot"
+       fi
     else
-      NEEDREBOOT=1
+       NEEDREBOOT=1
     fi
   fi
 }
@@ -703,6 +712,10 @@ init_arg() {
         fi
         touch "/root/second_boot.check"
         INSTALLPHASE=2
+        if [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
+          # we run update at first step on all distrib except AL2023 as we try to do a fast first run for cgroup then do the update after without rebootin
+          os_update
+        fi
       else
         echo "INFO: This is First boot, setting up logic for second boot (AWS)"
         INSTALLPHASE=1
@@ -760,7 +773,10 @@ EOF
       echo "INFO: Doing first boot actions"
       touch "/root/first_boot.check"
       NEEDREBOOT=0
-      os_update
+      if [ ! $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
+        # we run update at first step on all distrib except AL2023 as we try to do a fast first run for cgroup then do the update after without rebootin
+        os_update
+      fi
       force_cgroupv1
       TODAY=`date '+%Y%m%d-%H%M_%u'`;
       if [[ $NEEDREBOOT = 0 ]]; then

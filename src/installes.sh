@@ -47,8 +47,9 @@
 # 20230530 add sha for 7.1.1
 # 20230907 add sha for 7.2.0
 # 20231220 add sha for 7.3.0
+# 20240424 add sha for 7.3.1
 
-VERSION="20231220a"
+VERSION="20240424a"
 
 SCRIPTNAME="installes"
 
@@ -241,7 +242,8 @@ fi
 #ESAPP="splunk-enterprise-security_710.spl";
 #ESAPP="splunk-enterprise-security_711.spl";
 #ESAPP="splunk-enterprise-security_720.spl";
-ESAPP="splunk-enterprise-security_730.spl";
+#ESAPP="splunk-enterprise-security_730.spl";
+ESAPP="splunk-enterprise-security_731.spl";
 
 read -p "ESAPP file name (default : ${ESAPP})" input
 ESAPP=${input:-$ESAPP}
@@ -279,10 +281,11 @@ fi
 # SHA256 checksum (splunk-enterprise-security_711.spl) b871297c0a518f7362a8a0b6cf829fcefc4bdd24602d0b75d79bb1bc38050e1d
 # SHA256 checksum (splunk-enterprise-security_720.spl) a0782af46e32e329bf4eaaf6996476a302a480e20d76255410f6970ce5f5687b
 # SHA256 checksum (splunk-enterprise-security_730.spl) 568f72730d61159175495bec665fb2ae2282b760aa9698b52b1682e2acf925dc
+# SHA256 checksum (splunk-enterprise-security_731.spl) 1ec5e756206eae020135d52bba4e716a9afc0353a3d2793f25bd351117070102
 
 # SHA256 checksum (splunk-es-content-update_3240.tgz) 49aca3ab3bb1291f988459708e9a589aacc5b64caed493831a00546c36181ea6
 
-EXPECTEDSHA="568f72730d61159175495bec665fb2ae2282b760aa9698b52b1682e2acf925dc"
+EXPECTEDSHA="1ec5e756206eae020135d52bba4e716a9afc0353a3d2793f25bd351117070102"
 
 echo_log "please verify sha256 to check for integrity (corruption , truncation during file download....)"
 echo "INFO: expected sha256=${EXPECTEDSHA}"

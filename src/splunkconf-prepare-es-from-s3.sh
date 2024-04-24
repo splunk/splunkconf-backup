@@ -18,10 +18,11 @@
 # 20230530 update for 7.1.1
 # 20230907 update for 7.2.0
 # 20231220 update for 7.3.0
+# 20240424 update for 7.3.1
 
-VERSION="20231220"
+VERSION="20240424"
 
-ESAPP="splunk-enterprise-security_730.spl"
+ESAPP="splunk-enterprise-security_731.spl"
 ESCU="splunk-es-content-update_4250.tgz"
 
 # check that we are not launched

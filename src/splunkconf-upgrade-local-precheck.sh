@@ -23,8 +23,9 @@
 # 20240424 improve messages and add condition for log4j hotfix and AL2023
 # 20240424 add disk space output
 # 20240424 update splunktargetbinary to only check for presence (avoid failures on disk space) and improve message when tag set to auto
+# 20240424 add detection for curl-minimal package to clean up output when this package is deploeyed (like AL2023)
 
-VERSION="20240424e"
+VERSION="20240424j"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -114,7 +115,14 @@ set_connectedmode () {
 
 
 #PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd"
-PACKAGELIST="aws-cli curl python3-pip zstd"
+PACKAGELIST="aws-cli python3-pip zstd"
+if [ $( rpm -qa | grep -ic curl-minimal  ) -gt 0 ]; then
+        echo "curl-minimal package detected"
+else
+        echo "curl-minimal not detected, assuming curl""
+        PACKAGELIST="${PACKAGELIST} curl"
+fi
+
 get_packages () {
   #echo "DEBUG: splunkconnectedmode=$splunkconnectedmode"
   if (( splunkconnectedmode == 3 )); then
@@ -134,7 +142,7 @@ get_packages () {
 
     yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y
     if [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
-      echo "distribution which already doenst includ log4j hotfix, no need to try disabling it"
+      echo "distribution whithout log4j hotfix, no need to try disabling it"
     else
       # disable as scan in permanence and not needed for splunk
       echo "trying to disable log4j hotfix, as perf hirt and not needed for splunk"
@@ -333,14 +341,14 @@ else
 fi
 echo "INFO: checking RPM is present in s3 install at $remoteinstalldir/$splunktargetbinary"
 #aws s3 cp $remoteinstalldir/$splunktargetbinary /tmp --quiet
-if $( aws s3 cp $remoteinstalldir/$splunktargetbinary /tmp --quiet| grep -q $splunktargetbinary) ; then
+if [ $(aws s3 ls $remoteinstalldir/$splunktargetbinary | grep -ic $splunktargetbinary) -eq 1 ]; then
 #if [ -e "/tmp/$splunktargetbinary" ]; then
-  echo "OK: RPM $splunktargetbinary is present in s3 install at location $remoteinstalldir/$splunktargetbinary"
+  echo "OK: Splunk binary installation file (RPM or tar.gz)  $splunktargetbinary is present in s3 install at location $remoteinstalldir/$splunktargetbinary"
 else
   if (( splunkconnectedmode == 1 )); then
-    echo "WARNING: RPM $splunktargetbinary is NOT present in s3 install ($remoteinstalldir/$splunktargetbinary) : Please upload RPM to $remoteinstalldir or check tag value (we will try to download $splunktargetbinary automatically) (also check enough space to download)"
+    echo "WARNING: Splunk binary installation file (RPM or tar.gz)  $splunktargetbinary is NOT present in s3 install ($remoteinstalldir/$splunktargetbinary) : Please upload file to $remoteinstalldir or check tag value (we will try to download $splunktargetbinary automatically) (also check enough space to download)"
   else
-    echo "KO: RPM $splunktargetbinary is NOT present in s3 install ($remoteinstalldir/$splunktargetbinary) : Please upload RPM to $remoteinstalldir or check tag value (you are running in disconnected mode)"
+    echo "KO: Splunk binary installation file (RPM or tar.gz)  $splunktargetbinary is NOT present in s3 install ($remoteinstalldir/$splunktargetbinary) : Please upload file to $remoteinstalldir or check tag value (you are running in disconnected mode)"
   fi
 fi
 

@@ -244,8 +244,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240415 add splunkpostextrasyncdir
 # 20240422 set latest var for AL2023 
 # 20240423 change update logic for AL2023 to run for second boot to prevent potential conflict with SSM
+# 20240424 add condition logic for log4jhotfix as not needed for AL2023
 
-VERSION="20240423a"
+VERSION="20240424a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -410,9 +411,14 @@ get_packages () {
     fi
     # one yum command so yum can try to download and install in // which will improve recovery time
     yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y --skip-broken
-    # disable as scan in permanence and not needed for splunk
-    systemctl stop log4j-cve-2021-44228-hotpatch
-    systemctl disable log4j-cve-2021-44228-hotpatch
+    if [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
+      echo "distribution which already doenst includ log4j hotfix, no need to try disabling it"
+    else 
+      # disable as scan in permanence and not needed for splunk
+      echo "trying to disable log4j hotfix, as perf hirt and not needed for splunk"
+      systemctl stop log4j-cve-2021-44228-hotpatch
+      systemctl disable log4j-cve-2021-44228-hotpatch
+    fi
   fi #splunkconnectedmode
 }
 

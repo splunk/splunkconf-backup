@@ -21,8 +21,9 @@
 # 20230626 improve logging also for es precheck
 # 20230626 improve messages 
 # 20240424 improve messages and add condition for log4j hotfix and AL2023
+# 20240424 add disk space output
 
-VERSION="20240424a"
+VERSION="20240424c"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -319,7 +320,7 @@ done
 # set back to original dir
 localinstalldir="/usr/local/bin"
 
-$remoteinstalldir/$splunktargetbinaryif [ -z "$splunktargetbinary" ]; then
+if [ -z "$splunktargetbinary" ]; then
   splunktargetbinary=`grep ^splbinary $localinstalldir/splunkconf-aws-recovery.sh | cut -d"\"" -f2`
   echo "INFO: splunktargetbinary not SET in instance tags, version used will be the one hardcoded in script : $splunktargetbinary"
   echo "INFO: This is fine if you are just testing or always want to use script version"
@@ -332,7 +333,7 @@ if [ -e "/tmp/$splunktargetbinary" ]; then
   echo "OK: RPM $splunktargetbinary is present in s3 install at location $remoteinstalldir/$splunktargetbinary"
 else
   if (( splunkconnectedmode == 1 )); then
-    echo "WARNING: RPM $splunktargetbinary is NOT present in s3 install ($remoteinstalldir/$splunktargetbinary) : Please upload RPM to $remoteinstalldir or check tag value (we will try to download $splunktargetbinary automatically)"
+    echo "WARNING: RPM $splunktargetbinary is NOT present in s3 install ($remoteinstalldir/$splunktargetbinary) : Please upload RPM to $remoteinstalldir or check tag value (we will try to download $splunktargetbinary automatically) (also check enough space to download)"
   else
     echo "KO: RPM $splunktargetbinary is NOT present in s3 install ($remoteinstalldir/$splunktargetbinary) : Please upload RPM to $remoteinstalldir or check tag value (you are running in disconnected mode)"
   fi
@@ -347,5 +348,7 @@ echo "INFO: removing secondary script as no longer needed"
 echo "INFO: end of splunkconf upgrade precheck script (updated version=$VERSION, no need to rerun it)"
 echo "INFO: please run splunkconf-upgrade-local.sh when ready and if no errors above"
 echo "INFO: make sure you have completed all other upgrade requirements before (see doc) and that you upgrade in the right order"
+echo "disk space check : "
+df --local --total
 rm $localinstalldir/splunkconf-upgrade-local-precheck-2.sh
 

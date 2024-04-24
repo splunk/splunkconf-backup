@@ -22,8 +22,9 @@
 # 20230626 improve messages 
 # 20240424 improve messages and add condition for log4j hotfix and AL2023
 # 20240424 add disk space output
+# 20240424 update splunktargetbinary to only check for presence (avoid failures on disk space) and improve message when tag set to auto
 
-VERSION="20240424c"
+VERSION="20240424e"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -324,12 +325,16 @@ if [ -z "$splunktargetbinary" ]; then
   splunktargetbinary=`grep ^splbinary $localinstalldir/splunkconf-aws-recovery.sh | cut -d"\"" -f2`
   echo "INFO: splunktargetbinary not SET in instance tags, version used will be the one hardcoded in script : $splunktargetbinary"
   echo "INFO: This is fine if you are just testing or always want to use script version"
+elif [ "$splunktargetbinary" == "auto" ]; then
+  splunktargetbinary=`grep ^splbinary $localinstalldir/splunkconf-aws-recovery.sh | cut -d"\"" -f2`
+  echo "INFO: splunktargetbinary=auto via instance tags, version used will be the one hardcoded in script : $splunktargetbinary"
 else
   echo "INFO: splunksplunktargetbinary=$splunktargetbinary"
 fi
 echo "INFO: checking RPM is present in s3 install at $remoteinstalldir/$splunktargetbinary"
-aws s3 cp $remoteinstalldir/$splunktargetbinary /tmp --quiet
-if [ -e "/tmp/$splunktargetbinary" ]; then
+#aws s3 cp $remoteinstalldir/$splunktargetbinary /tmp --quiet
+if $( aws s3 cp $remoteinstalldir/$splunktargetbinary /tmp --quiet| grep -q $splunktargetbinary) ; then
+#if [ -e "/tmp/$splunktargetbinary" ]; then
   echo "OK: RPM $splunktargetbinary is present in s3 install at location $remoteinstalldir/$splunktargetbinary"
 else
   if (( splunkconnectedmode == 1 )); then

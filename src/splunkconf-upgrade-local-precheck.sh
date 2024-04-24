@@ -20,12 +20,13 @@
 # 20230626 rework multiple version log case
 # 20230626 improve logging also for es precheck
 # 20230626 improve messages 
+# 20240424 improve messages and add condition for log4j hotfix and AL2023
 
-VERSION="20230626h"
+VERSION="20240424a"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
-   echo "Exiting ! This recovery script need to be run as root !"
+   echo "Exiting ! This recovery script $0 need to be run as root !"
    exit 1
 fi
 
@@ -129,11 +130,16 @@ get_packages () {
       exit 1
     fi
 
-    # one yum command so yum can try to download and install in // which will improve recovery time
     yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y
-    # disable as scan in permanence and not needed for splunk
-    systemctl stop log4j-cve-2021-44228-hotpatch
-    systemctl disable log4j-cve-2021-44228-hotpatch
+    if [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
+      echo "distribution which already doenst includ log4j hotfix, no need to try disabling it"
+    else
+      # disable as scan in permanence and not needed for splunk
+      echo "trying to disable log4j hotfix, as perf hirt and not needed for splunk"
+      systemctl stop log4j-cve-2021-44228-hotpatch
+      systemctl disable log4j-cve-2021-44228-hotpatch
+    fi
+    # one yum command so yum can try to download and install in // which will improve recovery time
     pip3 install awscli --upgrade 2>&1 >/dev/null
   fi #splunkconnectedmode
 }
@@ -219,7 +225,7 @@ do
     VER=`(grep ^VERSION $localinstalldir/$i || grep ^\\$VERSION $localinstalldir/$i ) | head -1`
     #echo "VER=$VER"
     if [ -z "$VER" ]; then
-      #echo "KO: predownload             $i : undefined version "
+      #echo "KO: predownload             $i : undefined version"
       VER1="undefinedversion"
     else
       #echo "OK: predownload             $i $VER"
@@ -313,22 +319,22 @@ done
 # set back to original dir
 localinstalldir="/usr/local/bin"
 
-if [ -z "$splunktargetbinary" ]; then
+$remoteinstalldir/$splunktargetbinaryif [ -z "$splunktargetbinary" ]; then
   splunktargetbinary=`grep ^splbinary $localinstalldir/splunkconf-aws-recovery.sh | cut -d"\"" -f2`
   echo "INFO: splunktargetbinary not SET in instance tags, version used will be the one hardcoded in script : $splunktargetbinary"
   echo "INFO: This is fine if you are just testing or always want to use script version"
 else
   echo "INFO: splunksplunktargetbinary=$splunktargetbinary"
 fi
-echo "INFO: checking RPM is present in s3 install"
+echo "INFO: checking RPM is present in s3 install at $remoteinstalldir/$splunktargetbinary"
 aws s3 cp $remoteinstalldir/$splunktargetbinary /tmp --quiet
 if [ -e "/tmp/$splunktargetbinary" ]; then
-  echo "OK: RPM $splunktargetbinary is present in s3 install"
+  echo "OK: RPM $splunktargetbinary is present in s3 install at location $remoteinstalldir/$splunktargetbinary"
 else
   if (( splunkconnectedmode == 1 )); then
-    echo "WARNING: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value (we will try to download $splunktargetbinary automatically)"
+    echo "WARNING: RPM $splunktargetbinary is NOT present in s3 install ($remoteinstalldir/$splunktargetbinary) : Please upload RPM to $remoteinstalldir or check tag value (we will try to download $splunktargetbinary automatically)"
   else
-    echo "KO: RPM $splunktargetbinary is NOT present in s3 install : Please upload RPM to $remoteinstalldir or check tag value (you are running in disconnected mode)"
+    echo "KO: RPM $splunktargetbinary is NOT present in s3 install ($remoteinstalldir/$splunktargetbinary) : Please upload RPM to $remoteinstalldir or check tag value (you are running in disconnected mode)"
   fi
 fi
 

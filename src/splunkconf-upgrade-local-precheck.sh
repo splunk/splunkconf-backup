@@ -25,7 +25,7 @@
 # 20240424 update splunktargetbinary to only check for presence (avoid failures on disk space) and improve message when tag set to auto
 # 20240424 add detection for curl-minimal package to clean up output when this package is deploeyed (like AL2023)
 
-VERSION="20240424j"
+VERSION="20240424k"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -119,7 +119,7 @@ PACKAGELIST="aws-cli python3-pip zstd"
 if [ $( rpm -qa | grep -ic curl-minimal  ) -gt 0 ]; then
         echo "curl-minimal package detected"
 else
-        echo "curl-minimal not detected, assuming curl""
+        echo "curl-minimal not detected, assuming curl"
         PACKAGELIST="${PACKAGELIST} curl"
 fi
 

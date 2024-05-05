@@ -19,9 +19,10 @@
 #
 # Matthieu Araman, Splunk
 #
-# 20230120  initial version
+# 20230120 initial version
+# 20240505 cleanup and improve logging
 
-VERSION="20230120a"
+VERSION="20240505a"
 
 function get_zone_id () {
   local Z=$1
@@ -41,13 +42,10 @@ fi
 #aws route53 list-hosted-zones-by-name --dns-name ia.cloud.plouic.com --query HostedZones --output text | head -1 | awk '{print $2}'
 
 # the subzone
-#ZONE="ia.cloud.plouic.com"
 ZONE=$1
-ZONEID="Z0113630MP14LCE9W6AX"
 ZONEID=$2
 REGION=$3
 # one up
-#TOP="cloud.plouic.com"
 TOP=$4
 
 TTL=$5
@@ -86,7 +84,7 @@ fi
 echo "-----"
 
 if [[ ${#A} -lt 2 ]]; then
-  echo "FAIL : zone not found , check arguments, permissions and relaunch please"
+  echo "FAIL : zone zoneid=$ZONEID, ZONE=$ZONE not found , check arguments, permissions and relaunch please"
   exit 1
 fi
 

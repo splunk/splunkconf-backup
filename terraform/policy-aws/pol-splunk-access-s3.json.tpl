@@ -1,7 +1,7 @@
 {
     "Version": "2012-10-17",
     "Statement": [
-%{ if s3_prefix!="notset" }
+%{ if strcontains(s3_bucket,"arn") }
         {
             "Sid": "AccessS3prefix",
             "Effect": "Allow",

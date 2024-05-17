@@ -7,23 +7,23 @@
             "Effect": "Allow",
             "Action": "secretsmanager:GetSecretValue",
             "Resource": "${secret}"
-        },%{ endif }
+        }%{ endif }
         %{ if strcontains(secret2,"arn") }
-        {
+        ,{
             "Sid": "Getkey",
             "Effect": "Allow",
             "Action": "secretsmanager:GetSecretValue",
             "Resource": "${secret2}"
-        },%{ endif }
-        {
+        }%{ endif }
+        ,{
             "Sid": "Describessm",
             "Effect": "Allow",
             "Action": [
                     "ssm:DescribeParameters"
             ],
             "Resource": "*"
-        },%{ if strcontains(ssmkey,"arn") }
-        {
+        }%{ if strcontains(ssmkey,"arn") }
+        ,{
             "Sid": "Getssmprivkey",
             "Effect": "Allow",
             "Action": [
@@ -33,9 +33,8 @@
               "ssm:GetParameter"
             ],
             "Resource": "${ssmkey}"
-        },%{ endif }
-        %{ if enableprovision != 0 }
-        {
+        }%{ endif }%{ if strcontains(ssmkeyrunner,"arn") }
+        ,{
             "Sid": "Getssmpatrunner",
             "Effect": "Allow",
             "Action": [

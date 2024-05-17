@@ -2,7 +2,7 @@
     "Version": "2012-10-17",
     "Statement": [
        {
-            "Sid": "VisualEditor1",
+            "Sid": "GetTops3bucket",
             "Effect": "Allow",
             "Action": [
                 "s3:GetObject",
@@ -16,7 +16,7 @@
             ]
         },
         {
-            "Sid": "VisualEditor2",
+            "Sid": "AllowSmartStore",
             "Effect": "Allow",
             "Action": [
                 "s3:PutObject",

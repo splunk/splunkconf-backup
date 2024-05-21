@@ -280,6 +280,12 @@ variable "ds" {
   default     = "ds"
 }
 
+variable "lbds" {
+  description = "name to give to lb ds instance "
+  type        = string
+  default     = "lbds"
+}
+
 variable "ds-enable" {
   type    = bool
   default = true
@@ -307,14 +313,33 @@ variable "ds-enableworker" {
 }
 
 variable "splunktar" {
-  description = "set this only for multi ds where we install by tar"
+  description = "this is required for multi ds where we install by tar"
   type        = string
   default     = "splunk-xxxx.tar.gz"
 }
 
 variable "dsnb" {
+  description = "if more than 1 then enable support for multids (ie multiple instances ds behind LVS in one instance"
   type    = number
   default = 1
+}
+
+variable "use_elb_ds" {
+  description = "whether to create ELB for DS"
+  type        = bool
+  default     = true
+}
+
+variable "force-ds-lb-private" {
+  description = "whether to force ELB for DS on private network (or auto depending on other variables)"
+  type        = bool
+  default     = true
+}
+
+variable "ds-in-allowed-networks" {
+  description = "List of trusted networks allowed to communicate to DS (ie remote clients)"
+  type        = list(string)
+  default     = ["127.0.0.1/32"]
 }
 
 variable "lm" {

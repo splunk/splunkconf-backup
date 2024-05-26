@@ -250,8 +250,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240526 fix for uf group support and add support for sending options to splunkconf-init
 # 20240526 add detection for curl-minimal package to clean up output when this package is deploeyed (like AL2023) 
 # 20240526 disable tag replacement for uf to clean up logs
+# 20240526 try to prevent SSM and rpm conflict at start breaking install
 
-VERSION="20240526e"
+VERSION="20240526f"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -404,16 +405,6 @@ get_packages () {
       exit 1
     fi
 
-    if [[ "cloud_type" -eq 1 ]]; then
-      # AWS
-      # FIXME : test if service already deployed 
-      if [ 'grep PLATFORM_ID /etc/os-release | grep platform:el9' ]; then
-        echo "RH9/Centos9 like, forcing AWS SSM install in connected mode"
-        # see https://docs.aws.amazon.com/systems-manager/latest/userguide/agent-install-centos-stream.html
-        # could be replaced by region specific to avoid dependency on global s3
-        yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
-      fi
-    fi
     # one yum command so yum can try to download and install in // which will improve recovery time
     yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y --skip-broken
     if [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
@@ -423,6 +414,17 @@ get_packages () {
       echo "trying to disable log4j hotfix, as perf hirt and not needed for splunk"
       systemctl stop log4j-cve-2021-44228-hotpatch
       systemctl disable log4j-cve-2021-44228-hotpatch
+    fi
+    # we deploy SSM after the previous yum as some ssm action may immediately run after and try to do a rpm which would lock rpm and create conflict
+    if [[ "cloud_type" -eq 1 ]]; then
+      # AWS
+      # FIXME : test if service already deployed 
+      if [ 'grep PLATFORM_ID /etc/os-release | grep platform:el9' ]; then
+        echo "RH9/Centos9 like, forcing AWS SSM install in connected mode"
+        # see https://docs.aws.amazon.com/systems-manager/latest/userguide/agent-install-centos-stream.html
+        # could be replaced by region specific to avoid dependency on global s3
+        yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+      fi
     fi
   fi #splunkconnectedmode
 }

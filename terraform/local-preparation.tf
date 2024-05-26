@@ -19,7 +19,7 @@ locals {
   sh-nb                 = (var.sh-enable ? 1 : 0)
   cm-nb                 = (var.cm-enable ? 1 : 0)
   # short name
-  ds = (use_elb_ds == true ? var.lbds : var.ds)
+  ds = (var.use_elb_ds == true ? var.lbds : var.ds)
   # long names
   mc-dns-name           = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
   worker-dns-name       = "${local.dns-prefix}${var.worker}.${var.dns-zone-name}"

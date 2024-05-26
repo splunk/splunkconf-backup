@@ -415,6 +415,10 @@ get_packages () {
       yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y --skip-broken
       RESYUM=$?
       ((COUNT++))
+      if [[ $RESYUM -ne 0 ]]
+        echo "yum lock issue, sleeping 5 seconds before next retry  ($COUNT/5)"
+        sleep 5
+      fi
     done
     if [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
       echo "distribution whithout log4j hotfix, no need to try disabling it"

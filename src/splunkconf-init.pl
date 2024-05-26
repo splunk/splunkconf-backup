@@ -128,7 +128,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20240526a";
+$VERSION="20240526b";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -345,12 +345,12 @@ if ($enablesystemd==0 || $enablesystemd eq "init") {
     print "systemd present and rpm, may be systemd with newer polkit \n";
     my $systemdversion=`systemctl --version| head -1 | cut -d" " -f 2`;
     chomp($systemdversion);
-    if ($systemdversion -ne "" && $systemdversion>218) {
+    if ($systemdversion && $systemdversion>218) {
        print " systemd version ($systemdversion) ok\n";
        my $polkitversion=`rpm -qi polkit| grep Version |cut -d":" -f 2`;
        chomp($polkitversion);
        print " polkit version ($polkitversion) \n";
-       if ($polkitversion -ne "" && $polkitversion > 0) {
+       if ($polkitversion && $polkitversion > 0) {
          $enablesystemd=1 ;
          print " check polkit ok\n";
        } else {

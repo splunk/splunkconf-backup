@@ -251,8 +251,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240526 add detection for curl-minimal package to clean up output when this package is deploeyed (like AL2023) 
 # 20240526 disable tag replacement for uf to clean up logs
 # 20240526 try to prevent SSM and rpm conflict at start breaking install
+# 20240526 add loop to workaround yun lock issue
 
-VERSION="20240526f"
+VERSION="20240526g"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -404,9 +405,17 @@ get_packages () {
       echo "FAIL yum command could not be found, not RH like distribution , not fully implemented/tested at the moment, stopping here " >> /var/log/splunkconf-cloud-recovery-info.log
       exit 1
     fi
-
-    # one yum command so yum can try to download and install in // which will improve recovery time
-    yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y --skip-broken
+    RESYUM=1
+    COUNT=0
+    # we need to repeat in case yum lock taken as it will fail then later on other failures will occur like not having polkit ....
+    # unfortunately if ssm is installed something from ssm configured at start may try install software in // breaking us....
+    until [[ $COUNT -gt 5 ]] || [[ $RESYUM -eq 0 ]]
+    do
+      # one yum command so yum can try to download and install in // which will improve recovery time
+      yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y --skip-broken
+      RESYUM=$?
+      ((COUNT++))
+    done
     if [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
       echo "distribution whithout log4j hotfix, no need to try disabling it"
     else 

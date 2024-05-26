@@ -252,8 +252,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240526 disable tag replacement for uf to clean up logs
 # 20240526 try to prevent SSM and rpm conflict at start breaking install
 # 20240526 add loop to workaround yun lock issue
+# 20240526 add splunkrole option to splunkconf-init so uf role is known to splunkconf-init
 
-VERSION="20240526g"
+VERSION="20240526h"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -415,7 +416,7 @@ get_packages () {
       yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y --skip-broken
       RESYUM=$?
       ((COUNT++))
-      if [[ $RESYUM -ne 0 ]]
+      if [[ $RESYUM -ne 0 ]]; then
         echo "yum lock issue, sleeping 5 seconds before next retry  ($COUNT/5)"
         sleep 5
       fi
@@ -2388,11 +2389,11 @@ if [[ "${instancename}" =~ ds ]]  && [ ! -z ${splunkdsnb+x} ] && [[ $splunkdsnb 
 elif [ "$INSTALLMODE" = "tgz" ]; then
   echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init in tar mode (please use RPM when possible)" >> /var/log/splunkconf-cloud-recovery-info.log
   # no need to pass option, it will default to systemd + /opt/splunk + splunk user
-  ${localrootscriptdir}/splunkconf-init.pl --no-prompt -u=${splunkuser} -g=${splunkgroup} --splunkorg=$splunkorg --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS} 
+  ${localrootscriptdir}/splunkconf-init.pl --no-prompt -u=${splunkuser} -g=${splunkgroup} --splunkorg=$splunkorg --splunkrole=$splunkmode --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS} 
 else
   echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init" >> /var/log/splunkconf-cloud-recovery-info.log
   # no need to pass option, it will default to systemd + /opt/splunk + splunk user
-  ${localrootscriptdir}/splunkconf-init.pl --no-prompt  -u=${splunkuser} -g=${splunkgroup} --splunkorg=$splunkorg ${SPLUNKINITOPTIONS}
+  ${localrootscriptdir}/splunkconf-init.pl --no-prompt  -u=${splunkuser} -g=${splunkgroup} --splunkorg=$splunkorg  --splunkrole=$splunkmode ${SPLUNKINITOPTIONS}
 fi
 
 

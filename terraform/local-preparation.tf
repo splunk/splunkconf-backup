@@ -13,10 +13,14 @@ locals {
   instance-type-ds      = (local.env == "min" ? var.instance-type-ds-min : var.instance-type-ds-default)
   instance-type-sh      = (local.env == "min" ? var.instance-type-sh-min : var.instance-type-sh-default)
   instance-type-bastion = var.instance-type-bastion
+  # allow to easily disable instance while still configuring the rest (can be useful for testing)
   ds-nb                 = (var.ds-enable ? 1 : 0)
   mc-nb                 = (var.mc-enable ? 1 : 0)
   sh-nb                 = (var.sh-enable ? 1 : 0)
   cm-nb                 = (var.cm-enable ? 1 : 0)
+  # short name
+  ds = (use_elb_ds == true ? var.lbds : var.ds)
+  # long names
   mc-dns-name           = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
   worker-dns-name       = "${local.dns-prefix}${var.worker}.${var.dns-zone-name}"
   sh-dns-name           = "${local.dns-prefix}${var.sh}.${var.dns-zone-name}"

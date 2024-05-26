@@ -209,7 +209,7 @@ resource "aws_launch_template" "splunk-iuf" {
       splunktargetbinary  = var.splunktargetbinaryuf
       splunktargetcm      = var.cm
       splunktargetlm      = var.lm
-      splunktargetds      = var.ds
+      splunktargetds      = local.ds
       splunkcloudmode     = var.splunkcloudmode
       splunkosupdatemode  = var.splunkosupdatemode
       splunkconnectedmode = var.splunkconnectedmode

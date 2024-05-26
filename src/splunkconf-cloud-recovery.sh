@@ -245,8 +245,12 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240422 set latest var for AL2023 
 # 20240423 change update logic for AL2023 to run for second boot to prevent potential conflict with SSM
 # 20240424 add condition logic for log4jhotfix as not needed for AL2023
+# 20240526 changedefault user to splunkfwd when uf to prevent issue with SPLUNK_HOME incorreclty set by splunk at boot start
+# 20240526 up to 9.2.1
+# 20240526 fix for uf group support and add support for sending options to splunkconf-init
+# 20240526 add detection for curl-minimal package to clean up output when this package is deploeyed (like AL2023) 
 
-VERSION="20240424a"
+VERSION="20240526d"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -412,7 +416,7 @@ get_packages () {
     # one yum command so yum can try to download and install in // which will improve recovery time
     yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y --skip-broken
     if [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
-      echo "distribution which already doenst includ log4j hotfix, no need to try disabling it"
+      echo "distribution whithout log4j hotfix, no need to try disabling it"
     else 
       # disable as scan in permanence and not needed for splunk
       echo "trying to disable log4j hotfix, as perf hirt and not needed for splunk"
@@ -1303,10 +1307,14 @@ echo "#************************************* SPLUNK USER AND GROUP CREATION ****
 # splunkuser checks
 
 
-if [ -z ${splunkuser+x} ]; then 
+if [ "${splunkmode}" == "uf" ] && [ -z ${splunkuser+x} ]; then 
+  usersplunk="splunkfwd"
+  splunkuser="splunkfwd"
+  echo "splunkuser is unset and uf mode set, user default to splunkfwd (SPLUNK_HOME=${SPLUNK_HOME})"
+elif [ -z ${splunkuser+x} ]; then 
   usersplunk="splunk"
   splunkuser="splunk"
-  echo "splunkuser is unset, default to splunk"
+  echo "splunkuser is unset (default mode), user default to splunk (SPLUNK_HOME=${SPLUNK_HOME})"
 else 
   sizeuser=${#splunkuser} 
   sizemin=5
@@ -1320,7 +1328,10 @@ else
   usersplunk=$splunkuser
 fi
 
-if [ -z ${splunkgroup+x} ]; then 
+if [ "${splunkmode}" == "uf" ] && [ -z ${splunkgroup+x} ]; then 
+  splunkgroup="splunkfwd"
+  echo "splunkgroup is unset and uf mode set, group default to splunkfwd (SPLUNK_HOME=${SPLUNK_HOME})"
+elif [ -z ${splunkgroup+x} ]; then 
   splunkgroup="splunk"
   echo "splunkgroup is unset, default to splunk"
 else 
@@ -1396,7 +1407,13 @@ if (( splunkrsyncmode == 1 )); then
 fi
 
 # install addition os packages 
-PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 curl gdb polkit tuned zstd pip"
+PACKAGELIST="wget perl java-1.8.0-openjdk nvme-cli lvm2 gdb polkit tuned zstd pip"
+if [ $( rpm -qa | grep -ic curl-minimal  ) -gt 0 ]; then
+        echo "curl-minimal package detected"
+else
+        echo "curl-minimal not detected, assuming curl"
+        PACKAGELIST="${PACKAGELIST} curl"
+fi
 if [[ $splunkenableworker == 1 ]]; then
   PACKAGELIST="${PACKAGELIST} ansible"
   echo "INFO: splunkenableworker=1 adding ansible to packagelist"
@@ -1465,16 +1482,17 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
-splversion="9.2.0.1"
-splhash="d8ae995bf219"
+splversion="9.2.1"
+splhash="78803f08aabb"
 splversionhash=${splversion}-${splhash}""
-#splbinary="splunk-9.1.2-b6b9c8185839.x86_64.rpm"
-splbinary="splunk-${splversionhash}.x86_64.rpm"
 
 
 if [ "$splunkmode" == "uf" ]; then 
   splbinary="splunkforwarder-${splversionhash}.x86_64.rpm"
   echo "switching to uf binary ${splbinary} if not set in tag"
+else
+  #splbinary="splunk-9.1.2-b6b9c8185839.x86_64.rpm"
+  splbinary="splunk-${splversionhash}.x86_64.rpm"
 fi
 
 if [ -z ${splunktargetbinary+x} ]; then 
@@ -2347,16 +2365,16 @@ if [[ "${instancename}" =~ ds ]]  && [ ! -z ${splunkdsnb+x} ] && [[ $splunkdsnb 
   do 
     SERVICENAME="${instancename}_$i"
     echo "setting up instance $i/$NBINSTANCES with SERVICENAME=$SERVICENAME"
-    ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS}
+    ${localrootscriptdir}/splunkconf-init.pl --no-prompt -u=${splunkuser} -g=${splunkgroup} --splunkorg=$splunkorg --service-name=$SERVICENAME --splunkrole=ds --instancenumber=$i --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS}
   done
 elif [ "$INSTALLMODE" = "tgz" ]; then
   echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init in tar mode (please use RPM when possible)" >> /var/log/splunkconf-cloud-recovery-info.log
   # no need to pass option, it will default to systemd + /opt/splunk + splunk user
-  ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS} 
+  ${localrootscriptdir}/splunkconf-init.pl --no-prompt -u=${splunkuser} -g=${splunkgroup} --splunkorg=$splunkorg --splunktar=${localinstalldir}/${splbinary} ${SPLUNKINITOPTIONS} 
 else
   echo "setting up Splunk (boot-start, license, init tuning, upgrade prompt if applicable...) with splunkconf-init" >> /var/log/splunkconf-cloud-recovery-info.log
   # no need to pass option, it will default to systemd + /opt/splunk + splunk user
-  ${localrootscriptdir}/splunkconf-init.pl --no-prompt --splunkorg=$splunkorg ${SPLUNKINITOPTIONS}
+  ${localrootscriptdir}/splunkconf-init.pl --no-prompt  -u=${splunkuser} -g=${splunkgroup} --splunkorg=$splunkorg ${SPLUNKINITOPTIONS}
 fi
 
 

@@ -118,6 +118,7 @@
 # 20230416 add support for kernel 6+ where path changed for cgroup (service would not start at all without this)
 # 20230419 reverting change as dont work correctly and add info to tell to disable cgroupv2 which change path and allow splunk service to start
 # 20231106 improve logging for generated password 
+# 20240526 improve error messages for systemd and polkit version detections
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -127,7 +128,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20230419a";
+$VERSION="20240526a";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -344,12 +345,12 @@ if ($enablesystemd==0 || $enablesystemd eq "init") {
     print "systemd present and rpm, may be systemd with newer polkit \n";
     my $systemdversion=`systemctl --version| head -1 | cut -d" " -f 2`;
     chomp($systemdversion);
-    if ($systemdversion>218) {
+    if ($systemdversion -ne "" && $systemdversion>218) {
        print " systemd version ($systemdversion) ok\n";
        my $polkitversion=`rpm -qi polkit| grep Version |cut -d":" -f 2`;
        chomp($polkitversion);
        print " polkit version ($polkitversion) \n";
-       if ($polkitversion > 0) {
+       if ($polkitversion -ne "" && $polkitversion > 0) {
          $enablesystemd=1 ;
          print " check polkit ok\n";
        } else {
@@ -357,7 +358,7 @@ if ($enablesystemd==0 || $enablesystemd eq "init") {
          print " check polkit ko\n";
        }
     } else {
-        print " check systemd version ko, fallback to init d\n";
+        print " ATTENTION : check systemd version ko, fallback to init d. This is unexpected unless using a very old system\n";
          $enablesystemd=0 ;
     }
   } elsif (check_exists_command('systemctl') && check_exists_command('apt-get') ) {

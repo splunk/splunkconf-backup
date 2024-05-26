@@ -249,8 +249,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240526 up to 9.2.1
 # 20240526 fix for uf group support and add support for sending options to splunkconf-init
 # 20240526 add detection for curl-minimal package to clean up output when this package is deploeyed (like AL2023) 
+# 20240526 disable tag replacement for uf to clean up logs
 
-VERSION="20240526d"
+VERSION="20240526e"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -579,7 +580,9 @@ tag_replacement () {
     # lm case 
     if [ -z ${splunktargetlm+x} ]; then
       echo "tag splunktargetlm not set, doing nothing" >> /var/log/splunkconf-cloud-recovery-info.log
-    else 
+    elif [ "${splunkmode}" == "uf" ]; then
+      echo "uf install, tag replacement not needed" >> /var/log/splunkconf-cloud-recovery-info.log
+    else
       echo "tag splunktargetlm is set to $splunktargetlm and will be used as the short name for master_uri config under [license] in server.conf to ref the LM" >> /var/log/splunkconf-cloud-recovery-info.log
       echo "using splunkdnszone ${splunkdnszone} from instance tags [license] master_uri=${splunktargetlm}.${splunkdnszone}:8089 (lm name or a cname alias to it)  " >> /var/log/splunkconf-cloud-recovery-info.log
       ${SPLUNK_HOME}/bin/splunk btool server list license --debug | grep -v m/d | grep master_uri | cut -d" " -f 1 | head -1 |  xargs -L 1 sed -i -e "s%^master_uri.*=.*$%master_uri=https://${splunktargetlm}.${splunkdnszone}:8089%" 

@@ -122,6 +122,7 @@
 # 20240526 improve versiom detection regex for uf
 # 20240526 add splunkrole logic so splunksecret exception taken into account for uf
 # 20240527 add more logic for splunkrole uf
+# 20240527 extend polkit rule to also allow user and group splunkfwd 
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -131,7 +132,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20240527b";
+$VERSION="20240527c";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -869,7 +870,7 @@ if ($enablesystemd==1  && $distritype eq "rh") {
 // user splunk or splunk group or wheel group and ask to stop/start another  service -> return AUTH_ADMIN
 
 polkit.addRule(function(action, subject) { 
-        if (action.id == "org.freedesktop.systemd1.manage-units"  && (subject.user == "splunk" || subject.isInGroup("splunk") || subject.isInGroup("wheel"))
+        if (action.id == "org.freedesktop.systemd1.manage-units"  && (subject.user == "splunk" || subject.user == "splunkfwd" || subject.isInGroup("splunk") || subject.isInGroup("splunkfwd") || subject.isInGroup("wheel"))
                 ) { 
                 try { 
                         polkit.spawn(["/usr/local/bin/polkit_splunk", ""+subject.pid]);

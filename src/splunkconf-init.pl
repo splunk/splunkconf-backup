@@ -131,7 +131,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20240527a";
+$VERSION="20240527b";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -756,7 +756,7 @@ ENDING
 # to be able to reread password obfuscated with splunk.secret,
 #  we need to save and restore this file before splunk restart (or a new one would be created and all the password saved would not be readable by Splunk
 
-unless (-e $SPLSECRET || $MANAGEDSECRET==0 || $splunkrole=="uf") {
+unless (-e $SPLSECRET || $MANAGEDSECRET==0 || $splunkrole eq "uf") {
  # copy here -> fixme, env specific
   print ("splunk.secret file hasn't been copied by you before starting splunk first time. Fix this BEFORE starting splunk or unset managedsecret \n");
   die("") unless ($dry_run);

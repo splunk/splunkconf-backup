@@ -255,8 +255,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240526 add splunkrole option to splunkconf-init so uf role is known to splunkconf-init
 # 20240527 add flags for dnf command for better handling via script
 # 20240527 rework rpm GPG check error handling
+# 20240527 add more checks to clean up logs especially in uf mode and fix for splunksecretsdeploymentenable logic
 
-VERSION="20240527c"
+VERSION="20240527d"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -616,7 +617,9 @@ tag_replacement () {
       fi
     fi
     # s2 case (could be run on ds or cm probably)
-    if [ ! -z ${splunks3databucket+x} ]; then
+    if [ "${splunkmode}" == "uf" ]; then
+      echo "uf install, tag replacement for s2 not needed" >> /var/log/splunkconf-cloud-recovery-info.log
+    elif [ ! -z ${splunks3databucket+x} ]; then
        echo "trying to replace path for smartstore with the one generated and that we got from tags"
        #find ${SPLUNK_HOME} -wholename "*s2_indexer_indexes/local/indexes.conf" -exec grep -l path {} \; -exec sed -i -e "s%^path.*=.*$%path=s3://${splunks3databucket}/smartstore%" {} \; 
        find ${SPLUNK_HOME} -wholename "*s2_indexer_indexes/local/indexes.conf" -exec grep -l path {} \; -exec sed -i -e "s%mybucketname%${splunks3databucket}%" {} \; 
@@ -1675,7 +1678,7 @@ if [ "$SYSVER" -eq 6 ]; then
   fi
   # enable the system tuning 
   sysctl --system;/etc/rc.d/rc.local 
-  if [ "$splunksecretsdeploymentenable" = "1" ]; then
+  if [ "$splunksecretsdeploymentenable" -eq "1" ]; then
     echo "#****************************************** splunksecrets deployment ***********************************"
     # deploying splunk secrets
     if [ $splunkconnectedmode == 1 ] || [ $splunkconnectedmode == 2 ]; then 
@@ -2164,8 +2167,12 @@ EOF
   get_object ${remoteinstalldir}/user-seed.conf ${localinstalldir}
   # copying to right place
   # FIXME : more  logic here
-  cp ${localinstalldir}/user-seed.conf ${SPLUNK_HOME}/etc/system/local/
-  chown -R ${usersplunk}. ${SPLUNK_HOME}
+  if [ -e "${localinstalldir}/user-seed.conf" ]; then
+    cp ${localinstalldir}/user-seed.conf ${SPLUNK_HOME}/etc/system/local/
+    chown -R ${usersplunk}. ${SPLUNK_HOME}
+  else
+    echo "user-seed not provided, no need to deploy"
+  fi
 
 fi # if not upgrade
 
@@ -2283,10 +2290,14 @@ tag_replacement
 if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|uf|ix-site1|ix-site2|ix-site3|idx-site1|idx-site2|idx-site3)$ ]]; then
   get_object ${remoteinstallsplunkconfbackup} ${localinstalldir}
   if [ -e "${localinstalldir}/splunkconf-backup.tar.gz" ]; then
-    # backup old version just in case
-    tar -C "${SPLUNK_HOME}/etc/apps/" -zcf ${localinstalldir}/splunkconf-backup-beforeupdate-${TODAY}.tar.gz ./splunkconf-backup
-    # remove so we dont have leftover in local that could break app
-    find "${SPLUNK_HOME}/etc/apps/splunkconf-backup" -delete
+    if [ -e "${SPLUNK_HOME}/etc/apps/splunkconf-backup" ]; then
+      # backup old version just in case
+      tar -C "${SPLUNK_HOME}/etc/apps/" -zcf ${localinstalldir}/splunkconf-backup-beforeupdate-${TODAY}.tar.gz ./splunkconf-backup
+      # remove so we dont have leftover in local that could break app
+      find "${SPLUNK_HOME}/etc/apps/splunkconf-backup" -delete
+    else
+     echo "no previous splunkconf-backup app deployed, no need to clean up before deploying app"
+    fi
     # Note : old versions used relative path, new version without du to splunkbase packaging requirement
     tar -C "${SPLUNK_HOME}/etc/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz 
     # removing old version for upgrade case 

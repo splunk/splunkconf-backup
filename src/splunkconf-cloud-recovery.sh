@@ -256,7 +256,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240527 add flags for dnf command for better handling via script
 # 20240527 rework rpm GPG check error handling
 
-VERSION="20240527b"
+VERSION="20240527c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1615,16 +1615,30 @@ then
   INSTALLMODE="tgz"
 else
   echo "RPM installation";
-  echo "checking GPG key (rpm)"
-  rpm -K "${localinstalldir}/${splbinary}" 
-  #rpm -K "${localinstalldir}/${splbinary}" || (echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n";exit 1)
-  RES=$?
-  #((COUNT++))
-  if [[ $RES -ne 0 ]]; then
-    echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n"
-    exit 1
-    #sleep 5
-  fi
+  RES=1
+  COUNT=0
+  # we need to repeat in case rpm lock taken as it will fail then later on other failures will occur like not having polkit ....
+  # unfortunately if ssm is installed something from ssm configured at start may try install software in // breaking us....
+  until [[ $COUNT -gt 10 ]] || [[ $RES -eq 0 ]]
+  do
+    echo "checking GPG key (rpm)"
+    rpm -K "${localinstalldir}/${splbinary}" 
+    #rpm -K "${localinstalldir}/${splbinary}" || (echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n";exit 1)
+    RES=$?
+    ((COUNT++))
+    if [[ $RES -ne 0 ]]; then
+      if [[ $COUNT -gt 5 ]]; then
+        echo "ERROR : GPG Check failed after multiple tries, splunk rpm file may be corrupted, please check and relaunch\n"
+        exit 1
+      else
+        echo "ERROR : GPG Check failed, may be temporary du to rpm lock, will retry (COUNT=$COUNT)"
+        sleep 5
+        # retry import key just in case this is the issue
+        rpm --import /root/splunk-gpg-key.pub
+        sleep 1
+      fi
+    fi
+  done
   INSTALLMODE="rpm"
 fi
 

@@ -254,8 +254,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240526 add loop to workaround yun lock issue
 # 20240526 add splunkrole option to splunkconf-init so uf role is known to splunkconf-init
 # 20240527 add flags for dnf command for better handling via script
+# 20240527 rework rpm GPG check error handling
 
-VERSION="20240527a"
+VERSION="20240527b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1615,7 +1616,15 @@ then
 else
   echo "RPM installation";
   echo "checking GPG key (rpm)"
-  rpm -K "${localinstalldir}/${splbinary}" || (echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n";exit 1)
+  rpm -K "${localinstalldir}/${splbinary}" 
+  #rpm -K "${localinstalldir}/${splbinary}" || (echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n";exit 1)
+  RES=$?
+  #((COUNT++))
+  if [[ $RES -ne 0 ]]; then
+    echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n"
+    exit 1
+    #sleep 5
+  fi
   INSTALLMODE="rpm"
 fi
 

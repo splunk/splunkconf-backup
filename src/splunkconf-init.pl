@@ -121,6 +121,7 @@
 # 20240526 improve error messages for systemd and polkit version detections
 # 20240526 improve versiom detection regex for uf
 # 20240526 add splunkrole logic so splunksecret exception taken into account for uf
+# 20240527 add more logic for splunkrole uf
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -130,7 +131,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20240526e";
+$VERSION="20240527a";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -610,7 +611,7 @@ if (-e $SPLPASSWDFILE) {
   print "OK: splunk pwd file exist (from backup or because upgrade)-> Existing passord, all good, no need to fetch user seed or generate one\n";
 } elsif (-e $SPLUSERSEED) {
   print "OK: no existing password yet but splunk user seed file provided, will use this user seed file\n";
-} elsif ($SPLUNK_SUBSYS eq "splunkforwarder") || ($splunkrole =~/uf/ ) {
+} elsif (($SPLUNK_SUBSYS eq "splunkforwarder") || ($splunkrole =~/uf/ )) {
   print "OK: this is a splunkforwarder and user seed not provided, no need for admin user account on a splunk forwarder, that is fine\n";
 } else {
   print "INFO: no user seed file provided and admin account need to be created\n";
@@ -755,7 +756,7 @@ ENDING
 # to be able to reread password obfuscated with splunk.secret,
 #  we need to save and restore this file before splunk restart (or a new one would be created and all the password saved would not be readable by Splunk
 
-unless (-e $SPLSECRET || $MANAGEDSECRET==0) {
+unless (-e $SPLSECRET || $MANAGEDSECRET==0 || $splunkrole=="uf") {
  # copy here -> fixme, env specific
   print ("splunk.secret file hasn't been copied by you before starting splunk first time. Fix this BEFORE starting splunk or unset managedsecret \n");
   die("") unless ($dry_run);
@@ -786,6 +787,7 @@ print "Installation parameters : \n SPLUNK_HOME ${SPLUNK_HOME}\n";
 print "Splunk user ${USERSPLUNK} \n";
 print "Managed Secret ${MANAGEDSECRET}\n";
 print "SUBSYS ${SPLUNK_SUBSYS} \n";
+print "splunkrole=${splunkrole} \n";
 print "servicename set to $servicename\n";
 print "enable systemd is set to $enablesystemd (1=will enable)\n";
 print "inittemplatemode=${INITTEMPLATEMODE} \n";

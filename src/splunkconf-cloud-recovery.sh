@@ -256,8 +256,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240527 add flags for dnf command for better handling via script
 # 20240527 rework rpm GPG check error handling
 # 20240527 add more checks to clean up logs especially in uf mode and fix for splunksecretsdeploymentenable logic
+# 20240527 add also retry logic for rpm install
 
-VERSION="20240527d"
+VERSION="20240527e"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2269,8 +2270,28 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   tar --strip-components=1 -zxvf $splunktar
 else
   echo "installing/upgrading splunk via RPM using ${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
-  # install or upgrade
-  rpm -Uvh ${localinstalldir}/${splbinary}
+  RES=1
+  COUNT=0
+  # we need to repeat in case rpm lock taken as it will fail then later on other failures will occur like not having polkit ....
+  # unfortunately if ssm is installed something from ssm configured at start may try install software in // breaking us....
+  until [[ $COUNT -gt 10 ]] || [[ $RES -eq 0 ]]
+  do
+    # install or upgrade
+    rpm -Uvh ${localinstalldir}/${splbinary}
+    #rpm -K "${localinstalldir}/${splbinary}" || (echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n";exit 1)
+    RES=$? 
+    ((COUNT++))
+    if [[ $RES -ne 0 ]]; then
+      if [[ $COUNT -gt 5 ]]; then
+        df -h
+        echo "ERROR : rpm fail after multiple tries, please investigate and relaunch, exiting\n"
+        exit 1
+      else
+        echo "ERROR : rpm command failed, may be temporary du to rpm lock, will retry (COUNT=$COUNT)"
+        sleep 5 
+      fi
+    fi
+  done
 fi
 
 # give back files (see RN)

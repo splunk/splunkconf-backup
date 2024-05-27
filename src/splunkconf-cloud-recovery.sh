@@ -253,8 +253,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240526 try to prevent SSM and rpm conflict at start breaking install
 # 20240526 add loop to workaround yun lock issue
 # 20240526 add splunkrole option to splunkconf-init so uf role is known to splunkconf-init
+# 20240527 add flags for dnf command for better handling via script
 
-VERSION="20240526h"
+VERSION="20240527a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -653,7 +654,7 @@ os_update() {
     # we are running AL2023, we want to use latest release all the time then leverage smart-restart to minimize reboot need
     # see https://docs.aws.amazon.com/linux/al2023/ug/managing-repos-os-updates.html
     echo latest | sudo tee /etc/dnf/vars/releasever
-    dnf install smart-restart
+    dnf install --quiet -y smart-restart
   fi #AL2023
   if [ -z ${splunkosupdatemode+x} ]; then
     splunkosupdatemode="updateandreboot" 

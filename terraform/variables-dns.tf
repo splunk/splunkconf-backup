@@ -35,7 +35,7 @@ variable "ns_ttl" {
 variable "dns-prefix" {
   description = "this setting will tell the lambda function to add this prefix to all names. This is mainly useful for testing lambda without overriding normal names in use. Use disabled to not add prefix. If tag unset, lambda- will be used as prefix (look at local.dns-prefix logic, it will use the region if you dont change the locals version)"
   type        = string
-  default     = "region-"
-  #default = "disabled"
+  #default     = "region-"
+  default = "disabled"
 }
 

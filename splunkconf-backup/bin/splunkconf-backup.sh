@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
 # in normal condition
@@ -125,8 +125,10 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240308 fix typo affecting remote scripts and more debug log for do_removete_copy 
 # 20240425 add extra dir for splunk assist as it need data to persist in var
 # 20240603 add snapshot dir to state
+# 20240603 add logic to tell splunk_assist to update state when state and conf not aligned
+# 20240603 fix s3 api output 
 
-VERSION="20240603a"
+VERSION="20240603c"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -529,7 +531,8 @@ function do_remote_copy() {
         # AWS
         if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ] && [ "${REMOTETECHNO}" = "2" ]; then
           debug_log "setting tag via aws ${S3ENDPOINTOPTION}s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
-          aws ${S3ENDPOINTOPTION}s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS}
+          # redirecting output to /dev/null so it doesnt pollute with the VersionId result
+          aws ${S3ENDPOINTOPTION}s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} >/dev/null
           RES=$?
           if [ $RES -eq 0 ]; then
             echo_log "action=tag type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} ${S3ENDPOINTLOGMESSAGE}" 
@@ -563,6 +566,35 @@ function checklock() {
       debug_log "fine old lock removed" 
     fi
   fi
+}
+
+function check_assist () {
+    # splunk assist check and potential conf reset
+    FI="${SPLUNK_HOME}/etc/apps/splunk_assist/local/assist.conf"
+    if [ -e "$FI" ]; then
+      debug_log "assist.conf check, file present";
+      FI1=`grep assets_root $FI`
+      FI2=`grep local_path $FI`
+
+      debug_log "assist.conf check, FI1=$FI1, FI2=$FI2";
+#[metadata]
+#instance_id = fd732e79-1465-47b1-bea9-4f0e2a72887a
+#
+#[ui]
+#assets_root = /opt/splunk/var/splunk_assist/ui/assets/a8ffbed85ddbcda5e6e9aada26e8bc7fba6adc920fd48347826be8423992b810/com.splunk.assist.ui-assets
+#etag = "1453fccf2a297361d9f11d651aab5d0a"
+#
+#[updates]
+#etag = "5c2ddff5e9ea5c360b6e2656f9f868ac"
+#
+#[supervisor]
+#local_path = /opt/splunk/var/splunk_assist/supervisor/updates/f2b27c558548549305b7b27af8f7c159aa5c2e86798e58b17b1acdc98e3309ac/assistsup.tar
+
+# fix = use etag= and clear local_path
+
+    else
+      debug_log "assist.conf at $FI not present , check disabled" ;
+    fi
 }
 
 ###### start
@@ -1065,6 +1097,8 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
     else
         FILELIST="./etc"
     fi
+    check_assist;
+
     #tar -zcf ${FIC}  ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
     do_backup_tar;
     etc_done=1
@@ -1084,6 +1118,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
         FILELIST="$FILELIST ${file}"
       fi
     done
+    check_assist;
     #tar --exclude-from=${TAREXCLUDEFILE} --exclude '*/dump' -zcf ${FIC} ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
     do_backup_tar;
     etc_done=1

@@ -123,8 +123,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240213 fix tar option with mode 0 and move sessionkey to start
 # 20240213 revert RFIC change and use LFIC for autorestore instead, remote extra spaces for endpointurl option
 # 20240308 fix typo affecting remote scripts and more debug log for do_removete_copy 
+# 20240425 add extra dir for splunk assist as it need data to persist in var
 
-VERSION="20240308b"
+VERSION="20240425a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -285,9 +286,9 @@ fi
 #MODINPUTPATH="${SPLUNK_DB}/modinputs"
 #SCHEDULERSTATEPATH="${SPLUNK_HOME}/var/run/splunk/scheduler"
 if [ "${TARMODE}" = "abs" ]; then
-    STATELIST="${SPLUNK_DB}/modinputs ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy"
+    STATELIST="${SPLUNK_DB}/modinputs ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy ${SPLUNK_HOME}/var/splunk_assist"
 else
-    STATELIST="${SPLUNK_DB_REL}/modinputs ./var/run/splunk/scheduler ./var/run/splunk/cluster/remote-bundle ${SPLUNK_DB_REL}/persistentstorage ${SPLUNK_DB_REL}/fishbucket ./var/run/splunk/deploy"
+    STATELIST="${SPLUNK_DB_REL}/modinputs ./var/run/splunk/scheduler ./var/run/splunk/cluster/remote-bundle ${SPLUNK_DB_REL}/persistentstorage ${SPLUNK_DB_REL}/fishbucket ./var/run/splunk/deploy ./var/splunk_assist"
 fi
 
 # configuration for scripts backups

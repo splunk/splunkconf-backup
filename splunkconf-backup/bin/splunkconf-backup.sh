@@ -127,8 +127,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240603 add snapshot dir to state
 # 20240603 add logic to tell splunk_assist to update state when state and conf not aligned
 # 20240603 fix s3 api output 
+# 20240610 more splunk_assist support
 
-VERSION="20240603c"
+VERSION="20240610a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -569,14 +570,64 @@ function checklock() {
 }
 
 function check_assist () {
+    # we will increment if needed
+    INCONSISTENT=0
     # splunk assist check and potential conf reset
     FI="${SPLUNK_HOME}/etc/apps/splunk_assist/local/assist.conf"
     if [ -e "$FI" ]; then
       debug_log "assist.conf check, file present";
       FI1=`grep assets_root $FI`
-      FI2=`grep local_path $FI`
+      FINAME="asset_root"
+      if [ -z "${FI1}" ]; then
+        ASS="${FI1##* }"
+        debug_log "assist.conf check, file present,  $FINAME line not found ";
+      else
+        ASS="${FI1##* }"
+        if [ -z "${ASS}" ]; then
+          debug_log "assist.conf check, file present, $FINAME found and empty, ASS=${ASS}";
+        elif [[ ${ASS+x} ]]; then 
+          debug_log "assist.conf check, file present, $FINAME found and empty, ASS=${ASS}";
+        elif [ -e "${ASS}" ]; then
+          debug_log "assist.conf check, file present, $FINAME found and existing, ASS=${ASS}";
+        else
+          debug_log "assist.conf check, file present, $FINAME found and not existing, possible inconsistency, ASS=${ASS}";
+          INCONSISTENT=1
+        fi
+      fi
+      FI1=`grep local_path $FI`
+      FINAME="local_path"
+      if [ -z "${FI1}" ]; then
+        ASS="${FI1##* }"
+        debug_log "assist.conf check, file present,  $FINAME line not found ";
+      else
+        ASS="${FI1##* }"
+        if [ -z "${ASS}" ]; then
+          debug_log "assist.conf check, file present, $FINAME found and empty, ASS=${ASS}";
+        elif [[ ${ASS+x} ]]; then 
+          debug_log "assist.conf check, file present, $FINAME found and empty, ASS=${ASS}";
+        elif [ -e "${ASS}" ]; then
+          debug_log "assist.conf check, file present, $FINAME found and existing, ASS=${ASS}";
+        else
+          debug_log "assist.conf check, file present, $FINAME found and not existing, possible inconsistency, ASS=${ASS}";
+          INCONSISTENT=1
+        fi
+      fi
+      if [ $INCONSISTENT -gt 0 ]; then
+        # This should only fire when a previous backup was done without the var part 
+        # This tell splunk assets to redownload once
+        # This should not fire on every backup, please report if you ever see this behavior
+        warn_log "assist.conf check, inconsistency=$INCONSISTENT (clearing etag, local_path and assets_root so splunk assist will repopulate state assets directory), FI1=$FI1, FI2=$FI2";
+        sed -i 's/etag = .*$/etag =/g' $FI
+        sed -i 's/local_path = .*$/local_path =/g' $FI
+        sed -i 's/assets_root = .*$/assets_root =/g' $FI
 
-      debug_log "assist.conf check, FI1=$FI1, FI2=$FI2";
+
+      else
+        debug_log "assist.conf check, inconsistency=$INCONSISTENTi (fine), FI1=$FI1, FI2=$FI2";
+
+      fi
+
+
 #[metadata]
 #instance_id = fd732e79-1465-47b1-bea9-4f0e2a72887a
 #
@@ -593,7 +644,7 @@ function check_assist () {
 # fix = use etag= and clear local_path
 
     else
-      debug_log "assist.conf at $FI not present , check disabled" ;
+      debug_log "assist.conf at $FI NOT present, check disabled" ;
     fi
 }
 

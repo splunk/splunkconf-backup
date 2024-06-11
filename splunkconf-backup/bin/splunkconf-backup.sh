@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash  
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
 # in normal condition
@@ -128,8 +128,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240603 add logic to tell splunk_assist to update state when state and conf not aligned
 # 20240603 fix s3 api output 
 # 20240610 more splunk_assist support
+# 20240611 add support to get hostname via env variable for special k8s case and add hostname form checks
 
-VERSION="20240610a"
+VERSION="20240611a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -1043,16 +1044,17 @@ EXTENSIONKV="gz"
 
 HOST=`hostname`;
 
+
 #SERVERNAME=`grep guid ${SPLUNK_HOME}/etc/instance.cfg`;
 # warning may contain spaces, line with comments ...
 SERVERNAME=`grep ^serverName ${SPLUNK_HOME}/etc/system/local/server.conf  | awk '{print $3}'`
-## In some k8s servers the server name is saved as env variable, so the server name under ${SPLUNK_HOME}/etc/system/local/server.conf is written as "$SPLUNK_HOSTNAME"
-## this leads to have some backup files like "backupconfsplunk-rel-etc-targeted-$SPLUNK_HOSTNAME-20240527-1319UTC_1.tar.gz"
-## to avoid this we can add the following if condition
-if [ "$SERVERNAME" = '$SPLUNK_HOSTNAME' ]; then
-    eval "SERVERNAME=$SPLUNK_HOSTNAME"
+if [[ "$SERVERNAME" = '$SPLUNK_HOSTNAME' && $SPLUNK_HOSTNAME =~ ^[A-Za-z0-9_\-]+$ ]]; then
+  ## In some k8s servers the server name is saved as env variable, so the server name under ${SPLUNK_HOME}/etc/system/local/server.conf is written as "$SPLUNK_HOSTNAME"
+  ## this leads to have some backup files like "backupconfsplunk-rel-etc-targeted-$SPLUNK_HOSTNAME-20240527-1319UTC_1.tar.gz"
+  ## to avoid this we can add the following if condition
+  SERVERNAME=$SPLUNK_HOSTNAME
+  debug_log "using SPLUNK_HOSTNAME var to set servername"
 fi
-
 # disabled : require logged in user...
 #SERVERNAME=`${SPLUNK_HOME}/bin/splunk show servername  | awk '{print $3}'`
 #splunk show servername
@@ -1061,12 +1063,13 @@ debug_log "src detection  : splunkinstanceType=$splunkinstanceType,${#splunkinst
 if [ ${#splunkinstanceType} -ge 2 ]; then 
   INSTANCE=$splunkinstanceType
   debug_log "using splunkinstanceType tag for instance, instance=${INSTANCE} src=splunkinstanceType"
-elif [ ${#SERVERNAME} -ge 2 ]; then 
+  debug_log "using env variable SPLUNK_HOSTNAME for instance, instance=${INSTANCE} src=servername+env"
+elif [[ ${#SERVERNAME} -ge 2 && $SERVERNAME =~ ^[A-Za-z0-9_\-]+$ ]]; then 
   INSTANCE=$SERVERNAME
   debug_log "using servername for instance, instance=${INSTANCE} src=servername"
 else 
   INSTANCE=$HOST
-  debug_log "ATTENTION : servername missing, falllback to using host for instance, instance=${INSTANCE} src=host"
+  debug_log "ATTENTION : servername missing or with unexpected form, falllback to using host for instance, instance=${INSTANCE} src=host"
 fi
 # servername is more reliable in dynamic env like AWS 
 #INSTANCE=$SERVERNAME

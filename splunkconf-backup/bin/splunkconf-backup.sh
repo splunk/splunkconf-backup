@@ -1046,6 +1046,13 @@ HOST=`hostname`;
 #SERVERNAME=`grep guid ${SPLUNK_HOME}/etc/instance.cfg`;
 # warning may contain spaces, line with comments ...
 SERVERNAME=`grep ^serverName ${SPLUNK_HOME}/etc/system/local/server.conf  | awk '{print $3}'`
+## In some k8s servers the server name is saved as env variable, so the server name under ${SPLUNK_HOME}/etc/system/local/server.conf is written as "$SPLUNK_HOSTNAME"
+## this leads to have some backup files like "backupconfsplunk-rel-etc-targeted-$SPLUNK_HOSTNAME-20240527-1319UTC_1.tar.gz"
+## to avoid this we can add the following if condition
+if [ "$SERVERNAME" = '$SPLUNK_HOSTNAME' ]; then
+    eval "SERVERNAME=$SPLUNK_HOSTNAME"
+fi
+
 # disabled : require logged in user...
 #SERVERNAME=`${SPLUNK_HOME}/bin/splunk show servername  | awk '{print $3}'`
 #splunk show servername

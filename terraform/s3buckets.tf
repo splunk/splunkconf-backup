@@ -252,6 +252,60 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
 
 }
 
+resource "aws_s3_bucket_policy" "allow_access_for_lb_logs" {
+  bucket = aws_s3_bucket.s3_data.id
+  #policy = data.template_file.pol-splunk-s3iafs.rendered 
+  #policy = local.pol-splunk-s3iafs
+  policy = data.aws_iam_policy_document.s3_bucket_lb_write.json
+}
+
+data "aws_elb_service_account" "main" {}
+
+data "aws_iam_policy_document" "s3_bucket_lb_write" {
+  policy_id = "s3_bucket_lb_logs"
+
+  statement {
+    actions = [
+      "s3:PutObject",
+    ]
+    effect = "Allow"
+    resources = [
+      "${aws_s3_bucket.s3_data.arn}/log/*"
+    ]
+
+    principals {
+      identifiers = [data.aws_elb_service_account.main.arn]
+      type        = "AWS"
+    }
+  }
+
+  statement {
+    actions = [
+      "s3:PutObject"
+    ]
+    effect = "Allow"
+    resources = ["${aws_s3_bucket.s3_data.arn}/log/*"]
+    principals {
+      identifiers = ["delivery.logs.amazonaws.com"]
+      type        = "Service"
+    }
+  }
+
+
+  statement {
+    actions = [
+      "s3:GetBucketAcl"
+    ]
+    effect = "Allow"
+    resources = ["${aws_s3_bucket.s3_data.arn}"]
+    principals {
+      identifiers = ["delivery.logs.amazonaws.com"]
+      type        = "Service"
+    }
+  }
+}
+
+
 
 # Ingest Action bucket
 resource "aws_s3_bucket" "s3_ia" {
@@ -325,3 +379,9 @@ output "s3_ia_arn" {
   value       = aws_s3_bucket.s3_ia.arn
   description = "s3 data arn"
 }
+
+output "s3_data_lb_write_policy" {
+  value = data.aws_iam_policy_document.s3_bucket_lb_write.json
+  description = "policy to allow ELB service to write to s3 bucket"
+}
+

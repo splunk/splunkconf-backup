@@ -7,3 +7,16 @@ locals {
   #dns-prefix=var.dns-prefix
 }
 
+
+output "local-dns-prefix" {
+  value       = local.dns-prefix
+  #description = "local.use-elb-private-ds"
+}
+output "local-dns-prefix2" {
+  value       = local.dns-prefix2
+  #description = "local.use-elb-private-ds"
+}
+output "var-dns-prefix" {
+  value       = var.dns-prefix
+  #description = "local.use-elb-private-ds"
+}

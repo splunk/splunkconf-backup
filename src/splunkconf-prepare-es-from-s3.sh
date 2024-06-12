@@ -19,11 +19,12 @@
 # 20230907 update for 7.2.0
 # 20231220 update for 7.3.0
 # 20240424 update for 7.3.1
+# 20240612 update for 7.3.2
 
-VERSION="20240424"
+VERSION="20240612"
 
-ESAPP="splunk-enterprise-security_731.spl"
-ESCU="splunk-es-content-update_4250.tgz"
+ESAPP="splunk-enterprise-security_732.spl"
+ESCU="splunk-es-content-update_4330.tgz"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then

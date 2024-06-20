@@ -129,8 +129,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240603 fix s3 api output 
 # 20240610 more splunk_assist support
 # 20240611 add support to get hostname via env variable for special k8s case and add hostname form checks
+# 20240620 fix test for splunk_assist and remove stanza instead of remving value when inconsistency detected
 
-VERSION="20240611a"
+VERSION="20240620a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -586,8 +587,8 @@ function check_assist () {
         ASS="${FI1##* }"
         if [ -z "${ASS}" ]; then
           debug_log "assist.conf check, file present, $FINAME found and empty, ASS=${ASS}";
-        elif [[ ${ASS+x} ]]; then 
-          debug_log "assist.conf check, file present, $FINAME found and empty, ASS=${ASS}";
+        elif [ -z ${ASS-unset} ]; then 
+          debug_log "assist.conf check, file present, $FINAME found and unset, ASS=${ASS}";
         elif [ -e "${ASS}" ]; then
           debug_log "assist.conf check, file present, $FINAME found and existing, ASS=${ASS}";
         else
@@ -604,8 +605,8 @@ function check_assist () {
         ASS="${FI1##* }"
         if [ -z "${ASS}" ]; then
           debug_log "assist.conf check, file present, $FINAME found and empty, ASS=${ASS}";
-        elif [[ ${ASS+x} ]]; then 
-          debug_log "assist.conf check, file present, $FINAME found and empty, ASS=${ASS}";
+        elif [ -z ${ASS-unset} ]; then 
+          debug_log "assist.conf check, file present, $FINAME found and unset, ASS=${ASS}";
         elif [ -e "${ASS}" ]; then
           debug_log "assist.conf check, file present, $FINAME found and existing, ASS=${ASS}";
         else
@@ -618,9 +619,12 @@ function check_assist () {
         # This tell splunk assets to redownload once
         # This should not fire on every backup, please report if you ever see this behavior
         warn_log "assist.conf check, inconsistency=$INCONSISTENT (clearing etag, local_path and assets_root so splunk assist will repopulate state assets directory), FI1=$FI1, FI2=$FI2";
-        sed -i 's/etag = .*$/etag =/g' $FI
-        sed -i 's/local_path = .*$/local_path =/g' $FI
-        sed -i 's/assets_root = .*$/assets_root =/g' $FI
+        #sed -i 's/etag = .*$/etag =/g' $FI
+        #sed -i 's/local_path = .*$/local_path =/g' $FI
+        #sed -i 's/assets_root = .*$/assets_root =/g' $FI
+        sed -i 's/etag = .*$//g' $FI
+        sed -i 's/local_path = .*$//g' $FI
+        sed -i 's/assets_root = .*$//g' $FI
 
 
       else

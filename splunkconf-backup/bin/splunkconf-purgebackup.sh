@@ -54,8 +54,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20230913 add more debug log for system local conf file
 # 20231217 add lock file as can now be called through backup
 # 20240301 fix regression with granular retention which was using the same setting for all types
+# 20240623 add check_cloud function from backup , add variable and fix bug with purge for kvdump
 
-VERSION="20240301a"
+VERSION="20240623a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -192,6 +193,50 @@ function checklock() {
   fi
 }
 
+METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
+function check_cloud() {
+  cloud_type=0
+  response=$(curl -fs -m 5 -H "Metadata-Flavor: Google" ${METADATA_URL})
+  if [ $? -eq 0 ]; then
+    debug_log 'GCP instance detected'
+    cloud_type=2
+  # old aws hypervisor
+  elif [ -f /sys/hypervisor/uuid ]; then
+    if [ `head -c 3 /sys/hypervisor/uuid` == "ec2" ]; then
+      debug_log 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+  # newer aws hypervisor (test require root)
+  if [ -r /sys/devices/virtual/dmi/id/product_uuid ]; then
+    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "EC2" ]; then
+      debug_log 'AWS instance detected'
+      cloud_type=1
+    fi
+    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "ec2" ]; then
+      debug_log 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+  # if detection not yet successfull, try fallback method
+  if [[ $cloud_type -eq "0" ]]; then
+    # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
+    # authoritative, we could follow Amazon's suggestions for cryptographically
+    # verifying their signature, see here:
+    #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
+    # but this is almost certainly overkill for this purpose (and the above
+    # checks of "EC2" prefixes have a higher false positive potential, anyway).
+    #  imdsv2 support : TOKEN should exist if inside AWS even if not enforced
+    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    if [ -z ${TOKEN+x} ]; then
+      # TOKEN NOT SET , NOT inside AWS
+      cloud_type=0
+    elif $(curl --silent -m 5 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
+      debug_log 'AWS instance detected'
+      cloud_type=1
+    fi
+  fi
+}
 
 ###### start
 
@@ -256,6 +301,8 @@ else
   exit 1;
 fi
 
+check_cloud
+debug_log "cloud_type=$cloud_type"
 splunkconf_checkspace
 
 # -delete option to find does the delete
@@ -267,67 +314,74 @@ EXCLUSION_LIST=""
 
 REASON="age" 
 # etc
+BACKUPDIR=${LOCALBACKUPDIR}
 OBJECT="etc"
 RETENTIONDAYS=${LOCALBACKUPRETENTIONDAYS}
-A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
+A=`ls -tr ${BACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
+/usr/bin/find ${BACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 # || fail_log "action=purge type=local reason=retentionpolicy object=etc result=fail error purging local etc backup "
 
 splunkconf_checkspace
 
 # kv tar version
+BACKUPDIR=${LOCALBACKUPDIR}
 OBJECT="kvstore"
 RETENTIONDAYS=${LOCALBACKUPKVRETENTIONDAYS}
-A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
+A=`ls -tr ${BACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
+/usr/bin/find ${BACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 
 splunkconf_checkspace
 
+# Attention LOCALKVDUMPDIR used here
 # kv dump version
+BACKUPDIR=${LOCALKVDUMPDIR}
 OBJECT="kvdump"
 RETENTIONDAYS=${LOCALBACKUPKVRETENTIONDAYS}
-A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
+A=`ls -tr ${BACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
+/usr/bin/find ${BACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 
 splunkconf_checkspace
 
 # scripts
+BACKUPDIR=${LOCALBACKUPDIR}
 OBJECT="scripts"
 RETENTIONDAYS=${LOCALBACKUPSCRIPTSRETENTIONDAYS}
-A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
+A=`ls -tr ${BACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
+/usr/bin/find ${BACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 
 splunkconf_checkspace
 
 # modinput (for upgrade, newer version only create state)
+BACKUPDIR=${LOCALBACKUPDIR}
 OBJECT="modinput"
 RETENTIONDAYS=${LOCALBACKUPMODINPUTRETENTIONDAYS}
 A="na"
 # we may remove all versions after retention as we will now have state
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
+/usr/bin/find ${BACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 
 splunkconf_checkspace
 
 # state
+BACKUPDIR=${LOCALBACKUPDIR}
 OBJECT="state"
 RETENTIONDAYS=${LOCALBACKUPSTATERETENTIONDAYS}
-A=`ls -tr ${LOCALBACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
+A=`ls -tr ${BACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
 A=${A:-"na"}
 EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
-/usr/bin/find ${LOCALBACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
+/usr/bin/find ${BACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 
 # delete on size
 REASON=size

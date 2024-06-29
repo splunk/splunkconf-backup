@@ -129,7 +129,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240603 fix s3 api output 
 # 20240610 more splunk_assist support
 # 20240611 add support to get hostname via env variable for special k8s case and add hostname form checks
-# 20240620 fix test for splunk_assist and remove stanza instead of remving value when inconsistency detected
+# 20240620 fix test for splunk_assist and remove stanza instead of removing value when inconsistency detected
 
 VERSION="20240620a"
 
@@ -803,7 +803,7 @@ check_compress
 
 # we get most var dynamically from ec2 tags associated to instance
 
-# getting tokens and writting to /etc/instance-tags
+# getting tokens and writting to instance-tags that we use 
 
 CHECK=1
 

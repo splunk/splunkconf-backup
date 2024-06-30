@@ -12,8 +12,9 @@ exec > /tmp/splunkconf-checkbackup-debug.log  2>&1
 # 20220327 relax form protection for std
 # 20230202 fix typos and false positive in check
 # 20230913 add debug code for local conf inclusion
+# 20240629 replace direct var inclusion with loading function logic
 
-VERSION="20230913a"
+VERSION="20240629a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -133,6 +134,32 @@ function fail_log {
   echo_log_ext  "FAIL id=$ID $1"
 }
 
+function load_settings_from_file () {
+ FI=$1
+ if [ -e "$FI" ]; then
+   regclass="([a-zA-Z]+)[[:space:]]*=[[:space:]]*\"{0,1}([a-zA-Z0-9_\-]+)\"{0,1}"
+   regclass2="^(#|\[)"
+    # Read the file line by line, remove spaces then create a variable if start by splunk
+    while read -r line; do
+      if [[ "${line}" =~ $regclass2 ]]; then
+        debug_log "comment line or stanza line with line=$line"
+      elif [ -z "${line-unset}" ]; then
+        debug_log "empty line"
+      elif [[ "${line}" =~ $regclass ]]; then
+        var_name=${BASH_REMATCH[1]}
+        var_value=${BASH_REMATCH[2]}
+        # Dynamically create the variable with its value
+        declare -g "$var_name=$var_value"
+        debug_log "OK:form ok, start with splunk setting $var_name=$var_value, $var_name=${!var_name}"
+      else 
+        debug_log "KO:invalid form line=$line"
+      fi
+    done < $FI
+  else
+    debug_log "file $FI is not present"
+  fi
+} 
+    
 ###### start
 
 # %u is day of week , we may use this for custom purge
@@ -150,28 +177,35 @@ debug_log "splunk_home=$SPLUNK_HOME "
 
 SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
 
-# include VARs
-debug_log "loading splunkconf-backup.conf file"
 
+
+# include VARs
+APPDIR=`pwd`
+debug_log "app=splunkconf-purgebackup result=running SPLUNK_HOME=$SPLUNK_HOME splunkconfappdir=${APPDIR} loading splukconf-backup.conf file"
 if [[ -f "./default/splunkconf-backup.conf" ]]; then
-  . ./default/splunkconf-backup.conf
-  debug_log "splunkconf-backup.conf default succesfully included"
+#  . ./default/splunkconf-backup.conf
+  load_settings_from_file ./default/splunkconf-backup.conf
+  debug_log "INFO: splunkconf-backup.conf default succesfully included"
 else
-  debug_log "splunkconf-backup.conf default  not found or not readable. Using defaults from script "
+  debug_log "INFO: splunkconf-backup.conf default  not found or not readable. Using defaults from script "
 fi
 
 if [[ -f "./local/splunkconf-backup.conf" ]]; then
-  . ./local/splunkconf-backup.conf
-  debug_log "splunkconf-backup.conf local succesfully included"
+  #. ./local/splunkconf-backup.conf
+  load_settings_from_file ./local/splunkconf-backup.conf
+  debug_log "INFO: splunkconf-backup.conf local succesfully included"
 else
-  debug_log "splunkconf-backup.conf local not present, using only default"
+  debug_log "INFO: splunkconf-backup.conf local not present, using only default"
 fi
 # take over over default and local
 if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
-  . ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "splunkconf-backup.conf system local succesfully included")
+  load_settings_from_file ${SPLUNK_HOME}/system/local/splunkconf-backup.conf
+  #. ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "INFO: splunkconf-backup.conf system local succesfully included") 
 else
-  debug_log "splunkconf-backup.conf in system/local not present, no need to include it"
+  debug_log "INFO: splunkconf-backup.conf in system/local not present, no need to include it"
 fi
+
+#debug_log "INFO: MYVAR=$MYVAR, MYTEST=$MYTEST"
 
 
 LOCALKVDUMPDIR="${SPLUNK_DB}/kvstorebackup"

@@ -131,8 +131,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240611 add support to get hostname via env variable for special k8s case and add hostname form checks
 # 20240620 fix test for splunk_assist and remove stanza instead of removing value when inconsistency detected
 # 20240629 replace direct var inclusion with loading function logic
+# 20230702 relax check for tags to work better when only sone tags are set
 
-VERSION="20240629a"
+VERSION="20240702a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -864,7 +865,7 @@ if [ $CHECK -ne 0 ]; then
 
     # we put store tags in instance-tags file-> we will use this later on
     aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/' | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > $INSTANCEFILE
-    if grep -qi splunkinstanceType $INSTANCEFILE
+    if grep -qi splunk $INSTANCEFILE
     then
       # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
       debug_log "filtering tags with splunk prefix for instance tags (file=$INSTANCEFILE)" 

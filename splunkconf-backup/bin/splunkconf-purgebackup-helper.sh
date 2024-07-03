@@ -19,7 +19,10 @@ exec > /tmp/splunkconf-purgebackup-helper-debug.log  2>&1
 #
 # Matthieu Araman, Splunk
 
-# 
+#  This script is called in rsync mode from the remote host to launch a remote purge
+# 20240701 add versioning and comment plus pass debug mode flag as arg
+
+VERSION="20240701a"
 
 LOGFILE="splunkconf-backup-purge-helper.log"
 
@@ -33,7 +36,7 @@ function echo_log_ext {
 }
 
 function debug_log {
-  DEBUG="0";
+  #DEBUG="0";
   # change me here only to debug
   #DEBUG="1";
   if [ $DEBUG -ne "0" ]; then
@@ -56,13 +59,14 @@ function fail_log {
 
 # start
 
-if [ $# -ne 3 ]; then
-   echo "ERROR: incorrect arguments, please use $0 REMOTEBACKUPDIR REMOTEBACKUPRETENTIONDAYS REMOTEMAXSIZE "
+if [ $# -ne 4 ]; then
+   echo "ERROR: incorrect arguments, please use $0 REMOTEBACKUPDIR REMOTEBACKUPRETENTIONDAYS REMOTEMAXSIZE DEBUGMODE"
    exit 1
 fi
 REMOTEBACKUPDIR=$1
 REMOTEBACKUPRETENTIONDAYS=$2
 REMOTEMAXSIZE=$3
+DEBUG=$4
 
 REMOTEBACKUPKVRETENTIONDAYS=$REMOTEBACKUPRETENTIONDAYS
 REMOTEBACKUPSCRIPTSRETENTIONDAYS=$REMOTEBACKUPRETENTIONDAYS

@@ -131,9 +131,10 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240611 add support to get hostname via env variable for special k8s case and add hostname form checks
 # 20240620 fix test for splunk_assist and remove stanza instead of removing value when inconsistency detected
 # 20240629 replace direct var inclusion with loading function logic
-# 20230702 relax check for tags to work better when only sone tags are set
+# 20230702 relax check for tags to work better when only some tags are set
+# 20240703 add more tags
 
-VERSION="20240702a"
+VERSION="20240703a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -901,12 +902,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   else 
     echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
   fi
-  splunkorg=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkorg`
-  splunkdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszone`
-  splunkdnszoneid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkdnszoneid`
-  numericprojectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/numeric-project-id`
-  projectid=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/project/project-id`
-  splunkawsdnszone=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkawsdnszone`
+  splunks3endpointurl=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3endpointurl`
   
 else
   warn_log "aws cloud tag detection disabled (missing commands)"
@@ -956,6 +952,55 @@ else
   S3ENDPOINTLOGMESSAGE=""
 fi
 
+if [ -z ${splunkbackup+x} ]; then 
+  debug_log "splunkbackup tag not set, using value from conf file BACKUP=${BACKUP}"
+else
+  BACKUP=${splunkbackup}
+  debug_log "splunkbackup tag set, BACKUP=${BACKUP}"
+fi
+  
+if [ -z ${splunkbackupkv+x} ]; then 
+  debug_log "splunkbackupkv tag not set, using value from conf file BACKUPKV=${BACKUPKV}"
+else
+  BACKUPKV=${splunkbackupkv}
+  debug_log "splunkbackupkv tag set, BACKUPKV=${BACKUPKV}"
+fi
+  
+if [ -z ${splunkbackupstate+x} ]; then 
+  debug_log "splunkbackupstate tag not set, using value from conf file BACKUPSTATE=${BACKUPSTATE}"
+else
+  BACKUPSTATE=${splunkbackupstate}
+  debug_log "splunkbackupstate tag set, BACKUPSTATE=${BACKUPSTATE}"
+fi
+  
+if [ -z ${splunkbackupscripts+x} ]; then 
+  debug_log "splunkbackupscripts tag not set, using value from conf file BACKUPSCRIPTS=${BACKUPSCRIPTS}"
+else
+  BACKUPSCRIPTS=${splunkbackupscripts}
+  debug_log "splunkbackupscripts tag set, BACKUPSCRIPTS=${BACKUPSCRIPTS}"
+fi
+  
+if [ -z ${splunklocalbackupdir+x} ]; then 
+  debug_log "splunklocalbackupdir tag not set, using value from conf file LOCALBACKUPDIR=${LOCALBACKUPDIR}"
+else
+  LOCALBACKUPDIR=${splunklocalbackupdir}
+  debug_log "splunklocalbackupdir tag set, LOCALBACKUPDIR=${LOCALBACKUPDIR}"
+fi
+  
+if [ -z ${splunkminfreespace+x} ]; then 
+  debug_log "splunkminfreespace tag not set, using value from conf file MINFREESPACE=${MINFREESPACE}"
+else
+  MINFREESPACE=${splunkminfreespace}
+  debug_log "splunkminfreespace tag set, MINFREESPACE=${MINFREESPACE}"
+fi
+  
+if [ -z ${splunkdoremotebackup+x} ]; then 
+  debug_log "splunkdoremotebackup tag not set, using value from conf file DOREMOTEBACKUP=${DOREMOTEBACKUP}"
+else
+  DOREMOTEBACKUP=${splunkdoremotebackup}
+  debug_log "splunkdoremotebackup tag set, DOREMOTEBACKUP=${DOREMOTEBACKUP}"
+fi
+  
 if [ -z ${splunkrsyncautorestore+x} ]; then 
   debug_log "splunkrsyncautorestore tag not set, using value from conf file rsyncautorestore=${rsyncautorestore}"
 else

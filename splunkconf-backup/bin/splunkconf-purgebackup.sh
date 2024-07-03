@@ -56,8 +56,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20240301 fix regression with granular retention which was using the same setting for all types
 # 20240623 add check_cloud function from backup , add variable and fix bug with purge for kvdump
 # 20240629 replace direct var inclusion with loading function logic
+# 20240701 add debugmode flag as arg to splunkconf-backup-helper
 
-VERSION="20240629a"
+VERSION="20240701a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -319,6 +320,11 @@ checklock;
 
 `touch ${SPLUNK_HOME}/var/run/splunkconf-purge.lock`
 
+if [ "$DEBUG" == "1" ] || [ "$splunkbackupdebug" == "1" ] ; then
+  DEBUG=1
+  # make DEBUG variable consistent with tag so we can use it as arg for helper script
+fi
+
 LOCALKVDUMPDIR="${SPLUNK_DB}/kvstorebackup"
 
 if [ -z ${LOCALBACKUPRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPRETENTIONDAYS defined and set to ${LOCALBACKUPRETENTIONDAYS}"; fi
@@ -501,7 +507,7 @@ else
     # second option depend on recent ssh , instead it is possible to disable via =no or use other mean to accept the key before the script run
     OPTION="-oConnectTimeout=30 -oServerAliveInterval=60 -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
     RESSCPPU=`scp $OPTION  ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup-helper.sh ${RCPREMOTEUSER}@${RCPHOST}: `
-    RESMKDIR=`ssh $OPTION  ${RCPREMOTEUSER}@${RCPHOST} ./splunkconf-purgebackup-helper.sh $REMOTEBACKUPDIR $REMOTEBACKUPRETENTIONDAYS $REMOTEMAXSIZE ` 
+    RESMKDIR=`ssh $OPTION  ${RCPREMOTEUSER}@${RCPHOST} ./splunkconf-purgebackup-helper.sh $REMOTEBACKUPDIR $REMOTEBACKUPRETENTIONDAYS $REMOTEMAXSIZE $DEBUG` 
   elif [ -d "${REMOTEBACKUPDIR}" ]; then
     debug_log "Starting to purging old backups"
 # FIXME : reuse exclusion_list logic to always keep one backup for remote nas condition

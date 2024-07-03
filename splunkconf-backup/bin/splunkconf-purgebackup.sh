@@ -57,8 +57,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20240623 add check_cloud function from backup , add variable and fix bug with purge for kvdump
 # 20240629 replace direct var inclusion with loading function logic
 # 20240701 add debugmode flag as arg to splunkconf-backup-helper
+# 20230702 add more ec2 tag support taken from backup part
 
-VERSION="20240701a"
+VERSION="20240702a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -100,9 +101,12 @@ LOCALBACKUPSTATERETENTIONDAYS=7
 
 # ATTENTION : you need to free enough space or as the backup are now concurrent, one could eat the space and prevent the other one to run
 # in all case, it is important to verify that backups are effectively running succesfully
+# can be a number or value
 LOCALMAXSIZE=8100000000 
 #5G
 #LOCALMAXSIZE=2000000000 #2G
+# LOCALMAXSIZEDEFAULT is used when LOCALMAXSIZE set to auto as a failover valuye when needed
+LOCALMAXSIZEDEFAULT=8100000000 
 
 ##### REMOTE 
 # number of days after which we completely remove backups
@@ -266,7 +270,6 @@ function load_settings_from_file () {
   fi
 }
 
-
 ###### start
 
 # %u is day of week , we may use this for custom purge
@@ -320,21 +323,183 @@ checklock;
 
 `touch ${SPLUNK_HOME}/var/run/splunkconf-purge.lock`
 
+LOCALKVDUMPDIR="${SPLUNK_DB}/kvstorebackup"
+
+check_cloud
+debug_log "cloud_type=$cloud_type"
+
+
+# we get most var dynamically from ec2 tags associated to instance
+
+# getting tokens and writting to instance-tags that we use 
+
+CHECK=1
+
+if ! command -v curl &> /dev/null
+then
+  warn_log "ERROR: oops ! command curl could not be found ! trying without by may be needed especially for cloud env"
+  CHECK=0
+fi
+
+if ! command -v aws &> /dev/null
+then
+  debug_log "INFO: command aws not detected, assuming we are not running inside aws"
+  CHECK=0
+fi
+
+INSTANCEFILE="${SPLUNK_HOME}/var/run/splunk/instance-tags"
+
+if [ $CHECK -ne 0 ]; then
+  if [[ "cloud_type" -eq 1 ]]; then
+    # aws
+    # setting up token (IMDSv2)
+    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    # lets get the s3splunkinstall from instance tags
+    INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
+    REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
+
+    # we put store tags in instance-tags file-> we will use this later on
+    aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/' | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > $INSTANCEFILE
+    if grep -qi splunk $INSTANCEFILE
+    then
+      # note : filtering by splunk prefix allow to avoid import extra customers tags that could impact scripts
+      debug_log "filtering tags with splunk prefix for instance tags (file=$INSTANCEFILE)"
+    else
+      debug_log "splunk prefixed tags not found, reverting to full tag inclusion (file=$INSTANCEFILE)"
+      aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/' | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' > $INSTANCEFILE
+    fi
+  fi
+elif [[ "cloud_type" -eq 2 ]]; then
+  # GCP
+  splunkinstanceType=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
+  if [ -z ${splunkinstanceType+x} ]; then
+    debug_log "GCP : Missing splunkinstanceType in instance metadata"
+  else
+    # > to overwrite any old file here (upgrade case)
+    echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
+  fi
+  splunks3installbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
+  if [ -z ${splunks3installbucket+x} ]; then
+    debug_log "GCP : Missing splunks3installbucket in instance metadata"
+  else
+    echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
+  fi
+  splunks3backupbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
+  if [ -z ${splunks3backupbucket+x} ]; then
+    debug_log "GCP : Missing splunks3backupbucket in instance metadata"
+  else
+    echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
+  fi
+  splunks3databucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
+  if [ -z ${splunks3databucket+x} ]; then
+    debug_log "GCP : Missing splunks3databucket in instance metadata"
+  else
+    echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
+  fi
+  splunklocalbackupretentiondays=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupretentiondays`
+  splunklocalbackupkvretentiondays=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupkvretentiondays`
+  splunklocalbackupscriptsretentiondays=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupscriptsretentiondays`
+  splunklocalbackupstateretentiondays=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupstateretentiondays`
+  splunklocalbackupdir=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupdir`
+  splunklocalmaxsize=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsize`
+  splunklocalmaxsizeauto=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsizeauto`
+
+else
+  warn_log "aws cloud tag detection disabled (missing commands)"
+fi
+if [ -e "$INSTANCEFILE" ]; then
+  chmod 644 $INSTANCEFILE
+  # including the tags for use in this script
+  . $INSTANCEFILE
+  # note : if the tag detection failed , file may be empty -> we are still checking after
+fi
+
+
+# At this point we get var with combination from tags, conf file , default 
 if [ "$DEBUG" == "1" ] || [ "$splunkbackupdebug" == "1" ] ; then
   DEBUG=1
   # make DEBUG variable consistent with tag so we can use it as arg for helper script
 fi
 
-LOCALKVDUMPDIR="${SPLUNK_DB}/kvstorebackup"
+# used for trim
+shopt -s extglob
+if [ ! -z ${splunklocalbackupretentiondays+x} ]; then 
+  splunklocalbackupretentiondays=${splunklocalbackupretentiondays##+( )}
+  splunklocalbackupretentiondays=${splunklocalbackupretentiondays%%+( )}
+  if [ ${splunklocalbackupretentiondays} -gt 0 ]; then 
+    LOCALBACKUPRETENTIONDAYS=${splunklocalbackupretentiondays}
+    debug_log "set LOCALBACKUPRETENTIONDAYS=$LOCALBACKUPRETENTIONDAYS from tag"
+  fi
+fi 
+
+if [ ! -z ${splunklocalbackupkvretentiondays+x} ]; then 
+  splunklocalbackupkvretentiondays=${splunklocalbackupkvretentiondays##+( )}
+  splunklocalbackupkvretentiondays=${splunklocalbackupkvretentiondays%%+( )}
+  if [ ${splunklocalbackupkvretentiondays} -gt 0 ]; then 
+    LOCALBACKUPKVRETENTIONDAYS=${splunklocalbackupkvretentiondays}
+    debug_log "set LOCALBACKUPKVRETENTIONDAYS=$LOCALBACKUPKVRETENTIONDAYS from tag"
+  fi
+fi 
+
+if [ ! -z ${splunklocalbackupscriptsretentiondays+x} ]; then 
+  splunklocalbackupscriptsretentiondays=${splunklocalbackupscriptsretentiondays##+( )}
+  splunklocalbackupscriptsretentiondays=${splunklocalbackupscriptsretentiondays%%+( )}
+  if [ ${splunklocalbackupscriptsretentiondays} -gt 0 ]; then 
+    LOCALBACKUPSCRIPTSRETENTIONDAYS=${splunklocalbackupscriptsretentiondays}
+    debug_log "set LOCALBACKUPSCRIPTSRETENTIONDAYS=$LOCALBACKUPSCRIPTSRETENTIONDAYS from tag"
+  fi
+fi 
+
+if [ ! -z ${splunklocalstatebackupretentiondays+x} ]; then 
+  splunklocalbackupstateretentiondays=${splunklocalbackupstateretentiondays##+( )}
+  splunklocalbackupstateretentiondays=${splunklocalbackupstateretentiondays%%+( )}
+  if [ ${splunklocalbackupstateretentiondays} -gt 0 ]; then 
+    LOCALBACKUPSTATERETENTIONDAYS=${splunklocalbackupstateretentiondays}
+    debug_log "set LOCALBACKUPSTATERETENTIONDAYS=$LOCALBACKUPSTATERETENTIONDAYS from tag"
+  fi
+fi 
+
+if [ ! -z ${splunklocalbackupdir+x} ]; then 
+  splunklocalbackupdir=${splunklocalbackupdir##+( )}
+  splunklocalbackupdir=${splunklocalbackupdir%%+( )}
+  if [ -e ${splunklocalbackupdir} ]; then 
+    LOCALBACKUPDIR=${splunklocalbackupdir}
+    debug_log "set LOCALBACKUPDIR=$LOCALBACKUPDIR from tag"
+  else
+    warn_log "invalid directory in tag splunklocalbackupdir=$splunklocalbackupdir, ignoring"
+  fi
+fi 
+
+if [ ! -z ${splunklocalmaxsize+x} ]; then 
+  splunklocalmaxsize=${splunklocalmaxsize##+( )}
+  splunklocalmaxsize=${splunklocalmaxsize%%+( )}
+  if [ ${splunklocalmaxsize} -gt 0 ]; then 
+    LOCALMAXSIZE=${splunklocalmaxsize}
+    debug_log "set LOCALMAXSIZE=$LOCALMAXSIZE from tag"
+  fi
+fi 
+
+if [ ! -z ${splunklocalmaxsizeauto+x} ]; then 
+  splunklocalmaxsizeauto=${splunklocalmaxsizeauto##+( )}
+  splunklocalmaxsizeauto=${splunklocalmaxsizeauto%%+( )}
+  if [ ${splunklocalmaxsizeauto} -gt 0 ]; then 
+    LOCALMAXSIZEAUTO=${splunklocalmaxsizeauto}
+    debug_log "set LOCALMAXSIZEAUTO=$LOCALMAXSIZEAUTO from tag"
+  fi
+fi 
 
 if [ -z ${LOCALBACKUPRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPRETENTIONDAYS defined and set to ${LOCALBACKUPRETENTIONDAYS}"; fi
 if [ -z ${LOCALBACKUPKVRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPKVRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPKVRETENTIONDAYS defined and set to ${LOCALBACKUPKVRETENTIONDAYS}"; fi
 if [ -z ${LOCALBACKUPSCRIPTSRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPSCRIPTSRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPSCRIPTSRETENTIONDAYS defined and set to ${LOCALBACKUPSCRIPTSRETENTIONDAYS}"; fi
 if [ -z ${LOCALBACKUPMODINPUTRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPMODINPUTRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPMODINPUTRETENTIONDAYS defined and set to ${LOCALBACKUPMODINPUTRETENTIONDAYS}"; fi
-if [ -z ${SPLUNK_HOME+x} ]; then fail_log "SPLUNK_HOME not defined in ENSPL file !!!!"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "SPLUNK_HOME defined to ${SPLUNK_HOME}"; fi
-if [ -z ${LOCALBACKUPDIR+x} ]; then fail_log "LOCALBACKUPDIR not defined in ENSPL file !!!!"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPDIR defined and set to ${LOCALBACKUPDIR}"; fi
+if [ -z ${LOCALBACKUPSTATERETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPSTATERETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPSTATERETENTIONDAYS defined and set to ${LOCALBACKUPSTATERETENTIONDAYS}"; fi
+if [ -z ${SPLUNK_HOME+x} ]; then fail_log "SPLUNK_HOME not defined  !!!!"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "SPLUNK_HOME defined to ${SPLUNK_HOME}"; fi
+if [ -z ${LOCALBACKUPDIR+x} ]; then fail_log "LOCALBACKUPDIR not defined !!!!"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPDIR defined and set to ${LOCALBACKUPDIR}"; fi
 if (( ${LOCALMAXSIZE} > 1000000000 )); then 
   debug_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check ok" 
+elif [ ${LOCALMAXSIZE} = "auto" ]; then
+  # FIXME add more logic here
+  LOCALMAXSIZE=${LOCALMAXSIZEAUTO}
 else 
   fail_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check KO ! Need to be at least 1G(1000000000). Exiting to avoid deletion of all backups on invalid value"
   debug_log "removing lock file so other purgebackup process may run"
@@ -342,8 +507,6 @@ else
   exit 1;
 fi
 
-check_cloud
-debug_log "cloud_type=$cloud_type"
 splunkconf_checkspace
 
 # -delete option to find does the delete

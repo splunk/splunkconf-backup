@@ -257,8 +257,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240527 rework rpm GPG check error handling
 # 20240527 add more checks to clean up logs especially in uf mode and fix for splunksecretsdeploymentenable logic
 # 20240527 add also retry logic for rpm install
+# 20240805 up to 9.3.0
 
-VERSION="20240527e"
+VERSION="20240805a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1507,8 +1508,8 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
-splversion="9.2.1"
-splhash="78803f08aabb"
+splversion="9.3.0"
+splhash="51ccf43db5bd"
 splversionhash=${splversion}-${splhash}""
 
 

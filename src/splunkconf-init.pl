@@ -123,6 +123,7 @@
 # 20240526 add splunkrole logic so splunksecret exception taken into account for uf
 # 20240527 add more logic for splunkrole uf
 # 20240527 extend polkit rule to also allow user and group splunkfwd 
+# 20240805 Remove CPUshares to match Splunk 9.3 and replace MemoryLimit with MemoryMax  
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -132,7 +133,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20240527c";
+$VERSION="20240805a";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -1082,14 +1083,20 @@ if ($enablesystemd==1 ) {
     print "GID = $gid\n";
     # old default before v8 #MemoryLimit=4073775104
     # assuming v8+ here as the old default was 4G which would not be dynamic
-    my $systemdmemlimit=`grep ^MemoryLimit $filenameservice | cut -d"=" -f 2`;
+    # MemoryLimit used before 9.3 and replace by MemoryLimit from 9.3 as this setting replace the old one according to systemd 
+    my $systemdmemlimit=`grep -E ^(MemoryLimit|MemoryMax) $filenameservice | cut -d"=" -f 2 | head 1`;
     # checking ram so we can detect if we are exactly at 4G 
     my $ram = (`cat /proc/meminfo |  grep "MemTotal" | awk '{print \$2}'`);
     if ($systemdmemlimit <100 || ($systemdmemlimit==4073775104 && $ram!=4073775104)) {
       print "using 100G as mem limit for systemd service as either the value we got was too low or was matching the default pre v8\n";
-      $systemdmemlimit="100G";
+      $systemdmemlimit="100G"; 
+    } elsif ($systemdmemlimit>0) {
+      print "Reusing Systemd Memory limit we got from default service file MemoryMax=$systemdmemlimit\n";
+    } elsif ($ram >0)  {
+      print "unknown systemd value for memorylimit or memorymax (not expected !) , using ram instead";
+      $systemdmemlimit=$ram;
     } else {
-      print "Reusing Systemd Memory limit we got from default service file MemoryLimit=$systemdmemlimit\n";
+      die ("Something is wrong ! Please fix and relaunch ! \n");
     }
     my $str;
     open(FH, '>', $filenameservice) or die $!; 
@@ -1125,7 +1132,6 @@ RestartForceExitStatus=52
 User=$USERSPLUNK
 Group=$GROUPSPLUNK
 Delegate=true
-CPUShares=1024
 MemoryLimit=$systemdmemlimit
 PermissionsStartOnly=true
 # change needed for 8.0+ to change the permissions before Splunk is started (see answers 781532 )
@@ -1178,8 +1184,7 @@ RestartForceExitStatus=52
 User=$USERSPLUNK
 Group=$GROUPSPLUNK
 Delegate=true
-CPUShares=1024
-MemoryLimit=$systemdmemlimit
+MemoryMax=$systemdmemlimit
 PermissionsStartOnly=true
 # for 8.1, that is now back to ExecStartPost 
 # if this fail here and path dont exist, you haven't disabled cgroups v2, please do this first

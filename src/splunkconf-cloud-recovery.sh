@@ -258,8 +258,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240527 add more checks to clean up logs especially in uf mode and fix for splunksecretsdeploymentenable logic
 # 20240527 add also retry logic for rpm install
 # 20240805 up to 9.3.0
+# 20240805 add tag for cgroup mode hint and more cgroupv2 support
 
-VERSION="20240805a"
+VERSION="20240805b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -632,17 +633,25 @@ tag_replacement () {
 }
 
 cgroup_status () {
+  # in case we want to force to v2
+  NEEDCGROUPV2ENABLED=0
+  # in case we want to force to v1
   NEEDCGROUPDISABLED=0
   TEST1=$(stat -fc %T /sys/fs/cgroup/)
   if [ -e /sys/fs/cgroup/unified/ ]; then
-    echo "identified cgroupsv2 with unified off, disabling unified was done"
+    echo "identified cgroupsv2 with unified off, disabling unified was done (running in v1 compat mode) -> nothing to do for v1, need to reenable for v2"
+    NEEDCGROUPV2ENABLED=1
+    NEEDCGROUPDISABLED=0
   elif [ $TEST1 = "cgroup2fs" ]; then
-    echo "identified cgroupv2 with unified on, need disabling"
+    echo "identified cgroupv2 with unified on, nothing to do for v2, need disabling to go v1 compat"
+    NEEDCGROUPV2ENABLED=0
     NEEDCGROUPDISABLED=1
   else
-    echo "cgroupsv1, nothing to do"
+    echo "cgroupsv1, nothing to do (impossible to enable v2 with this kernel)"
   fi
 }
+
+
 
 force_cgroupv1 () {
   if [[ $NEEDCGROUPDISABLED == 1 ]]; then
@@ -651,6 +660,16 @@ force_cgroupv1 () {
     NEEDREBOOT=1
   else
     echo "INFO : no need to disable cgroupsv2"
+  fi
+}
+
+force_cgroupv2 () {
+  if [[ $NEEDCGROUPV2ENABLED == 1 ]]; then
+    echo "Forcing cgroupv2 compatibility mode (systemd.unified_cgroup_hierarchy=1) (need reboot) (needed for RH9/Centos 9/AL2023 and all newer distributions at the moment for v9.3+)"
+    grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=1"
+    NEEDREBOOT=1
+  else
+    echo "INFO : no need to enable cgroupsv2"
   fi
 }
 
@@ -692,7 +711,7 @@ os_update() {
 # This parse argument and handle logic to launch os update and cgroup
 # then decide on second boot if needed
 # this need to be done after parameters initialisation
-# cgroup_status shouldd have ran before
+# cgroup_status should have ran before
 init_arg() {
   echo "INFO: in init_arg"
   # arguments : are we launched by user-data or in upgrade mode ?
@@ -813,7 +832,10 @@ EOF
         # we run update at first step on all distrib except AL2023 as we try to do a fast first run for cgroup then do the update after without rebootin
         os_update
       fi
-      force_cgroupv1
+      # disabling if value = 3
+      if [ ${splunkcgroupmode} -ne 3 ]; then
+        force_cgroupv1
+      fi
       TODAY=`date '+%Y%m%d-%H%M_%u'`;
       if [[ $NEEDREBOOT = 0 ]]; then
         echo "no need to reboot, forcing setting to second_boot"
@@ -968,6 +990,7 @@ elif [[ "cloud_type" -eq 2 ]]; then
   splunkhostmodeos=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkhostmodeos`
   splunkpostextracommand=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpostextracommand`
   splunkpostextrasyncdir=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkpostextrasyncdir`
+  splunkcgroupmode=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkcgroupmode`
   #=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/`
   
 fi
@@ -1030,7 +1053,15 @@ else
   splunkhostmodeos="set"
 fi
   
-
+if [ -z ${splunkcgroupmode+x} ]; then 
+  echo "splunkcgroupmode is unset, falling back to default value 0 (auto)"
+  splunkcgroupmode=0
+elif [ ${splunkcgroupmode} -eq 0 || ${splunkcgroupmode} -eq 1 || ${splunkcgroupmode} -eq 2 || ${splunkcgroupmode} -eq 3  ]; then
+  echo "splunkcgroupmode=${splunkcgroupmode}"
+else
+  echo "invalid value splunkcgroupmode=${splunkcgroupmode} , forcing auto (ie 0 )"
+  splunkcgroupmode=0
+fi 
 
 if [ -z ${splunkhostmode+x} ]; then 
   echo "splunkhostmode is unset, falling back to default value splunkinstancetype"
@@ -1073,7 +1104,7 @@ else
   echo "splunkpostextracommand is set to ${splunkpostextracommand}"
 fi
 
-if [[ "cloud_type" -eq 1 ]]; then
+if [[ "${cloud_type}" -eq 1 ]]; then
   # AWS
   # tell splunkconfinit we are running in AWS 
   SPLUNKINITOPTIONS+=" --cloud_type=${cloud_type}"
@@ -1094,6 +1125,8 @@ if [[ "cloud_type" -eq 1 ]]; then
   else
     echo "splunkpwdinit tag not present, this instance wont be  allowed to create pwd itself so it shoudl already have it or another instance should have this tag set"
   fi
+else
+  echo "not adding cloud type option to splunkconf-init as not in AWS"
 fi
   
 if [ -z ${splunkacceptlicense+x} ]; then 

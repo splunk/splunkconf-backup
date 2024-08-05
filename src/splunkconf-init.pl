@@ -133,7 +133,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20240805a";
+$VERSION="20240805b";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -1084,7 +1084,7 @@ if ($enablesystemd==1 ) {
     # old default before v8 #MemoryLimit=4073775104
     # assuming v8+ here as the old default was 4G which would not be dynamic
     # MemoryLimit used before 9.3 and replace by MemoryLimit from 9.3 as this setting replace the old one according to systemd 
-    my $systemdmemlimit=`grep -E ^(MemoryLimit|MemoryMax) $filenameservice | cut -d"=" -f 2 | head 1`;
+    my $systemdmemlimit=`grep -E "^(MemoryLimit|MemoryMax)" $filenameservice | cut -d"=" -f 2 | head -1`;
     # checking ram so we can detect if we are exactly at 4G 
     my $ram = (`cat /proc/meminfo |  grep "MemTotal" | awk '{print \$2}'`);
     if ($systemdmemlimit <100 || ($systemdmemlimit==4073775104 && $ram!=4073775104)) {

@@ -260,7 +260,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240805 up to 9.3.0
 # 20240805 add tag for cgroup mode hint and more cgroupv2 support
 
-VERSION="20240805b"
+VERSION="20240805c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -833,7 +833,9 @@ EOF
         os_update
       fi
       # disabling if value = 3
-      if [ ${splunkcgroupmode} -ne 3 ]; then
+      if (( splunkcgroupmode == 3 )); then
+        echo "splunkcgroupmode=3 not changing cgroup mode as requested"
+      else
         force_cgroupv1
       fi
       TODAY=`date '+%Y%m%d-%H%M_%u'`;
@@ -1056,7 +1058,7 @@ fi
 if [ -z ${splunkcgroupmode+x} ]; then 
   echo "splunkcgroupmode is unset, falling back to default value 0 (auto)"
   splunkcgroupmode=0
-elif [ ${splunkcgroupmode} -eq 0 || ${splunkcgroupmode} -eq 1 || ${splunkcgroupmode} -eq 2 || ${splunkcgroupmode} -eq 3  ]; then
+elif (( splunkcgroupmode == 0 )) || (( splunkcgroupmode == 1 )) || (( splunkcgroupmode == 2 )) || (( splunkcgroupmode == 3 )); then
   echo "splunkcgroupmode=${splunkcgroupmode}"
 else
   echo "invalid value splunkcgroupmode=${splunkcgroupmode} , forcing auto (ie 0 )"

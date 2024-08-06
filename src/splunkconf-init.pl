@@ -134,7 +134,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20240805c";
+$VERSION="20240805d";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -1190,7 +1190,8 @@ PermissionsStartOnly=true
 # for 8.1, that is now back to ExecStartPost 
 # if this fail here and path dont exist, you haven't disabled cgroups v2, please do this first
 # new cgroup chown -R splunk:splunk /sys/fs/cgroup/system.slice/%n
-ExecStartPost=/bin/bash -c "chown --quiet -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/cpu/system.slice/%n /sys/fs/cgroup/memory/system.slice/%n /sys/fs/cgroup/system.slice/%n;true"
+# we set both cases here so it work when kernel setting change without having to change service unit file
+ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/cpu/system.slice/%n /sys/fs/cgroup/memory/system.slice/%n /sys/fs/cgroup/system.slice/%n;true"
 ## Modifications to the base Splunkd.service that is created from the "enable boot-start" command ##
 # set additional ulimits:
 LimitNPROC=262143

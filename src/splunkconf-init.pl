@@ -125,6 +125,7 @@
 # 20240527 extend polkit rule to also allow user and group splunkfwd 
 # 20240805 Remove CPUshares to match Splunk 9.3 and replace MemoryLimit with MemoryMax  
 # 20240805 add both mode for cgroup v1 and v2 in the service file
+# 20240806 update systemd service with more cases for recent kernels
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -134,7 +135,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20240805d";
+$VERSION="20240806a";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -1188,10 +1189,16 @@ Delegate=true
 MemoryMax=$systemdmemlimit
 PermissionsStartOnly=true
 # for 8.1, that is now back to ExecStartPost 
-# if this fail here and path dont exist, you haven't disabled cgroups v2, please do this first
-# new cgroup chown -R splunk:splunk /sys/fs/cgroup/system.slice/%n
-# we set both cases here so it work when kernel setting change without having to change service unit file
-ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/cpu/system.slice/%n /sys/fs/cgroup/memory/system.slice/%n /sys/fs/cgroup/system.slice/%n;true"
+# we set multiple cases here so it work when kernel setting change without having to change service unit file
+#ExecStartPost=/bin/bash -c "chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/cpu/system.slice/%n /sys/fs/cgroup/memory/system.slice/%n /sys/fs/cgroup/system.slice/%n;true"
+# cgroupv1 (or compat mode)
+ExecStartPost=-/bin/bash -c "chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/cpu/system.slice/%n";true
+ExecStartPost=-/bin/bash -c "chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/memory/system.slice/%n";true
+# cgroupv1 newer kernels (replace cpu ?)
+ExecStartPost=-/bin/bash -c "chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/systemd/system.slice/%n";true
+# cgroupv2
+ExecStartPost=-/bin/bash -c "chown -R $USERSPLUNK:$GROUPSPLUNK /sys/fs/cgroup/system.slice/%n";true
+
 ## Modifications to the base Splunkd.service that is created from the "enable boot-start" command ##
 # set additional ulimits:
 LimitNPROC=262143

@@ -260,7 +260,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240805 up to 9.3.0
 # 20240805 add tag for cgroup mode hint and more cgroupv2 support
 
-VERSION="20240805c"
+VERSION="20240805d"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -835,7 +835,14 @@ EOF
       # disabling if value = 3
       if (( splunkcgroupmode == 3 )); then
         echo "splunkcgroupmode=3 not changing cgroup mode as requested"
+      elif (( splunkcgroupmode == 1 )); then
+        echo "splunkcgroupmode=1 so trying to force cgroup v1 mode"
+        force_cgroupv1
+      elif (( splunkcgroupmode == 2 )); then
+        echo "splunkcgroupmode=2 so trying to force cgroup v2 mode"
+        force_cgroupv2
       else
+        echo "splunkcgroupmode=0 , default mode is currently forcing v1"
         force_cgroupv1
       fi
       TODAY=`date '+%Y%m%d-%H%M_%u'`;

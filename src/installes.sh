@@ -49,8 +49,9 @@
 # 20231220 add sha for 7.3.0
 # 20240424 add sha for 7.3.1
 # 20240612 add sha for 7.3.2
+# 20240903 make ES content update optional 
 
-VERSION="20240612a"
+VERSION="20240903a"
 
 SCRIPTNAME="installes"
 
@@ -321,12 +322,16 @@ fi
 
 # content update
 # example : splunk-es-content-update_1034.tgz
+# whether to install/upgrade ES Content update
+INSTALLCONTENTUPDATE=1
 CONTENTUPDATE=`LANG=C;find ${INSTALLAPPDIR}  -name  "splunk-es-content-update_*.tgz" | sort | tail -1`
 #read -p "Content update file name (default : ${CONTENTUPDATE})" input
 #CONTENTUPDATE=${input:-$CONTENTUPDATE}
 if [ -z ${CONTENTUPDATE} ]; then
-  fail_log "Couldnt find content update file in ${INSTALLAPPDIR}. Please download latest ES content update from Splunkbase and place it here with read write for splunk user them relaunch installation scriot"
-  exit 1
+  warn_log "Couldnt find content update file in ${INSTALLAPPDIR}. disabling ES Content update installation, you can deploy it afterwards (make sure you update it if you have a too old version)"
+  INSTALLCONTENTUPDATE=0
+  #fail_log "Couldnt find content update file in ${INSTALLAPPDIR}. Please download latest ES content update from Splunkbase and place it here with read write for splunk user them relaunch installation scriot"
+  #exit 1
 else
   echo_log "OK: CONTENTUPDATE=${CONTENTUPDATE}"
   APP=${CONTENTUPDATE}
@@ -412,18 +417,23 @@ fi
 echo_log "INFO: install/updating ES app from ${ESAPPFULL} with splunk install located in ${SPLUNK_HOME} "
 
 # timeout not supported here
+# ES install/upgrade
 ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true 
-# ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true -auth admin:${PASSWORD}
-if [[ "${SHC}" -eq 0 ]]; then
-  echo_log "INFO: install/updating ES content update app from ${CONTENTUPDATE} with splunk install located in ${SPLUNK_HOME} "
-  ${SPLUNK_HOME}/bin/splunk install app ${CONTENTUPDATE} -update true 
-else 
- echo "INFO: deployer mode, extracting ES Content Update app to shcluster app instead"
- tar -C"${SPLUNK_HOME}/etc/shcluster/apps/" -zxvf ${CONTENTUPDATE} 
-fi
 # ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true -auth admin:${PASSWORD}
 #App 'xxxxxx/yyyyyy/splunk-enterprise-security_472.spl' installed 
 #You need to restart the Splunk Server (splunkd) for your changes to take effect.
+
+
+# ES Content update
+if [[  "${INSTALLCONTENTUPDATE}" -eq 1 ]]; then
+  if [[ "${SHC}" -eq 0 ]]; then
+    echo_log "INFO: install/updating ES content update app from ${CONTENTUPDATE} with splunk install located in ${SPLUNK_HOME} "
+    ${SPLUNK_HOME}/bin/splunk install app ${CONTENTUPDATE} -update true 
+  else 
+    echo "INFO: deployer mode, extracting ES Content Update app to shcluster app instead"
+    tar -C"${SPLUNK_HOME}/etc/shcluster/apps/" -zxvf ${CONTENTUPDATE} 
+  fi
+fi
 
 if [[ $INSTALLWITHSETUP = "yes" ]]; then 
   echo_log "INFO: install with setup option set, continuing with setup after install."

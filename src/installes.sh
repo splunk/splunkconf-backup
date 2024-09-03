@@ -50,8 +50,9 @@
 # 20240424 add sha for 7.3.1
 # 20240612 add sha for 7.3.2
 # 20240903 make ES content update optional 
+# 20240903 allow user to still try installation even when some checks are failing
 
-VERSION="20240903a"
+VERSION="20240903b"
 
 SCRIPTNAME="installes"
 
@@ -396,20 +397,25 @@ else
 fi
 
 if [ $FAIL -gt 0 ]; then
-  fail_log "There were ${FAIL} fail condition(s) detected, please review messages, fix and rerun script before proceeding to installation step. Exiting" 
-  exit 1
+  fail_log "There were ${FAIL} fail condition(s) detected, please review messages, fix and rerun script before proceeding to installation step. If you are really sure, you may still try the installation !" 
+  PROCEED="N"
+  #exit 1
 else
   echo_log "OK: looks good, continuing to installation step"
+  PROCEED="Y"
 fi
 
-PROCEED="Y"
-read -p "Do you want to proceed with installation now (Y/N) ? (default:Y)" input
+read -p "Do you want to proceed with installation now (Y/N) ? " input
 PROCEED=${input:-$PROCEED}
 if [ $PROCEED == "Y" ]; then
   debug_log "user confirmed to proceed to installation"
 else 
   echo_log "stopping installation per user input"
-  exit 0
+  if [ $FAIL -gt 0 ]; then
+    exit 1
+  else
+    exit 0
+  fi
 fi
 
 

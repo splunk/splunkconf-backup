@@ -51,8 +51,9 @@
 # 20240612 add sha for 7.3.2
 # 20240903 make ES content update optional 
 # 20240903 allow user to still try installation even when some checks are failing
+# 20240904 increase splunkdtimeout check and reco to 300s + improve error messages
 
-VERSION="20240903b"
+VERSION="20240904a"
 
 SCRIPTNAME="installes"
 
@@ -140,11 +141,15 @@ fi
 splunkdtimeout=`${SPLUNK_HOME}/bin/splunk btool web  list  settings | grep splunkdConnectionTimeout | cut -d " " -f 3`
 echo_log "splunkdConnectionTimeout=$splunkdtimeout (web.conf in [settings])"
 if [ ${splunkdtimeout} -eq 30 ]; then
-     warn_log "SplunkdConnectiontimeout is the default splunk value, this could be low for ES setup (and other usages), consider increase it to at least 120s in org_all_search_base or equivalent"
+  warn_log "SplunkdConnectiontimeout is the default splunk value, this could be low for ES setup (and other usages), consider increase it to at least 300s (min 120s) in org_all_search_base or equivalent"
+  ((FAIL++))
 elif (( ${splunkdtimeout} < 120 )); then
-     warn_log "Splunkdtimeout is under 120s, this could be low for ES setup (and other usages), consider increase it to at least 120s in org_all_search_base or equivalent"
+  warn_log "Splunkdtimeout is under 120s, this is very low for ES setup (and other usages), consider increase it to at least 300s in org_all_search_base or equivalent"
+  ((FAIL++))
+elif (( ${splunkdtimeout} < 300 )); then
+  warn_log "Splunkdtimeout is under 300s, this could be low for ES setup (and other usages), consider increase it to at least 300s in org_all_search_base or equivalent"
 else 
-     echo_log "OK: Splunkdtimeout is set over the default ES value"
+  echo_log "OK: Splunkdtimeout is >= 300s"
 fi
 
 version=`${SPLUNK_HOME}/bin/splunk version | cut -d ' ' -f 2`;
@@ -314,7 +319,7 @@ else
   if [ "${EXPECTEDSHA}" = "${SHAb}" ]; then
     echo_log "OK: SHA256 verified successfully for Splunk ES installation files ${ESAPPFULL} ${SHAb}"
   else
-    fail_log "SHA256 doesnt match for ${ESAPPFULL}. Stopping installation here, please investigate why the check failed. EXP=${EXPECTEDSHA},GOT=${SHAb} "
+    fail_log "ERROR: SHA256 doesnt match for ${ESAPPFULL}. possible binary corruption (or you changed binary and it doesn't match expected hash), please investigate why the check failed. EXP=${EXPECTEDSHA},GOT=${SHAb} "
     ((FAIL++))
     #exit 1
   fi
@@ -405,7 +410,7 @@ else
   PROCEED="Y"
 fi
 
-read -p "Do you want to proceed with installation now (Y/N) ? " input
+read -p "Do you want to proceed with installation now (Y/N) (default = ${PROCEED})? " input
 PROCEED=${input:-$PROCEED}
 if [ $PROCEED == "Y" ]; then
   debug_log "user confirmed to proceed to installation"
@@ -509,7 +514,7 @@ echo_log "ES installed and setup run. Please check for errors in $SPLUNK_HOME/va
 # INFO STAGE COMPLETE: "finalize"
 # 2020-06-08 20:12:46,423+0000 INFO pid=29627 tid=MainThread file=essinstaller2.py:wrapper:82 | STAGE COMPLETE: "finalize"
 # 2020-06-08 20:12:46,424+0000 INFO pid=29627 tid=MainThread file=essinstall.py:do_install:265 | Initialization complete, please restart Splunk
-tail -5 $SPLUNK_HOME/var/log/splunk/essinstaller2.log | grep -q " STAGE COMPLETE: \"finalize\"" && echo_log "OK: STAGE complete finalize FOUND. That is a good sign the install/upgrade went fine" || fail_log "FAIL ***********: missing STAGE COMPLETE : investigate please ************\n" 
+tail -5 $SPLUNK_HOME/var/log/splunk/essinstaller2.log | grep -q " STAGE COMPLETE: \"finalize\"" && echo_log "OK: STAGE complete finalize FOUND in $SPLUNK_HOME/var/log/splunk/essinstaller2.log. That is a good sign the install/upgrade went fine" || fail_log "FAIL ***********: missing STAGE COMPLETE in $SPLUNK_HOME/var/log/splunk/essinstaller2.log : investigate please ************\n" 
 
 
 # v4.x(or custom setting)  : wait if need for threat list download

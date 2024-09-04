@@ -20,8 +20,9 @@
 # 20231220 update for 7.3.0
 # 20240424 update for 7.3.1
 # 20240612 update for 7.3.2
+# 20240904 add version info output
 
-VERSION="20240612"
+VERSION="20240904"
 
 ESAPP="splunk-enterprise-security_732.spl"
 ESCU="splunk-es-content-update_4330.tgz"
@@ -58,7 +59,8 @@ rm $localinstalldir/installes.sh
 aws s3 cp $remoteinstalldir/installes.sh  $localinstalldir --quiet
 chmod +x $localinstalldir/installes.sh
 if [ -e "$localinstalldir/installes.sh" ]; then
-  echo "OK: installes present "
+  VERINSTES=`grep VERSION= $localinstalldir/installes.sh| head 1`
+  echo "OK: installes present VERSION=$VERINSTES"
 else
   echo "KO: installes.sh is NOT present in s3 install at $remoteinstalldir:  Please upload scripts to s3 install"
 fi
@@ -76,8 +78,8 @@ aws s3 cp $remoteappsdir/$ESCU  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESCU" ]; then
   echo "OK: ES Content update install file $ESCU present"
 else
-  echo "KO: ES Content update file $ESCU is NOT present in s3 install at $remoteappsdir : Please upload correct version to s3 install or update this script to a different version"
+  echo "KO: ES Content update file $ESCU is NOT present in s3 install at $remoteappsdir : Please upload correct version to s3 install or update this script to a different version. You may ignore this is if you prefer to install/upgrade ES content update from Splunk"
 fi
 
-echo "INFO: end of script, if everything is ok please run as splunk installes.sh from /opt/splunk/scripts directory (sh only)"
+echo "INFO: end of script, if everything is ok please run as splunk ./installes.sh from /opt/splunk/scripts directory (sh only)"
 

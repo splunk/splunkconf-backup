@@ -410,13 +410,14 @@ else
   PROCEED="Y"
 fi
 
-read -p "Do you want to proceed with installation now (Y/N) (default = ${PROCEED})? " input
+read -p "Do you want to proceed with installation now (Y/N) (check fail number = ${FAIL}, default = ${PROCEED})? " input
 PROCEED=${input:-$PROCEED}
 if [ $PROCEED == "Y" ]; then
   debug_log "user confirmed to proceed to installation"
 else 
   echo_log "stopping installation per user input"
   if [ $FAIL -gt 0 ]; then
+    # return error
     exit 1
   else
     exit 0

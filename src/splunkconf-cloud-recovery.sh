@@ -259,8 +259,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240527 add also retry logic for rpm install
 # 20240805 up to 9.3.0
 # 20240805 add tag for cgroup mode hint and more cgroupv2 support
+# 20240910 add var for arch and warn if arch mismatch
 
-VERSION="20240805d"
+VERSION="20240910a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1553,14 +1554,17 @@ echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATIO
 splversion="9.3.0"
 splhash="51ccf43db5bd"
 splversionhash=${splversion}-${splhash}""
+# this is spl arch, arch will be the one from os
+splarch="x86_64"
+arch=`uname --hardware-platform`
 
 
 if [ "$splunkmode" == "uf" ]; then 
-  splbinary="splunkforwarder-${splversionhash}.x86_64.rpm"
+  splbinary="splunkforwarder-${splversionhash}.${splarch}.rpm"
   echo "switching to uf binary ${splbinary} if not set in tag"
 else
   #splbinary="splunk-9.1.2-b6b9c8185839.x86_64.rpm"
-  splbinary="splunk-${splversionhash}.x86_64.rpm"
+  splbinary="splunk-${splversionhash}.${splarch}.rpm"
 fi
 
 if [ -z ${splunktargetbinary+x} ]; then 
@@ -1570,7 +1574,13 @@ elif [ "${splunktargetbinary}" == "auto" ]; then
   unset ${splunktargetbinary}
 else 
   splbinary=${splunktargetbinary}
-  echo "using splunktargetbinary=\"${splunktargetbinary}\" from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
+  splarch=$(echo "${splunktargetbinary}" | cut -d '.' -f 2)
+  if [[ $splarch == $arch ]]; then
+    echo "INFO: good, arch match $splarch" 
+  else
+    echo "WARN: ATTENTION **************************arch mismatch or detection issue, install may fail ********************"
+  fi 
+  echo "using splunktargetbinary=\"${splunktargetbinary}\" with splarch=${splarch} and arch=$arch from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
 fi
 echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
 # aws s3 cp doesnt support unix globing

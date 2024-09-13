@@ -23,8 +23,9 @@
 # 20240904 add version info output
 # 20240913 fix version output
 # 20240913 add support to give custom es and escu versions as optional arg
+# 20240913 improve messages
 
-VERSION="20240913b"
+VERSION="20240913c"
 
 ESAPP="splunk-enterprise-security_732.spl"
 ESCU="splunk-es-content-update_4330.tgz"
@@ -32,7 +33,7 @@ ESCU="splunk-es-content-update_4330.tgz"
 echo "This $0 script update ES file from S3. It will try to update installes.sh script and download ES version and content update."
 echo "You are currently running with script version=$VERSION"
 echo "This version default to ES=$ESAPP and ESCU=$ESCU"
-echo "You may provide custom versions by launching either $0 ESAPP  or $0 ESAPP ESCAPP"
+echo "You may provide custom versions by launching either $0 ESAPP  or $0 ESAPP ESCUAPP"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
@@ -88,7 +89,7 @@ aws s3 cp $remoteinstalldir/installes.sh  $localinstalldir --quiet
 chmod +x $localinstalldir/installes.sh
 if [ -e "$localinstalldir/installes.sh" ]; then
   VERINSTES=`grep VERSION= $localinstalldir/installes.sh| head -1`
-  echo "OK: installes present VERSION=$VERINSTES"
+  echo "OK: installes present VERINSTES"
 else
   echo "KO: installes.sh is NOT present in s3 install at $remoteinstalldir:  Please upload scripts to s3 install"
 fi
@@ -109,5 +110,5 @@ else
   echo "KO: ES Content update file $ESCU is NOT present in s3 install at $remoteappsdir : Please upload correct version to s3 install or update this script to a different version. You may ignore this is if you prefer to install/upgrade ES content update from Splunk"
 fi
 
-echo "INFO: end of script, if everything is ok please run as splunk ./installes.sh from /opt/splunk/scripts directory (sh only)"
+echo "INFO: end of script, if everything is ok please run as splunk ./installes.sh [esapp] from /opt/splunk/scripts directory (sh only)"
 

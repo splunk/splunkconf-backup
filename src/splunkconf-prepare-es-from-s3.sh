@@ -21,8 +21,9 @@
 # 20240424 update for 7.3.1
 # 20240612 update for 7.3.2
 # 20240904 add version info output
+# 20240913 fix version output
 
-VERSION="20240904"
+VERSION="20240913a
 
 ESAPP="splunk-enterprise-security_732.spl"
 ESCU="splunk-es-content-update_4330.tgz"
@@ -59,7 +60,7 @@ rm $localinstalldir/installes.sh
 aws s3 cp $remoteinstalldir/installes.sh  $localinstalldir --quiet
 chmod +x $localinstalldir/installes.sh
 if [ -e "$localinstalldir/installes.sh" ]; then
-  VERINSTES=`grep VERSION= $localinstalldir/installes.sh| head 1`
+  VERINSTES=`grep VERSION= $localinstalldir/installes.sh| head -1`
   echo "OK: installes present VERSION=$VERINSTES"
 else
   echo "KO: installes.sh is NOT present in s3 install at $remoteinstalldir:  Please upload scripts to s3 install"

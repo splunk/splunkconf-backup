@@ -22,17 +22,44 @@
 # 20240612 update for 7.3.2
 # 20240904 add version info output
 # 20240913 fix version output
+# 20240913 add support to give custom es and escu versions as optional arg
 
-VERSION="20240913a
+VERSION="20240913b"
 
 ESAPP="splunk-enterprise-security_732.spl"
 ESCU="splunk-es-content-update_4330.tgz"
+
+echo "This $0 script update ES file from S3. It will try to update installes.sh script and download ES version and content update."
+echo "You are currently running with script version=$VERSION"
+echo "This version default to ES=$ESAPP and ESCU=$ESCU"
+echo "You may provide custom versions by launching either $0 ESAPP  or $0 ESAPP ESCAPP"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
    echo "KO: Exiting ! This script need to be run as splunk !"
    exit 1
 fi
+
+NBARG=$#
+ARG1=$1
+ARG2=$2
+
+if [ $NBARG -eq 0 ]; then
+  echo "no arg, using default"
+elif [ $NBARG -eq 1 ]; then
+  ESAPP=$ARG1
+elif [ $NBARG -eq 2 ]; then
+  ESAPP=$ARG1
+  ESCU=$ARG2
+else
+#elif [ $NBARG -gt 1 ]; then
+  echo "ERROR: Your command line contains too many ($#) arguments. Ignoring the extra data" 
+  ESAPP=$ARG1
+  ESCU=$ARG2
+fi
+echo "INFO: running $0 version=$VERSION with ESAPP=$ESAPP and ESCU=$ESCU (ESCU is optional)" 
+
+
 
 # setting up token (IMDSv2)
 TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`

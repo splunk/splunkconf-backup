@@ -52,8 +52,9 @@
 # 20240903 make ES content update optional 
 # 20240903 allow user to still try installation even when some checks are failing
 # 20240904 increase splunkdtimeout check and reco to 300s + improve error messages
+# 20240914 add support to give optional argument for ESAPP and ESCU
 
-VERSION="20240904a"
+VERSION="20240914a"
 
 SCRIPTNAME="installes"
 
@@ -113,6 +114,98 @@ if [[ $EUID -eq 0 ]]; then
    fail_log "This script $0 must be run as splunk user, not root !" 1>&2
    exit 1
 fi
+
+# default
+
+
+# Note : Important : customer must download ES in order to accept the license
+#ESAPP="splunk-enterprise-security_474.spl";
+#ESAPP="splunk-enterprise-security_476.spl";
+#ESAPP="splunk-enterprise-security_501.spl";
+#ESAPP="splunk-enterprise-security_510.spl";
+#ESAPP="splunk-enterprise-security_511.spl";
+#ESAPP="splunk-enterprise-security_520.spl";
+#ESAPP="splunk-enterprise-security_522.spl";
+#ESAPP="splunk-enterprise-security_530.spl";
+#ESAPP="splunk-enterprise-security_531.spl";
+#ESAPP="splunk-enterprise-security_60.spl";
+#ESAPP="splunk-enterprise-security_601.spl";
+#ESAPP="splunk-enterprise-security_602.spl";
+# 6.x , There were potential perf issues with assets and identities in some conditions. please prefer 6.02+ (over 60 and 601) or 6.1.1+(over 610) , please check by your usual source about ES versions and core field status as this comment may be outdated at the time you read it
+# (look at least on splservices ES status page for PS + ES RN,...)
+#ESAPP="splunk-enterprise-security_61.spl";
+#ESAPP="splunk-enterprise-security_611.spl";
+#ESAPP="splunk-enterprise-security_620.spl";
+#ESAPP="splunk-enterprise-security_640.spl";
+#ESAPP="splunk-enterprise-security_641.spl";
+#ESAPP="splunk-enterprise-security_660.spl";
+#ESAPP="splunk-enterprise-security_662.spl";
+#ESAPP="splunk-enterprise-security_700.spl";
+#ESAPP="splunk-enterprise-security_701.spl";
+#ESAPP="splunk-enterprise-security_702.spl";
+#ESAPP="splunk-enterprise-security_710.spl";
+#ESAPP="splunk-enterprise-security_711.spl";
+#ESAPP="splunk-enterprise-security_720.spl";
+#ESAPP="splunk-enterprise-security_730.spl";
+#ESAPP="splunk-enterprise-security_731.spl";
+ESAPP="splunk-enterprise-security_732.spl";
+
+
+# SHA256 checksum (splunk-enterprise-security_500.spl) b2a5e4f8297554f4e1818f749386480cfce148e87be8920df939a4282223222c
+# SHA256 checksum (splunk-enterprise-security_520.spl) 637881cfeb14866ff11b62b081ff931d32c8931dd200d2fefc9b07898ab42e0b
+# SHA256 checksum (splunk-enterprise-security_522.spl) 944eeb780f9ae5414d6e9503a8a6994619a879b58bfe2f7afd7ee7ea2cf3099c
+# SHA256 checksum (splunk-enterprise-security_530.spl) 3790e3aa5ec02579c0aaa6ce3e16c19a9ebaa5e1eb2d9bbb5ed8fd2dfdedbf96
+# SHA256 checksum (splunk-enterprise-security_531.spl) 2ed1ec05066b7c6492c701de93955a94bae88b793d5ededca27310082083fd24
+# SHA256 checksum (splunk-enterprise-security_60.spl) e712bdcda5098b62de59c7b3ed038422f62f160693c96d5a5914366a7c78c525
+# SHA256 checksum (splunk-enterprise-security_601.tgz) 6593aa25371f2b960beb9ea6830222e3ebe582c2d750c0709909d776383ec1a1
+# SHA256 checksum (splunk-enterprise-security_602.spl) f2920d72d25926474d44bdcbd3eb04c1f968d55e09de33b1bfc97dafeee97a3f
+# SHA256 checksum (splunk-enterprise-security_610.spl) f36d5c7fdda4d7ebbb7271f1d849565f58b0dfe6e25f304439ec67978f8298ab
+# SHA256 checksum (splunk-enterprise-security_611.spl) 0dc6dc6e275c958cd336ac962dd0fe223d18e4f95b03d636728e417b406c5979
+# SHA256 checksum (splunk-enterprise-security_620.spl) dff6806efdbe41141ae8a6b91c1f991d718ce10d8528640b173ea918b8233cd9
+# SHA256 checksum (splunk-enterprise-security_640.spl) cbed83ced2af436ded61f000fe87b820c9329148ed612cf2e4374a033eb854a1
+# SHA256 checksum (splunk-enterprise-security_640.spl) 940d83e15d4059b09f6a5518bbdc62ce32b6680f4c076a1d46e64cd0c54723c8
+# SHA256 checksum (splunk-enterprise-security_641.spl) f44dbc248cb85e8100f7afefe70d7949efab873269657d77e6488ba95c0df077
+# SHA256 checksum (splunk-enterprise-security_660.spl) 0e2b72f1396a82a155851b414401740179d955381498ec0d90a6dde70db2479f
+# SHA256 checksum (splunk-enterprise-security_662.spl) 2928d7f39b97c61a2d97306c083b1e04eb455df3a5070d9553f6679aacf2fdb4
+# SHA256 checksum (splunk-enterprise-security_700.spl) fc83e107f709df2cf4bbebedb5e044b859c5f07ce8a6e21fafcab44bebf60ef4
+# SHA256 checksum (splunk-enterprise-security_701.spl) cf3d4afc06bd20f5ab039c01a533b1f5c29c6fbe3dc9dbcf5ef177ef66f36cac
+# SHA256 checksum (splunk-enterprise-security_702.spl) 44cd5e63dfdef0e945aa5cf9cd919b50644dc3dee6faaf6d5b29a8c3e4e732ed
+# SHA256 checksum (splunk-enterprise-security_710.spl) a45bc6a1a583426e8f587bc0693dbf0296fa61ca2cd9d927e1cf99cab9c351cd
+# SHA256 checksum (splunk-enterprise-security_711.spl) b871297c0a518f7362a8a0b6cf829fcefc4bdd24602d0b75d79bb1bc38050e1d
+# SHA256 checksum (splunk-enterprise-security_720.spl) a0782af46e32e329bf4eaaf6996476a302a480e20d76255410f6970ce5f5687b
+# SHA256 checksum (splunk-enterprise-security_730.spl) 568f72730d61159175495bec665fb2ae2282b760aa9698b52b1682e2acf925dc
+# SHA256 checksum (splunk-enterprise-security_731.spl) 1ec5e756206eae020135d52bba4e716a9afc0353a3d2793f25bd351117070102
+# SHA256 checksum (splunk-enterprise-security_732.spl) 37581ae057a26f9c7eac04e16f46c11ed8d7bf194491857ff478d874e6f8d1aa
+
+# SHA256 checksum (splunk-es-content-update_3240.tgz) 49aca3ab3bb1291f988459708e9a589aacc5b64caed493831a00546c36181ea6
+
+EXPECTEDSHA="37581ae057a26f9c7eac04e16f46c11ed8d7bf194491857ff478d874e6f8d1aa"
+
+
+CONTENTUPDATE=`LANG=C;find ${INSTALLAPPDIR}  -name  "splunk-es-content-update_*.tgz" | sort | tail -1`
+
+
+NBARG=$#
+ARG1=$1
+ARG2=$2
+
+if [ $NBARG -eq 0 ]; then
+  echo "no arg, using default"
+elif [ $NBARG -eq 1 ]; then
+  ESAPP=$ARG1
+elif [ $NBARG -eq 2 ]; then
+  ESAPP=$ARG1
+  ESCU=$ARG2
+  CONTENTUPDATE=$ESCU
+else
+#elif [ $NBARG -gt 1 ]; then
+  echo "ERROR: Your command line contains too many ($#) arguments. Ignoring the extra data"
+  ESAPP=$ARG1
+  ESCU=$ARG2
+  CONTENTUPDATE=$ESCU
+fi
+echo "INFO: running $0 version=$VERSION with ESAPP=$ESAPP and ESCU=$ESCU (ESCU is optional)"
+
 
 
 echo_log "Note : Please make sure you have read docs, PS ES deployment guide and have been ES implementation trained before running this script"
@@ -222,38 +315,6 @@ fi
 
 
 
-# Note : Important : customer must download ES in order to accept the license 
-#ESAPP="splunk-enterprise-security_474.spl";
-#ESAPP="splunk-enterprise-security_476.spl";
-#ESAPP="splunk-enterprise-security_501.spl";
-#ESAPP="splunk-enterprise-security_510.spl";
-#ESAPP="splunk-enterprise-security_511.spl";
-#ESAPP="splunk-enterprise-security_520.spl";
-#ESAPP="splunk-enterprise-security_522.spl";
-#ESAPP="splunk-enterprise-security_530.spl";
-#ESAPP="splunk-enterprise-security_531.spl";
-#ESAPP="splunk-enterprise-security_60.spl";
-#ESAPP="splunk-enterprise-security_601.spl";
-#ESAPP="splunk-enterprise-security_602.spl";
-# 6.x , There were potential perf issues with assets and identities in some conditions. please prefer 6.02+ (over 60 and 601) or 6.1.1+(over 610) , please check by your usual source about ES versions and core field status as this comment may be outdated at the time you read it
-# (look at least on splservices ES status page for PS + ES RN,...)
-#ESAPP="splunk-enterprise-security_61.spl";
-#ESAPP="splunk-enterprise-security_611.spl";
-#ESAPP="splunk-enterprise-security_620.spl";
-#ESAPP="splunk-enterprise-security_640.spl";
-#ESAPP="splunk-enterprise-security_641.spl";
-#ESAPP="splunk-enterprise-security_660.spl";
-#ESAPP="splunk-enterprise-security_662.spl";
-#ESAPP="splunk-enterprise-security_700.spl";
-#ESAPP="splunk-enterprise-security_701.spl";
-#ESAPP="splunk-enterprise-security_702.spl";
-#ESAPP="splunk-enterprise-security_710.spl";
-#ESAPP="splunk-enterprise-security_711.spl";
-#ESAPP="splunk-enterprise-security_720.spl";
-#ESAPP="splunk-enterprise-security_730.spl";
-#ESAPP="splunk-enterprise-security_731.spl";
-ESAPP="splunk-enterprise-security_732.spl";
-
 read -p "ESAPP file name (default : ${ESAPP})" input
 ESAPP=${input:-$ESAPP}
 echo_log "ESAPP=${ESAPP}"
@@ -266,36 +327,6 @@ if [ ! -f "$ESAPPFULL" ]; then
   ((FAIL++))
   #exit 1;
 fi
-
-# SHA256 checksum (splunk-enterprise-security_500.spl) b2a5e4f8297554f4e1818f749386480cfce148e87be8920df939a4282223222c
-# SHA256 checksum (splunk-enterprise-security_520.spl) 637881cfeb14866ff11b62b081ff931d32c8931dd200d2fefc9b07898ab42e0b
-# SHA256 checksum (splunk-enterprise-security_522.spl) 944eeb780f9ae5414d6e9503a8a6994619a879b58bfe2f7afd7ee7ea2cf3099c
-# SHA256 checksum (splunk-enterprise-security_530.spl) 3790e3aa5ec02579c0aaa6ce3e16c19a9ebaa5e1eb2d9bbb5ed8fd2dfdedbf96
-# SHA256 checksum (splunk-enterprise-security_531.spl) 2ed1ec05066b7c6492c701de93955a94bae88b793d5ededca27310082083fd24
-# SHA256 checksum (splunk-enterprise-security_60.spl) e712bdcda5098b62de59c7b3ed038422f62f160693c96d5a5914366a7c78c525
-# SHA256 checksum (splunk-enterprise-security_601.tgz) 6593aa25371f2b960beb9ea6830222e3ebe582c2d750c0709909d776383ec1a1
-# SHA256 checksum (splunk-enterprise-security_602.spl) f2920d72d25926474d44bdcbd3eb04c1f968d55e09de33b1bfc97dafeee97a3f
-# SHA256 checksum (splunk-enterprise-security_610.spl) f36d5c7fdda4d7ebbb7271f1d849565f58b0dfe6e25f304439ec67978f8298ab
-# SHA256 checksum (splunk-enterprise-security_611.spl) 0dc6dc6e275c958cd336ac962dd0fe223d18e4f95b03d636728e417b406c5979
-# SHA256 checksum (splunk-enterprise-security_620.spl) dff6806efdbe41141ae8a6b91c1f991d718ce10d8528640b173ea918b8233cd9
-# SHA256 checksum (splunk-enterprise-security_640.spl) cbed83ced2af436ded61f000fe87b820c9329148ed612cf2e4374a033eb854a1
-# SHA256 checksum (splunk-enterprise-security_640.spl) 940d83e15d4059b09f6a5518bbdc62ce32b6680f4c076a1d46e64cd0c54723c8
-# SHA256 checksum (splunk-enterprise-security_641.spl) f44dbc248cb85e8100f7afefe70d7949efab873269657d77e6488ba95c0df077
-# SHA256 checksum (splunk-enterprise-security_660.spl) 0e2b72f1396a82a155851b414401740179d955381498ec0d90a6dde70db2479f
-# SHA256 checksum (splunk-enterprise-security_662.spl) 2928d7f39b97c61a2d97306c083b1e04eb455df3a5070d9553f6679aacf2fdb4
-# SHA256 checksum (splunk-enterprise-security_700.spl) fc83e107f709df2cf4bbebedb5e044b859c5f07ce8a6e21fafcab44bebf60ef4
-# SHA256 checksum (splunk-enterprise-security_701.spl) cf3d4afc06bd20f5ab039c01a533b1f5c29c6fbe3dc9dbcf5ef177ef66f36cac
-# SHA256 checksum (splunk-enterprise-security_702.spl) 44cd5e63dfdef0e945aa5cf9cd919b50644dc3dee6faaf6d5b29a8c3e4e732ed
-# SHA256 checksum (splunk-enterprise-security_710.spl) a45bc6a1a583426e8f587bc0693dbf0296fa61ca2cd9d927e1cf99cab9c351cd
-# SHA256 checksum (splunk-enterprise-security_711.spl) b871297c0a518f7362a8a0b6cf829fcefc4bdd24602d0b75d79bb1bc38050e1d
-# SHA256 checksum (splunk-enterprise-security_720.spl) a0782af46e32e329bf4eaaf6996476a302a480e20d76255410f6970ce5f5687b
-# SHA256 checksum (splunk-enterprise-security_730.spl) 568f72730d61159175495bec665fb2ae2282b760aa9698b52b1682e2acf925dc
-# SHA256 checksum (splunk-enterprise-security_731.spl) 1ec5e756206eae020135d52bba4e716a9afc0353a3d2793f25bd351117070102
-# SHA256 checksum (splunk-enterprise-security_732.spl) 37581ae057a26f9c7eac04e16f46c11ed8d7bf194491857ff478d874e6f8d1aa
-
-# SHA256 checksum (splunk-es-content-update_3240.tgz) 49aca3ab3bb1291f988459708e9a589aacc5b64caed493831a00546c36181ea6
-
-EXPECTEDSHA="37581ae057a26f9c7eac04e16f46c11ed8d7bf194491857ff478d874e6f8d1aa"
 
 echo_log "please verify sha256 to check for integrity (corruption , truncation during file download....)"
 echo "INFO: expected sha256=${EXPECTEDSHA}"
@@ -330,7 +361,7 @@ fi
 # example : splunk-es-content-update_1034.tgz
 # whether to install/upgrade ES Content update
 INSTALLCONTENTUPDATE=1
-CONTENTUPDATE=`LANG=C;find ${INSTALLAPPDIR}  -name  "splunk-es-content-update_*.tgz" | sort | tail -1`
+
 #read -p "Content update file name (default : ${CONTENTUPDATE})" input
 #CONTENTUPDATE=${input:-$CONTENTUPDATE}
 if [ -z ${CONTENTUPDATE} ]; then

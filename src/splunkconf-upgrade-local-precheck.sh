@@ -25,8 +25,9 @@
 # 20240424 update splunktargetbinary to only check for presence (avoid failures on disk space) and improve message when tag set to auto
 # 20240424 add detection for curl-minimal package to clean up output when this package is deploeyed (like AL2023)
 # 20240914 fix splunktargetbinary auto checking wrong file -> force cloud version
+# 20240914 integrate logic from splunkonf-cloud-recovery to build splbinary 
 
-VERSION="20240914a"
+VERSION="20240914b"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -335,7 +336,18 @@ if [ -z "$splunktargetbinary" ]; then
   echo "INFO: splunktargetbinary not SET in instance tags, version used will be the one hardcoded in script : $splunktargetbinary"
   echo "INFO: This is fine if you are just testing or always want to use script version"
 elif [ "$splunktargetbinary" == "auto" ]; then
-  splunktargetbinary=`grep ^splbinary $localinstalldir/splunkconf-cloud-recovery.sh | cut -d"\"" -f2`
+  splversion=`grep ^splversion $localinstalldir/splunkconf-cloud-recovery.sh | head -1  | cut -d"\"" -f2`
+  splhash=`grep ^splhash $localinstalldir/splunkconf-cloud-recovery.sh | head -1  | cut -d"\"" -f2`
+  #splversion="9.3.0"
+  #splhash="51ccf43db5bd"
+  splversionhash=${splversion}-${splhash}""
+  # this is spl arch, arch will be the one from os 
+  splarch="x86_64"
+  arch=`uname --hardware-platform` 
+  # note : this is incorrect if uf here
+  #splbinary="splunk-9.1.2-b6b9c8185839.x86_64.rpm"
+  splbinary="splunk-${splversionhash}.${splarch}.rpm"
+  splunktargetbinary=$splbinary    
   echo "INFO: splunktargetbinary=auto via instance tags, version used will be the one hardcoded in script : $splunktargetbinary"
 else
   echo "INFO: splunksplunktargetbinary=$splunktargetbinary."

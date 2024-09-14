@@ -24,8 +24,9 @@
 # 20240424 add disk space output
 # 20240424 update splunktargetbinary to only check for presence (avoid failures on disk space) and improve message when tag set to auto
 # 20240424 add detection for curl-minimal package to clean up output when this package is deploeyed (like AL2023)
+# 20240914 fix splunktargetbinary auto checking wrong file -> force cloud version
 
-VERSION="20240424k"
+VERSION="20240914a"
 
 # check that we are launched by root
 if [[ $EUID -ne 0 ]]; then
@@ -330,18 +331,18 @@ done
 localinstalldir="/usr/local/bin"
 
 if [ -z "$splunktargetbinary" ]; then
-  splunktargetbinary=`grep ^splbinary $localinstalldir/splunkconf-aws-recovery.sh | cut -d"\"" -f2`
+  splunktargetbinary=`grep ^splbinary $localinstalldir/splunkconf-cloud-recovery.sh | cut -d"\"" -f2`
   echo "INFO: splunktargetbinary not SET in instance tags, version used will be the one hardcoded in script : $splunktargetbinary"
   echo "INFO: This is fine if you are just testing or always want to use script version"
 elif [ "$splunktargetbinary" == "auto" ]; then
-  splunktargetbinary=`grep ^splbinary $localinstalldir/splunkconf-aws-recovery.sh | cut -d"\"" -f2`
+  splunktargetbinary=`grep ^splbinary $localinstalldir/splunkconf-cloud-recovery.sh | cut -d"\"" -f2`
   echo "INFO: splunktargetbinary=auto via instance tags, version used will be the one hardcoded in script : $splunktargetbinary"
 else
-  echo "INFO: splunksplunktargetbinary=$splunktargetbinary"
+  echo "INFO: splunksplunktargetbinary=$splunktargetbinary."
 fi
 echo "INFO: checking RPM is present in s3 install at $remoteinstalldir/$splunktargetbinary"
 #aws s3 cp $remoteinstalldir/$splunktargetbinary /tmp --quiet
-if [ $(aws s3 ls $remoteinstalldir/$splunktargetbinary | grep -ic $splunktargetbinary) -eq 1 ]; then
+if [ "$(aws s3 ls $remoteinstalldir/$splunktargetbinary | grep -ic $splunktargetbinary)" -eq 1 ]; then
 #if [ -e "/tmp/$splunktargetbinary" ]; then
   echo "OK: Splunk binary installation file (RPM or tar.gz)  $splunktargetbinary is present in s3 install at location $remoteinstalldir/$splunktargetbinary"
 else

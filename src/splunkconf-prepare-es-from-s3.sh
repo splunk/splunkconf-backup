@@ -24,8 +24,9 @@
 # 20240913 fix version output
 # 20240913 add support to give custom es and escu versions as optional arg
 # 20240913 improve messages
+# 20240914 fix message output
 
-VERSION="20240913c"
+VERSION="20240914a"
 
 ESAPP="splunk-enterprise-security_732.spl"
 ESCU="splunk-es-content-update_4330.tgz"
@@ -89,7 +90,7 @@ aws s3 cp $remoteinstalldir/installes.sh  $localinstalldir --quiet
 chmod +x $localinstalldir/installes.sh
 if [ -e "$localinstalldir/installes.sh" ]; then
   VERINSTES=`grep VERSION= $localinstalldir/installes.sh| head -1`
-  echo "OK: installes present VERINSTES"
+  echo "OK: installes.sh present $VERINSTES"
 else
   echo "KO: installes.sh is NOT present in s3 install at $remoteinstalldir:  Please upload scripts to s3 install"
 fi

@@ -260,8 +260,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240805 up to 9.3.0
 # 20240805 add tag for cgroup mode hint and more cgroupv2 support
 # 20240910 add var for arch and warn if arch mismatch
+# 20240915 up to 9.3.1
 
-VERSION="20240910a"
+VERSION="20240915a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1552,7 +1553,7 @@ echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATIO
 # Splunk installation
 # note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
 splversion="9.3.0"
-splhash="51ccf43db5bd"
+splhash="0b8d769cb912"
 splversionhash=${splversion}-${splhash}""
 # this is spl arch, arch will be the one from os
 splarch="x86_64"

@@ -1552,7 +1552,7 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
-splversion="9.3.0"
+splversion="9.3.1"
 splhash="0b8d769cb912"
 splversionhash=${splversion}-${splhash}""
 # this is spl arch, arch will be the one from os

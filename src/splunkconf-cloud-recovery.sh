@@ -262,7 +262,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240910 add var for arch and warn if arch mismatch
 # 20240915 up to 9.3.1
 
-VERSION="20240915a"
+VERSION="20240915b"
 
 # dont break script on error as we rely on tests for this
 set +e

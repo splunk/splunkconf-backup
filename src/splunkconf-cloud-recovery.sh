@@ -261,8 +261,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240805 add tag for cgroup mode hint and more cgroupv2 support
 # 20240910 add var for arch and warn if arch mismatch
 # 20240915 up to 9.3.1
+# 20240917 add splunktargetbinary=sc4s logic
 
-VERSION="20240915b"
+VERSION="20240917a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1488,6 +1489,11 @@ if [[ $splunkenableworker == 1 ]]; then
   PACKAGELIST="${PACKAGELIST} ansible"
   echo "INFO: splunkenableworker=1 adding ansible to packagelist"
 fi
+if [ "${splunktargetbinary}" == "sc4s" ]; then
+  PACKAGELIST="${PACKAGELIST} docker"
+  echo "INFO: sc4s needed adding docker to packagelist"
+fi
+
 get_packages
 
 
@@ -1573,6 +1579,8 @@ if [ -z ${splunktargetbinary+x} ]; then
 elif [ "${splunktargetbinary}" == "auto" ]; then
   echo "splunktargetbinary set to auto in instance tags, falling back to use version ${splbinary} from cloud recovery script" >> /var/log/splunkconf-cloud-recovery-info.log
   unset ${splunktargetbinary}
+elif [ "${splunktargetbinary}" == "sc4s" ]; then
+  echo "splunktargetbinary set to sc4s in instance tags, will try to deploy docker and sc4s service" >> /var/log/splunkconf-cloud-recovery-info.log
 else 
   splbinary=${splunktargetbinary}
   splarch=$(echo "${splunktargetbinary}" | cut -d '.' -f 2)
@@ -1587,7 +1595,9 @@ echo "remote : ${remoteinstalldir}/${splbinary}" >> /var/log/splunkconf-cloud-re
 # aws s3 cp doesnt support unix globing
 get_object ${remoteinstalldir}/${splbinary} ${localinstalldir} 
 ls ${localinstalldir}
-if [ ! -f "${localinstalldir}/${splbinary}"  ]; then
+if [ "${splunktargetbinary}" == "sc4s" ]; then
+  echo "sc4s mode"
+elif [ ! -f "${localinstalldir}/${splbinary}"  ]; then
   if [ $splunkconnectedmode == 2 ] || [ $splunkconnectedmode == 3 ]; then
     echo "RPM missing from install and splunkconnectedmode setting prevent trying to download directly "
   elif [ "$splunkmode" == "uf" ]; then 
@@ -2314,6 +2324,20 @@ fi
 ## redeploy system tuning as enable boot start may have overwritten files
 ##tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
 
+echo "#********************************************SC4S INSTALLATIONi (if selected) *****************************"
+
+if [ "${splunktargetbinary}" == "sc4s" ]; then
+  docker volume create splunk-sc4s-var
+  mkdir -p /opt/sc4s/local
+  mkdir -p /opt/sc4s/archive
+  mkdir -p /opt/sc4s/tls
+  get_object ${remoteinstalldir}/sc4s.service /lib/systemd/system/
+  get_object ${remoteinstalldir}/env_file /opt/sc4s
+  systemctl daemon-reload
+  systemctl enable sc4s
+  systemctl start sc4s
+  systemctl status sc4s
+fi
 echo "#********************************************SPLUNK BINARY INSTALLATION*****************************"
 if [ "$INSTALLMODE" = "tgz" ]; then
   echo "disabling rpm install as install via tar"

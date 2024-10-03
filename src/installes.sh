@@ -53,8 +53,9 @@
 # 20240903 allow user to still try installation even when some checks are failing
 # 20240904 increase splunkdtimeout check and reco to 300s + improve error messages
 # 20240914 add support to give optional argument for ESAPP and ESCU
+# 20241003 trying to disable bracketed paste mode as it break pasting into the script (especially with recent macos terminal)
 
-VERSION="20240914a"
+VERSION="20241003a"
 
 SCRIPTNAME="installes"
 
@@ -398,6 +399,8 @@ else
 fi
 
 LOGGEDIN=0;
+# trying to disable bracketed paste mode so password are not escaped when pasted in 
+set enable-bracketed-paste off
 until [[ "$LOGGEDIN" -eq "1" ]] ; do
 # commented out , need to debug it
 # the next splunk command will ask for login, just make sur you type the right password each time !

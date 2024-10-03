@@ -25,8 +25,9 @@
 # 20240913 add support to give custom es and escu versions as optional arg
 # 20240913 improve messages
 # 20240914 fix message output
+# 20241003 update output message to ease copy/paste for next steps
 
-VERSION="20240914a"
+VERSION="20241003a"
 
 ESAPP="splunk-enterprise-security_732.spl"
 ESCU="splunk-es-content-update_4330.tgz"
@@ -111,5 +112,5 @@ else
   echo "KO: ES Content update file $ESCU is NOT present in s3 install at $remoteappsdir : Please upload correct version to s3 install or update this script to a different version. You may ignore this is if you prefer to install/upgrade ES content update from Splunk"
 fi
 
-echo "INFO: end of script, if everything is ok please run as splunk ./installes.sh [esapp] from /opt/splunk/scripts directory (sh only)"
+echo "INFO: end of script, if everything is ok please run as user splunk ./installes.sh $ESAPP from /opt/splunk/scripts directory (sh only) or just ./installes.sh if using the default version from install script"
 

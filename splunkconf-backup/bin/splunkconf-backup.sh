@@ -1408,7 +1408,8 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       # here we try to start backup anyway but if the status was not ready , something is probably wrong
       START=$(($(date +%s%N)));
       debug_log "launching kvdump backup via REST API"
-      RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/create -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}"`
+      # Iman.Rezaei: set pointInTime option to true to take a consistent backup. We can also specify a target app for backup, rather than all of the KV Store. 
+      RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/create -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}" -pointInTime true`
 
       #echo_log "KVDUMP CREATE RES=$RES"
       COUNTER=50

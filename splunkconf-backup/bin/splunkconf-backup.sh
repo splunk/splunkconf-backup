@@ -133,8 +133,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240629 replace direct var inclusion with loading function logic
 # 20230702 relax check for tags to work better when only some tags are set
 # 20240703 add more tags
+# 20241008 add settings to tune kvstore ready wait times, add more messages to report timeouts, add support to configure these by tags
 
-VERSION="20240703a"
+VERSION="20241008a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -280,6 +281,15 @@ BACKUPSCRIPTS=1
 
 
 # KVSTORE Backup options
+
+# how much we wait at start checking if kvstore is ready (because splunkd may not have finished starting kvstore)
+# This is the number of 10s loop to wait
+KVSTOREREADYINIT=100
+# how much we wait at kvdump backup time checking if kvstore is back to ready (ie finished to backup)
+# This is the number of 10s loop to wait
+KVSTOREREADYBACKUP=100
+
+
 # stop splunk for kvstore backup (that can be a bad idea if you have cluster and stop all instances at same time or whitout maintenance mode)
 # risk is that data could be corrupted if something is written to kvstore while we do the backup
 #RESTARTFORKVBACKUP=1
@@ -928,6 +938,20 @@ if [ -z ${splunks3backupbucket+x} ]; then
 fi
 
 
+if [ -z ${splunkkvstorereadyinit+x} ]; then
+  debug_log "tag splunkkvstorereadyinit not set, using value ${KVSTOREREADYINIT} from configuration files"
+else
+  KVSTOREREADYINIT=${splunkkvstorereadyinit}
+  debug_log "setting KVSTOREREADYINIT=${KVSTOREREADYINIT} via tags" 
+fi
+
+if [ -z ${splunkkvstorereadybackup+x} ]; then
+  debug_log "tag splunkkvstorereadybackup not set, using value ${KVSTOREREADYBACKUP} from configuration files"
+else
+  KVSTOREREADYBACKUP=${splunkkvstorereadybackup}
+  debug_log "setting KVSTOREREADYBACKUP=${KVSTOREREADYBACKUP} via tags" 
+fi
+
 if [ -z ${splunks3endpointurl+x} ]; then 
   debug_log "tag splunks3endpointurl not set, using value ${REMOTES3ENDPOINTURL} from configuration files"
 else
@@ -1386,7 +1410,8 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       KVARCHIVE="backupconfsplunk-kvdump-${TODAY}"
       MESS1="MGMTURL=${MGMTURL} KVARCHIVE=${KVARCHIVE}";
       debug_log "pre backup : checking in case kvstore is not ready like initialization at start"
-      COUNTER=50
+      COUNTER=${KVSTOREREADYINIT}
+      COUNTERMAX=${KVSTOREREADYINIT}
       RES=""
       RES2=""
       # wait a bit (up to 20*10= 200s) for backup to complete, especially for big kvstore/busy env (io)
@@ -1401,24 +1426,30 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
           RES2=""
         fi
         #echo_log "RES=$RES"
-        debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running  info=prebackup RES=$RES RESREADY=$RESREADY RES2=$RES"
+        debug_log "COUNTER=$COUNTER  (max=${COUNTERMAX}) $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running  info=prebackup RES=$RES RESREADY=$RESREADY RES2=$RES"
         let COUNTER-=1
         sleep 10
       done
+      if [[ -z "$RES" ]];  then
+	warn_log "COUNTER=$COUNTER  (max=${COUNTERMAX}) $MESSVER $MESS1 type=$TYPE object=$kvbackupmode result=failure dest=${LFICKVDUMP} durationms=${DURATION} size=${FILESIZE}  ATTENTION : we didnt get ready status ! Please investigate or tune up KVSTOREREADYINIT to wait more"
+      else
+        debug_log "OK: KVSTORE REady state before launching backup"
+      fi
       # here we try to start backup anyway but if the status was not ready , something is probably wrong
       START=$(($(date +%s%N)));
       debug_log "launching kvdump backup via REST API"
       RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/create -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}"`
 
       #echo_log "KVDUMP CREATE RES=$RES"
-      COUNTER=50
+      COUNTER=${KVSTOREREADYBACKUP}
+      COUNTERMAX=${KVSTOREREADYBACKUP}
       RES=""
       # wait a bit (up to 20*10= 200s) for backup to complete, especially for big kvstore/busy env (io)
       # increase here if needed (ie take more time !)
       until [[  $COUNTER -lt 1 || -n "$RES"  ]]; do
         RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
         #echo_log "RES=$RES"
-        debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running info=postbackup"
+        debug_log "COUNTER=$COUNTER (max=${COUNTERMAX}) $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running info=postbackup"
         let COUNTER-=1
         sleep 10
       done
@@ -1435,11 +1466,11 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
         FILESIZE=0
       fi
       if [[ -z "$RES" ]];  then
-	warn_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=$kvbackupmode result=failure dest=${LFICKVDUMP} durationms=${DURATION} size=${FILESIZE}  ATTENTION : we didnt get ready status ! Either backup kvstore (kvdump) has failed or takes too long"
+	warn_log "COUNTER=$COUNTER  (max=${COUNTERMAX}) $MESSVER $MESS1 type=$TYPE object=$kvbackupmode result=failure dest=${LFICKVDUMP} durationms=${DURATION} size=${FILESIZE}  ATTENTION : we didnt get ready status ! Either backup kvstore (kvdump) has failed or takes too long.Please investigate or tune up KVSTOREREADYBACKUP to wait more if you see backup completed but wasn't copied to remote storage"
 	kvdump_done="-1"
       else
 	kvdump_done="1"
-	echo_log "COUNTER=$COUNTER $MESSVER $MESS1 action=backup type=$TYPE object=$kvbackupmode result=success dest=${LFICKVDUMP} durationms=${DURATION} size=${FILESIZE}  kvstore online (kvdump) backup complete"
+	echo_log "COUNTER=$COUNTER  (max=${COUNTERMAX}) $MESSVER $MESS1 action=backup type=$TYPE object=$kvbackupmode result=success dest=${LFICKVDUMP} durationms=${DURATION} size=${FILESIZE}  kvstore online (kvdump) backup complete"
       fi
     elif [[ "$MODE" == "0" ]] || [[ "$MODE" == "kvstore" ]] || [[ "$MODE" == "kvauto" ]]; then
       if [[ "$MODE" == "0" ]] || [[ "$MODE" == "kvauto" ]]; then

@@ -54,8 +54,9 @@
 # 20240904 increase splunkdtimeout check and reco to 300s + improve error messages
 # 20240914 add support to give optional argument for ESAPP and ESCU
 # 20241003 trying to disable bracketed paste mode as it break pasting into the script (especially with recent macos terminal)
+# 20241015 relax syntax check for installation confirmation 
 
-VERSION="20241003a"
+VERSION="20241015a"
 
 SCRIPTNAME="installes"
 
@@ -446,7 +447,7 @@ fi
 
 read -p "Do you want to proceed with installation now (Y/N) (check fail number = ${FAIL}, default = ${PROCEED})? " input
 PROCEED=${input:-$PROCEED}
-if [ $PROCEED == "Y" ]; then
+if [ $PROCEED == "Y" ] || [ $PROCEED == "y" ] || [ $PROCEED == "YES" ] || [ $PROCEED == "yes" ]; then
   debug_log "user confirmed to proceed to installation"
 else 
   echo_log "stopping installation per user input"

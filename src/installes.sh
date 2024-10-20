@@ -56,8 +56,9 @@
 # 20241003 trying to disable bracketed paste mode as it break pasting into the script (especially with recent macos terminal)
 # 20241015 relax syntax check for installation confirmation 
 # 20241020 change output order on essinstaller error check to make it easier to spot
+# 20241020 more bracketed paste mode disabling
 
-VERSION="20241020a"
+VERSION="20241020b"
 
 SCRIPTNAME="installes"
 
@@ -407,11 +408,13 @@ until [[ "$LOGGEDIN" -eq "1" ]] ; do
 # commented out , need to debug it
 # the next splunk command will ask for login, just make sur you type the right password each time !
    echo "login with admin credentials"
+   set enable-bracketed-paste off
    read -p "enter admin user (default : admin)" input
    SPLADMIN=${input:-admin}
    echo_log "SPLADMIN=${SPLADMIN}"
 #
    echo -n "enter admin password and press enter" 
+   set enable-bracketed-paste off
    read -s input
    #read -p "enter admin password and press enter" input
    SPLPASS=${input}

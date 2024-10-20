@@ -26,8 +26,9 @@
 # 20240913 improve messages
 # 20240914 fix message output
 # 20241003 update output message to ease copy/paste for next steps
+# 20241020 improve messages
 
-VERSION="20241003a"
+VERSION="20241020a"
 
 ESAPP="splunk-enterprise-security_732.spl"
 ESCU="splunk-es-content-update_4330.tgz"
@@ -39,7 +40,7 @@ echo "You may provide custom versions by launching either $0 ESAPP  or $0 ESAPP 
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
-   echo "KO: Exiting ! This script need to be run as splunk !"
+   echo "KO: Exiting ! This script $0 need to be run as splunk !"
    exit 1
 fi
 
@@ -78,10 +79,10 @@ mkdir -p $localinstalldir
 mkdir -p $localappsinstalldir
 
 if [ -z "$splunks3installbucket" ]; then
-  echo "KO: ATTENTION TAGS NOT SET in instance tags, please correct an relaunch"
+  echo "KO: ATTENTION TAGS NOT SET in instance tags, please correct and relaunch"
   exit 1
 else
-  echo "OK: Good ! Tag present and set : splunks3installbucket=$splunks3installbucket"
+  echo "OK: Good ! Tags present and set : splunks3installbucket=$splunks3installbucket"
 fi
 
 
@@ -99,7 +100,7 @@ fi
 
 aws s3 cp $remoteappsdir/$ESAPP  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESAPP" ]; then
-  echo "OK: ES install file $ESAPP present"
+  echo "OK: ES install file $ESAPP present at $remoteappsdir and downloaded to $localappsinstalldir for installes.sh later use"
 else
   echo "KO: ES install file $ESAPP is NOT present in s3 install at $remoteappsdir: Please upload correct ES app version to s3 install or update this script is you want to use a different version"
 fi
@@ -107,7 +108,7 @@ fi
 
 aws s3 cp $remoteappsdir/$ESCU  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESCU" ]; then
-  echo "OK: ES Content update install file $ESCU present"
+  echo "OK: ES Content update install file $ESCU present at $remoteappsdir and downloaded to $localappsinstalldir for installes.sh later use"
 else
   echo "KO: ES Content update file $ESCU is NOT present in s3 install at $remoteappsdir : Please upload correct version to s3 install or update this script to a different version. You may ignore this is if you prefer to install/upgrade ES content update from Splunk"
 fi

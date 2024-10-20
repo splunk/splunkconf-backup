@@ -55,8 +55,9 @@
 # 20240914 add support to give optional argument for ESAPP and ESCU
 # 20241003 trying to disable bracketed paste mode as it break pasting into the script (especially with recent macos terminal)
 # 20241015 relax syntax check for installation confirmation 
+# 20241020 change output order on essinstaller error check to make it easier to spot
 
-VERSION="20241015a"
+VERSION="20241020a"
 
 SCRIPTNAME="installes"
 
@@ -550,7 +551,7 @@ echo_log "ES installed and setup run. Please check for errors in $SPLUNK_HOME/va
 # INFO STAGE COMPLETE: "finalize"
 # 2020-06-08 20:12:46,423+0000 INFO pid=29627 tid=MainThread file=essinstaller2.py:wrapper:82 | STAGE COMPLETE: "finalize"
 # 2020-06-08 20:12:46,424+0000 INFO pid=29627 tid=MainThread file=essinstall.py:do_install:265 | Initialization complete, please restart Splunk
-tail -5 $SPLUNK_HOME/var/log/splunk/essinstaller2.log | grep -q " STAGE COMPLETE: \"finalize\"" && echo_log "OK: STAGE complete finalize FOUND in $SPLUNK_HOME/var/log/splunk/essinstaller2.log. That is a good sign the install/upgrade went fine" || (fail_log "FAIL ***********: missing STAGE COMPLETE in $SPLUNK_HOME/var/log/splunk/essinstaller2.log : investigate please ************\nLast 25 lines of $SPLUNK_HOME/var/log/splunk/essinstaller2.log "; tail -25 $SPLUNK_HOME/var/log/splunk/essinstaller2.log)
+tail -5 $SPLUNK_HOME/var/log/splunk/essinstaller2.log | grep -q " STAGE COMPLETE: \"finalize\"" && echo_log "OK: STAGE complete finalize FOUND in $SPLUNK_HOME/var/log/splunk/essinstaller2.log. That is a good sign the install/upgrade went fine" || (tail -25 $SPLUNK_HOME/var/log/splunk/essinstaller2.log; fail_log "FAIL FAIL FAIL ********************: missing STAGE COMPLETE in $SPLUNK_HOME/var/log/splunk/essinstaller2.log : investigate please ************\nsee above last 25 lines of $SPLUNK_HOME/var/log/splunk/essinstaller2.log ")
 
 
 # v4.x(or custom setting)  : wait if need for threat list download

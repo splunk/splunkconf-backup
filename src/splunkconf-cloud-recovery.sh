@@ -262,8 +262,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240910 add var for arch and warn if arch mismatch
 # 20240915 up to 9.3.1
 # 20240917 add splunktargetbinary=sc4s logic
+# 20242020 add splunkswapmemode tag to control swapme activation and mode
 
-VERSION="20240917a"
+VERSION="20242020a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1141,6 +1142,20 @@ else
   echo "not adding cloud type option to splunkconf-init as not in AWS"
 fi
   
+if [ -z ${splunkswapmemode+x} ]; then 
+  echo "splunkswapmemode not set , default to enabled if script present"
+  splunkswapmemode=1
+elif [ "${splunkswapmemode}" == "auto" ] || [ "${splunkswapmemode}" == "1" ] || [ "${splunkswapmemode}" == "yes" ]  || [ "${splunkswapmemode}" == "enabled"  ]; then 
+  echo "splunkswapmemode enabled if script present"
+  splunkswapmemode=1
+elif [ "${splunkswapmemode}" == "0" ] || [ "${splunkswapmemode}" == "no" ] || [ "${splunkswapmemode}" == "disabled" ]; then 
+  echo "splunkswapmemode disabled by tag"
+  splunkswapmemode=0
+else
+  echo "splunkswapmemode=${splunkswapmemode} unkown value, set to enabled if script present"
+  splunkswapmemode=1
+fi
+
 if [ -z ${splunkacceptlicense+x} ]; then 
   echo "splunkacceptlicense is unset, assuming no, please read description in variables.tf and fix there as Splunk init will fail later on and please define this tag at intance level"
   splunkacceptlicense="no"
@@ -1537,19 +1552,23 @@ if [ "$MODE" != "upgrade" ]; then
   chown ${usersplunk}. ${localinstalldir}
 
   echo "#************************************** SWAP MANAGEMENT ************************"
-  # swap management
-  swapme="splunkconf-swapme.pl"
-  get_object ${remoteinstalldir}/${swapme} ${localrootscriptdir}
-  if [ ! -f "${localrootscriptdir}/${swapme}"  ]; then
-    echo "WARNING  : ${swapme} is not present in ${remoteinstalldir}/${swapme}, unable to tune swap  -> please verify the version specified is present" >> /var/log/splunkconf-cloud-recovery-info.log
-  else
-    chmod u+x ${localrootscriptdir}/${swapme}
-    if [ "${splunkmode}" == "uf" ]; then
-      echo "disabling swapme support as uf detected" >> /var/log/splunkconf-cloud-recovery-info.log
+  if [ "$splunkswapmemode" == "1" ]; then
+    # swap management
+    swapme="splunkconf-swapme.pl"
+    get_object ${remoteinstalldir}/${swapme} ${localrootscriptdir}
+    if [ ! -f "${localrootscriptdir}/${swapme}"  ]; then
+      echo "WARNING  : ${swapme} is not present in ${remoteinstalldir}/${swapme}, unable to tune swap  -> please verify the version specified is presen or use splunkswapme tag to choose the mode you prefer" >> /var/log/splunkconf-cloud-recovery-info.log
     else
-      # launching script and providing it info about the main partition that should be SSD like and have some room
-      ${localrootscriptdir}/${swapme} $PARTITIONFAST
+      chmod u+x ${localrootscriptdir}/${swapme}
+      if [ "${splunkmode}" == "uf" ]; then
+        echo "INFO: disabling swapme support as uf detected" >> /var/log/splunkconf-cloud-recovery-info.log
+      else
+        # launching script and providing it info about the main partition that should be SSD like and have some room
+        ${localrootscriptdir}/${swapme} $PARTITIONFAST
+      fi
     fi
+  else
+    echo "INFO: splunkswapme logic disabled by config"
   fi
 fi # if not upgrade
 

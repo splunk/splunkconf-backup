@@ -262,9 +262,10 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240910 add var for arch and warn if arch mismatch
 # 20240915 up to 9.3.1
 # 20240917 add splunktargetbinary=sc4s logic
-# 20242020 add splunkswapmemode tag to control swapme activation and mode
+# 20241020 add splunkswapmemode tag to control swapme activation and mode
+# 20241029 add mke2fs options to speed up initialization for big disks
 
-VERSION="20242020a"
+VERSION="20241029a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -455,6 +456,9 @@ get_packages () {
 
 setup_disk () {
     DEVNUM=1
+    MKOPTIONS=" -m 0 -T largefile4 -E lazy_itable_init"
+    # for ephemeral , we can add sparse_super with no drawback"
+    MKOPTIONSEPHEMERAL="-O sparse_super -m 0 -T largefile4 -E lazy_itable_init"
     if [[ "$splunkenableunifiedpartition" == "true" ]]; then
       echo "Usimg unified partition mode"
       MOUNTPOINT="$SPLUNK_HOME"
@@ -504,7 +508,7 @@ setup_disk () {
         vgdisplay >> /var/log/splunkconf-cloud-recovery-info.log
         lvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
         # note mkfs wont format if the FS is already mounted -> no need to check here
-        mkfs.ext4 -L storage1 /dev/vgsplunkstorage1/lvsplunkstorage1 >> /var/log/splunkconf-cloud-recovery-info.log
+        mkfs.ext4  ${MKOPTIONS} -L storage1 /dev/vgsplunkstorage1/lvsplunkstorage1 >> /var/log/splunkconf-cloud-recovery-info.log
         mkdir -p $MOUNTPOINT
         RES=`grep $MOUNTPOINT /etc/fstab`
         #echo " debug F=$RES."
@@ -547,7 +551,7 @@ setup_disk () {
       vgdisplay >> /var/log/splunkconf-cloud-recovery-info.log
       lvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
       # note mkfs wont format if the FS is already mounted -> no need to check here
-      mkfs.ext4 -L ephemeral1 /dev/vgsplunkephemeral1/lvsplunkephemeral1  >> /var/log/splunkconf-cloud-recovery-info.log
+      mkfs.ext4 ${MKOPTIONSEPHEMERAL} -L ephemeral1 /dev/vgsplunkephemeral1/lvsplunkephemeral1  >> /var/log/splunkconf-cloud-recovery-info.log
       mkdir -p $MOUNTPOINT
       RES=`grep $MOUNTPOINT /etc/fstab`
       #echo " debug F=$RES."

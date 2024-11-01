@@ -1,4 +1,4 @@
-#!/bin/bash  
+#!/bin/bash
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
 # in normal condition
@@ -135,8 +135,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20240703 add more tags
 # 20241008 add settings to tune kvstore ready wait times, add more messages to report timeouts, add support to configure these by tags
 # 20241101 change date detection check to be arithmetic and add more debug logging hopefully fixing issue with monthly tags missing
+# 20241101 change regex to pcre regex for conf file matching and improve it to catch variables with number and url like values
 
-VERSION="20241008a"
+VERSION="20241101b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -589,7 +590,7 @@ function checklock() {
 function load_settings_from_file () {
  FI=$1
  if [ -e "$FI" ]; then
-   regclass="([a-zA-Z]+)[[:space:]]*=[[:space:]]*\"{0,1}([a-zA-Z0-9_\-]+)\"{0,1}"
+   # to match empty line or comment line
    regclass2="^(#|\[)"
     # Read the file line by line, remove spaces then create a variable if start by splunk
     while read -r line; do
@@ -597,12 +598,12 @@ function load_settings_from_file () {
         debug_log "comment line or stanza line with line=$line"
       elif [ -z "${line-unset}" ]; then
         debug_log "empty line"
-      elif [[ "${line}" =~ $regclass ]]; then
-        var_name=${BASH_REMATCH[1]}
-        var_value=${BASH_REMATCH[2]}
+      elif [[ $(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:/\.\-]+)"?/\1 \2/p') ]]; then
+        # sed -E turn PCRE like syntax
+        read -r var_name var_value <<< "$(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:/\.\-]+)"?/\1 \2/p')"
         # Dynamically create the variable with its value
         declare -g "$var_name=$var_value"
-        debug_log "OK:form ok, start with splunk setting $var_name=$var_value, $var_name=${!var_name}"
+        debug_log "OK:form ok, start with splunk setting $var_name=$var_value, var_name=${var_name}."
       else
         debug_log "KO:invalid form line=$line"
       fi

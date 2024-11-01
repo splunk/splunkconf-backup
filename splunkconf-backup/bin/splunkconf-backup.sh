@@ -134,6 +134,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20230702 relax check for tags to work better when only some tags are set
 # 20240703 add more tags
 # 20241008 add settings to tune kvstore ready wait times, add more messages to report timeouts, add support to configure these by tags
+# 20241101 change date detection check to be arithmetic and add more debug logging hopefully fixing issue with monthly tags missing
 
 VERSION="20241008a"
 
@@ -1793,21 +1794,25 @@ fi
       # we use different hours to flag backups so if a month start also is a week start, we can keep 2 backups
       # we do not use 2 and 3 as there may be a summer/winter time event
       # also we take a backup during night
-      if [ "${dayofmonthnumber}" = "1" ] && [ "${hournumber}" = "04" ]; then
+      if (( "${dayofmonthnumber}" == 1 )) && (( "${hournumber}" == 4 )); then
         # first day of month  at 4
         S3TAGS="TagSet=[{Key=${tagname},Value=monthly}]"
         REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSMONTHLY}
-      elif [ "${weekdaynumber}" = "1" ] && [ "${hournumber}" = "5" ]; then
+        debug_log "hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=month, S3TAGS=$S3TAGS, REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSCURRENT}"
+      elif (( "${weekdaynumber}" == 1 )) && (( "${hournumber}" == 5 )); then
         # monday at 5
         S3TAGS="TagSet=[{Key=${tagname},Value=weekly}]"
         REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSWEEKLY}
-      elif [ "${hournumber}" = "6" ]; then
+        debug_log "hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=week, S3TAGS=$S3TAGS, REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSCURRENT}"
+      elif (( "${hournumber}" == 6 )); then
         # every day at 6
         S3TAGS="TagSet=[{Key=${tagname},Value=daily}]"
         REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSDAILY}
+        debug_log "hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=day, S3TAGS=$S3TAGS, REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSCURRENT}"
       else
         S3TAGS="TagSet=[{Key=${tagname},Value=hourly}]"
         REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSHOURLY}
+        debug_log "hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=hourly, S3TAGS=$S3TAGS, REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSCURRENT}"
       fi
       if [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
         # we use s3api because it allow to set tags at same time which s3 cp doenst suppport at the moment

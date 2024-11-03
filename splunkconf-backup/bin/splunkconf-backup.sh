@@ -136,8 +136,10 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20241008 add settings to tune kvstore ready wait times, add more messages to report timeouts, add support to configure these by tags
 # 20241101 change date detection check to be arithmetic and add more debug logging hopefully fixing issue with monthly tags missing
 # 20241101 change regex to pcre regex for conf file matching and improve it to catch variables with number and url like values
+# 20241101 initial support for allowing point in time option to kvstore (this change recovery so we need other changes)
+# 20241103 change var to KVSTOREPOINTINTIMEMODE
 
-VERSION="20241101b"
+VERSION="20241103a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -291,6 +293,10 @@ KVSTOREREADYINIT=100
 # This is the number of 10s loop to wait
 KVSTOREREADYBACKUP=100
 
+# set by default to 0 ie auto , which is currently disabled
+# by using value 1 explicitely keep the traditional API
+# by using value 2 , it change the way backup are done and it is possible to restore faster in //. however the backup is blocking write in this which can be problematic in a running env
+KVSTOREPOINTINTIMEMODE=0
 
 # stop splunk for kvstore backup (that can be a bad idea if you have cluster and stop all instances at same time or whitout maintenance mode)
 # risk is that data could be corrupted if something is written to kvstore while we do the backup
@@ -1050,6 +1056,18 @@ else
   debug_log "tag splunkrsyncmode set but not equal to 1 , ignoring"
 fi
 
+if  [ -z ${splunkkvstorepointintimemode+x} ]; then
+  debug_log "tag splunkkvstorepointintimemode not set"
+elif [ "${splunkkvstorepointintimemode}" = "0" ]; then
+  KVSTOREPOINTINTIMEMODE=0
+elif [ "${splunkkvstorepointintimemode}" = "1" ]; then
+  KVSTOREPOINTINTIMEMODE=1
+elif [ "${splunkkvstorepointintimemode}" = "2" ]; then
+  KVSTOREPOINTINTIMEMODE=2
+else
+  warn_log "tag splunkkvstorepointintimemode set but not set to valid value , ignoring"
+fi
+debug_log "KVSTOREPOINTINTIMEMODE=$KVSTOREPOINTINTIMEMODE"
 
 if [ -z ${splunks3backupbucket+x} ]; then 
   if [ -z ${s3backupbucket+x} ]; then 
@@ -1410,6 +1428,10 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       #debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running "
 
       KVARCHIVE="backupconfsplunk-kvdump-${TODAY}"
+      if [ "${KVSTOREPOINTINTIMEMODE}" -eq "2" ]; then
+        KVARCHIVE="backupconfsplunk-kvdump-pointintime-${TODAY}"
+        debug_log "changing kvdumop name to $KVARCHIVE as pointintime option set"
+      fi
       MESS1="MGMTURL=${MGMTURL} KVARCHIVE=${KVARCHIVE}";
       debug_log "pre backup : checking in case kvstore is not ready like initialization at start"
       COUNTER=${KVSTOREREADYINIT}
@@ -1439,9 +1461,15 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       fi
       # here we try to start backup anyway but if the status was not ready , something is probably wrong
       START=$(($(date +%s%N)));
-      debug_log "launching kvdump backup via REST API"
-      # Iman.Rezaei: set pointInTime option to true to take a consistent backup. We can also specify a target app for backup, rather than all of the KV Store. 
-      RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/create -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}" -pointInTime true`
+      if [ "${KVSTOREPOINTINTIMEMODE}" -eq "2" ]; then
+        OPTIONPOINTINTIME="  -pointInTime true"
+        debug_log "launching kvdump backup via REST API with archiveName=${KVARCHIVE} and $OPTIONPOINTINTIME"
+      else
+        OPTIONPOINTINTIME=""
+        # auto ie 0 or without value 1
+        debug_log "launching kvdump backup via REST API with archiveName=${KVARCHIVE} and pointInTime disabled"
+      fi
+      RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/create -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}" $OPTIONPOINTINTIME `
 
       #echo_log "KVDUMP CREATE RES=$RES"
       COUNTER=${KVSTOREREADYBACKUP}

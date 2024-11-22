@@ -102,7 +102,9 @@ resource "aws_lambda_function" "lambda_update-route53-tag" {
   #function_name         = "lambda_handler"
   handler = local.handler
   role    = aws_iam_role.role-splunk-lambda-route53-asg-tag.arn
-  runtime = "python3.9"
+  runtime = "python3.13"
+  # arch independant, arm is currently a bit cheaper
+  architectures = ["arm64"]
   timeout = 60
   # we need dns zone to be available before 
   depends_on = [aws_route53_zone.dnszone]

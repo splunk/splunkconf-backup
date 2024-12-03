@@ -27,16 +27,15 @@
 # 20240914 fix message output
 # 20241003 update output message to ease copy/paste for next steps
 # 20241020 improve messages
+# 20241203 improve messages
 
-VERSION="20241020a"
+VERSION="20241203a"
 
 ESAPP="splunk-enterprise-security_732.spl"
 ESCU="splunk-es-content-update_4330.tgz"
 
-echo "This $0 script update ES file from S3. It will try to update installes.sh script and download ES version and content update."
-echo "You are currently running with script version=$VERSION"
-echo "This version default to ES=$ESAPP and ESCU=$ESCU"
-echo "You may provide custom versions by launching either $0 ESAPP  or $0 ESAPP ESCUAPP"
+echo "This $0 script download/update ES files from S3 in order to prepare for ES installation/upgrade. It will try to update installes.sh script and download ES version and content update."
+#echo "You are currently running with script $0 version=$VERSION"
 
 # check that we are not launched
 if [[ $EUID -eq 0 ]]; then
@@ -44,26 +43,38 @@ if [[ $EUID -eq 0 ]]; then
    exit 1
 fi
 
+###### start
+
+# %u is day of week , we may use this for custom purge
+TODAY=`date '+%Y%m%d-%H:%M_%u'`;
+ID=`date '+%s'`;
+FAIL=0;
+
 NBARG=$#
 ARG1=$1
 ARG2=$2
 
+ESINSTALL="./installes.sh"
 if [ $NBARG -eq 0 ]; then
   echo "no arg, using default"
+  echo "This version default to ES=$ESAPP and ESCU=$ESCU"
+  echo "You may provide custom versions by launching either $0 ESAPP  or $0 ESAPP ESCUAPP"
 elif [ $NBARG -eq 1 ]; then
   ESAPP=$ARG1
+  ESINSTALL="./installes.sh $ESAPP"
+  echo "This version default to ESCU=$ESCU"
 elif [ $NBARG -eq 2 ]; then
   ESAPP=$ARG1
   ESCU=$ARG2
+  ESINSTALL="./installes.sh $ESAPP $ESCU"
 else
 #elif [ $NBARG -gt 1 ]; then
   echo "ERROR: Your command line contains too many ($#) arguments. Ignoring the extra data" 
   ESAPP=$ARG1
   ESCU=$ARG2
+  ESINSTALL="./installes.sh $ESAPP $ESCU"
 fi
 echo "INFO: running $0 version=$VERSION with ESAPP=$ESAPP and ESCU=$ESCU (ESCU is optional)" 
-
-
 
 # setting up token (IMDSv2)
 TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
@@ -80,6 +91,7 @@ mkdir -p $localappsinstalldir
 
 if [ -z "$splunks3installbucket" ]; then
   echo "KO: ATTENTION TAGS NOT SET in instance tags, please correct and relaunch"
+  ((FAIL++))
   exit 1
 else
   echo "OK: Good ! Tags present and set : splunks3installbucket=$splunks3installbucket"
@@ -95,6 +107,7 @@ if [ -e "$localinstalldir/installes.sh" ]; then
   echo "OK: installes.sh present $VERINSTES"
 else
   echo "KO: installes.sh is NOT present in s3 install at $remoteinstalldir:  Please upload scripts to s3 install"
+  ((FAIL++))
 fi
 
 
@@ -103,6 +116,7 @@ if [ -e "$localappsinstalldir/$ESAPP" ]; then
   echo "OK: ES install file $ESAPP present at $remoteappsdir and downloaded to $localappsinstalldir for installes.sh later use"
 else
   echo "KO: ES install file $ESAPP is NOT present in s3 install at $remoteappsdir: Please upload correct ES app version to s3 install or update this script is you want to use a different version"
+  ((FAIL++))
 fi
 
 
@@ -111,7 +125,17 @@ if [ -e "$localappsinstalldir/$ESCU" ]; then
   echo "OK: ES Content update install file $ESCU present at $remoteappsdir and downloaded to $localappsinstalldir for installes.sh later use"
 else
   echo "KO: ES Content update file $ESCU is NOT present in s3 install at $remoteappsdir : Please upload correct version to s3 install or update this script to a different version. You may ignore this is if you prefer to install/upgrade ES content update from Splunk"
+  # not a real fail
+  #((FAIL++))
 fi
 
-echo "INFO: end of script, if everything is ok please run as user splunk ./installes.sh $ESAPP from /opt/splunk/scripts directory (sh only) or just ./installes.sh if using the default version from install script"
+if [ $FAIL -gt 0 ]; then
+  echo "There were ${FAIL} fail condition(s) detected, please review messages, fix and rerun script before proceeding to installation step. If you are really sure, you may still continue with esinstall steps by running ${ESINSTALL} !"
+  PROCEED="N"
+  #exit 1
+else
+  echo "OK: all looks good to continue to next step"
+  PROCEED="Y"
+  echo "INFO: please run as user splunk  ${ESINSTALL} from /opt/splunk/scripts directory (sh only) to install/upgrade ES and run es setup" 
+fi 
 

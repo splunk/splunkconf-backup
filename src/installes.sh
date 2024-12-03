@@ -58,8 +58,9 @@
 # 20241020 change output order on essinstaller error check to make it easier to spot
 # 20241020 more bracketed paste mode disabling
 # 20241203 rework test logic at end of setup to improve messages and add crash.log detection and print log if detected
+# 20241203 add info on splunk version in output
 
-VERSION="20241203b"
+VERSION="20241203c"
 
 SCRIPTNAME="installes"
 
@@ -251,6 +252,7 @@ else
 fi
 
 version=`${SPLUNK_HOME}/bin/splunk version | cut -d ' ' -f 2`;
+echo_log "Splunk version $version"
 if [[ $version =~ ^([^.]+\.[^.]+)\. ]]; then
   ver=${BASH_REMATCH[1]}
   debug_log "current major version is=$ver"

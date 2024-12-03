@@ -57,8 +57,9 @@
 # 20241015 relax syntax check for installation confirmation 
 # 20241020 change output order on essinstaller error check to make it easier to spot
 # 20241020 more bracketed paste mode disabling
+# 20241203 rework test logic at end of setup to improve messages and add crash.log detection and print log if detected
 
-VERSION="20241020b"
+VERSION="20241203a"
 
 SCRIPTNAME="installes"
 
@@ -554,20 +555,20 @@ echo_log "ES installed and setup run. Please check for errors in $SPLUNK_HOME/va
 # INFO STAGE COMPLETE: "finalize"
 # 2020-06-08 20:12:46,423+0000 INFO pid=29627 tid=MainThread file=essinstaller2.py:wrapper:82 | STAGE COMPLETE: "finalize"
 # 2020-06-08 20:12:46,424+0000 INFO pid=29627 tid=MainThread file=essinstall.py:do_install:265 | Initialization complete, please restart Splunk
-tail -5 $SPLUNK_HOME/var/log/splunk/essinstaller2.log | grep -q " STAGE COMPLETE: \"finalize\"" && echo_log "OK: STAGE complete finalize FOUND in $SPLUNK_HOME/var/log/splunk/essinstaller2.log. That is a good sign the install/upgrade went fine" || (tail -25 $SPLUNK_HOME/var/log/splunk/essinstaller2.log; fail_log "FAIL FAIL FAIL ********************: missing STAGE COMPLETE in $SPLUNK_HOME/var/log/splunk/essinstaller2.log : investigate please ************\nsee above last 25 lines of $SPLUNK_HOME/var/log/splunk/essinstaller2.log ")
-
-
-# v4.x(or custom setting)  : wait if need for threat list download
+if [ `tail -5 $SPLUNK_HOME/var/log/splunk/essinstaller2.log | grep -q " STAGE COMPLETE: \"finalize\""` ]; then
+  echo_log "OK: STAGE complete finalize FOUND in $SPLUNK_HOME/var/log/splunk/essinstaller2.log. That is a good sign the install/upgrade went fine" 
+  echo_log "Finished"
+  echo_log "Please login to web interface and verify that no errors are present"
+  echo_log "This script has just done the initial ES setup, please continue with the rest of the ES installation guide steps as needed"
+  echo_log "in particular, don't forget to : install/upgrade TA (forSH/, configure indexes for ES in org_all_indexes or org_es_indexes via CM for the version of ES used, tune the SH with appropriate scheduling and tuning for ES, tune indexers , ...."
+else
+  tail -25 $SPLUNK_HOME/var/log/splunk/essinstaller2.log; fail_log "FAIL FAIL FAIL ********************: missing STAGE COMPLETE in $SPLUNK_HOME/var/log/splunk/essinstaller2.log : investigate please ************\nsee above last 25 lines of $SPLUNK_HOME/var/log/splunk/essinstaller2.log ")
+  echo_log "looking for recent crash log files that could have happened during setup"
+  find $SPLUNK_HOME/var/log/splunk -name "crash*" -mmin -5 -print
+fi
 
 #echo "INFO: Restarting "
 #${SPLUNK_HOME}/bin/splunk restart
 
 
-# for v4.x
-#echo "Finished. Please wait for threatlist to download if you need them and the instance is connected"
-# v5.x
-echo_log "Finished"
-echo_log "Please login to web interface and verify that no errors are present"
-echo_log "This script has just done the initial ES setup, please continue with the rest of the ES installation guide steps as needed"
-echo_log "in particular, don't forget to : install/upgrade TA (forSH/, configure indexes for ES in org_all_indexes, deploy SA-For-indexer-minimal (exclude all the TA stuff) on indexers for the version of ES used, tune the SH with appropriate scheduling and tuning for ES, tune indexers , ...."
 

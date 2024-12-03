@@ -517,7 +517,7 @@ fi
 # starting with ES 6.2 , the exclude TA option no longer exist (the TA ae no longer shipped)
 
 if [[ "${ESINSTALLERNFORCENOTA}" == "yes" ]]; then
-  echo_log "INFO: running ES setup with TA excluded (please wait for setup to complete...)"
+  echo_log "INFO: running ES setup with TA excluded (please wait for setup to complete...it will take a while, if you want to follow what ES setup does, you may run in another session tail -f $SPLUNK_HOME/var/log/splunk/essinstaller2.log)"
   if [[ "${SHC}" -eq 1 ]]; then
 	${SPLUNK_HOME}/bin/splunk search '| essinstall --deployment_type shc_deployer --skip-ta Splunk_TA_bluecoat-proxysg Splunk_TA_bro Splunk_TA_flowfix Splunk_TA_juniper Splunk_TA_mcafee Splunk_TA_nessus Splunk_TA_nix Splunk_TA_oracle Splunk_TA_ossec Splunk_TA_rsa-securid Splunk_TA_sophos Splunk_TA_sourcefire Splunk_TA_symantec-ep Splunk_TA_ueba Splunk_TA_websense-cg Splunk_TA_windows TA-airdefense TA-alcatel TA-cef TA-fortinet TA-ftp TA-nmap TA-tippingpoint TA-trendmicro ' -timeout 600 
   else
@@ -564,7 +564,7 @@ if tail -5 "$SPLUNK_HOME/var/log/splunk/essinstaller2.log" | grep -q " STAGE COM
   echo_log "This script has just done the initial ES setup, please continue with the rest of the ES installation guide steps as needed"
   echo_log "in particular, don't forget to : install/upgrade TA (forSH/, configure indexes for ES in org_all_indexes or org_es_indexes via CM for the version of ES used, tune the SH with appropriate scheduling and tuning for ES, tune indexers , ...."
 else
-  tail -25 $SPLUNK_HOME/var/log/splunk/essinstaller2.log; fail_log "FAIL FAIL FAIL ********************: missing STAGE COMPLETE in $SPLUNK_HOME/var/log/splunk/essinstaller2.log : investigate please ************\nsee above last 25 lines of $SPLUNK_HOME/var/log/splunk/essinstaller2.log ")
+  tail -25 $SPLUNK_HOME/var/log/splunk/essinstaller2.log; fail_log "FAIL FAIL FAIL ********************: missing STAGE COMPLETE in $SPLUNK_HOME/var/log/splunk/essinstaller2.log : investigate please ************\nsee above last 25 lines of $SPLUNK_HOME/var/log/splunk/essinstaller2.log "
   echo_log "looking for recent crash log files that could have happened during setup"
   find $SPLUNK_HOME/var/log/splunk -name "crash*" -mmin -5 -print
 fi

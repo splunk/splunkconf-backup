@@ -29,12 +29,12 @@
 # 20241020 improve messages
 # 20241203 improve messages
 
-VERSION="20241203a"
+VERSION="20241203b"
 
 ESAPP="splunk-enterprise-security_732.spl"
 ESCU="splunk-es-content-update_4330.tgz"
 
-echo "This $0 script download/update ES files from S3 in order to prepare for ES installation/upgrade. It will try to update installes.sh script and download ES version and content update."
+echo "This script $0 download/update ES files from S3 in order to prepare for ES installation/upgrade. It will try to update installes.sh script and download ES version and content update."
 #echo "You are currently running with script $0 version=$VERSION"
 
 # check that we are not launched

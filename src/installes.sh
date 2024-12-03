@@ -570,5 +570,6 @@ fi
 #echo "INFO: Restarting "
 #${SPLUNK_HOME}/bin/splunk restart
 
-
+# try to fix terminal if ever it went wrong 
+stty sane
 

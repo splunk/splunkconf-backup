@@ -62,7 +62,7 @@
 # 20250115 change sha check to warning if custom build used (because hardcoded sha wont match)
 # 20250115 add choice to only do setup (in case installation already done but setup failed)
 
-VERSION="20250115c"
+VERSION="20250115d"
 
 SCRIPTNAME="installes"
 
@@ -487,7 +487,7 @@ fi
 
 
 ################################ START INSTALL HERE #########################################
-if [ "${PROCEEDSKIPINSTALL}"  -eq "N" ]; then
+if [ "${PROCEEDSKIPINSTALL}"  == "N" ]; then
   echo_log "INFO: install/updating ES app from ${ESAPPFULL} with splunk install located in ${SPLUNK_HOME}"
 
   # timeout not supported here
@@ -496,39 +496,37 @@ if [ "${PROCEEDSKIPINSTALL}"  -eq "N" ]; then
   # ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true -auth admin:${PASSWORD}
   #App 'xxxxxx/yyyyyy/splunk-enterprise-security_472.spl' installed 
   #You need to restart the Splunk Server (splunkd) for your changes to take effect.
-else
-  echo_log "installation skipped at user request"
-fi
 
-# ES Content update
-if [[  "${INSTALLCONTENTUPDATE}" -eq 1 ]]; then
-  if [[ "${SHC}" -eq 0 ]]; then
-    echo_log "INFO: install/updating ES content update app from ${CONTENTUPDATE} with splunk install located in ${SPLUNK_HOME} "
-    ${SPLUNK_HOME}/bin/splunk install app ${CONTENTUPDATE} -update true 
-  else 
-    echo "INFO: deployer mode, extracting ES Content Update app to shcluster app instead"
-    tar -C"${SPLUNK_HOME}/etc/shcluster/apps/" -zxvf ${CONTENTUPDATE} 
+  # ES Content update
+  if [[  "${INSTALLCONTENTUPDATE}" -eq 1 ]]; then
+    if [[ "${SHC}" -eq 0 ]]; then
+      echo_log "INFO: install/updating ES content update app from ${CONTENTUPDATE} with splunk install located in ${SPLUNK_HOME} "
+      ${SPLUNK_HOME}/bin/splunk install app ${CONTENTUPDATE} -update true 
+    else 
+      echo "INFO: deployer mode, extracting ES Content Update app to shcluster app instead"
+      tar -C"${SPLUNK_HOME}/etc/shcluster/apps/" -zxvf ${CONTENTUPDATE} 
+    fi
   fi
-fi
 
-if [[ $INSTALLWITHSETUP = "yes" ]]; then 
-  echo_log "INFO: install with setup option set, continuing with setup after install."
-  sleep 5
+  if [[ $INSTALLWITHSETUP = "yes" ]]; then 
+    echo_log "INFO: install with setup option set, continuing with setup after install."
+    sleep 5
+  else
+    echo_log "OK: install ES done. Restarting splunk in 5s"
+    sleep 5
+
+    echo_log "INFO: restarting splunk (ignore warning there, we haven't yet done ES setup)"
+    echo_log "INFO: if you get prompted here by systemctl, you havent configured polkit properly , please fix this before running this script"
+    ${SPLUNK_HOME}/bin/splunk restart 
+ 
+    echo_log "INFO: waiting 5s after restart"
+    sleep 5 
+  fi
 else
-  echo_log "OK: install ES done. Restarting splunk in 5s"
-  sleep 5
-
-  echo_log "INFO: restarting splunk (ignore warning there, we haven't yet done ES setup)"
-  echo_log "INFO: if you get prompted here by systemctl, you havent configured polkit properly , please fix this before running this script"
-  ${SPLUNK_HOME}/bin/splunk restart 
-
-  echo_log "INFO: waiting 5s after restart"
-  sleep 5 
-
-  ${SPLUNK_HOME}/bin/splunk login -auth $SPLADMIN:$SPLPASS
+  echo_log "installation step skipped at user request"
 fi
 
-
+${SPLUNK_HOME}/bin/splunk login -auth $SPLADMIN:$SPLPASS
 
 # debug flags in case TCPOutloop crash with 8.2.x
 

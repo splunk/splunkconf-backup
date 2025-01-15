@@ -62,7 +62,7 @@
 # 20250115 change sha check to warning if custom build used (because hardcoded sha wont match)
 # 20250115 add choice to only do setup (in case installation already done but setup failed)
 
-VERSION="20250115b"
+VERSION="20250115c"
 
 SCRIPTNAME="installes"
 
@@ -487,7 +487,7 @@ fi
 
 
 ################################ START INSTALL HERE #########################################
-if [  ${PROCEEDSKIPINSTALL}  -eq "N" ]; then
+if [ "${PROCEEDSKIPINSTALL}"  -eq "N" ]; then
   echo_log "INFO: install/updating ES app from ${ESAPPFULL} with splunk install located in ${SPLUNK_HOME}"
 
   # timeout not supported here
@@ -497,7 +497,7 @@ if [  ${PROCEEDSKIPINSTALL}  -eq "N" ]; then
   #App 'xxxxxx/yyyyyy/splunk-enterprise-security_472.spl' installed 
   #You need to restart the Splunk Server (splunkd) for your changes to take effect.
 else
-  echo_log "installed skipped at user request"
+  echo_log "installation skipped at user request"
 fi
 
 # ES Content update

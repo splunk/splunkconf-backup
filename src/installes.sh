@@ -59,8 +59,9 @@
 # 20241020 more bracketed paste mode disabling
 # 20241203 rework test logic at end of setup to improve messages and add crash.log detection and print log if detected
 # 20241203 add info on splunk version in output
+# 20250115 change sha check to warning if custom build used (because hardcoded sha wont match)
 
-VERSION="20241203c"
+VERSION="20250115"
 
 SCRIPTNAME="installes"
 
@@ -194,19 +195,23 @@ CONTENTUPDATE=`LANG=C;find ${INSTALLAPPDIR}  -name  "splunk-es-content-update_*.
 NBARG=$#
 ARG1=$1
 ARG2=$2
+USEESAPPBYARG=0
 
 if [ $NBARG -eq 0 ]; then
   echo "no arg, using default"
 elif [ $NBARG -eq 1 ]; then
   ESAPP=$ARG1
+  USEESAPPBYARG=1
 elif [ $NBARG -eq 2 ]; then
   ESAPP=$ARG1
+  USEESAPPBYARG=1
   ESCU=$ARG2
   CONTENTUPDATE=$ESCU
 else
 #elif [ $NBARG -gt 1 ]; then
   echo "ERROR: Your command line contains too many ($#) arguments. Ignoring the extra data"
   ESAPP=$ARG1
+  USEESAPPBYARG=1
   ESCU=$ARG2
   CONTENTUPDATE=$ESCU
 fi
@@ -356,6 +361,8 @@ else
   debug_log "GOT=${SHAb}"
   if [ "${EXPECTEDSHA}" = "${SHAb}" ]; then
     echo_log "OK: SHA256 verified successfully for Splunk ES installation files ${ESAPPFULL} ${SHAb}"
+  elif [ ${USEESAPPBYARG} -eq 1 ]; then
+    echo_log "OK: file  ${ESAPPFULL} SHA256=${SHAb} custom app provided cant check"
   else
     fail_log "ERROR: SHA256 doesnt match for ${ESAPPFULL}. possible binary corruption (or you changed binary and it doesn't match expected hash), please investigate why the check failed. EXP=${EXPECTEDSHA},GOT=${SHAb} "
     ((FAIL++))

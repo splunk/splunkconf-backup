@@ -60,8 +60,9 @@
 # 20241203 rework test logic at end of setup to improve messages and add crash.log detection and print log if detected
 # 20241203 add info on splunk version in output
 # 20250115 change sha check to warning if custom build used (because hardcoded sha wont match)
+# 20250115 add choice to only do setup (in case installation already done but setup failed)
 
-VERSION="20250115"
+VERSION="20250115b"
 
 SCRIPTNAME="installes"
 
@@ -450,6 +451,17 @@ else
   debug_log "user capability check not done as not yet v8+"
 fi
 
+PROCEEDSKIPINSTALL="N"
+read -p "Do you want to skip installation and only do setup (Y/N) ( default = ${PROCEEDSKIPINSTALL})? " input
+PROCEEDSKIPINSTALL=${input:-$PROCEEDSKIPINSTALL}
+if [ $PROCEEDSKIPINSTALL == "Y" ] || [ $PROCEEDSKIPINSTALL == "y" ] || [ $PROCEEDSKIPINSTALL == "YES" ] || [ $PROCEEDSKIPINSTALL == "yes" ]; then
+  echo_log "user want to skip installation"
+  PROCEEDSKIPINSTALL="Y"
+else 
+  debug_log "user want to skip installation"
+  PROCEEDSKIPINSTALL="N"
+fi
+
 if [ $FAIL -gt 0 ]; then
   fail_log "There were ${FAIL} fail condition(s) detected, please review messages, fix and rerun script before proceeding to installation step. If you are really sure, you may still try the installation !" 
   PROCEED="N"
@@ -475,15 +487,18 @@ fi
 
 
 ################################ START INSTALL HERE #########################################
-echo_log "INFO: install/updating ES app from ${ESAPPFULL} with splunk install located in ${SPLUNK_HOME} "
+if [  ${PROCEEDSKIPINSTALL}  -eq "N" ]; then
+  echo_log "INFO: install/updating ES app from ${ESAPPFULL} with splunk install located in ${SPLUNK_HOME}"
 
-# timeout not supported here
-# ES install/upgrade
-${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true 
-# ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true -auth admin:${PASSWORD}
-#App 'xxxxxx/yyyyyy/splunk-enterprise-security_472.spl' installed 
-#You need to restart the Splunk Server (splunkd) for your changes to take effect.
-
+  # timeout not supported here
+  # ES install/upgrade
+  ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true 
+  # ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true -auth admin:${PASSWORD}
+  #App 'xxxxxx/yyyyyy/splunk-enterprise-security_472.spl' installed 
+  #You need to restart the Splunk Server (splunkd) for your changes to take effect.
+else
+  echo_log "installed skipped at user request"
+fi
 
 # ES Content update
 if [[  "${INSTALLCONTENTUPDATE}" -eq 1 ]]; then

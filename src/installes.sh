@@ -61,8 +61,9 @@
 # 20241203 add info on splunk version in output
 # 20250115 change sha check to warning if custom build used (because hardcoded sha wont match)
 # 20250115 add choice to only do setup (in case installation already done but setup failed)
+# 20250123 up to 8.0.2
 
-VERSION="20250115d"
+VERSION="20250123a"
 
 SCRIPTNAME="installes"
 
@@ -156,7 +157,8 @@ fi
 #ESAPP="splunk-enterprise-security_720.spl";
 #ESAPP="splunk-enterprise-security_730.spl";
 #ESAPP="splunk-enterprise-security_731.spl";
-ESAPP="splunk-enterprise-security_732.spl";
+#ESAPP="splunk-enterprise-security_732.spl";
+ESAPP="splunk-enterprise-security_802.spl";
 
 
 # SHA256 checksum (splunk-enterprise-security_500.spl) b2a5e4f8297554f4e1818f749386480cfce148e87be8920df939a4282223222c
@@ -184,10 +186,11 @@ ESAPP="splunk-enterprise-security_732.spl";
 # SHA256 checksum (splunk-enterprise-security_730.spl) 568f72730d61159175495bec665fb2ae2282b760aa9698b52b1682e2acf925dc
 # SHA256 checksum (splunk-enterprise-security_731.spl) 1ec5e756206eae020135d52bba4e716a9afc0353a3d2793f25bd351117070102
 # SHA256 checksum (splunk-enterprise-security_732.spl) 37581ae057a26f9c7eac04e16f46c11ed8d7bf194491857ff478d874e6f8d1aa
+# SHA256 checksum (splunk-enterprise-security_802.spl) 4f996b12b7ff9ed8d27aebb8b0646864e06bca869b3e04472ff9a91dddeab5fe
 
 # SHA256 checksum (splunk-es-content-update_3240.tgz) 49aca3ab3bb1291f988459708e9a589aacc5b64caed493831a00546c36181ea6
 
-EXPECTEDSHA="37581ae057a26f9c7eac04e16f46c11ed8d7bf194491857ff478d874e6f8d1aa"
+EXPECTEDSHA="4f996b12b7ff9ed8d27aebb8b0646864e06bca869b3e04472ff9a91dddeab5fe"
 
 
 CONTENTUPDATE=`LANG=C;find ${INSTALLAPPDIR}  -name  "splunk-es-content-update_*.tgz" | sort | tail -1`

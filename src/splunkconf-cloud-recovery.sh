@@ -265,8 +265,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20241020 add splunkswapmemode tag to control swapme activation and mode
 # 20241029 add mke2fs options to speed up initialization for big disks
 # 20241115 up to 9.3.2
+# 20250406 up to 9.4.1
 
-VERSION="20241115a"
+VERSION="20250406a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1582,8 +1583,8 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
-splversion="9.3.2"
-splhash="d8bb32809498"
+splversion="9.4.1"
+splhash="e3bdab203ac8"
 splversionhash=${splversion}-${splhash}""
 # this is spl arch, arch will be the one from os
 splarch="x86_64"

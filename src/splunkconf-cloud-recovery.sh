@@ -266,8 +266,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20241029 add mke2fs options to speed up initialization for big disks
 # 20241115 up to 9.3.2
 # 20250406 up to 9.4.1
+# 20250505 up to 9.4.2
 
-VERSION="20250406a"
+VERSION="20250505a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1583,13 +1584,13 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
-splversion="9.4.1"
-splhash="e3bdab203ac8"
+splversion="9.4.2"
+splhash="e9664af3d956"
 splversionhash=${splversion}-${splhash}""
 # this is spl arch, arch will be the one from os
 splarch="x86_64"
 arch=`uname --hardware-platform`
-
+# wget -O splunk-9.4.2-e9664af3d956.x86_64.rpm "https://download.splunk.com/products/splunk/releases/9.4.2/linux/splunk-9.4.2-e9664af3d956.x86_64.rpm"
 
 if [ "$splunkmode" == "uf" ]; then 
   splbinary="splunkforwarder-${splversionhash}.${splarch}.rpm"

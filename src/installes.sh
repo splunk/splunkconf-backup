@@ -62,8 +62,9 @@
 # 20250115 change sha check to warning if custom build used (because hardcoded sha wont match)
 # 20250115 add choice to only do setup (in case installation already done but setup failed)
 # 20250123 up to 8.0.2
+# 20250505 add auto workaround for outputs reload that can lead to crash
 
-VERSION="20250123a"
+VERSION="20250505a"
 
 SCRIPTNAME="installes"
 
@@ -496,6 +497,20 @@ if [ "${PROCEEDSKIPINSTALL}"  == "N" ]; then
   # timeout not supported here
   # ES install/upgrade
   ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true 
+
+  A=`find /opt/splunk/etc/apps/SplunkEnterpriseSecuritySuite/install -name "Splunk_TA_ueba*spl" -print`
+  #Splunk_TA_ueba-3.2.0-73256.spl
+  echo "repackaging to add simple outputs reload in $A"
+  ls -l $A
+  tar -C "/tmp" -xf $A
+  cat << EOT >> /tmp/Splunk_TA_ueba/default/app.conf
+[triggers]
+reload.outputs = simple
+EOT
+
+  tar -C"/tmp" -zcf $A Splunk_TA_ueba
+  ls -l $A
+
   # ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true -auth admin:${PASSWORD}
   #App 'xxxxxx/yyyyyy/splunk-enterprise-security_472.spl' installed 
   #You need to restart the Splunk Server (splunkd) for your changes to take effect.

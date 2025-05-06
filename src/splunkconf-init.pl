@@ -126,6 +126,7 @@
 # 20240805 Remove CPUshares to match Splunk 9.3 and replace MemoryLimit with MemoryMax  
 # 20240805 add both mode for cgroup v1 and v2 in the service file
 # 20240806 update systemd service with more cases for recent kernels
+# 20250506 fix version detection regex to work also for v10
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -135,7 +136,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20240806a";
+$VERSION="20250506a";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -568,8 +569,9 @@ my $SPLVERSIONEXTRA="0";
 
 # examples
 # Splunk 8.0.6 (build 152fb4b2bb96)
+# Splunk 10.0.0 (build ef4e484d5eac)
 # Splunk Universal Forwarder 9.2.1 (build 78803f08aabb)
-my $RES= $VERSIONFULL =~ /Splunk\s+[\w\s]*(\d+)\.(\d+)\.(\d+)/;
+my $RES= $VERSIONFULL =~ /Splunk\s+[a-zA-Z\s]*(\d+)\.(\d+)\.(\d+)\s+\(/;
 if ($RES) {
   $SPLVERSIONMAJ=$1;
   $SPLVERSIONMIN=$2;

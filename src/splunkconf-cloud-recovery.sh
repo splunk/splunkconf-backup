@@ -267,8 +267,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20241115 up to 9.3.2
 # 20250406 up to 9.4.1
 # 20250505 up to 9.4.2
+# 20250606 add auto SSM clean timer service
 
-VERSION="20250505a"
+VERSION="20250506a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2753,6 +2754,47 @@ else
     bash ./${splunkpostextracommand}
   fi
 fi
+
+
+echo "***************************** CLEAN UP SSM timers *********************
+# AWS SSM files may accumulate leading to a disk full situation and as such preventing Splunk to run
+
+cat <<EOF >/etc/systemd/system/cleanssm.service
+
+#
+#  Clean AWS SSM directory to free up space added by SSM jobs 
+
+[Unit]
+Description=Purge old AWS SSM files
+After=sysstat.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/find /var/lib/amazon/ssm -mmin +180 -delete
+EOF
+
+
+
+cat <<EOF >/etc/systemd/system/cleanssm.timer
+[Unit]
+Description=Timer for  purge old AWS SSM files
+
+[Timer]
+OnBootSec=10min
+#OnUnitActiveSec=10min
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl daemon-reload
+systemctl status cleanssm.timer
+systemctl enable cleanssm.timer
+systemctl stop cleanssm.timer
+systemctl start cleanssm.timer
+systemctl status cleanssm.timer
 
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;

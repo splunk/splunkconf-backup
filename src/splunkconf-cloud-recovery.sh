@@ -272,7 +272,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20250609 automatically adapt values for splunkenableunifiedpartition 
 # 20250609 adding compat layer for splunkenableunifiedpartition
 
-VERSION="20250509c"
+VERSION="20250509d"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -467,7 +467,7 @@ setup_disk () {
     # for ephemeral , we can add sparse_super with no drawback"
     MKOPTIONSEPHEMERAL="-O sparse_super -m 0 -T largefile4 -E lazy_itable_init"
     if [[ "$splunkenableunifiedpartition" == "true" ]]; then
-      echo "Usimg unified partition mode"
+      echo "Using unified partition mode"
       MOUNTPOINT="$SPLUNK_HOME"
     else
       echo "Using distinct partition mode"
@@ -594,9 +594,9 @@ setup_disk () {
        chown -R ${usersplunk}. /data/cold
     fi
     if [[ "$splunkenableunifiedpartition" == "true" ]]; then
-      echo "adding compatibility layeri for unified partition"
+      echo "adding compatibility layer for unified partition"
       mkdir -p /data/vol1/
-      ln -s /opt/splunk/var/lib/splunk indexes
+      ln -s /opt/splunk/var/lib/splunk /data/vol1/indexes
     fi
 }
 

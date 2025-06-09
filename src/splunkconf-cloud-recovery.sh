@@ -270,8 +270,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20250606 add auto SSM clean timer service
 # 20250609 disable splunksecrets by default for all cases to avoid version conflict with python library
 # 20250609 automatically adapt values for splunkenableunifiedpartition 
+# 20250609 adding compat layer for splunkenableunifiedpartition
 
-VERSION="20250509b"
+VERSION="20250509c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -591,6 +592,11 @@ setup_disk () {
     fi
     if [ -e "/data/cold" ]; then
        chown -R ${usersplunk}. /data/cold
+    fi
+    if [[ "$splunkenableunifiedpartition" == "true" ]]; then
+      echo "adding compatibility layeri for unified partition"
+      mkdir -p /data/vol1/
+      ln -s /opt/splunk/var/lib/splunk indexes
     fi
 }
 

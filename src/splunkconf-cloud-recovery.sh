@@ -268,8 +268,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20250406 up to 9.4.1
 # 20250505 up to 9.4.2
 # 20250606 add auto SSM clean timer service
+# 20250609 disable splunksecrets by default for all cases to avoid version conflict with python library
 
-VERSION="20250506a"
+VERSION="20250509a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1818,10 +1819,12 @@ else
   fi
   # enable the tuning done via rc.local and restart polkit so it takes into account new rules
   sysctl --system;sleep 1;chmod u+x /etc/rc.d/rc.local;systemctl start rc-local;systemctl restart polkit
-  echo "#****************************************** splunksecrets deployment ***********************************"
-  # deploying splunk secrets
-  if [ $splunkconnectedmode == 1 ]; then 
-    pip3 install splunksecrets
+  if [ "$splunksecretsdeploymentenable" -eq "1" ]; then 
+    echo "#****************************************** splunksecrets deployment ***********************************"
+    # deploying splunk secrets
+    if [ $splunkconnectedmode == 1 ]; then 
+      pip3 install splunksecrets
+    fi
   fi
 fi
 

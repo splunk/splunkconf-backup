@@ -2756,7 +2756,7 @@ else
 fi
 
 
-echo "***************************** CLEAN UP SSM timers *********************
+echo "***************************** CLEAN UP SSM timers *********************"
 # AWS SSM files may accumulate leading to a disk full situation and as such preventing Splunk to run
 
 cat <<EOF >/etc/systemd/system/cleanssm.service

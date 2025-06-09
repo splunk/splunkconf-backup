@@ -269,8 +269,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20250505 up to 9.4.2
 # 20250606 add auto SSM clean timer service
 # 20250609 disable splunksecrets by default for all cases to avoid version conflict with python library
+# 20250609 automatically adapt values for splunkenableunifiedpartition 
 
-VERSION="20250509a"
+VERSION="20250509b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1048,6 +1049,8 @@ fi
 if [ -z ${splunkenableunifiedpartition+x} ]; then 
   echo "splunkenableunifiedpartition is unset, falling back to default value false"
   splunkenableunifiedpartition="false"
+elif [[ $splunkenableunifiedpartition -eq "1" || $splunkenableunifiedpartition -eq "yes" ]]; then
+  splunkenableunifiedpartition="true"
 fi
 
 # splunkhostmodeos 

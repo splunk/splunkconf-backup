@@ -271,8 +271,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20250609 disable splunksecrets by default for all cases to avoid version conflict with python library
 # 20250609 automatically adapt values for splunkenableunifiedpartition 
 # 20250609 adding compat layer for splunkenableunifiedpartition
+# 20250610 change mke2fs options so it create more inodes per G , to prevent from a inode shortage especially with small FS and unified partition mode
 
-VERSION="20250509d"
+VERSION="20250510a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -465,7 +466,9 @@ setup_disk () {
     DEVNUM=1
     MKOPTIONS=" -m 0 -T largefile4 -E lazy_itable_init"
     # for ephemeral , we can add sparse_super with no drawback"
-    MKOPTIONSEPHEMERAL="-O sparse_super -m 0 -T largefile4 -E lazy_itable_init"
+    #MKOPTIONSEPHEMERAL="-O sparse_super -m 0 -T largefile4 -E lazy_itable_init"
+    # largefile4 may create too few inodes , check with df -i  ,switching to huge which create nore inodes
+    MKOPTIONSEPHEMERAL="-O sparse_super -m 0 -T huge -E lazy_itable_init"
     if [[ "$splunkenableunifiedpartition" == "true" ]]; then
       echo "Using unified partition mode"
       MOUNTPOINT="$SPLUNK_HOME"

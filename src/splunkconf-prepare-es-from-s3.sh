@@ -28,10 +28,11 @@
 # 20241003 update output message to ease copy/paste for next steps
 # 20241020 improve messages
 # 20241203 improve messages
+# 20250511 up 8.1.0
 
-VERSION="20241203b"
+VERSION="20250611a"
 
-ESAPP="splunk-enterprise-security_732.spl"
+ESAPP="splunk-enterprise-security_810.spl"
 ESCU="splunk-es-content-update_4330.tgz"
 
 echo "This script $0 download/update ES files from S3 in order to prepare for ES installation/upgrade. It will try to update installes.sh script and download ES version and content update."

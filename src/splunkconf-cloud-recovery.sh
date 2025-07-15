@@ -272,8 +272,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20250609 automatically adapt values for splunkenableunifiedpartition 
 # 20250609 adding compat layer for splunkenableunifiedpartition
 # 20250610 change mke2fs options so it create more inodes per G , to prevent from a inode shortage especially with small FS and unified partition mode
+# 20250715 update/fix timer service settings
 
-VERSION="20250510a"
+VERSION="20250715a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2797,8 +2798,8 @@ Description=Timer for  purge old AWS SSM files
 
 [Timer]
 OnBootSec=10min
-#OnUnitActiveSec=10min
-RandomizedDelaySec=10min
+OnActiveSec=10min
+RandomizedDelaySec=1min
 
 [Install]
 WantedBy=timers.target

@@ -65,8 +65,9 @@
 # 20250505 add auto workaround for outputs reload that can lead to crash
 # 20250611 up to 8.1.0
 # 20250825 up to 8.1.1
+# 20250825 adding variable for output reload workaround and disabling by default 
 
-VERSION="20250825a"
+VERSION="20250825b"
 
 SCRIPTNAME="installes"
 
@@ -74,6 +75,9 @@ SCRIPTNAME="installes"
 ESINSTALLERNFORCENOTA="no"
 
 INSTALLWITHSETUP="yes"
+
+# no or yes
+ENABLEWORKAROUNDOUTPUTRELOAD="no"
 
 ###### function definition
 
@@ -504,18 +508,23 @@ if [ "${PROCEEDSKIPINSTALL}"  == "N" ]; then
   # ES install/upgrade
   ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true 
 
-  A=`find /opt/splunk/etc/apps/SplunkEnterpriseSecuritySuite/install -name "Splunk_TA_ueba*spl" -print`
-  #Splunk_TA_ueba-3.2.0-73256.spl
-  echo "repackaging to add simple outputs reload in $A"
-  ls -l $A
-  tar -C "/tmp" -xf $A
-  cat << EOT >> /tmp/Splunk_TA_ueba/default/app.conf
+  if [ "${ENABLEWORKAROUNDOUTPUTRELOAD}"  == "yes" ] || [ "${ENABLEWORKAROUNDOUTPUTRELOAD}"  == "YES" ] || [ "${ENABLEWORKAROUNDOUTPUTRELOAD}"  == "Y" ] || [ "${ENABLEWORKAROUNDOUTPUTRELOAD}"  == "y" ]; then
+    echo "enabling workaround for spl output reload issue" 
+    A=`find /opt/splunk/etc/apps/SplunkEnterpriseSecuritySuite/install -name "Splunk_TA_ueba*spl" -print`
+    #Splunk_TA_ueba-3.2.0-73256.spl
+    echo "repackaging to add simple outputs reload in $A"
+    ls -l $A
+    tar -C "/tmp" -xf $A
+    cat << EOT >> /tmp/Splunk_TA_ueba/default/app.conf
 [triggers]
 reload.outputs = simple
 EOT
 
-  tar -C"/tmp" -zcf $A Splunk_TA_ueba
-  ls -l $A
+    tar -C"/tmp" -zcf $A Splunk_TA_ueba
+    ls -l $A
+  else
+    echo "disabing workaround for spl output reload issue" 
+  fi
 
   # ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true -auth admin:${PASSWORD}
   #App 'xxxxxx/yyyyyy/splunk-enterprise-security_472.spl' installed 

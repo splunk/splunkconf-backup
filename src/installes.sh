@@ -64,8 +64,9 @@
 # 20250123 up to 8.0.2
 # 20250505 add auto workaround for outputs reload that can lead to crash
 # 20250611 up to 8.1.0
+# 20250825 up to 8.1.1
 
-VERSION="20250511a"
+VERSION="20250825a"
 
 SCRIPTNAME="installes"
 
@@ -161,7 +162,8 @@ fi
 #ESAPP="splunk-enterprise-security_731.spl";
 #ESAPP="splunk-enterprise-security_732.spl";
 #ESAPP="splunk-enterprise-security_802.spl";
-ESAPP="splunk-enterprise-security_810.spl";
+#ESAPP="splunk-enterprise-security_810.spl";
+ESAPP="splunk-enterprise-security_811.spl";
 
 
 # SHA256 checksum (splunk-enterprise-security_500.spl) b2a5e4f8297554f4e1818f749386480cfce148e87be8920df939a4282223222c
@@ -191,10 +193,11 @@ ESAPP="splunk-enterprise-security_810.spl";
 # SHA256 checksum (splunk-enterprise-security_732.spl) 37581ae057a26f9c7eac04e16f46c11ed8d7bf194491857ff478d874e6f8d1aa
 # SHA256 checksum (splunk-enterprise-security_802.spl) 4f996b12b7ff9ed8d27aebb8b0646864e06bca869b3e04472ff9a91dddeab5fe
 # sha256 -c 37083026a3f59a9eff5c593dab9b4e111e173d3afab8919a61713c9d4c60c501 splunk-enterprise-security_810.spl
+# sha256 -c 8c8e4151535d1d53e8c6f9fc50d6779b26a85924acc93cde85c494945dc39c5c 'splunk-enterprise-security_811.spl
 
 # SHA256 checksum (splunk-es-content-update_3240.tgz) 49aca3ab3bb1291f988459708e9a589aacc5b64caed493831a00546c36181ea6
 
-EXPECTEDSHA="37083026a3f59a9eff5c593dab9b4e111e173d3afab8919a61713c9d4c60c5014"
+EXPECTEDSHA="8c8e4151535d1d53e8c6f9fc50d6779b26a85924acc93cde85c494945dc39c5c"
 
 
 CONTENTUPDATE=`LANG=C;find ${INSTALLAPPDIR}  -name  "splunk-es-content-update_*.tgz" | sort | tail -1`

@@ -66,8 +66,9 @@
 # 20250611 up to 8.1.0
 # 20250825 up to 8.1.1
 # 20250825 adding variable for output reload workaround and disabling by default 
+# 20250825 small workding updates
 
-VERSION="20250825b"
+VERSION="20250825c"
 
 SCRIPTNAME="installes"
 
@@ -477,11 +478,11 @@ else
 fi
 
 if [ $FAIL -gt 0 ]; then
-  fail_log "There were ${FAIL} fail condition(s) detected, please review messages, fix and rerun script before proceeding to installation step. If you are really sure, you may still try the installation !" 
+  fail_log "There were ${FAIL} fail condition(s) detected, please review messages, fix and rerun script before proceeding to installation steps. If you are really sure, you may still try the installation !" 
   PROCEED="N"
   #exit 1
 else
-  echo_log "OK: looks good, continuing to installation step"
+  echo_log "OK: looks good, continuing to installation steps"
   PROCEED="Y"
 fi
 
@@ -502,7 +503,7 @@ fi
 
 ################################ START INSTALL HERE #########################################
 if [ "${PROCEEDSKIPINSTALL}"  == "N" ]; then
-  echo_log "INFO: install/updating ES app from ${ESAPPFULL} with splunk install located in ${SPLUNK_HOME}"
+  echo_log "INFO: installing/updating ES app from ${ESAPPFULL} with splunk install located in ${SPLUNK_HOME}"
 
   # timeout not supported here
   # ES install/upgrade
@@ -533,7 +534,7 @@ EOT
   # ES Content update
   if [[  "${INSTALLCONTENTUPDATE}" -eq 1 ]]; then
     if [[ "${SHC}" -eq 0 ]]; then
-      echo_log "INFO: install/updating ES content update app from ${CONTENTUPDATE} with splunk install located in ${SPLUNK_HOME} "
+      echo_log "INFO: installing/updating ES content update app from ${CONTENTUPDATE} with splunk install located in ${SPLUNK_HOME} "
       ${SPLUNK_HOME}/bin/splunk install app ${CONTENTUPDATE} -update true 
     else 
       echo "INFO: deployer mode, extracting ES Content Update app to shcluster app instead"
@@ -545,7 +546,7 @@ EOT
     echo_log "INFO: install with setup option set, continuing with setup after install."
     sleep 5
   else
-    echo_log "OK: install ES done. Restarting splunk in 5s"
+    echo_log "OK: ES installation done. Restarting splunk in 5s"
     sleep 5
 
     echo_log "INFO: restarting splunk (ignore warning there, we haven't yet done ES setup)"
@@ -556,7 +557,7 @@ EOT
     sleep 5 
   fi
 else
-  echo_log "installation step skipped at user request"
+  echo_log "installation steps skipped at user request"
 fi
 
 ${SPLUNK_HOME}/bin/splunk login -auth $SPLADMIN:$SPLPASS

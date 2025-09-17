@@ -138,8 +138,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20241101 change regex to pcre regex for conf file matching and improve it to catch variables with number and url like values
 # 20241101 initial support for allowing point in time option to kvstore (this change recovery so we need other changes)
 # 20241103 change var to KVSTOREPOINTINTIMEMODE
+# 20250917 add more debug logging for conf file loading
 
-VERSION="20241103a"
+VERSION="20250917a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -592,18 +593,18 @@ function checklock() {
   fi
 }
 
-
 function load_settings_from_file () {
  FI=$1
  if [ -e "$FI" ]; then
+   debug_log "loading settings for file $FI"
    # to match empty line or comment line
    regclass2="^(#|\[)"
     # Read the file line by line, remove spaces then create a variable if start by splunk
     while read -r line; do
       if [[ "${line}" =~ $regclass2 ]]; then
-        debug_log "comment line or stanza line with line=$line"
+        debug_log "form: comment line or stanza line with line=$line"
       elif [ -z "${line-unset}" ]; then
-        debug_log "empty line"
+        debug_log "form : empty line"
       elif [[ $(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:/\.\-]+)"?/\1 \2/p') ]]; then
         # sed -E turn PCRE like syntax
         read -r var_name var_value <<< "$(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:/\.\-]+)"?/\1 \2/p')"
@@ -614,6 +615,7 @@ function load_settings_from_file () {
         debug_log "KO:invalid form line=$line"
       fi
     done < $FI
+   debug_log "end of loading settings for file $FI"
   else
     debug_log "file $FI is not present"
   fi

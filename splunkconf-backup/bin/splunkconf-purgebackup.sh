@@ -58,8 +58,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20240629 replace direct var inclusion with loading function logic
 # 20240701 add debugmode flag as arg to splunkconf-backup-helper
 # 20230702 add more ec2 tag support taken from backup part
+# 20250917 update load setting with regex version (same as for backup) 
 
-VERSION="20240702a"
+VERSION="20250917a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -247,24 +248,26 @@ function check_cloud() {
 function load_settings_from_file () {
  FI=$1
  if [ -e "$FI" ]; then
-   regclass="([a-zA-Z]+)[[:space:]]*=[[:space:]]*\"{0,1}([a-zA-Z0-9_\-]+)\"{0,1}"
+   debug_log "loading settings for file $FI"
+   # to match empty line or comment line
    regclass2="^(#|\[)"
     # Read the file line by line, remove spaces then create a variable if start by splunk
     while read -r line; do
       if [[ "${line}" =~ $regclass2 ]]; then
-        debug_log "comment line or stanza line with line=$line"
+        debug_log "form: comment line or stanza line with line=$line"
       elif [ -z "${line-unset}" ]; then
-        debug_log "empty line"
-      elif [[ "${line}" =~ $regclass ]]; then
-        var_name=${BASH_REMATCH[1]}
-        var_value=${BASH_REMATCH[2]}
+        debug_log "form : empty line"
+      elif [[ $(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:/\.\-]+)"?/\1 \2/p') ]]; then
+        # sed -E turn PCRE like syntax
+        read -r var_name var_value <<< "$(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:/\.\-]+)"?/\1 \2/p')"
         # Dynamically create the variable with its value
         declare -g "$var_name=$var_value"
-        debug_log "OK:form ok, start with splunk setting $var_name=$var_value, $var_name=${!var_name}"
+        debug_log "OK:form ok, start with splunk setting $var_name=$var_value, var_name=${var_name}."
       else
         debug_log "KO:invalid form line=$line"
       fi
     done < $FI
+   debug_log "end of loading settings for file $FI"
   else
     debug_log "file $FI is not present"
   fi

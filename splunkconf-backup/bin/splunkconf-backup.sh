@@ -139,8 +139,17 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20241101 initial support for allowing point in time option to kvstore (this change recovery so we need other changes)
 # 20241103 change var to KVSTOREPOINTINTIMEMODE
 # 20250917 add more debug logging for conf file loading
+# 20251003 fix issue with version detection, make it arithnetic and just use major version so it both work with 10 and older versions
+# 20251003 add retry logic to do_backup_tar
+# 20251006 add more logging for remote copy errors
+# 20251007 add retry logic for remote copy with 5 retries by default
+# 20251007 add packages/data to state as contain config for v10 sidecars
+# 20251007 add setting to allow exclude some hosts from automatic backup 
+# 20251007 add HOSTSEXCLUDELIST var to allow excluding sone hosts from doing backups even when they have the app running
+# 20251007 move init delay after variable initialization just before backups
+# 20251007 fix regression on BACKUPSTATE and BACKUPKV flag support to disable specific backups 
 
-VERSION="20250917a"
+VERSION="20251007f"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -216,6 +225,11 @@ LOCALTYPE=1
 LOCALBACKUPDIR="${SPLUNK_HOME}/var/backups"
 # Reserve enough space or backups will fail ! IMPORTANT
 # see below for check on min free space
+
+# comma separated list of host where you want to disable backups completely 
+# do not add spaces
+HOSTSEXCLUDELIST="testhost1,testhost2"
+
 
 # REMOTE options
 # enabled by default , try to get s3 bucket info from ec2 tags or just do nothing
@@ -299,6 +313,10 @@ KVSTOREREADYBACKUP=100
 # by using value 2 , it change the way backup are done and it is possible to restore faster in //. however the backup is blocking write in this which can be problematic in a running env
 KVSTOREPOINTINTIMEMODE=0
 
+# REMOTECOPYRETRY number of retries in case a file changed during tar 
+# warning do not increase too much or the backup may collide from a time perspective 
+REMOTECOPYRETRY=5
+
 # stop splunk for kvstore backup (that can be a bad idea if you have cluster and stop all instances at same time or whitout maintenance mode)
 # risk is that data could be corrupted if something is written to kvstore while we do the backup
 #RESTARTFORKVBACKUP=1
@@ -314,9 +332,9 @@ fi
 #MODINPUTPATH="${SPLUNK_DB}/modinputs"
 #SCHEDULERSTATEPATH="${SPLUNK_HOME}/var/run/splunk/scheduler"
 if [ "${TARMODE}" = "abs" ]; then
-    STATELIST="${SPLUNK_DB}/modinputs ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy ${SPLUNK_HOME}/var/splunk_assist ${SPLUNK_HOME}/var/run/splunk/confsnapshot/"
+    STATELIST="${SPLUNK_DB}/modinputs ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy ${SPLUNK_HOME}/var/splunk_assist ${SPLUNK_HOME}/var/run/splunk/confsnapshot/ ${SPLUNK_HOME}/var/packages/data"
 else
-    STATELIST="${SPLUNK_DB_REL}/modinputs ./var/run/splunk/scheduler ./var/run/splunk/cluster/remote-bundle ${SPLUNK_DB_REL}/persistentstorage ${SPLUNK_DB_REL}/fishbucket ./var/run/splunk/deploy ./var/splunk_assist ./var/run/splunk/confsnapshot/"
+    STATELIST="${SPLUNK_DB_REL}/modinputs ./var/run/splunk/scheduler ./var/run/splunk/cluster/remote-bundle ${SPLUNK_DB_REL}/persistentstorage ${SPLUNK_DB_REL}/fishbucket ./var/run/splunk/deploy ./var/splunk_assist ./var/run/splunk/confsnapshot/ ./var/packages/data"
 fi
 
 # configuration for scripts backups
@@ -337,6 +355,8 @@ MINFREESPACE=4000000
 # allowing dashboard and alerting as a consequence
 LOGFILE="${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log"
 
+# number of times to retry when tar detect a file changed while doing a backup
+TARRETRY=2
 
 ###### END default parameters
 SCRIPTNAME="splunkconf-backup"
@@ -459,7 +479,7 @@ function check_compress() {
 }
 
 function do_backup_tar() {
-    # inputs : MODE FIC FILELIST TYPE OBJECT MESS1 TARMODE COMPRESSMODE
+    # inputs : MODE FIC FILELIST TYPE OBJECT MESS1 TARMODE COMPRESSMODE TARRETRY
     # MODE can be etc etctargeted scripts state
     # OBJECT can be etc scripts state   (the only difference is for etctargeted versus etc (full))
     # FIC is tar filename
@@ -469,111 +489,207 @@ function do_backup_tar() {
     # MESS1
     # TARMODE is either absolute (original mode) or relative (future)
     # COMPRESSMODE is either gzip (original) or other compression algo (future)
-    debug_log "running tar for backup with mode=${MODE} OBJECT=${OBJECT}";
+    # TARRETRY number of retries in case a file changed during tar 
+    MESS2=""
+    ATTEMPT=1
+    # prevent bad value
+    if (( TARRETRY <1 )); then
+      TARRETRY=1
+    elif (( TARRETRY > 100 )); then
+      TARRETRY=100
+    fi
+    while (( ATTEMPT <= TARRETRY ));
+    do
+      debug_log "running tar for backup with mode=${MODE} OBJECT=${OBJECT} ATTEMPT=$ATTEMPT MAXTRY=$TARRETRY";
 
-    if [ "$OBJECT" == "etc" ]; then
+      if [ "$OBJECT" == "etc" ]; then
          PARAMEXCLUDE=" --exclude-from=${TAREXCLUDEFILE} --exclude '*/dump'"
-    else
+      else
          PARAMEXCLUDE=""
-    fi
-    debug_log "running tar -I ${COMPRESS} -C${backuptardir} -cf ${FIC} ${PARAMEXCLUDE} ${FILELIST}";
-    START=$(($(date +%s%N)));
-    tar -I ${COMPRESS} -C${backuptardir} -cf ${FIC} ${PARAMEXCLUDE} ${FILELIST} 
-    RES=$?
-    END=$(($(date +%s%N)));
-    #let DURATIONNS=(END-START)
-    let DURATION=(END-START)/1000000
-    if [ -e "$FIC" ]; then
-      FILESIZE=$(/usr/bin/stat -c%s "$FIC")
-    else
-      debug_log "FIC=$FIC doesn't exist after tar"
-      FILESIZE=0
-    fi
-    #echo_log "res=${RES}"
-    splunkconf_checkspace;
-    if [ $RES -eq 0 ]; then
-        echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} ${MESS1}"; 
+      fi
+      debug_log "running tar -I ${COMPRESS} -C${backuptardir} -cf ${FIC} ${PARAMEXCLUDE} ${FILELIST}";
+      START=$(($(date +%s%N)));
+      VARERR=`tar -I ${COMPRESS} -C${backuptardir} -cf ${FIC} ${PARAMEXCLUDE} ${FILELIST} 2>&1`
+      RES=$?
+      END=$(($(date +%s%N)));
+      #let DURATIONNS=(END-START)
+      let DURATION=(END-START)/1000000
+      if [ -e "$FIC" ]; then
+        FILESIZE=$(/usr/bin/stat -c%s "$FIC")
+      else
+        debug_log "FIC=$FIC doesn't exist after tar"
+        FILESIZE=0
+      fi
+      #echo_log "res=${RES}"
+      splunkconf_checkspace;
+      if [ $RES -eq 0 ]; then
+        echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} ATTEMPT=$ATTEMPT MAXTRY=$TARRETRY ${MESS1}"; 
         #echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} durationns=${DURATIONNS} size=${FILESIZE} ${MESS1}"; 
-    else
-        fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC durationms=${DURATION} size=${FILESIZE} reason=tar${RES} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} ${MESS1}" 
-    fi
+        # exiting loop
+        break
+      else
+         # failure by default unless changed later
+         result="failure"
+         VARERR2=$(echo "$VARERR" | grep fishbucket | grep "file changed as we read it")
+         VARERR3=$(echo "$VARERR" | grep -v fishbucket)
+         # keep last line without \n
+         #VARERR4=$(echo "$VARERR3" | tail -n 1 | tr -d '\n')
+         # keep last 5 lines and remove \n so they appear in the same event
+         VARERR4=$(echo "$VARERR3" | tail -n 5 | tr -d '\n')
+         # keep last 5 lines and remove \n so they appear in the same event
+         VARERR5=$(echo "$VARERR" | tail -n 5 | tr -d '\n')
+
+	debug_log "VARERR=$VARERR, VARERR2=${VARERR2}, VARERR3=${VARERR3} VARERR4=${VARERR4}"
+        TARFISH=""
+	if [ -z "$VARERR2" ]; then
+          TARFISH="nofish"
+ 	  debug_log "no fishbucket changed"
+	else
+  	  debug_log "fishbucket changed"
+          TARFISH="fishbucketchanged"
+          MESS2="reasonmsg=fishbucket_changed_ignored"
+	fi
+        if (( DEBUG == 0 )); then
+          TARFISH="" 
+        fi
+
+	if [ -n "$VARERR3" ]; then
+          TEST3="test3=fileextrachanged"
+  	  debug_log "extra file changed"
+          MESS2="reasonmsg=file changed during backup $VARERR4"
+	else
+          TEST3="test3=no"
+  	  debug_log "no extra file changed"
+	fi
+        if (( DEBUG == 0 )); then
+          TEST3=""
+        fi
+       
+        if (( RES == 1 )) && [ -n "$VARERR3" ]; then
+          result="warning"
+        elif (( RES == 1 )); then
+          # only fishbucket moving
+          result="success"  
+        elif (( ATTEMPT <= TARRETRY )); then
+          result="tempfailure"
+        fi
+        if [[ "$result" == "success" ]]; then
+          echo_log "action=backup type=$TYPE object=${OBJECT} result=$result dest=$FIC durationms=${DURATION} size=${FILESIZE} reason=tar${RES} $MESS2 minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} ATTEMPT=$ATTEMPT MAXTRY=$TARRETRY ${MESS1} ${VARERR5} ${TEST3} ${TARFISH}" 
+          debug_log "tar detailed return = $VARERR"
+          debug_log "success , existing loop"
+          break
+        elif [[ "$result" == "warning" ]]; then
+          warn_log "action=backup type=$TYPE object=${OBJECT} result=$result dest=$FIC durationms=${DURATION} size=${FILESIZE} reason=tar${RES} $MESS2 minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} ATTEMPT=$ATTEMPT MAXTRY=$TARRETRY ${MESS1} ${VARERR5} ${TEST3} ${TARFISH}" 
+          debug_log "tar detailed return = $VARERR"
+        else
+          fail_log "action=backup type=$TYPE object=${OBJECT} result=$result dest=$FIC durationms=${DURATION} size=${FILESIZE} reason=tar${RES} $MESS2 minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} ATTEMPT=$ATTEMPT MAXTRY=$TARRETRY ${MESS1} ${VARERR5} ${TEST3} ${TARFISH}" 
+          debug_log "tar detailed return = $VARERR"
+        fi
+      fi
+      ((ATTEMPT++))
+    done
 }
 
 function do_remote_copy() {
-  FIC=$LFIC
-  debug_log "do_remote_copy : FIC=$FIC LFIC=$FIC OBJECT=$OBJECT RENOTETECHNO=$REMOTETECHNO RFIC=$RFIC AWSCOPYMODE=$AWSCOPYMODE"
-  if [ -e "$FIC" ]; then
-    FILESIZE=$(/usr/bin/stat -c%s "$FIC")
-  else
-    debug_log "FIC=$FIC doesn't exist !"
-    FILESIZE=0
+  # REMOTECOPYRETRY number of retries in case a file changed during tar 
+  MESS2=""
+  ATTEMPT=1
+  # prevent bad value
+  if (( REMOTECOPYRETRY <1 )); then
+    REMOTECOPYRETRY=1
+  elif (( REMOTECOPYRETRY > 100 )); then
+    REMOTECOPYRETRY=100
   fi
-  START=$(($(date +%s%N)));
-  if [ "${LFIC}" == "disabled" ]; then
-    # local disable case
-    echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled" 
-    #debug_log "not doing remote $OBJECT as no local version present MODE=$MODE"
-  elif [ $DOREMOTEBACKUP -eq 0 ]; then
-    # local ran but remote is disabled
-    DURATION=0
-    echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}" 
-  elif [ "${LFIC}" != "disabled" ] && [ "${OBJECT}" == "kvdump" ] && [ "${kvdump_done}" == "0" ]; then
+  while (( ATTEMPT <= REMOTECOPYRETRY ));
+  do
+    if (( ATTEMPT > 1 )); then
+      delaycp=$((30 * ATTEMPT))
+      warn_log "attemp=${ATTEMPT} sleeping ${delaycp}s before retrying remote copy in case it is load or qos related"
+      sleep $delaycp
+    fi
+    FIC=$LFIC
+    debug_log "do_remote_copy : FIC=$FIC LFIC=$FIC OBJECT=$OBJECT RENOTETECHNO=$REMOTETECHNO RFIC=$RFIC AWSCOPYMODE=$AWSCOPYMODE ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY REMOTETECHNO=$REMOTETECHNO "
+    if [ -e "$FIC" ]; then
+      FILESIZE=$(/usr/bin/stat -c%s "$FIC")
+    else
+      debug_log "FIC=$FIC doesn't exist !"
+      FILESIZE=0
+    fi
+    START=$(($(date +%s%N)));
+    if [ "${LFIC}" == "disabled" ]; then
+      # local disable case
+      echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled" 
+      #debug_log "not doing remote $OBJECT as no local version present MODE=$MODE"
+    elif [ $DOREMOTEBACKUP -eq 0 ]; then
+      # local ran but remote is disabled
+      DURATION=0
+      echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY"
+    elif [ "${LFIC}" != "disabled" ] && [ "${OBJECT}" == "kvdump" ] && [ "${kvdump_done}" == "0" ]; then
       # we have initiated kvdump but it took so long we never had a complete message so we cant copy as it could be incomplete
       # we want to log here so it appear in dashboard and alerts
       DURATION=0
-      fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} kvdump may be incomplete, not copying to remote" 
-  #elif [ "${LFIC}" != "disabled" ]; then
-  else
-    if (( REMOTETECHNO == 3 )); then
-      debug_log "doing remote copy (rcp) with ${CPCMD} ${OPTION} ${LFIC} ${RCPREMOTEUSER}@${RCPHOST}:${RFIC}"
-      ${CPCMD} ${OPTION} ${LFIC} ${RCPREMOTEUSER}@${RCPHOST}:${RFIC}
-    elif (( REMOTETECHNO == 4 )); then
-      debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR} "
-      ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}
-      if (( RSYNCAUTORESTORE == 1 )); then
-        # we need to add remote here so the script can differentiate when called via inputs with token and remotely 
-        debug_log "INFO: launching rsync autorestore with $OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}remoterestore ${LFIC}"
-        RESAUTORESTORE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}remoterestore ${LFIC}`
-      else 
-        debug_log "autorestore via rsync disabled by config"
-      fi
-    elif [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
-      debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}"
-      # Attention , we do tags at the same time so if iam are incorrectly set the whole put is going to fail
-      # This is why we default now to do it in 2 steps
-      ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}
+      fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY kvdump may be incomplete, not copying to remote" 
+    #elif [ "${LFIC}" != "disabled" ]; then
     else
-      debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${RFIC} ${OPTION}"
-      ${CPCMD} ${LFIC} ${CPCMD2} ${RFIC} ${OPTION}
-    fi
-    RES=$?
-    END=$(($(date +%s%N)));
-    #let DURATIONNS=(END-START)
-    let DURATION=(END-START)/1000000
-    if [ $RES -eq 0 ]; then
-      echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} ${S3ENDPOINTLOGMESSAGE}" 
-      if [[ "cloud_type" -eq 1 ]]; then
-        # AWS
-        if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ] && [ "${REMOTETECHNO}" = "2" ]; then
-          debug_log "setting tag via aws ${S3ENDPOINTOPTION}s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
-          # redirecting output to /dev/null so it doesnt pollute with the VersionId result
-          aws ${S3ENDPOINTOPTION}s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} >/dev/null
-          RES=$?
-          if [ $RES -eq 0 ]; then
-            echo_log "action=tag type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} ${S3ENDPOINTLOGMESSAGE}" 
-          else
-            echo_log "action=tag type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} ${S3ENDPOINTLOGMESSAGE} Please check IAM for s3:PutObjectTagging" 
-          fi
-        elif [ "${REMOTEOBJECTSTORETAGS3}" = "1" ]; then
-          debug_log "tagging disabled because not in S3 backup mode"
-        else
-          debug_log "tagging disabled by config"
+      if (( REMOTETECHNO == 3 )); then
+        debug_log "doing remote copy (rcp) with ${CPCMD} ${OPTION} ${LFIC} ${RCPREMOTEUSER}@${RCPHOST}:${RFIC}"
+        ${CPCMD} ${OPTION} ${LFIC} ${RCPREMOTEUSER}@${RCPHOST}:${RFIC}
+      elif (( REMOTETECHNO == 4 )); then
+        debug_log "doing remote copy (rsync) with ${CPCMD} \"${OPTION}\" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}  ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY"
+        ${CPCMD} "${OPTION}" ${LOCALSYNCDIR} ${RSYNCREMOTEUSER}@${RSYNCHOST}:${REMOTERSYNCDIR}
+        if (( RSYNCAUTORESTORE == 1 )); then
+          # we need to add remote here so the script can differentiate when called via inputs with token and remotely 
+          debug_log "INFO: launching rsync autorestore with $OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}remoterestore ${LFIC}"
+          RESAUTORESTORE=`$OPTION ${RSYNCREMOTEUSER}@${RSYNCHOST} ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-restorebackup.sh ${OBJECT}remoterestore ${LFIC}`
+        else 
+          debug_log "autorestore via rsync disabled by config"
         fi
+      elif [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
+        debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}"
+        # Attention , we do tags at the same time so if iam are incorrectly set the whole put is going to fail
+        # This is why we default now to do it in 2 steps
+        # be careful aws put object may not work for files over 5GB
+        ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}
+      else
+        debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${RFIC} ${OPTION}"
+        ${CPCMD} ${LFIC} ${CPCMD2} ${RFIC} ${OPTION}
       fi
-    else
-      fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE}"
+      RES=$?
+      END=$(($(date +%s%N)));
+      #let DURATIONNS=(END-START)
+      let DURATION=(END-START)/1000000
+      if [ $RES -eq 0 ]; then
+        result="success"
+        echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} ${S3ENDPOINTLOGMESSAGE}  ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY" 
+        if [[ "cloud_type" -eq 1 ]]; then
+          # AWS
+          if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ] && [ "${REMOTETECHNO}" = "2" ]; then
+            debug_log "setting tag via aws ${S3ENDPOINTOPTION}s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
+            # redirecting output to /dev/null so it doesnt pollute with the VersionId result
+            aws ${S3ENDPOINTOPTION}s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} >/dev/null
+            RES=$?
+            if [ $RES -eq 0 ]; then
+              echo_log "action=tag type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} ${S3ENDPOINTLOGMESSAGE}  ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY" 
+            else
+              echo_log "action=tag type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} ${S3ENDPOINTLOGMESSAGE} Please check IAM for s3:PutObjectTagging  ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY" 
+            fi
+          elif [ "${REMOTEOBJECTSTORETAGS3}" = "1" ]; then
+            debug_log "tagging disabled because not in S3 backup mode"
+          else
+            debug_log "tagging disabled by config"
+          fi
+        fi
+        debug_log "exiting remote copy loop because result=success on copy"
+        break
+      else
+        # not nornal, we still log a failure even if not the last attempt
+        # note this can fail du to timeout if qos or lack of ressources on s3 or server
+        fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} err=$RES  ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY"
+      fi
     fi
-  fi
+    ((ATTEMPT++))
+    debug_log "in remote copy after failure . loop : ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY"
+  done
 }
 
 function checklock() {
@@ -605,12 +721,14 @@ function load_settings_from_file () {
         debug_log "form: comment line or stanza line with line=$line"
       elif [ -z "${line-unset}" ]; then
         debug_log "form : empty line"
-      elif [[ $(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:/\.\-]+)"?/\1 \2/p') ]]; then
+      elif [[ $(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:\/\.\-\,]+)"?/\1 \2/p') ]]; then
         # sed -E turn PCRE like syntax
-        read -r var_name var_value <<< "$(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:/\.\-]+)"?/\1 \2/p')"
+        read -r var_name var_value <<< "$(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:\/\.\-\,]+)"?/\1 \2/p')"
+        # sed may leave a trailing " (even if not supposed to....) doing a extra cleanup here
+        var_value2=$(echo "$var_value" | sed 's/"$//')
         # Dynamically create the variable with its value
-        declare -g "$var_name=$var_value"
-        debug_log "OK:form ok, start with splunk setting $var_name=$var_value, var_name=${var_name}."
+        declare -g "$var_name=${var_value2}"
+        debug_log "OK:form ok, start with splunk setting $var_name=${var_value2}, var_name=${var_name}   var_value=${var_value} var_value2=${var_value2}."
       else
         debug_log "KO:invalid form line=$line"
       fi
@@ -763,14 +881,6 @@ if [ "${MODE}" == "init" ]; then
 fi
 debug_log "splunkconf-backup running with MODE=${MODE} and INIT=${INIT}"
 
-####### TEMPO DELAY ############################
-if [ "$INIT" == "1" ]; then
-  debug_log "no delay as we are in init mode and delay was already part of splunkconf restore"
-else
-  # addin a random sleep to reduce backup concurrency + a potential conflict when we run at the limit in term of size (one backup type could eat the space before purge run)
-  sleep $((1 + RANDOM % 30))
-fi
-
 # initialization
 ERROR=0
 ERROR_MESS=""
@@ -847,7 +957,6 @@ else
   warn_log "invalid form  REMOTES3STORAGECLASSMONTHLY=${REMOTES3STORAGECLASSMONTHLY}, using default value STANDARD_IA"
   REMOTES3STORAGECLASSMONTHLY="STANDARD_IA"
 fi
-
 
 
 
@@ -1073,6 +1182,7 @@ debug_log "KVSTOREPOINTINTIMEMODE=$KVSTOREPOINTINTIMEMODE"
 
 if [ -z ${splunks3backupbucket+x} ]; then 
   if [ -z ${s3backupbucket+x} ]; then 
+    debug_log "s3backupbucket=${s3backupbucket}"
     if [ "${REMOTEBACKUPDIR}" = "s3://pleaseconfigurenstancetagsorsetdirectlythes3bucketforbackupshere-splunks3splunkbackup/splunkconf-backup" ] && [ "${REMOTEOBJECTSTOREBUCKET}" = "auto" ]; then 
       ## there is no tag from instance metadata so we are not in a cloud instance or that instance hasnt been configured for doing remote backups
       # there is also the REMOTEOBJECTSTOREBUCKET with default value auto
@@ -1092,7 +1202,7 @@ if [ -z ${splunks3backupbucket+x} ]; then
         debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
         REMOTEBACKUPDIR="s3://${s3backupbucket}/${REMOTEOBJECTSTOREPREFIX}"
         #REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
-        debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+        debug_log "AAA remotebackupdir=$REMOTEBACKUPDIR  s3backupbucket=${s3backupbucket} REMOTEOBJECTSTOREPREFIX=${REMOTEOBJECTSTOREPREFIX}";
       fi
     else
       # on prem with remote backup configured or static configuration in cloud 
@@ -1114,11 +1224,13 @@ if [ -z ${splunks3backupbucket+x} ]; then
       debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
       REMOTEBACKUPDIR="s3://${s3backupbucket}/${REMOTEOBJECTSTOREPREFIX}"
       #REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
-      debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+      debug_log "AAA2 remotebackupdir=$REMOTEBACKUPDIR  s3backupbucket=${s3backupbucket} REMOTEOBJECTSTOREPREFIX=${REMOTEOBJECTSTOREPREFIX}";
     fi
   fi
 else
   s3backupbucket=$splunks3backupbucket
+  debug_log "in else : s3backupbucket=${s3backupbucket}"
+
   if (( REMOTETECHNO == 3 )); then 
       debug_log "remote techno=3 and running in cloud , not using tags"
   elif (( REMOTETECHNO == 4 )); then 
@@ -1134,7 +1246,7 @@ else
     debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=true";
     REMOTEBACKUPDIR="s3://${s3backupbucket}/${REMOTEOBJECTSTOREPREFIX}"
     #REMOTEBACKUPDIR="s3://${s3backupbucket}/splunkconf-backup"
-    debug_log "remotebackupdir='$REMOTEBACKUPDIR'";
+    debug_log "AAA3 remotebackupdir=$REMOTEBACKUPDIR  s3backupbucket=${s3backupbucket} REMOTEOBJECTSTOREPREFIX=${REMOTEOBJECTSTOREPREFIX}";
   fi
 fi
 
@@ -1203,11 +1315,24 @@ fi
 # servername is more reliable in dynamic env like AWS 
 #INSTANCE=$SERVERNAME
 
+debug_log "*********** check got HOSTS exclusion with host=$INSTANCE and HOSTSEXCLUDELIST=${HOSTSEXCLUDELIST} *********"
+# Checking for host exclusion
+if [[ ",${HOSTSEXCLUDELIST}," =~ ",$INSTANCE," ]]; then
+   debug_log "host $INSTANCE (ourself) present in HOSTSEXCLUDELIST. Not doing any backup, stop"
+   exit 0
+else 
+   debug_log "not matching for HOSTS exclusion, continuing"
+fi
+
 if [ "$INIT" == "1" ]; then
   debug_log "INIT mode"
+  debug_log "no delay as we are in init mode and delay was already part of splunkconf restore"
   #echo_log "INIT mode , removing lock file so other backup process may run"
   #  `rm ${SPLUNK_HOME}/var/run/splunkconf-init.lock`
 else
+  ####### TEMPO DELAY ############################
+  # addin a random sleep to reduce backup concurrency + a potential conflict when we run at the limit in term of size (one backup type could eat the space before purge run)
+  sleep $((1 + RANDOM % 30))
   debug_log "not in init mode, checking for init lock"
   lockname="init"
   lockmindelay=50
@@ -1290,6 +1415,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
     check_assist;
 
     #tar -zcf ${FIC}  ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
+    TARRETRY=2
     do_backup_tar;
     etc_done=1
     LFICETC=$FIC;
@@ -1310,6 +1436,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
     done
     check_assist;
     #tar --exclude-from=${TAREXCLUDEFILE} --exclude '*/dump' -zcf ${FIC} ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
+    TARRETRY=2
     do_backup_tar;
     etc_done=1
     LFICETC=$FIC;
@@ -1365,6 +1492,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
     if [ ! -z "${FILELIST2}" ]; then
 
       #tar -zcf ${FIC}  ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
+      TARRETRY=2
       do_backup_tar;
       scripts_done=1
       LFICSCRIPT=$FIC;
@@ -1397,11 +1525,15 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
     version=`${SPLUNK_HOME}/bin/splunk version | tail -1 | cut -d ' ' -f 2`;
     if [[ $version =~ ^([^.]+\.[^.]+)\. ]]; then
       ver=${BASH_REMATCH[1]}
-      debug_log "splunkversion=$ver"
+      vermajor=$(printf "%.0f" "$ver")
+      debug_log "splunkversion=$ver vermajor=$ver"
     else
       fail_log "splunkversion : unable to parse string $version"
+      # in order to force kvdump when version detection fail as we are probably in a compatible version
+      vermajor=10
     fi
-    minimalversion=7.0
+    # integer here
+    minimalversion=7
     kvbackupmode=taronline
     MESSVER="currentversion=$ver, minimalversionover=${minimalversion}";
     btoolkvstore=`${SPLUNK_HOME}/bin/splunk btool server list kvstore | grep disabled`;
@@ -1409,11 +1541,14 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
     splunkconf_checkspace;
     if [[ $btoolkvstore =~ "true" ]] || [[ $btoolkvstore =~ "1" ]]; then
       echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=kvstoredisabledonsplunkbyconfig";
+    elif [ -z ${BACKUPKV+x} ] || [ $BACKUPKV -eq 0 ]; then
+      # we echo here to have it appear in logs as it will allow to identify disabled versus missing case
+      echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled dest=$FIC reason=disabled ${MESS1}"
     elif [ $ERROR -ne 0 ]; then
       fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
     # bc not present on some os changing if (( $(echo "$ver >= $minimalversion" |bc -l) )); then
     #if [[ $ver \> $minimalversion ]]  && [[ "$MODE" == "0"  || "$MODE" == "kvdump" || "$MODE" == "kvauto" ]]; then
-    elif [ $ver \> $minimalversion ]  && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
+    elif (( $vermajor > $minimalversion ))  && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
       kvbackupmode=kvdump
       #echo_log "splunk version 7.1+ detected : using online kvstore backup "
       # get the management uri that match the current instance (we cant assume it is always 8089)
@@ -1634,13 +1769,17 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
     if [ ! -z "${STATELIST2}" ]; then 
       splunkconf_purgebackup;
       splunkconf_checkspace;
-      if [ $ERROR -ne 0 ]; then
+      if [ -z ${BACKUPSTATE+x} ] || [ $BACKUPSTATE -eq 0 ]; then
+         # we echo here to have it appear in logs as it will allow to identify disabled versus missing case
+         echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled dest=$FIC reason=disabled ${MESS1}"
+      elif [ $ERROR -ne 0 ]; then
         fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
       else
         #echo_log "doing backup state (modinputs and scheduler state) via tar";
         #result=$(tar -zcf ${FIC}  ${MODINPUTPATH} ${SCHEDULERSTATEPATH} ${STATELIST}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (modinputpath=${MODINPUTPATH} schedulerpath=${SCHEDULERSTATEPATH}  statelist=${STATELIST} result=$result )"
         FILELIST=${STATELIST2}
         #result=$(tar -zcf ${FIC} ${FILELIST}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (statelist=${STATELIST} statelist2=${STATELIST2} result=$result )"
+        TARRETRY=2
         do_backup_tar;
         state_done=1
         LFICSTATE=$FIC;
@@ -1802,6 +1941,7 @@ fi
         debug_log "backup type will be etc targeted (date versioned backup mode)";
     fi
   fi
+  debug_log "REMOTEBACKUPDIR=${REMOTEBACKUPDIR}_______FICSCRIPT=$FICSCRIPT   SFICSCRIPT=$SFICSCRIPT" 
 
 
   CPCMD="echo "
@@ -1880,6 +2020,7 @@ fi
       CPCMD="rsync -a -e ";
     fi
   fi
+  debug_log "B REMOTEBACKUPDIR=${REMOTEBACKUPDIR}_______FICSCRIPT=$FICSCRIPT   SFICSCRIPT=$SFICSCRIPT" 
   if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
     OBJECT="etc"
     LFIC=${LFICETC}
@@ -1904,7 +2045,7 @@ fi
     do_remote_copy;
   fi
 
-  if [ $ver \> $minimalversion ]  && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
+  if (( $vermajor > $minimalversion )) && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
     OBJECT="kvdump"
     LFIC=${LFICKVDUMP}
     RFIC=${FICKVDUMP}

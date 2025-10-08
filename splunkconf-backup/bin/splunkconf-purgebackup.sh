@@ -59,8 +59,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20240701 add debugmode flag as arg to splunkconf-backup-helper
 # 20230702 add more ec2 tag support taken from backup part
 # 20250917 update load setting with regex version (same as for backup) 
+# 20251007 resync load settings with updated regex
 
-VERSION="20250917a"
+VERSION="20251007a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -257,12 +258,14 @@ function load_settings_from_file () {
         debug_log "form: comment line or stanza line with line=$line"
       elif [ -z "${line-unset}" ]; then
         debug_log "form : empty line"
-      elif [[ $(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:/\.\-]+)"?/\1 \2/p') ]]; then
+      elif [[ $(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:\/\.\-\,]+)"?/\1 \2/p') ]]; then
         # sed -E turn PCRE like syntax
-        read -r var_name var_value <<< "$(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:/\.\-]+)"?/\1 \2/p')"
+        read -r var_name var_value <<< "$(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:\/\.\-\,]+)"?/\1 \2/p')"
+        # sed may leave a trailing " (even if not supposed to....) doing a extra cleanup here
+        var_value2=$(echo "$var_value" | sed 's/"$//')
         # Dynamically create the variable with its value
-        declare -g "$var_name=$var_value"
-        debug_log "OK:form ok, start with splunk setting $var_name=$var_value, var_name=${var_name}."
+        declare -g "$var_name=${var_value2}"
+        debug_log "OK:form ok, start with splunk setting $var_name=${var_value2}, var_name=${var_name}   var_value=${var_value} var_value2=${var_value2}."
       else
         debug_log "KO:invalid form line=$line"
       fi
@@ -272,6 +275,9 @@ function load_settings_from_file () {
     debug_log "file $FI is not present"
   fi
 }
+
+
+
 
 ###### start
 

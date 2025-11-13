@@ -128,6 +128,7 @@
 # 20240806 update systemd service with more cases for recent kernels
 # 20250506 fix version detection regex to work also for v10
 # 20250506 rerelax regex to be more flexible while matching 10
+# 20251113 add check and warning if default splunk systemd file not found when doing backup
 
 # warning : if /opt/splunk is a link, tell the script the real path or the chown will not work correctly
 # you should have installed splunk before running this script (for example with rpm -Uvh splunk.... which will also create the splunk user if needed)
@@ -137,7 +138,7 @@ use strict;
 use Getopt::Long;
 
 my $VERSION;
-$VERSION="20250506b";
+$VERSION="20251113a";
 
 print "splunkconf-init version=$VERSION\n";
 
@@ -1079,8 +1080,12 @@ if ($enablesystemd==1 ) {
     # /etc/systemd/system/$servicename.service
     my $filenameservice = '/etc/systemd/system/'.$servicename.'.service';
     my $filenameservicebck = '/etc/systemd/system/'.$servicename.'.service.orig-bck';
-    print "backup default service file  $filenameservice to $filenameservicebck \n";
-    `cp $filenameservice $filenameservicebck`;
+    if ( -e $filenameservice) {
+      print "backup default service file  $filenameservice to $filenameservicebck \n";
+      `cp $filenameservice $filenameservicebck`;
+    } else {
+      print "WARNING: $filenameservice NOT present. could not backup default service file  $filenameservice to $filenameservicebck This is not expected, please investigate why the default Splunk systemd service file was not created";
+    }
     print "creating custom systemd service in $filenameservice\n";
     my ($name, $passwd, $uid, $gid, $quota, $comment, $gcos, $dir, $shell) = getpwnam($USERSPLUNK);
     print "Name = $name\n";

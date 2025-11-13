@@ -274,8 +274,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20250610 change mke2fs options so it create more inodes per G , to prevent from a inode shortage especially with small FS and unified partition mode
 # 20250715 update/fix timer service settings
 # 20250807 up to 10.0.0
+# 20251113 reduce verbosity for tar mode deployment
 
-VERSION="20250807a"
+VERSION="20251113a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2389,7 +2390,10 @@ if [ "$INSTALLMODE" = "tgz" ]; then
   cd $SPLUNK_HOME
   splunktar="${localinstalldir}/${splbinary}"
   # we need to install here in order to get btool working which is needed for tag replacement
-  tar --strip-components=1 -zxvf $splunktar
+  echo "extracting $splunktar via tar in directory $SPLUNK_HOME"
+  # with v for debugging
+  #tar --strip-components=1 -zxvf $splunktar
+  tar --strip-components=1 -zxf $splunktar
 else
   echo "installing/upgrading splunk via RPM using ${splbinary}" >> /var/log/splunkconf-cloud-recovery-info.log
   RES=1

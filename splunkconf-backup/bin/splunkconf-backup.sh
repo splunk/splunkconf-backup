@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 exec > /tmp/splunkconf-backup-debug.log  2>&1
 
 # in normal condition
@@ -148,8 +148,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20251007 add HOSTSEXCLUDELIST var to allow excluding sone hosts from doing backups even when they have the app running
 # 20251007 move init delay after variable initialization just before backups
 # 20251007 fix regression on BACKUPSTATE and BACKUPKV flag support to disable specific backups 
+# 20251215 remove version check for kvdump, assuming always version at minimum 7.1
 
-VERSION="20251007f"
+VERSION="20251215a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -1351,13 +1352,18 @@ checklock;
 # warning : if this fail because splunk can't create it, then root should create it and give it to splunk"
 # this is context dependant
 
-mkdir -p $LOCALBACKUPDIR
-
 if [ ! -d "$LOCALBACKUPDIR" ]; then
-  fail_log "backupdir=${LOCALBACKUPDIR} type=local object=creation result=failure dir couldn't be created by script. Please check and fix permissions or create it and allow splunk to write into it";
-  ERROR=1
-  ERROR_MESSAGE="backupdircreateerror"
-  exit 1;
+  echo_log "backup dir $LOCALBACKUPDIR doesnt exist yet, attempting to create it"
+  mkdir -p $LOCALBACKUPDIR
+
+  if [ ! -d "$LOCALBACKUPDIR" ]; then
+    fail_log "backupdir=${LOCALBACKUPDIR} type=local object=creation result=failure dir couldn't be created by script. Please check and fix permissions or create it and allow splunk to write into it";
+    ERROR=1
+    ERROR_MESSAGE="backupdircreateerror"
+    exit 1;
+  fi
+else
+  debug_log "OK: backup dir $LOCALBACKUPDIR already exist"
 fi
 
 if [ ! -w $LOCALBACKUPDIR ] ; then 
@@ -1548,7 +1554,21 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
     # bc not present on some os changing if (( $(echo "$ver >= $minimalversion" |bc -l) )); then
     #if [[ $ver \> $minimalversion ]]  && [[ "$MODE" == "0"  || "$MODE" == "kvdump" || "$MODE" == "kvauto" ]]; then
-    elif (( $vermajor > $minimalversion ))  && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
+    # test
+    # minimalversion="7"
+    # MODE=0
+    # for vermajor in 6 7 7.1 8 9.3 10.0 10.2 11;
+    # do
+    #
+    # if [ 1 -eq "$(echo "$vermajor > $minimalversion" | bc)" ] && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
+    #   echo "ok  $vermajor"
+    # else
+    #   echo "KO  $vermajor"
+    # fi
+    # done
+    #elif (( $vermajor > $minimalversion ))  && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
+    # we really need bc for floating but not always present. now assuming true ie splunk is at least 7.1 
+    elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]  || [[ "$MODE" == "kvdumprestore" ]]); then
       kvbackupmode=kvdump
       #echo_log "splunk version 7.1+ detected : using online kvstore backup "
       # get the management uri that match the current instance (we cant assume it is always 8089)

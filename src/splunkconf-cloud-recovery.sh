@@ -275,8 +275,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20250715 update/fix timer service settings
 # 20250807 up to 10.0.0
 # 20251113 reduce verbosity for tar mode deployment
+# 20251215 update cleanssm timer to rely in unit
 
-VERSION="20251113a"
+VERSION="20251215a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2802,9 +2803,15 @@ cat <<EOF >/etc/systemd/system/cleanssm.timer
 Description=Timer for  purge old AWS SSM files
 
 [Timer]
+# first run after boot
 OnBootSec=10min
-OnActiveSec=10min
+
+# run every 10 min after the unit last run
+OnUnitActiveSec=10min
 RandomizedDelaySec=1min
+
+# launch this service
+Unit=cleanssm.service
 
 [Install]
 WantedBy=timers.target

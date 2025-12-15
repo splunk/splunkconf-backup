@@ -427,7 +427,7 @@ function splunkconf_checkspace {
 METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
 function check_cloud() {
   cloud_type=0
-  response=$(curl -fs -m 5 -H "Metadata-Flavor: Google" ${METADATA_URL})
+  response=$(curl -fs -m 5 --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" ${METADATA_URL})
   if [ $? -eq 0 ]; then
     debug_log 'GCP instance detected'
     cloud_type=2
@@ -1582,10 +1582,10 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \# | sed -r 's/.*=\s*([0-9\.:]+)/\1/' |tail -1`
  
       # check pre backup
-      RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" `
+      RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" `
       debug_log "PREKVDUMP backup full kvstore status RES=$RES"
-      RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
-      RESREADY=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
+      RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
+      RESREADY=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
       debug_log "PREKVDUMP kvstore status before launching backup RES=$RESi RESREADY=$RESREADY"
       #debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running "
 
@@ -1604,8 +1604,8 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       # increase here if needed (ie take more time !)
       # until either we do max try or combined result from kvstorebackup ready and status ready are ok
       until [[ $COUNTER -lt 1 || -n "$RES2" ]]; do
-        RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
-        RESREADY=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
+        RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
+        RESREADY=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
         if [[ -n "$RES" && -n "$RESREADY" ]]; then
           RES2=$RES
         else
@@ -1631,7 +1631,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
         # auto ie 0 or without value 1
         debug_log "launching kvdump backup via REST API with archiveName=${KVARCHIVE} and pointInTime disabled"
       fi
-      RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/create -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}" $OPTIONPOINTINTIME `
+      RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/backup/create -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}" $OPTIONPOINTINTIME `
 
       #echo_log "KVDUMP CREATE RES=$RES"
       COUNTER=${KVSTOREREADYBACKUP}
@@ -1640,7 +1640,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       # wait a bit (up to 20*10= 200s) for backup to complete, especially for big kvstore/busy env (io)
       # increase here if needed (ie take more time !)
       until [[  $COUNTER -lt 1 || -n "$RES"  ]]; do
-        RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
+        RES=`curl --silent -k --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME  https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
         #echo_log "RES=$RES"
         debug_log "COUNTER=$COUNTER (max=${COUNTERMAX}) $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running info=postbackup"
         let COUNTER-=1

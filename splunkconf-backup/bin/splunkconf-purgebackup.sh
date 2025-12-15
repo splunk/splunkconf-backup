@@ -212,7 +212,7 @@ function checklock() {
 METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
 function check_cloud() {
   cloud_type=0
-  response=$(curl -fs -m 5 -H "Metadata-Flavor: Google" ${METADATA_URL})
+  response=$(curl -fs -m 5  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" ${METADATA_URL})
   if [ $? -eq 0 ]; then
     debug_log 'GCP instance detected'
     cloud_type=2

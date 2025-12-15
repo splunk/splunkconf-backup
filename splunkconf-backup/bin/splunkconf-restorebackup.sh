@@ -525,7 +525,7 @@ elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto
       COUNTER=49
       RES=""
 
-      RESREADY=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
+      RESREADY=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
       debug_log "PREKVDUMP kvstore status before launching backup RES=$RESi RESREADY=$RESREADY"
       #debug_log "COUNTER=$COUNTER $MESSVER $MESS1 type=$TYPE object=${kvbackupmode} action=backup result=running "
 
@@ -538,8 +538,8 @@ elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto
       # increase here if needed (ie take more time !)
       # until either we do max try or combined result from kvstorebackup ready and status ready are ok
       until [[ $COUNTER -lt 1 || -n "$RES2" ]]; do
-        RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
-        RESREADY=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
+        RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
+        RESREADY=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep 'name="status"' | grep -i ready`
         if [[ -n "$RES" && -n "$RESREADY" ]]; then
           RES2=$RES
         else
@@ -559,7 +559,7 @@ elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto
 
        # we are restoring as the backup file has been pushed there by the recovery script
       MESS1="MGMTURL=${MGMTURL} KVARCHIVE=${KVARCHIVE}";
-      RES=`curl --silent -k https://${MGMTURL}/services/kvstore/backup/restore -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}"`
+      RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/backup/restore -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}"`
       echo_log "launching kvdump restore KVDUMP RESTORE RES=$RES"
 # if splunk cant find the file, it will outout sonething like that, which will be in the error message (but should not happen because -e check above) 
 # <?xml version="1.0" encoding="UTF-8"?>
@@ -594,7 +594,7 @@ elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto
       # wait a bit (up to 20*10= 200s) for restore to complete, especially for big kvstore/busy env (io)
       # increase here if needed (ie take more time !)
       until [[  $COUNTER -lt 1 || -n "$RES"  ]]; do
-        RES=`curl --silent -k https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
+        RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
         #echo_log "RES=$RES"
         echo_log "COUNTER=$COUNTER $MESSVER $MESS1 kvbackupmode=$kvbackupmode "
         let COUNTER-=1

@@ -60,8 +60,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20230702 add more ec2 tag support taken from backup part
 # 20250917 update load setting with regex version (same as for backup) 
 # 20251007 resync load settings with updated regex
+# 20251215 add mode=purge to have more consistent logging
 
-VERSION="20251007a"
+VERSION="20251215a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -293,6 +294,8 @@ if [[ $EUID -eq 0 ]]; then
 fi
 
 debug_log "splunk_home=$SPLUNK_HOME "
+
+MODE="purge"
 
 SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
 

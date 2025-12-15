@@ -80,8 +80,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20251202 align load settings with backup version
 # 20251215 remove version check for kvdump, assuming always version at minimum 7.1
 # 20251215 add backup dir creation to avoid error and delay du to check disk space not working correctly
+# 20251215 add timeout for curl command to speed up backup for on prem with firewalls
 
-VERSION="20251215a"
+VERSION="20251215b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -113,6 +114,10 @@ unset NODE_PATH
 unset PYTHONPATH
 #env
 
+
+# set timeout to avoid very long timeout when calling curl to autodetect AWS (for on prem with firewalls droping it)
+CURLCONNECTTIMEOUT=10
+CURLMAXTIME=60
 
 # FIXME , get it automatically from splunk-launch.conf 
 SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"

@@ -61,8 +61,10 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20250917 update load setting with regex version (same as for backup) 
 # 20251007 resync load settings with updated regex
 # 20251215 add mode=purge to have more consistent logging
+# 20251215 add timeout for curl command to speed up backup for on prem with firewalls
 
-VERSION="20251215a"
+
+VERSION="20251215b"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -81,6 +83,11 @@ cd ..
 # if this is a link, use the real path here
 #SPLUNK_HOME="/opt/splunk"
 SPLUNK_HOME=`cd ../../..;pwd`
+
+
+# set timeout to avoid very long timeout when calling curl to autodetect AWS (for on prem with firewalls droping it)
+CURLCONNECTTIMEOUT=10
+CURLMAXTIME=60
 
 #### purge parameters
 
@@ -236,11 +243,11 @@ function check_cloud() {
     # but this is almost certainly overkill for this purpose (and the above
     # checks of "EC2" prefixes have a higher false positive potential, anyway).
     #  imdsv2 support : TOKEN should exist if inside AWS even if not enforced
-    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    TOKEN=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
     if [ -z ${TOKEN+x} ]; then
       # TOKEN NOT SET , NOT inside AWS
       cloud_type=0
-    elif $(curl --silent -m 5 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
+    elif $(curl --silent -m 5 --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
       debug_log 'AWS instance detected'
       cloud_type=1
     fi

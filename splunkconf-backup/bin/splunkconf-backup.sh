@@ -149,8 +149,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20251007 move init delay after variable initialization just before backups
 # 20251007 fix regression on BACKUPSTATE and BACKUPKV flag support to disable specific backups 
 # 20251215 remove version check for kvdump, assuming always version at minimum 7.1
+# 20251215 add timeout for curl command to speed up backup for on prem with firewalls
 
-VERSION="20251215a"
+VERSION="20251215b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -188,6 +189,10 @@ umask 027
 # splunk can read/write backups
 # group can access backup (should be splunk group)
 # other should not access backups
+
+# set timeout to avoid very long timeout when calling curl to autodetect AWS (for on prem with firewalls droping it)
+CURLCONNECTTIMEOUT=10
+CURLMAXTIME=60
 
 # we always do relative backup but if ever you want the old way, change mode below to abs
 # recovery part support both mode 
@@ -453,11 +458,11 @@ function check_cloud() {
     # but this is almost certainly overkill for this purpose (and the above
     # checks of "EC2" prefixes have a higher false positive potential, anyway).
     #  imdsv2 support : TOKEN should exist if inside AWS even if not enforced
-    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    TOKEN=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
     if [ -z ${TOKEN+x} ]; then
       # TOKEN NOT SET , NOT inside AWS
       cloud_type=0
-    elif $(curl --silent -m 5 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
+    elif $(curl --silent -m 5 --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
       debug_log 'AWS instance detected'
       cloud_type=1
     fi
@@ -989,10 +994,10 @@ if [ $CHECK -ne 0 ]; then
   if [[ "cloud_type" -eq 1 ]]; then
     # aws
     # setting up token (IMDSv2)
-    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    TOKEN=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
     # lets get the s3splunkinstall from instance tags
-    INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
-    REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
+    INSTANCE_ID=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
+    REGION=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
     # we put store tags in instance-tags file-> we will use this later on
     aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/' | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > $INSTANCEFILE

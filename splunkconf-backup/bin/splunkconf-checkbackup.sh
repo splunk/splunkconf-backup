@@ -13,8 +13,9 @@ exec > /tmp/splunkconf-checkbackup-debug.log  2>&1
 # 20230202 fix typos and false positive in check
 # 20230913 add debug code for local conf inclusion
 # 20240629 replace direct var inclusion with loading function logic
+# 20251215 add timeout for curl command to speed up backup for on prem with firewalls
 
-VERSION="20240629a"
+VERSION="20251215a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -45,6 +46,9 @@ unset NODE_PATH
 unset PYTHONPATH
 #env
 
+# set timeout to avoid very long timeout when calling curl to autodetect AWS (for on prem with firewalls droping it)
+CURLCONNECTTIMEOUT=10
+CURLMAXTIME=60
 
 #### purge parameters
 

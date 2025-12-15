@@ -75,8 +75,13 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20240213 add checks for ready status fpr kvstore initialization at start
 # 20230213 fix kvarchive regression and typo
 # 20240629 replace direct var inclusion with loading function logic
+# 20251201 add more info log for restore non kvdump
+# 20251201 rework version detection, update with the one from backup to change the logic to be consistent (help with v10)
+# 20251202 align load settings with backup version
+# 20251215 remove version check for kvdump, assuming always version at minimum 7.1
+# 20251215 add backup dir creation to avoid error and delay du to check disk space not working correctly
 
-VERSION="20240629a"
+VERSION="20251215a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -146,7 +151,6 @@ KVDBPATH="${SPLUNK_DB}/kvstore"
 # in all case, the disk should be sized correctly initially for the restore to be sucesfull
 # note the kvdump format and the real space on disk are linked but not directly (for example a emppty kvdump will still create kvstore files)
 MINFREESPACE=2000000
-CURRENTAVAIL=`df --output=avail -k  ${LOCALBACKUPDIR} | tail -1`
 
 # logging
 # file will be indexed by local splunk instance
@@ -213,27 +217,32 @@ function rotate_log {
   fi
 }
 
+
 function load_settings_from_file () {
  FI=$1
  if [ -e "$FI" ]; then
-   regclass="([a-zA-Z]+)[[:space:]]*=[[:space:]]*\"{0,1}([a-zA-Z0-9_\-]+)\"{0,1}"
+   debug_log "loading settings for file $FI"
+   # to match empty line or comment line
    regclass2="^(#|\[)"
     # Read the file line by line, remove spaces then create a variable if start by splunk
     while read -r line; do
       if [[ "${line}" =~ $regclass2 ]]; then
-        debug_log "comment line or stanza line with line=$line"
+        debug_log "form: comment line or stanza line with line=$line"
       elif [ -z "${line-unset}" ]; then
-        debug_log "empty line"
-      elif [[ "${line}" =~ $regclass ]]; then
-        var_name=${BASH_REMATCH[1]}
-        var_value=${BASH_REMATCH[2]}
+        debug_log "form : empty line"
+      elif [[ $(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:\/\.\-\,]+)"?/\1 \2/p') ]]; then
+        # sed -E turn PCRE like syntax
+        read -r var_name var_value <<< "$(echo "$line" | sed -nE 's/([a-zA-Z0-9_]+)\s*=\s*"?([a-zA-Z0-9_:\/\.\-\,]+)"?/\1 \2/p')"
+        # sed may leave a trailing " (even if not supposed to....) doing a extra cleanup here
+        var_value2=$(echo "$var_value" | sed 's/"$//')
         # Dynamically create the variable with its value
-        declare -g "$var_name=$var_value"
-        debug_log "OK:form ok, start with splunk setting $var_name=$var_value, $var_name=${!var_name}"
+        declare -g "$var_name=${var_value2}"
+        debug_log "OK:form ok, start with splunk setting $var_name=${var_value2}, var_name=${var_name}   var_value=${var_value} var_value2=${var_value2}."
       else
         debug_log "KO:invalid form line=$line"
       fi
     done < $FI
+   debug_log "end of loading settings for file $FI"
   else
     debug_log "file $FI is not present"
   fi
@@ -244,6 +253,10 @@ function load_settings_from_file () {
 # %u is day of week , we may use this for custom purge
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 ID=`date '+%s'`;
+
+# initialization
+ERROR=0
+ERROR_MESS=""
 
 
 
@@ -314,10 +327,39 @@ RESTOREPATH=$SPLUNK_HOME
 
 debug_log "$0 running with MODE=${MODE}"
 
+####### ATTENTION : we are in restore but we need the backupdir to exist or the checkspace will fail after and it will delay restore which is not what we want
+
+# creating dir
+
+# warning : if this fail because splunk can't create it, then root should create it and give it to splunk"
+# this is context dependant
+
+if [ ! -d "$LOCALBACKUPDIR" ]; then
+  echo_log "backup dir $LOCALBACKUPDIR doesnt exist yet, attempting to create it"
+  mkdir -p $LOCALBACKUPDIR
+
+  if [ ! -d "$LOCALBACKUPDIR" ]; then
+    fail_log "backupdir=${LOCALBACKUPDIR} type=local object=creation result=failure dir couldn't be created by script. Please check and fix permissions or create it and allow splunk to write into it";
+    ERROR=1
+    ERROR_MESSAGE="backupdircreateerror"
+    exit 1;
+  fi
+else
+  debug_log "OK: backup dir $LOCALBACKUPDIR already exist"
+fi
+
+if [ ! -w $LOCALBACKUPDIR ] ; then 
+  fail_log "backupdir=${LOCALBACKUPDIR} type=local object=write result=failure dir isn't writable by splunk !. Please check and fix permissions and allow splunk to write into it";
+  ERROR=1
+  ERROR_MESSAGE="backupdirmissingwritepermissionerror"
+  exit 1;
+fi
+
 case $MODE in
   "etcremoterestore"|"stateremoterestore"|"scriptsremoterestore") 
      debug_log "argument valid, we are in autorestoremode with MODE=$MODE and FILE=$FILE"
      if [ -e $FILE ]; then
+       echo_log "MODE=$MODE  file=$FILE, restoring wit tar under ${RESTOREPATH}"
        tar -C ${RESTOREPATH} -xf $FILE
        exit 0
      else
@@ -372,6 +414,7 @@ rotate_log;
 #sleep 60
 #debug_log "done sleeping, starting real restore"
 
+CURRENTAVAIL=`df --output=avail -k  ${LOCALBACKUPDIR} | tail -1`
 
 if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
 	fail_log "minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} result=insufficientspaceleft ERROR : Insufficient disk space left , disabling restore ! Please fix "
@@ -386,6 +429,7 @@ fi
 
 #if [ -z ${BACKUP+x} ]; then fail_log "BACKUP not defined in ENVSPL file. Not doing backup as requested!"; exit 0; else echo_log "BACKUP=${BACKUP}"; fi
 #if [ -z ${LOCALBACKUPDIR+x} ]; then echo_log "LOCALBACKUPDIR not defined in ENVSPLBACKUP file. CANT BACKUP !!!!"; exit 1; else echo_log "LOCALBACKUPDIR=${LOCALBACKUPDIR}"; fi
+if [ -z ${LOCALBACKUPDIR+x} ]; then echo_log "LOCALBACKUPDIR not defined !!!!"; exit 1; else debug_log "LOCALBACKUPDIR=${LOCALBACKUPDIR}"; fi
 if [ -z ${SPLUNK_HOME+x} ]; then 
   fail_log "SPLUNK_HOME not defined in default or ENVSPLBACKUP file. CANT BACKUP !!!!"; 
   if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
@@ -428,38 +472,50 @@ fi
 #INSTANCE=$SERVERNAME
 
 
-# creating dir
-
-# warning : if this fail because splunk can't create it, then root should create it and give it to splunk"
-# this is context dependant
-
-
 cd /
 
 FIC="disabled"
 #if [ -z ${BACKUPKV+x} ]; then echo_log "backuptype=kvstore result=disabled"; else
-  version=`${SPLUNK_HOME}/bin/splunk version | cut -d ' ' -f 2`;
-  if [[ $version =~ ^([^.]+\.[^.]+)\. ]]; then
-    ver=${BASH_REMATCH[1]}
-    #echo_log "current major version is=$ver"
-  else
-    fail_log "splunk version : unable to parse string $version"
-  fi
-  minimalversion=7.0
-  kvdump_done=0
-  kvbackupmode=taronline
-  MESSVER="currentversion=$ver, minimalversion=${minimalversion}";
+# we do a tail to get the last line as sometimes there can be warning on first lines so the version is always last line
+version=`${SPLUNK_HOME}/bin/splunk version | tail -1 | cut -d ' ' -f 2`;
+if [[ $version =~ ^([^.]+\.[^.]+)\. ]]; then
+  ver=${BASH_REMATCH[1]}
+  vermajor=$(printf "%.0f" "$ver")
+  debug_log "splunkversion=$ver vermajor=$ver"
+else
+  fail_log "splunkversion : unable to parse string $version"
+  # in order to force kvdump when version detection fail as we are probably in a compatible version
+  vermajor=10
+fi
+# integer here
+minimalversion=7
+kvdump_done=0
+kvbackupmode=taronline
+MESSVER="currentversion=$ver, minimalversionover=${minimalversion}";
+btoolkvstore=`${SPLUNK_HOME}/bin/splunk btool server list kvstore | grep disabled`;
+if [[ $btoolkvstore =~ "true" ]] || [[ $btoolkvstore =~ "1" ]]; then
+  echo_log "action=restorebackup type=$TYPE object=${OBJECT} result=disabled reason=kvstoredisabledonsplunkbyconfig";
+elif [ -z ${BACKUPKV+x} ] || [ $BACKUPKV -eq 0 ]; then
+  # we echo here to have it appear in logs as it will allow to identify disabled versus missing case
+  echo_log "action=restorebackup type=$TYPE object=${OBJECT} result=disabled dest=$FIC reason=disabled ${MESS1}"
+elif [ $ERROR -ne 0 ]; then
+  fail_log "action=restorebackup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
   # bc not present on some os changing if (( $(echo "$ver >= $minimalversion" |bc -l) )); then
-  if [ $ver \> $minimalversion ]; then
-    kvbackupmode=kvdump
-    #echo_log "splunk version 7.1+ detected : using online kvstore backup "
-    # get the management uri that match the current instance (we cant assume it is always 8089)
-    #disabled we dont want to log this for obvious security reasons debug: echo "session key is $sessionkey"
-    #MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \#| cut -d ' ' -f 4|tail -1`
-    MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \# | sed -r 's/.*=\s*([0-9\.:]+)/\1/' |tail -1`
-    KVARCHIVE="backupconfsplunk-kvdump-toberestored.tar.gz"
-    LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}"
-    if [ -e "${LFICKVDUMP}" ]; then 
+  #if [[ $ver \> $minimalversion ]]  && [[ "$MODE" == "0"  || "$MODE" == "kvdump" || "$MODE" == "kvauto" ]]; then
+  #elif (( $vermajor > $minimalversion ))  && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]  || [[ "$MODE" == "kvdumprestore" ]]); then
+  # we really need bc for floating but not always present. now assuming true ie splunk is at least 7.1 
+elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]  || [[ "$MODE" == "kvdumprestore" ]]); then
+  kvbackupmode=kvdump
+  #echo_log "splunk version 7.1+ detected : using online kvstore backup "
+  # get the management uri that match the current instance (we cant assume it is always 8089)
+  #disabled we dont want to log this for obvious security reasons debug: echo "session key is $sessionkey"
+  #MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \#| cut -d ' ' -f 4|tail -1`
+  MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \# | sed -r 's/.*=\s*([0-9\.:]+)/\1/' |tail -1`
+  KVARCHIVE="backupconfsplunk-kvdump-toberestored.tar.gz"
+  LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}"
+  debug_log "willing to restore $KVARCHIVE from $LFICKVDUMP with MGMTURL=$MGMTURL"
+  if [ -e "${LFICKVDUMP}" ]; then 
+      debug_log "willing to restore $KVARCHIVE from $LFICKVDUMP with MGMTURL=$MGMTURL file exist"
       # ok we are sure we want to restore so let's check kvstore status now
       COUNTER=49
       RES=""
@@ -561,18 +617,18 @@ FIC="disabled"
       LFICKVDUMP2=${LFICKVDUMP}."processed"
       # backuprestore dir should be owned by splunk or the operation will fail and the restore op will occur at each start which you dont want !
       `mv ${LFICKVDUMP} ${LFICKVDUMP2}` || fail_log "cant rename ${LFICKVDUMP} . Please correct asap and give write permission to splunk user on backuprestore dir at ${SPLUNK_DB}/kvstorebackup OR the restore operation will be repeated at next Splunk start, which you probably dont want !";
-    else
+  else
+      debug_log "willing to restore $KVARCHIVE from $LFICKVDUMP with MGMTURL=$MGMTURL but file not present which is probably because we are not in a restore situation, which is fine"
       echo_log "Splunk started but not in restore situation, Nothing to do, all fine";
       #if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
       #  `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
       #  warn_log "ERROR: cleaning up stale kvstore restore lock! This is not expected, please investigate and check for issues that could have killed the restore in the middle !"
       #fi
-    fi
-  else
+  fi
+else
     echo_log "object=kvdump action=unsupportedversion splunk_version not yet 7.1, cant use online kvdump restore, nothing to do here, please restore outside this script"
     kvbackupmode=taronline
-# temo
-   fi
+fi
 #fi
 
 if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then

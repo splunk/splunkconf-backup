@@ -62,9 +62,10 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20251007 resync load settings with updated regex
 # 20251215 add mode=purge to have more consistent logging
 # 20251215 add timeout for curl command to speed up backup for on prem with firewalls
+# 20251216 more curl timeout
 
 
-VERSION="20251215b"
+VERSION="20251216a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -372,10 +373,10 @@ if [ $CHECK -ne 0 ]; then
   if [[ "cloud_type" -eq 1 ]]; then
     # aws
     # setting up token (IMDSv2)
-    TOKEN=`curl --silent --show-error -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
+    TOKEN=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
     # lets get the s3splunkinstall from instance tags
-    INSTANCE_ID=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
-    REGION=`curl --silent --show-error -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
+    INSTANCE_ID=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id `
+    REGION=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//' `
 
     # we put store tags in instance-tags file-> we will use this later on
     aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/' | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' | grep -E "^splunk" > $INSTANCEFILE
@@ -390,38 +391,38 @@ if [ $CHECK -ne 0 ]; then
   fi
 elif [[ "cloud_type" -eq 2 ]]; then
   # GCP
-  splunkinstanceType=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
+  splunkinstanceType=`curl ---connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
   if [ -z ${splunkinstanceType+x} ]; then
     debug_log "GCP : Missing splunkinstanceType in instance metadata"
   else
     # > to overwrite any old file here (upgrade case)
     echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
   fi
-  splunks3installbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
+  splunks3installbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
   if [ -z ${splunks3installbucket+x} ]; then
     debug_log "GCP : Missing splunks3installbucket in instance metadata"
   else
     echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
   fi
-  splunks3backupbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
+  splunks3backupbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
   if [ -z ${splunks3backupbucket+x} ]; then
     debug_log "GCP : Missing splunks3backupbucket in instance metadata"
   else
     echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
   fi
-  splunks3databucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
+  splunks3databucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
   if [ -z ${splunks3databucket+x} ]; then
     debug_log "GCP : Missing splunks3databucket in instance metadata"
   else
     echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
   fi
-  splunklocalbackupretentiondays=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupretentiondays`
-  splunklocalbackupkvretentiondays=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupkvretentiondays`
-  splunklocalbackupscriptsretentiondays=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupscriptsretentiondays`
-  splunklocalbackupstateretentiondays=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupstateretentiondays`
-  splunklocalbackupdir=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupdir`
-  splunklocalmaxsize=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsize`
-  splunklocalmaxsizeauto=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsizeauto`
+  splunklocalbackupretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupretentiondays`
+  splunklocalbackupkvretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupkvretentiondays`
+  splunklocalbackupscriptsretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupscriptsretentiondays`
+  splunklocalbackupstateretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupstateretentiondays`
+  splunklocalbackupdir=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupdir`
+  splunklocalmaxsize=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsize`
+  splunklocalmaxsizeauto=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsizeauto`
 
 else
   warn_log "aws cloud tag detection disabled (missing commands)"

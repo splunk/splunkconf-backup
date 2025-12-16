@@ -150,8 +150,10 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20251007 fix regression on BACKUPSTATE and BACKUPKV flag support to disable specific backups 
 # 20251215 remove version check for kvdump, assuming always version at minimum 7.1
 # 20251215 add timeout for curl command to speed up backup for on prem with firewalls
+# 20251216 more versioncheck removal
+# 20251216 more curl timeout
 
-VERSION="20251215b"
+VERSION="20251216b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -1012,32 +1014,32 @@ if [ $CHECK -ne 0 ]; then
   fi
 elif [[ "cloud_type" -eq 2 ]]; then
   # GCP
-  splunkinstanceType=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
+  splunkinstanceType=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
   if [ -z ${splunkinstanceType+x} ]; then
     debug_log "GCP : Missing splunkinstanceType in instance metadata"
   else
     # > to overwrite any old file here (upgrade case)
     echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
   fi
-  splunks3installbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
+  splunks3installbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
   if [ -z ${splunks3installbucket+x} ]; then
     debug_log "GCP : Missing splunks3installbucket in instance metadata"
   else
     echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
   fi
-  splunks3backupbucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
+  splunks3backupbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
   if [ -z ${splunks3backupbucket+x} ]; then
     debug_log "GCP : Missing splunks3backupbucket in instance metadata"
   else 
     echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
   fi
-  splunks3databucket=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
+  splunks3databucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
   if [ -z ${splunks3databucket+x} ]; then
     debug_log "GCP : Missing splunks3databucket in instance metadata"
   else 
     echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
   fi
-  splunks3endpointurl=`curl -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3endpointurl`
+  splunks3endpointurl=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3endpointurl`
   
 else
   warn_log "aws cloud tag detection disabled (missing commands)"
@@ -2070,7 +2072,8 @@ fi
     do_remote_copy;
   fi
 
-  if (( $vermajor > $minimalversion )) && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
+  #if (( $vermajor > $minimalversion )) && ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
+  if ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto" ]]); then
     OBJECT="kvdump"
     LFIC=${LFICKVDUMP}
     RFIC=${FICKVDUMP}

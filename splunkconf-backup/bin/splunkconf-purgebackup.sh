@@ -63,9 +63,10 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20251215 add mode=purge to have more consistent logging
 # 20251215 add timeout for curl command to speed up backup for on prem with firewalls
 # 20251216 more curl timeout
+# 20260105 update time logging format
 
 
-VERSION="20251216a"
+VERSION="20260105a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -151,8 +152,9 @@ SCRIPTNAME="splunkconf-purgebackup"
 function echo_log_ext {
   LANG=C
   #NOW=(date "+%Y/%m/%d %H:%M:%S")
-  NOW=(date)
-  echo `$NOW`" ${SCRIPTNAME} $1 " >> $LOGFILE
+  #NOW=(date)
+  NOW=$(date -u +"%d-%m-%Y %H:%M:%S.%3N %z")
+  echo "$NOW ${SCRIPTNAME} $1 " >> $LOGFILE
 }
 
 function debug_log {

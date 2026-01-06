@@ -21,8 +21,9 @@ exec > /tmp/splunkconf-purgebackup-helper-debug.log  2>&1
 
 #  This script is called in rsync mode from the remote host to launch a remote purge
 # 20240701 add versioning and comment plus pass debug mode flag as arg
+# 20260105 update time logging format
 
-VERSION="20240701a"
+VERSION="20260105a"
 
 LOGFILE="splunkconf-backup-purge-helper.log"
 
@@ -31,8 +32,9 @@ LOGFILE="splunkconf-backup-purge-helper.log"
 function echo_log_ext {
   LANG=C
   #NOW=(date "+%Y/%m/%d %H:%M:%S")
-  NOW=(date)
-  echo `$NOW`" ${SCRIPTNAME} $1 " >> $LOGFILE
+  #NOW=(date)
+  NOW=$(date -u +"%d-%m-%Y %H:%M:%S.%3N %z")
+  echo "$NOW ${SCRIPTNAME} $1 " >> $LOGFILE
 }
 
 function debug_log {

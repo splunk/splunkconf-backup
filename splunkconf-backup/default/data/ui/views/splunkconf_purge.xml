@@ -33,7 +33,7 @@
       <title>Backup space used / max target allowed</title>
       <chart>
         <search>
-          <query>index=_internal source="*splunkconf-backup.log*" $fieldhost$ splunkconf-purgebackup| timechart avg(localsize) as localsize , avg(maxlocalsize) as maxlocalsize ```avg(eval(localsize/maxlocalsize*100)) as percentlocalsize``` by host</query>
+          <query>index=_internal source="*splunkconf-backup.log*" $fieldhost$ splunkconf-purgebackup| timechart avg(localsize) as localsize , avg(maxlocalsize) as maxlocalsize avg(nbetc) as nbetc avg(nbstate) as nbstate avg(nbkvdump) as nbkvdump ```avg(eval(localsize/maxlocalsize*100)) as percentlocalsize``` by host</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
           <sampleRatio>1</sampleRatio>
@@ -57,7 +57,7 @@
         <option name="charting.chart.bubbleMinimumSize">10</option>
         <option name="charting.chart.bubbleSizeBy">area</option>
         <option name="charting.chart.nullValueMode">connect</option>
-        <option name="charting.chart.overlayFields">percentlocalsize:*</option>
+        <option name="charting.chart.overlayFields">nbetc,nbkvdump,nbstate</option>
         <option name="charting.chart.showDataLabels">none</option>
         <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
         <option name="charting.chart.stackMode">default</option>

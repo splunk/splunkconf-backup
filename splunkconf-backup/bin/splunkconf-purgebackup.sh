@@ -64,9 +64,10 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20251215 add timeout for curl command to speed up backup for on prem with firewalls
 # 20251216 more curl timeout
 # 20260105 update time logging format
+# 20260106 add purgestats
 
 
-VERSION="20260105a"
+VERSION="2026010r65a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -550,6 +551,7 @@ EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 /usr/bin/find ${BACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 # || fail_log "action=purge type=local reason=retentionpolicy object=etc result=fail error purging local etc backup "
 
+
 splunkconf_checkspace
 
 # kv tar version
@@ -660,6 +662,22 @@ do
   fi  
 done;
 
+# adding stats so we know how any backups we have
+ME=""
+for OBJECT in "etc" "scripts" "kvstore" "kvdump" "state";
+do
+  if [[ "$OBJECT" = "kvdump" ]]; then
+    B=$(find "${LOCALKVDUMPDIR}" -maxdepth 1 -type f -name "*kvdump**" -printf '.' | wc -m )
+  else
+    B=$(find "${BACKUPDIR}" -maxdepth 1 -type f -name "backupconfsplunk-*${OBJECT}*tar.*" -printf '.' | wc -m )
+  fi
+  if  [[ "$OBJECT" = "kvstore"  &&  $B -eq 0 ]]; then
+    debug_log "no kvstore (ie tar) backup, no need to report"
+  else
+    ME="$ME nb${OBJECT}=$B"
+  fi
+done
+echo_log "action=purgestats type=$TYPE $ME localsize=${CURRENTSIZE} maxlocalsize=${LOCALMAXSIZE} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
 
 ################ REMOTE 
 

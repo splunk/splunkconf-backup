@@ -459,9 +459,10 @@ LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}"
 
 CURRENTAVAIL=`df --output=avail -k  ${LOCALBACKUPDIR} | tail -1`
 
+TYPE="local"
+
 if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
         OBJECT="kvdump"
-        TYPE="local"
         ERROR_MESS="insufficientspaceleft"
         debug_log "willing to restore $KVARCHIVE from $LFICKVDUMP with MGMTURL=$MGMTURL"
         if [ -e "${LFICKVDUMP}" ]; then 
@@ -471,7 +472,7 @@ if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
           MESS1="minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} ERROR : Insufficient disk space left , but no kvdump to restore"
           result="noop"
         fi
-        fail_log "action=restorebackup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
+        fail_log "action=restorebackup type=${TYPE} object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
 	#fail_log "minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} result=insufficientspaceleft ERROR : Insufficient disk space left , disabling restore ! Please fix "
         # disbling direct logging better to call real backup script which will contain logic to correctly log failures 
         #debug_log "creating failure logs so dashboard is filled with the correct info from the beginning and the admin understand there is not enough space"

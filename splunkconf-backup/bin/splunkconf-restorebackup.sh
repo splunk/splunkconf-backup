@@ -81,8 +81,11 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20251215 remove version check for kvdump, assuming always version at minimum 7.1
 # 20251215 add backup dir creation to avoid error and delay du to check disk space not working correctly
 # 20251215 add timeout for curl command to speed up backup for on prem with firewalls
+# 20251219 add failure log for backup in disk space situation at first start in order to fill dashboard from start with correct info
+# 20260105 update time logging format
+# 20260105 rework logging, rework case for disk space to really call splunkconf-backup to produce better error message
 
-VERSION="20251215b"
+VERSION="20260105b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -172,8 +175,9 @@ SCRIPTNAME="splunkconf-restore"
 function echo_log_ext {
   LANG=C
   #NOW=(date "+%Y/%m/%d %H:%M:%S")
-  NOW=(date)
-  echo `$NOW`" ${SCRIPTNAME} $1 " >> $LOGFILE
+  #NOW=(date)
+  NOW=$(/bin/date -u +"%d-%m-%Y %H:%M:%S.%3N %z")
+  echo "$NOW ${SCRIPTNAME} $1 " >> $LOGFILE
 }
 
 function debug_log {
@@ -364,7 +368,7 @@ case $MODE in
   "etcremoterestore"|"stateremoterestore"|"scriptsremoterestore") 
      debug_log "argument valid, we are in autorestoremode with MODE=$MODE and FILE=$FILE"
      if [ -e $FILE ]; then
-       echo_log "MODE=$MODE  file=$FILE, restoring wit tar under ${RESTOREPATH}"
+       echo_log "MODE=$MODE  file=$FILE, restoring with tar under ${RESTOREPATH}"
        tar -C ${RESTOREPATH} -xf $FILE
        exit 0
      else
@@ -419,24 +423,12 @@ rotate_log;
 #sleep 60
 #debug_log "done sleeping, starting real restore"
 
-CURRENTAVAIL=`df --output=avail -k  ${LOCALBACKUPDIR} | tail -1`
-
-if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
-	fail_log "minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} result=insufficientspaceleft ERROR : Insufficient disk space left , disabling restore ! Please fix "
-        if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
-          `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
-          echo_log "cleaning up kvstore restore lock"
-        fi
-	exit 1
-else
-	echo_log "minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} result=success min free available check OK"
-fi
-
 #if [ -z ${BACKUP+x} ]; then fail_log "BACKUP not defined in ENVSPL file. Not doing backup as requested!"; exit 0; else echo_log "BACKUP=${BACKUP}"; fi
 #if [ -z ${LOCALBACKUPDIR+x} ]; then echo_log "LOCALBACKUPDIR not defined in ENVSPLBACKUP file. CANT BACKUP !!!!"; exit 1; else echo_log "LOCALBACKUPDIR=${LOCALBACKUPDIR}"; fi
 if [ -z ${LOCALBACKUPDIR+x} ]; then echo_log "LOCALBACKUPDIR not defined !!!!"; exit 1; else debug_log "LOCALBACKUPDIR=${LOCALBACKUPDIR}"; fi
+
 if [ -z ${SPLUNK_HOME+x} ]; then 
-  fail_log "SPLUNK_HOME not defined in default or ENVSPLBACKUP file. CANT BACKUP !!!!"; 
+  fail_log "SPLUNK_HOME not defined. CANT BACKUP !!!!"; 
   if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
     `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
     echo_log "cleaning up kvstore restore lock"
@@ -446,7 +438,7 @@ else
   echo_log "SPLUNK_HOME=${SPLUNK_HOME}"
 fi
 if [ -z ${SPLUNK_DB+x} ]; then 
-  fail_log "SPLUNK_DB not defined in default or ENVSPLBACKUP file. CANT BACKUP !!!!";
+  fail_log "SPLUNK_DB not defined. CANT BACKUP !!!!";
   if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
     `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
     echo_log "cleaning up kvstore restore lock"
@@ -454,6 +446,53 @@ if [ -z ${SPLUNK_DB+x} ]; then
   exit 1
 else 
   echo_log "SPLUNK_DB=${SPLUNK_DB}"
+fi
+
+
+
+
+echo_log "launching initial purgebackup (to maximize chance to have enough space for doing restore backups now)"
+$SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup.sh 
+
+KVARCHIVE="backupconfsplunk-kvdump-toberestored.tar.gz"
+LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}"
+
+CURRENTAVAIL=`df --output=avail -k  ${LOCALBACKUPDIR} | tail -1`
+
+if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
+        OBJECT="kvdump"
+        TYPE="local"
+        ERROR_MESS="insufficientspaceleft"
+        debug_log "willing to restore $KVARCHIVE from $LFICKVDUMP with MGMTURL=$MGMTURL"
+        if [ -e "${LFICKVDUMP}" ]; then 
+          MESS1="minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} ERROR : Insufficient disk space left , disabling restore ! Please fix"
+          result="failure"
+        else
+          MESS1="minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} ERROR : Insufficient disk space left , but no kvdump to restore"
+          result="noop"
+        fi
+        fail_log "action=restorebackup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
+	#fail_log "minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} result=insufficientspaceleft ERROR : Insufficient disk space left , disabling restore ! Please fix "
+        # disbling direct logging better to call real backup script which will contain logic to correctly log failures 
+        #debug_log "creating failure logs so dashboard is filled with the correct info from the beginning and the admin understand there is not enough space"
+        #for OBJECT in etc state scripts kvdump do
+        #  for TYPE in local remote do
+	#    fail_log "action=backup type=$TYPE object=$OBJECT result=failure dest=disabled reason=localdiskspacecheck cant backup at Splunk start minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
+        #  done
+        #done
+        if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
+          `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
+          echo_log "cleaning up kvstore restore lock"
+        fi
+        echo_log "launching initial backup via $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init , even if it will probably fail as it will log failures so dashboard are filled with correct error about insufficient disk space"
+        SESSIONKEY=$sessionkey
+        export SESSIONKEY
+        ##echo $sessionkey | $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init 
+        # using ENV method as input doesnt work here and we dont want to pass it as a arg
+        $SPLUNK_HOME/etc/apps/splunkconf-backup/bin/splunkconf-backup.sh init 
+	exit 1
+else
+	echo_log "minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} result=success min free available check OK"
 fi
 
 
@@ -516,8 +555,6 @@ elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto
   #disabled we dont want to log this for obvious security reasons debug: echo "session key is $sessionkey"
   #MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \#| cut -d ' ' -f 4|tail -1`
   MGMTURL=`${SPLUNK_HOME}/bin/splunk btool web list settings --debug | grep mgmtHostPort | grep -v \# | sed -r 's/.*=\s*([0-9\.:]+)/\1/' |tail -1`
-  KVARCHIVE="backupconfsplunk-kvdump-toberestored.tar.gz"
-  LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}"
   debug_log "willing to restore $KVARCHIVE from $LFICKVDUMP with MGMTURL=$MGMTURL"
   if [ -e "${LFICKVDUMP}" ]; then 
       debug_log "willing to restore $KVARCHIVE from $LFICKVDUMP with MGMTURL=$MGMTURL file exist"
@@ -552,9 +589,9 @@ elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto
       done
       #echo_log "RES=$RES"
       if [[ -z "$RES" ]];  then
-        warn_log "COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode result=failure ATTENTION : we didnt get ready status before trying to restore ! kvstore hasnt started in time or is not working at all"
+        warn_log "action=restorebackup type=$TYPE COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode result=failure ATTENTION : we didnt get ready status before trying to restore ! kvstore hasnt started in time or is not working at all"
       else
-        echo_log "COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode dest=${LFICKVDUMP} result=success kvstore status is ok before doing restore"
+        echo_log "action=restorebackup type=$TYPE COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode dest=${LFICKVDUMP} result=success kvstore status is ok before doing restore"
       fi
 
        # we are restoring as the backup file has been pushed there by the recovery script
@@ -596,13 +633,13 @@ elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto
       until [[  $COUNTER -lt 1 || -n "$RES"  ]]; do
         RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
         #echo_log "RES=$RES"
-        echo_log "COUNTER=$COUNTER $MESSVER $MESS1 kvbackupmode=$kvbackupmode "
+        echo_log "action=restorebackup type=$TYPE COUNTER=$COUNTER $MESSVER $MESS1 kvbackupmode=$kvbackupmode "
         let COUNTER-=1
         sleep 30
       done
       #echo_log "RES=$RES"
       if [[ -z "$RES" ]];  then
-	warn_log "COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode result=failure ATTENTION : we didnt get ready status ! Either restore kvstore (kvdump) has failed or takes too long"
+	warn_log "action=restorebackup type=$TYPE COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode result=failure ATTENTION : we didnt get ready status ! Either restore kvstore (kvdump) has failed or takes too long"
 	kvdump_done="-1"
 # FIXME, add detection here 
 # kvstore may fail without having a error via the kvstore rest endpoint
@@ -616,22 +653,23 @@ elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto
       else
 	kvdump_done="1"
 	LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}"
-	echo_log "COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode dest=${LFICKVDUMP} result=success kvstore online (kvdump) restore complete"
+	echo_log "action=restorebackup type=$TYPE COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode dest=${LFICKVDUMP} result=success kvstore online (kvdump) restore complete"
       fi
       echo_log "renaming local backup file to avoid restoring it again at next start"
       LFICKVDUMP2=${LFICKVDUMP}."processed"
       # backuprestore dir should be owned by splunk or the operation will fail and the restore op will occur at each start which you dont want !
       `mv ${LFICKVDUMP} ${LFICKVDUMP2}` || fail_log "cant rename ${LFICKVDUMP} . Please correct asap and give write permission to splunk user on backuprestore dir at ${SPLUNK_DB}/kvstorebackup OR the restore operation will be repeated at next Splunk start, which you probably dont want !";
   else
+      kvbackupmode=kvdump
       debug_log "willing to restore $KVARCHIVE from $LFICKVDUMP with MGMTURL=$MGMTURL but file not present which is probably because we are not in a restore situation, which is fine"
-      echo_log "Splunk started but not in restore situation, Nothing to do, all fine";
+      echo_log "action=restorebackup type=$TYPE object=$kvbackupmode result=noop Splunk started but not in restore situation, Nothing to do, all fine";
       #if [ -e "${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock" ]; then
       #  `rm ${SPLUNK_HOME}/var/run/splunkconf-kvrestore.lock`
       #  warn_log "ERROR: cleaning up stale kvstore restore lock! This is not expected, please investigate and check for issues that could have killed the restore in the middle !"
       #fi
   fi
 else
-    echo_log "object=kvdump action=unsupportedversion splunk_version not yet 7.1, cant use online kvdump restore, nothing to do here, please restore outside this script"
+    echo_log "action=restorebackup type=$TYPE object=kvdump result=failure reason=unsupportedversion splunk_version not yet 7.1, cant use online kvdump restore, nothing to do here, please restore outside this script"
     kvbackupmode=taronline
 fi
 #fi

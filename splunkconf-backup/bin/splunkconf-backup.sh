@@ -152,8 +152,12 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20251215 add timeout for curl command to speed up backup for on prem with firewalls
 # 20251216 more versioncheck removal
 # 20251216 more curl timeout
+# 20251217 propage script autodisable status so remote copy status is always aligned
+# 20251218 improve remote copy and disabled modes to prevent useless retries which add unecessary logging
+# 20251219 propagate error from local to remote to avoid logging disabled when it is a failure du to local (like disk space issue)
+# 20260105 update time logging format
 
-VERSION="20251216b"
+VERSION="20260105a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -375,8 +379,9 @@ SCRIPTNAME="splunkconf-backup"
 function echo_log_ext {
   LANG=C
   #NOW=(date "+%Y/%m/%d %H:%M:%S")
-  NOW=(date)
-  echo `$NOW`" ${SCRIPTNAME} $1 " >> $LOGFILE
+  #NOW=(date)
+  NOW=$(/bin/date -u +"%d-%m-%Y %H:%M:%S.%3N %z")
+  echo "$NOW ${SCRIPTNAME} $1 " >> $LOGFILE
 }
 
 
@@ -619,6 +624,8 @@ function do_remote_copy() {
     debug_log "do_remote_copy : FIC=$FIC LFIC=$FIC OBJECT=$OBJECT RENOTETECHNO=$REMOTETECHNO RFIC=$RFIC AWSCOPYMODE=$AWSCOPYMODE ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY REMOTETECHNO=$REMOTETECHNO "
     if [ -e "$FIC" ]; then
       FILESIZE=$(/usr/bin/stat -c%s "$FIC")
+    elif [ "${FIC}" == "disabled" ]; then
+      FILESIZE=0
     else
       debug_log "FIC=$FIC doesn't exist !"
       FILESIZE=0
@@ -628,10 +635,19 @@ function do_remote_copy() {
       # local disable case
       echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled" 
       #debug_log "not doing remote $OBJECT as no local version present MODE=$MODE"
+      debug_log "exiting remote copy loop because result=disabled"
+      break
+    elif [ "${LFIC}" == "localdiskspacecheck" ]; then
+      fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure reason=localdiskspacecheck" 
+      #debug_log "not doing remote $OBJECT as no local version present MODE=$MODE"
+      debug_log "exiting remote copy loop because result=localdiskspacecheck"
+      break
     elif [ $DOREMOTEBACKUP -eq 0 ]; then
       # local ran but remote is disabled
       DURATION=0
       echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY"
+      debug_log "exiting remote copy loop because result=disabled"
+      break
     elif [ "${LFIC}" != "disabled" ] && [ "${OBJECT}" == "kvdump" ] && [ "${kvdump_done}" == "0" ]; then
       # we have initiated kvdump but it took so long we never had a complete message so we cant copy as it could be incomplete
       # we want to log here so it appear in dashboard and alerts
@@ -1308,7 +1324,7 @@ fi
 #SERVERNAME=`${SPLUNK_HOME}/bin/splunk show servername  | awk '{print $3}'`
 #splunk show servername
  
-debug_log "src detection  : splunkinstanceType=$splunkinstanceType,${#splunkinstanceType}, SERVERNAME=$SERVERNAME, ${#SERVERNAME},  HOST=$HOST"
+debug_log "src detection  : splunkinstanceType=$splunkinstanceType, length=${#splunkinstanceType}, SERVERNAME=$SERVERNAME, ${#SERVERNAME},  HOST=$HOST"
 if [ ${#splunkinstanceType} -ge 2 ]; then 
   INSTANCE=$splunkinstanceType
   debug_log "using splunkinstanceType tag for instance, instance=${INSTANCE} src=splunkinstanceType"
@@ -1418,6 +1434,8 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
   splunkconf_checkspace;
   if [ $ERROR -ne 0 ]; then
     fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}" 
+    # propagate so remote copy know if disabled or error
+    LFICETC=${ERROR_MESS}
   elif [ ${BACKUPTYPE} -eq 2 ]; then
     debug_log "running tar for etc full backup";
     if [ "${TARMODE}" = "abs" ]; then
@@ -1480,6 +1498,8 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
     echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled dest=$FIC reason=disabled ${MESS1}" 
   elif [ $ERROR -ne 0 ]; then
     fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
+    # propagate so remote copy know if disabled or error
+    LFICSCRIPT=${ERROR_MESS}
   else 
     #debug_log "doing backup scripts via tar";
     FILELIST=${SCRIPTDIR}
@@ -1511,6 +1531,8 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
       LFICSCRIPT=$FIC;
     else
       echo_log "action=backup type=$TYPE object=$OBJECT result=autodisabledempty"
+       # we set file to disabled so we later dont attempt to do a remote copy 
+      LFICSCRIPT="disabled";
     fi
   fi
   # debug
@@ -1524,7 +1546,8 @@ kvstore_done=0
 LFICKVSTORE="disabled"
 kvdump_done=0
 LFICKVDUMP="disabled"
-OBJECT="kvstore"
+#OBJECT="kvstore"
+OBJECT="kvdump"
 if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || [ "$MODE" == "kvauto" ]; then 
   debug_log "object=kvstore  action=start"
   FIC="disabled"
@@ -1559,6 +1582,9 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
       echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled dest=$FIC reason=disabled ${MESS1}"
     elif [ $ERROR -ne 0 ]; then
       fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
+      # propagate so remote copy know if disabled or error
+      LFICKVSTORE=${ERROR_MESS}
+      LFICKVDUMP=${ERROR_MESS}
     # bc not present on some os changing if (( $(echo "$ver >= $minimalversion" |bc -l) )); then
     #if [[ $ver \> $minimalversion ]]  && [[ "$MODE" == "0"  || "$MODE" == "kvdump" || "$MODE" == "kvauto" ]]; then
     # test
@@ -1801,6 +1827,8 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
          echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled dest=$FIC reason=disabled ${MESS1}"
       elif [ $ERROR -ne 0 ]; then
         fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
+        # propagate so remote copy know if disabled or error
+        LFICSTATE=${ERROR_MESS}
       else
         #echo_log "doing backup state (modinputs and scheduler state) via tar";
         #result=$(tar -zcf ${FIC}  ${MODINPUTPATH} ${SCHEDULERSTATEPATH} ${STATELIST}  2>&1 | tr -d "\n") && echo_log "${MESS1} action=backup type=local object=state result=success dest=$FIC local state backup succesfull (result=$result)" || warn_log "${MESS1} action=backup type=local object=state result=failure dest=$FIC local state backup returned error , please investigate (modinputpath=${MODINPUTPATH} schedulerpath=${SCHEDULERSTATEPATH}  statelist=${STATELIST} result=$result )"

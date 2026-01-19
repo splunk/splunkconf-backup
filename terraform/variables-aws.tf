@@ -3,6 +3,11 @@
 variable "imdsv2" {
   description = "for 8.2.2+ and 8.1.5+, after configuring [imds] in server.conf to v2, you may require tokens in AWS to reduce attack surface (default=required which is more secure, set to value=disable to allow v1)"
   type        = string
+  validation {
+    # regex(...) fails if it cannot find a match
+    condition     = can(regex("^(required|optional)", var.imdsv2))
+    error_message = "please set imdsv2 to required (default, more secure) or optional (allow v1 or v2)"
+  }
   default     = "required"
 }
 

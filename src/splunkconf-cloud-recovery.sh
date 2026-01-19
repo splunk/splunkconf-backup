@@ -276,8 +276,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20250807 up to 10.0.0
 # 20251113 reduce verbosity for tar mode deployment
 # 20251215 update cleanssm timer to rely in unit
+# 20260119 up to 10.2.0
 
-VERSION="20251215a"
+VERSION="20260119a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1602,8 +1603,8 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
-splversion="10.0.0"
-splhash="e8eb0c4654f8"
+splversion="10.2.0"
+splhash="d749cb17ea65"
 splversionhash=${splversion}-${splhash}""
 # this is spl arch, arch will be the one from os
 splarch="x86_64"

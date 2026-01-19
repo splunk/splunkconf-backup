@@ -380,6 +380,7 @@ resource "aws_lb" "ihfhec-noack" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.splunk-lb-hecihf-outbound.id, aws_security_group.splunk-lbhecihf.id]
   subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
+  drop_invalid_header_fields = true
 }
 
 
@@ -390,6 +391,7 @@ resource "aws_lb" "ihfhec-ack" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.splunk-lb-hecihf-outbound.id, aws_security_group.splunk-lbhecihf.id]
   subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
+  drop_invalid_header_fields = true
 }
 
 

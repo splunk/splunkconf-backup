@@ -278,8 +278,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20251215 update cleanssm timer to rely in unit
 # 20260119 up to 10.2.0
 # 20260129 switch get_object to sync instead of cp, add variable for rom retry and make it longer and more frequent, add cert upgrade when in upgrade mode
+# 20260129 catch rpm return code when trying to redeploy same rpm so we still try to do rest of upgrade (like certificates) 
 
-VERSION="20260129c"
+VERSION="20260129e"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -379,8 +380,13 @@ get_object () {
       gsutil -q cp $orig $dest
     else
       # try to sync not cp in order to optimize
-      aws s3 sync $orig $dest --quiet
+      echo ""before $dest"
+      ls -l $dest
+      #aws s3 sync $orig $dest --quiet
+      aws s3 sync $orig $dest 
       #aws s3 cp $orig $dest --quiet
+      echo ""after $dest"
+      ls -l $dest
     fi
   else
     echo "number of arguments passed to get_object is incorrect ($# instead of 2)\n"
@@ -1923,6 +1929,7 @@ if [ "$MODE" != "upgrade" ]; then
   fi
 fi
 # all cases initial and upgrade 
+echo "********** CERTS   *********************"
 echo "remote : ${remotepackagedir} : copying certs (install or upgrade) " >> /var/log/splunkconf-cloud-recovery-info.log
 # copy to local
 get_object  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir}
@@ -2412,14 +2419,16 @@ else
   COUNT=0
   # we need to repeat in case rpm lock taken as it will fail then later on other failures will occur like not having polkit ....
   # unfortunately if ssm is installed something from ssm configured at start may try install software in // breaking us....
-  until [[ $COUNT -gt 50 ]] || [[ $RES -eq 0 ]]
+  until [[ $COUNT -gt 50 ]] || [[ $RES -eq 0 ]] || [[ $RES -eq 2 ]] 
   do
     # install or upgrade
     rpm -Uvh ${localinstalldir}/${splbinary}
     #rpm -K "${localinstalldir}/${splbinary}" || (echo "ERROR : GPG Check failed, splunk rpm file may be corrupted, please check and relaunch\n";exit 1)
     RES=$? 
     ((COUNT++))
-    if [[ $RES -ne 0 ]]; then
+    if [[ $RES -eq 2 ]]; then
+       echo "rpm was already installed with this version, nothing to do"
+    elif [[ $RES -ne 0 ]]; then
       if [[ $COUNT -gt 50 ]]; then
         df -h
         echo "ERROR : rpm fail after multiple tries, please investigate and relaunch, exiting\n"

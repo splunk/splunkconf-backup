@@ -279,14 +279,16 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20260119 up to 10.2.0
 # 20260129 switch get_object to sync instead of cp, add variable for rom retry and make it longer and more frequent, add cert upgrade when in upgrade mode
 # 20260129 catch rpm return code when trying to redeploy same rpm so we still try to do rest of upgrade (like certificates) 
+# 20260129 archive mycerts when upgrading to force new ones
 
-VERSION="20260129e"
+VERSION="20260129f"
 
 # dont break script on error as we rely on tests for this
 set +e
 
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
-echo "${TODAY} running splunkconf-cloud-recovery.sh with ${VERSION} version" >> /var/log/splunkconf-cloud-recovery-info.log
+TIMESTAMP=$(date +%s)
+echo "${TODAY} running splunkconf-cloud-recovery.sh with ${VERSION} versioni (TIMESTAMP=$TIMESTAMP)" >> /var/log/splunkconf-cloud-recovery-info.log
 
 METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
 function check_cloud() {
@@ -380,14 +382,14 @@ get_object () {
       gsutil -q cp $orig $dest
     else
       # try to sync not cp in order to optimize
-      echo ""before $dest"
-      ls -l $dest
+      #echo ""before $dest"
+      #ls -l $dest
       #aws s3 sync $orig $dest --quiet
       #aws s3 sync $orig $dest 
       #aws s3 cp $orig $dest --quiet
       aws s3 cp $orig $dest 
-      echo ""after $dest"
-      ls -l $dest
+      #echo ""after $dest"
+      #ls -l $dest
     fi
   else
     echo "number of arguments passed to get_object is incorrect ($# instead of 2)\n"
@@ -1932,6 +1934,11 @@ fi
 # all cases initial and upgrade 
 echo "********** CERTS   *********************"
 echo "remote : ${remotepackagedir} : copying certs (install or upgrade) " >> /var/log/splunkconf-cloud-recovery-info.log
+# archiving
+if [ -e "${localinstalldir}/mycerts.tar.gz" ]; then
+  echo "archiving mycers.tar.gz to mycerts.tar.gz_${TIMESTAMP}"
+  mv ${localinstalldir}/mycerts.tar.gz ${localinstalldir}/mycerts.tar.gz_${TIMESTAMP}
+fi
 # copy to local
 get_object  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir}/mycerts.tar.gz
 if [ -f "${localinstalldir}/mycerts.tar.gz"  ]; then

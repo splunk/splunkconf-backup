@@ -279,7 +279,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20260119 up to 10.2.0
 # 20260129 switch get_object to sync instead of cp, add variable for rom retry and make it longer and more frequent, add cert upgrade when in upgrade mode
 
-VERSION="20260129a"
+VERSION="20260129b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1922,15 +1922,16 @@ if [ "$MODE" != "upgrade" ]; then
     echo "${remotepackagedir}/splunkclouduf.spl not found, assuming no need to send to splunkcloud or manual config"
   fi
 fi
+# all cases initial and upgrade 
+echo "remote : ${remotepackagedir} : copying certs (install or upgrade) " >> /var/log/splunkconf-cloud-recovery-info.log
+# copy to local
+get_object  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir}
+if [ -f "${localinstalldir}/mycerts.tar.gz"  ]; then
+  tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
+else
+  echo "${remotepackagedir}/mycerts.tar.gz not found, trying without but this may lead to a non functional splunk if you enabled custom certificates. This should contain the custom certs to configure TLS in order to attach to the rest of infrastructure"
+fi
 if [ "$MODE" != "upgrade" ]; then
-  echo "remote : ${remotepackagedir} : copying certs (install or upgrade) " >> /var/log/splunkconf-cloud-recovery-info.log
-  # copy to local
-  get_object  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir}
-  if [ -f "${localinstalldir}/mycerts.tar.gz"  ]; then
-    tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
-  else
-    echo "${remotepackagedir}/mycerts.tar.gz not found, trying without but this may lead to a non functional splunk if you enabled custom certificates. This should contain the custom certs to configure TLS in order to attach to the rest of infrastructure"
-  fi
   if [[ "${instancename}" =~ ds ]]; then
     echo "remote : ${remotepackagedir} : copying initial ds apps to ${localinstalldir} and untarring into ${SPLUNK_HOME}/etc/deployment-apps " >> /var/log/splunkconf-cloud-recovery-info.log
     # copy to local

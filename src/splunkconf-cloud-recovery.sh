@@ -1933,7 +1933,7 @@ fi
 echo "********** CERTS   *********************"
 echo "remote : ${remotepackagedir} : copying certs (install or upgrade) " >> /var/log/splunkconf-cloud-recovery-info.log
 # copy to local
-get_object  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir}
+get_object  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir}/mycerts.tar.gz
 if [ -f "${localinstalldir}/mycerts.tar.gz"  ]; then
   tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
 else

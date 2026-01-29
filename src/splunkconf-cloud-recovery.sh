@@ -277,8 +277,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20251113 reduce verbosity for tar mode deployment
 # 20251215 update cleanssm timer to rely in unit
 # 20260119 up to 10.2.0
+# 20260129 switch get_object to sync instead of cp, add variable for rom retry and make it longer and more frequent, add cert upgrade when in upgrade mode
 
-VERSION="20260119a"
+VERSION="20260129a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -377,7 +378,9 @@ get_object () {
       echo "using GCP version with orig=$orig and dest=$dest\n"
       gsutil -q cp $orig $dest
     else
-      aws s3 cp $orig $dest --quiet
+      # try to sync not cp in order to optimize
+      aws s3 sync $orig $dest --quiet
+      #aws s3 cp $orig $dest --quiet
     fi
   else
     echo "number of arguments passed to get_object is incorrect ($# instead of 2)\n"
@@ -432,17 +435,21 @@ get_packages () {
     fi
     RESYUM=1
     COUNT=0
+    # how many times we retry
+    MAXRPMCOUNT=30
+    # how many second we wait before retry (in order for rom to finish and release lock)
+    SLEEPRPMLOCK=3
     # we need to repeat in case yum lock taken as it will fail then later on other failures will occur like not having polkit ....
     # unfortunately if ssm is installed something from ssm configured at start may try install software in // breaking us....
-    until [[ $COUNT -gt 5 ]] || [[ $RESYUM -eq 0 ]]
+    until [[ $COUNT -gt $MAXRPMCOUNT ]] || [[ $RESYUM -eq 0 ]]
     do
       # one yum command so yum can try to download and install in // which will improve recovery time
       yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y --skip-broken
       RESYUM=$?
       ((COUNT++))
       if [[ $RESYUM -ne 0 ]]; then
-        echo "yum lock issue, sleeping 5 seconds before next retry  ($COUNT/5)"
-        sleep 5
+        echo "yum lock issue, sleeping $SLEEPRPMLOCK seconds before next retry  ($COUNT/$MAXRPMCOUNT)"
+        sleep $SLEEPRPMLOCK
       fi
     done
     if [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
@@ -1914,7 +1921,9 @@ if [ "$MODE" != "upgrade" ]; then
   else
     echo "${remotepackagedir}/splunkclouduf.spl not found, assuming no need to send to splunkcloud or manual config"
   fi
-  echo "remote : ${remotepackagedir} : copying certs " >> /var/log/splunkconf-cloud-recovery-info.log
+fi
+if [ "$MODE" != "upgrade" ]; then
+  echo "remote : ${remotepackagedir} : copying certs (install or upgrade) " >> /var/log/splunkconf-cloud-recovery-info.log
   # copy to local
   get_object  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir}
   if [ -f "${localinstalldir}/mycerts.tar.gz"  ]; then

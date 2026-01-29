@@ -279,7 +279,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20260119 up to 10.2.0
 # 20260129 switch get_object to sync instead of cp, add variable for rom retry and make it longer and more frequent, add cert upgrade when in upgrade mode
 
-VERSION="20260129b"
+VERSION="20260129c"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2381,7 +2381,7 @@ fi
 ## redeploy system tuning as enable boot start may have overwritten files
 ##tar -C "/" -zxf ${localinstalldir}/package-system-for-splunk.tar.gz
 
-echo "#********************************************SC4S INSTALLATIONi (if selected) *****************************"
+echo "#********************************************SC4S INSTALLATION (if selected) *****************************"
 
 if [ "${splunktargetbinary}" == "sc4s" ]; then
   docker volume create splunk-sc4s-var
@@ -2412,7 +2412,7 @@ else
   COUNT=0
   # we need to repeat in case rpm lock taken as it will fail then later on other failures will occur like not having polkit ....
   # unfortunately if ssm is installed something from ssm configured at start may try install software in // breaking us....
-  until [[ $COUNT -gt 10 ]] || [[ $RES -eq 0 ]]
+  until [[ $COUNT -gt 50 ]] || [[ $RES -eq 0 ]]
   do
     # install or upgrade
     rpm -Uvh ${localinstalldir}/${splbinary}
@@ -2420,7 +2420,7 @@ else
     RES=$? 
     ((COUNT++))
     if [[ $RES -ne 0 ]]; then
-      if [[ $COUNT -gt 5 ]]; then
+      if [[ $COUNT -gt 50 ]]; then
         df -h
         echo "ERROR : rpm fail after multiple tries, please investigate and relaunch, exiting\n"
         exit 1

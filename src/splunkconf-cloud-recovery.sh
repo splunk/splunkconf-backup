@@ -383,8 +383,9 @@ get_object () {
       echo ""before $dest"
       ls -l $dest
       #aws s3 sync $orig $dest --quiet
-      aws s3 sync $orig $dest 
+      #aws s3 sync $orig $dest 
       #aws s3 cp $orig $dest --quiet
+      aws s3 cp $orig $dest 
       echo ""after $dest"
       ls -l $dest
     fi

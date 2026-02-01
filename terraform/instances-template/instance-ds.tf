@@ -429,16 +429,22 @@ resource "aws_lb" "ds" {
   #subnets            = [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id]
   subnets            = (local.use-elb-private-ds == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   internal = local.use-elb-private-ds
+  # Tracks HTTP Requests
   access_logs {
     bucket  = aws_s3_bucket.s3_data.bucket
     prefix  = "log/lbds"
     enabled = true
   }
-  #connection_logs {
-  #  bucket  = aws_s3_bucket.s3_data.bucket
-  #  prefix  = "log/lbdscon"
-  #  enabled = true
-  #}
+  # Tracks TCP/TLS Connections (ALB only)
+  connection_logs {
+    bucket  = aws_s3_bucket.s3_data.bucket
+    prefix  = "log/lbdscon"
+    enabled = true
+  }
+  # Critical: Ensure the policy is attached before the LB tries to verify access
+  depends_on = [
+    aws_s3_bucket_policy.allow_access_for_lb_logs
+  ]
 }
 
 # This create a alias which point on ELB when available so we can use a pretty name

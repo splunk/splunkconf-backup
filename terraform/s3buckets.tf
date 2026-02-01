@@ -254,8 +254,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_data_lifecycle" {
 
 resource "aws_s3_bucket_policy" "allow_access_for_lb_logs" {
   bucket = aws_s3_bucket.s3_data.id
-  #policy = data.template_file.pol-splunk-s3iafs.rendered 
-  #policy = local.pol-splunk-s3iafs
   policy = data.aws_iam_policy_document.s3_bucket_lb_write.json
 }
 

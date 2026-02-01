@@ -523,6 +523,22 @@ resource "aws_lb" "idxhec-noack" {
   drop_invalid_header_fields = true
   security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhecidx.id]
   subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
+  # Tracks HTTP Requests
+  access_logs {
+    bucket  = aws_s3_bucket.s3_data.bucket
+    prefix  = "log/lbidxnoack"
+    enabled = true
+  }
+  # Tracks TCP/TLS Connections (ALB only)
+  connection_logs {
+    bucket  = aws_s3_bucket.s3_data.bucket
+    prefix  = "log/lbidxnoack"
+    enabled = true
+  }
+  # Critical: Ensure the policy is attached before the LB tries to verify access
+  depends_on = [
+    aws_s3_bucket_policy.allow_access_for_lb_logs
+  ]
 }
 
 
@@ -534,6 +550,22 @@ resource "aws_lb" "idxhec-ack" {
   drop_invalid_header_fields = true
   security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhecidx.id]
   subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
+  # Tracks HTTP Requests
+  access_logs {
+    bucket  = aws_s3_bucket.s3_data.bucket
+    prefix  = "log/lbidxack"
+    enabled = true
+  }
+  # Tracks TCP/TLS Connections (ALB only)
+  connection_logs {
+    bucket  = aws_s3_bucket.s3_data.bucket
+    prefix  = "log/lbidxack"
+    enabled = true
+  }
+  # Critical: Ensure the policy is attached before the LB tries to verify access
+  depends_on = [
+    aws_s3_bucket_policy.allow_access_for_lb_logs
+  ]
 }
 
 

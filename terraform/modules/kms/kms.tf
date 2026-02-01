@@ -1,8 +1,10 @@
 resource "aws_kms_key" "splunkkms" {
   #provider                = aws.region-primary
   description             = "Splunk KMS key"
-  deletion_window_in_days = 30
-  enable_key_rotation     = false
+  enable_key_rotation   = var.enable_key_rotation
+  deletion_window_in_days = var.deletion_window_in_days
+  rotation_period_in_days = var.rotation_period_in_days
+
   # key_usage = "ENCRYPT_DECRYPT"
   # customer_master_key_spec = SYMMETRIC_DEFAULT
   # policy    

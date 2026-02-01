@@ -57,6 +57,9 @@ output "splunk_ssh_key_ssm_arn" {
 
 module "kms" {
   source = "./modules/kms"
+  enable_key_rotation   = var.enable_key_rotation
+  deletion_window_in_days = var.deletion_window_in_days
+  rotation_period_in_days = var.rotation_period_in_days
   providers = {
     aws = aws.region-primary
   }

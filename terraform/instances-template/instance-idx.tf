@@ -587,12 +587,17 @@ resource "aws_alb_listener" "idxhec-ack" {
   load_balancer_arn = aws_lb.idxhec-ack[0].arn
   port              = 8088
   # change here for HTTPS
-  protocol = "HTTP"
+  protocol = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
+  certificate_arn = aws_acm_certificate.acm_certificate_elb_hec.arn
   default_action {
     target_group_arn = aws_alb_target_group.idxhec-ack.arn
     type             = "forward"
   }
 }
+
+
+
 
 resource "aws_acm_certificate" "acm_certificate_elb_hec" {
   #count = var.create_elb_hec_certificate ? 1 : 0

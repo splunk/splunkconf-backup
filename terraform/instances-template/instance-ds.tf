@@ -467,8 +467,7 @@ resource "aws_alb_listener" "ds" {
   port              = 8089
   # change here for HTTPS
   protocol = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-TLS-1-2-Ext-2018-06"
-  #ssl_policy        = "ELBSecurityPolicy-2016-08"
+  ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
   certificate_arn = aws_acm_certificate.acm_certificate_elb_ds.arn
 
   #default_action {

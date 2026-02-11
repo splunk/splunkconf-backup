@@ -280,8 +280,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20260129 switch get_object to sync instead of cp, add variable for rom retry and make it longer and more frequent, add cert upgrade when in upgrade mode
 # 20260129 catch rpm return code when trying to redeploy same rpm so we still try to do rest of upgrade (like certificates) 
 # 20260129 archive mycerts when upgrading to force new ones
+# 20260210 force permission removal for etc auth so custom certs dont have group and other permission as this is both good security practise and required for postgres sidecar 
 
-VERSION="20260129f"
+VERSION="20260210a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1942,7 +1943,9 @@ fi
 # copy to local
 get_object  ${remotepackagedir}/mycerts.tar.gz ${localinstalldir}/mycerts.tar.gz
 if [ -f "${localinstalldir}/mycerts.tar.gz"  ]; then
+  echo "deploying custom cert from ${localinstalldir}/mycerts.tar.gz  to dir ${SPLUNK_HOME}/etc/auth then fixing permission so group and other have no access"
   tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
+  chmod -R og-rwx "${SPLUNK_HOME}/etc/auth"
 else
   echo "${remotepackagedir}/mycerts.tar.gz not found, trying without but this may lead to a non functional splunk if you enabled custom certificates. This should contain the custom certs to configure TLS in order to attach to the rest of infrastructure"
 fi
@@ -2090,8 +2093,10 @@ if [ "$MODE" != "upgrade" ]; then
     ls -l ${localkvdumpbackupdir} >> /var/log/splunkconf-cloud-recovery-info.log
 
     if [ -f "${localinstalldir}/mycerts.tar.gz"  ]; then
+      echo "(using updated version over backup) deploying custom cert from ${localinstalldir}/mycerts.tar.gz  to dir ${SPLUNK_HOME}/etc/auth then fixing permission so group and other have no access"
       # if we updated certs, we want them to optionally replace the ones in backup
       tar -C "${SPLUNK_HOME}/etc/auth" -zxf ${localinstalldir}/mycerts.tar.gz 
+      chmod -R og-rwx "${SPLUNK_HOME}/etc/auth"
     fi
   # if restore
   fi

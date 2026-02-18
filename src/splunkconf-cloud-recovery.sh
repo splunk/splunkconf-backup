@@ -282,7 +282,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20260129 archive mycerts when upgrading to force new ones
 # 20260210 force permission removal for etc auth so custom certs dont have group and other permission as this is both good security practise and required for postgres sidecar 
 
-VERSION="20260210a"
+VERSION="20260210b"
 
 # dont break script on error as we rely on tests for this
 set +e

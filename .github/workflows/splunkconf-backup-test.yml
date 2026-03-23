@@ -12,7 +12,7 @@ env:
   APP_NAME: "splunkconf-backup" 
   APP_DEPLOY_PATH: "/opt/splunk/etc/apps"
   OUTPUT_DIR: "/opt/splunk/var/backups"           # Replace with the specific directory to monitor
-  WAIT_TIME: 120                                      # Seconds to wait after restart for file generation
+  WAIT_TIME: 180                                      # Seconds to wait after restart for file generation
   SPLUNK_PASSWORD: "Chang3d!"                         # Splunk admin password
 
 jobs:
@@ -31,7 +31,7 @@ jobs:
           - "9.0"
           - "8.2"
 
-    name: "Testing backups on Splunk ${{ matrix.splunk_version }}"
+    name: "Splunk ${{ matrix.splunk_version }} : Testing backups"
 
     steps:
       # -------------------------------------------------------
@@ -248,32 +248,72 @@ jobs:
       # -------------------------------------------------------
       - name: Wait for output files to be generated
         run: |
-          echo "=== Waiting ${{ env.WAIT_TIME }} seconds for files to be generated ==="
+          echo "=== Waiting up to ${{ env.WAIT_TIME }} seconds for files to be generated ==="
           echo "Start time: $(date)"
+          echo "Early exit condition: at least 2 backup files found"
+          echo ""
 
           TOTAL_WAIT=${{ env.WAIT_TIME }}
           ELAPSED=0
           CHECK_INTERVAL=15
+          REQUIRED_FILE_COUNT=2
+          STABLE_AGE_SECONDS=5
+
+          # Helper script to count files not modified in the last N seconds
+          # This runs inside the container
+          COUNT_STABLE_FILES='
+            STABLE_AGE='"${STABLE_AGE_SECONDS}"'
+            NOW=$(date +%s)
+            COUNT=0
+            find '"${{ env.OUTPUT_DIR }}"' \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tgz" -o -name "*.tar.zst" \) -type f 2>/dev/null | while read -r f; do
+              MTIME=$(stat -c %Y "$f" 2>/dev/null || echo "0")
+              AGE=$((NOW - MTIME))
+              if [ "$AGE" -ge "$STABLE_AGE" ]; then
+                COUNT=$((COUNT + 1))
+              fi
+              echo "$COUNT"
+            done | tail -1
+          '
+
 
           while [ $ELAPSED -lt $TOTAL_WAIT ]; do
             sleep $CHECK_INTERVAL
             ELAPSED=$((ELAPSED + CHECK_INTERVAL))
 
-            # Periodically check if files have appeared
-            FILE_COUNT=$(docker exec splunk bash -c \
-              "find ${{ env.OUTPUT_DIR }} -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' 2>/dev/null | wc -l" \
+           # Total files (including still being written)
+            TOTAL_COUNT=$(docker exec splunk bash -c \
+              "find ${{ env.OUTPUT_DIR }} \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' \) -type f 2>/dev/null | wc -l" \
               || echo "0")
 
-            echo "  [${ELAPSED}s/${TOTAL_WAIT}s] Files found so far: ${FILE_COUNT}"
+            # Stable files (not modified for at least STABLE_AGE_SECONDS)
+            STABLE_COUNT=$(docker exec splunk bash -c "$COUNT_STABLE_FILES" || echo "0")
+            # Handle empty result
+            STABLE_COUNT=${STABLE_COUNT:-0}
 
-            # Optional early exit if files are found
-            # if [ "$FILE_COUNT" -gt 0 ]; then
-            #   echo "  Files detected early. Continuing wait for completeness..."
-            # fi
+            echo "  [${ELAPSED}s/${TOTAL_WAIT}s] Total files: ${TOTAL_COUNT} | Stable (>${STABLE_AGE_SECONDS}s): ${STABLE_COUNT}"
+
+            if [ "$STABLE_COUNT" -ge $REQUIRED_FILE_COUNT ]; then
+              echo ""
+              echo "  🚀 Early exit: ${STABLE_COUNT} stable file(s) found (required: ${REQUIRED_FILE_COUNT})"
+              break
+            fi
           done
 
+          echo ""
           echo "End time: $(date)"
-          echo "Wait period complete."
+          echo "Total wait: ${ELAPSED} seconds"
+
+          # Final count
+          FINAL_COUNT=$(docker exec splunk bash -c \
+            "find ${{ env.OUTPUT_DIR }} \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' \) 2>/dev/null | wc -l" \
+            || echo "0")
+          echo "Final file count: ${FINAL_COUNT}"
+
+          if [ "$FINAL_COUNT" -lt $REQUIRED_FILE_COUNT ]; then
+            echo "⚠️  WARNING: Only ${FINAL_COUNT} file(s) found after full wait. Expected at least ${REQUIRED_FILE_COUNT}."
+          else
+            echo "✅ ${FINAL_COUNT} backup file(s) detected."
+          fi
 
       # -------------------------------------------------------
       # Step 9: Check for file creation in the output directory

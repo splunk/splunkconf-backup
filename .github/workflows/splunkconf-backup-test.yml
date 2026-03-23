@@ -163,7 +163,7 @@ jobs:
 
           # Fix ownership inside the container
           # run as root to be allowed to chown
-          docker exec root chown -R splunk:splunk \
+          docker exec --user root splunk chown -R splunk:splunk \
             ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}
 
           # Verify deployment

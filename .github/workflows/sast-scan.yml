@@ -1,3 +1,9 @@
+on:
+  push:
+    branches:
+      - [main, develop]
+  pull_request:
+    branches: [main]
 name: SAST Scan
 jobs:
   sast-scan:
@@ -5,11 +11,4 @@ jobs:
     secrets: inherit
     with:
       block_mode: "policy"
-    variables:
       SEMGREP_RULE_EXCLUDE: "splunk.aws-ec2-launch-template-metadata-service-v1-enabled,terraform.aws.security.aws-ec2-launch-template-metadata-service-v1-enabled.aws-ec2-launch-template-metadata-service-v1-enabled"
-on:
-  push:
-    branches:
-      - "main" 
-  pull_request:
-    branches: [main]

@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true
   APP_NAME: "splunkconf-backup" 
   APP_DEPLOY_PATH: "/opt/splunk/etc/apps"
   OUTPUT_DIR: "/opt/splunk/var/backups"           # Replace with the specific directory to monitor
@@ -31,7 +32,7 @@ jobs:
       # Step 1: Checkout the repository
       # -------------------------------------------------------
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # -------------------------------------------------------
       # Step 2: Prepare the app package with test files

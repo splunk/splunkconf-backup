@@ -180,8 +180,8 @@ jobs:
           echo "=== Restarting Splunk to load ${{ env.APP_NAME }} app ==="
 
           docker exec splunk id
-          echo "After id, restarting"
-          docker exec splunk /opt/splunk/bin/splunk restart 
+          echo "After id, restarting splunk as splunk user"
+          docker exec --user splunk splunk /opt/splunk/bin/splunk restart 
 
           #          docker exec --user splunk splunk /opt/splunk/bin/splunk restart \
           #            -auth admin:${{ env.SPLUNK_PASSWORD }}

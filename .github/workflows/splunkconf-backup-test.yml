@@ -24,6 +24,8 @@ jobs:
         splunk_version:
           - "10.2"
           - "10.0"
+          - "9.4"
+          - "8.2"
 
     name: "Test on Splunk ${{ matrix.splunk_version }}"
 

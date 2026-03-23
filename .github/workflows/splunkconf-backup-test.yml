@@ -179,9 +179,11 @@ jobs:
         run: |
           echo "=== Restarting Splunk to load ${{ env.APP_NAME }} app ==="
 
+          echo "Checking id"
           docker exec splunk id
-          echo "After id, listing processes in splunk docker"
+          echo "listing processes in splunk docker"
           docker exec splunk ps aux
+          docker exec --user splunk splunk cat /opt/splunk/etc/splunk-launch.conf
           echo "restarting splunk as splunk user"
           docker exec --user splunk splunk /opt/splunk/bin/splunk restart 
 
@@ -208,6 +210,8 @@ jobs:
             sleep $RETRY_INTERVAL
           done
 
+          echo "after restart : listing processes in splunk docker"
+          docker exec splunk ps aux
           if [ "$HEALTH" != "healthy" ]; then
             echo "ERROR: Splunk did not recover after restart."
             docker logs splunk

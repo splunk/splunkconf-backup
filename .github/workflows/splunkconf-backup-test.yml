@@ -111,9 +111,9 @@ jobs:
       # -------------------------------------------------------
       # Step 4: Wait for Splunk to be ready
       # -------------------------------------------------------
-      - name: Wait for Splunk to be ready
+      - name: Wait for Splunk ${{ matrix.splunk_version }} to be ready
         run: |
-          echo "=== Waiting for Splunk to become ready ==="
+          echo "=== Waiting for Splunk ${{ matrix.splunk_version }} to become ready ==="
           MAX_RETRIES=60
           RETRY_INTERVAL=10
           RETRIES=0
@@ -152,7 +152,7 @@ jobs:
       # -------------------------------------------------------
       # Step 5: Deploy the app into Splunk
       # -------------------------------------------------------
-      - name: Deploy app to Splunk
+      - name: Deploy ${{ env.APP_NAME }} app to Splunk
         run: |
           echo "=== Deploying app to Splunk ==="
 
@@ -162,7 +162,8 @@ jobs:
             splunk:${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}
 
           # Fix ownership inside the container
-          docker exec splunk chown -R splunk:splunk \
+          # run as root to be allowed to chown
+          docker exec root chown -R splunk:splunk \
             ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}
 
           # Verify deployment
@@ -175,7 +176,7 @@ jobs:
       # -------------------------------------------------------
       - name: Restart Splunk
         run: |
-          echo "=== Restarting Splunk to load the app ==="
+          echo "=== Restarting Splunk to load ${{ env.APP_NAME }} app ==="
 
           docker exec splunk /opt/splunk/bin/splunk restart \
             -auth admin:${{ env.SPLUNK_PASSWORD }}
@@ -370,7 +371,7 @@ jobs:
       # -------------------------------------------------------
       - name: Upload test artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: splunk-test-output-${{ matrix.splunk_version }}
           path: ./test_output/
@@ -400,7 +401,7 @@ jobs:
 
       - name: Upload debug logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: splunk-debug-logs-${{ matrix.splunk_version }}
           path: ./debug_logs/

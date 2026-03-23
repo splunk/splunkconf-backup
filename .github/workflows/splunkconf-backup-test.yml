@@ -328,15 +328,25 @@ jobs:
         run: |
           echo "=== Verifying tar file contents ==="
 
-          # Define the expected files that must be present in the tar archives
-          # MODIFY THIS LIST according to your requirements
-          EXPECTED_FILES=(
-            "expected_file_1.conf"
-            "expected_file_2.log"
-            "path/to/expected_file_3.xml"
+          # Define expected files per backup type
+          # ---- ETC backups ----
+          # Filename pattern: backupconfsplunk-*-etc-targeted-*.tar.gz (or .tar.zst)
+          EXPECTED_FILES_ETC=(
+            "./etc/apps/splunkconf-backup/lookups/splunkconf-backup-expected.csv"
+            "./etc/apps/journald_input/default/inputs.conf"
+            "./etc/apps/introspection_generator_addon/metadata/default.meta"
+          )
+
+          # ---- STATE backups ----
+          # Filename pattern: backupconfsplunk-*-state-*.tar.gz (or .tar.zst)
+          EXPECTED_FILES_STATE=(
+            "./var/lib/splunk/fishbucket/db/"
+            "./var/run/splunk/confsnapshot/"
           )
 
           OVERALL_RESULT=0
+          ETC_FOUND=0
+          STATE_FOUND=0
 
           # Helper function to list tar contents based on file extension
           list_tar_contents() {
@@ -361,14 +371,51 @@ jobs:
           }
 
 
+          # Helper function to detect backup type from filename
+          get_backup_type() {
+            local filename="$1"
+            if echo "$filename" | grep -qE 'backupconfsplunk-.*-etc-targeted-'; then
+              echo "etc"
+            elif echo "$filename" | grep -qE 'backupconfsplunk-.*-state-'; then
+              echo "state"
+            else
+              echo "unknown"
+            fi
+          }
+
           for tarfile in ./test_output/*.tar ./test_output/*.tar.gz ./test_output/*.tgz ./test_output/*.tar.zst; do
             # Skip if glob didn't match any files
             [ -e "$tarfile" ] || continue
 
+            FILENAME=$(basename "$tarfile")
+            BACKUP_TYPE=$(get_backup_type "$FILENAME")
+
             echo ""
             echo "============================================"
-            echo "Inspecting: $(basename "$tarfile")"
+            echo "Inspecting: ${FILENAME}"
+            echo "Detected backup type: ${BACKUP_TYPE}"
             echo "============================================"
+
+            # Select the appropriate expected files list
+            case "$BACKUP_TYPE" in
+              etc)
+                EXPECTED_FILES=("${EXPECTED_FILES_ETC[@]}")
+                ETC_FOUND=1
+                ;;
+              state)
+                EXPECTED_FILES=("${EXPECTED_FILES_STATE[@]}")
+                STATE_FOUND=1
+                ;;
+              unknown)
+                echo "  ⚠️  WARNING: Unknown backup type for file: ${FILENAME}"
+                echo "  Skipping content verification for this file."
+                echo "  Expected patterns:"
+                echo "    - ETC:   backupconfsplunk-*-etc-targeted-*.tar.gz (or .tar.zst)"
+                echo "    - STATE: backupconfsplunk-*-state-*.tar.gz (or .tar.zst)"
+                continue
+                ;;
+            esac
+
 
             echo "--- Archive contents ---"
             TAR_CONTENTS=$(list_tar_contents "$tarfile") || {
@@ -379,7 +426,7 @@ jobs:
             echo "$TAR_CONTENTS"
             echo ""
 
-            # Check for each expected file
+            echo "--- Checking expected files for ${BACKUP_TYPE} backup ---"
             for expected in "${EXPECTED_FILES[@]}"; do
               if echo "$TAR_CONTENTS" | grep -q "$expected"; then
                 echo "  ✅ FOUND: $expected"
@@ -389,6 +436,27 @@ jobs:
               fi
             done
           done
+
+
+          # Verify that we found at least one of each backup type
+          echo ""
+          echo "============================================"
+          echo "Backup type coverage check:"
+          echo "============================================"
+
+          if [ "$ETC_FOUND" -eq 1 ]; then
+            echo "  ✅ ETC backup found and verified"
+          else
+            echo "  ❌ No ETC backup found (expected: backupconfsplunk-*-etc-targeted-*)"
+            OVERALL_RESULT=1
+          fi
+
+          if [ "$STATE_FOUND" -eq 1 ]; then
+            echo "  ✅ STATE backup found and verified"
+          else
+            echo "  ❌ No STATE backup found (expected: backupconfsplunk-*-state-*)"
+            OVERALL_RESULT=1
+          fi
 
           echo ""
           echo "============================================"

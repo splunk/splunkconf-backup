@@ -158,7 +158,7 @@ jobs:
 
           # Copy the app package into the Splunk container
           # app is inside a git subdirectory with same folder name
-          docker cp app_package/${{ env.APP_NAME }}/${{ env.APP_NAME }} \
+          docker cp app_package/${{ env.APP_NAME }} \
             splunk:${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}
 
           echo "=== Fixing app permission, giving files to Splunk ==="

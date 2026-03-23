@@ -225,7 +225,7 @@ jobs:
         run: |
           echo "=== Verifying app is loaded in Splunk ==="
 
-          APP_STATUS=$(docker exec splunk /opt/splunk/bin/splunk display app ${{ env.APP_NAME }} \
+          APP_STATUS=$(docker exec --user splunk splunk /opt/splunk/bin/splunk display app ${{ env.APP_NAME }} \
             -auth admin:${{ env.SPLUNK_PASSWORD }} 2>&1 || true)
 
           echo "App status: ${APP_STATUS}"
@@ -278,11 +278,11 @@ jobs:
 
           # List everything in the output directory
           echo "--- Full directory listing ---"
-          docker exec splunk bash -c \
+          docker exec --user splunk splunk bash -c \
             "find ${{ env.OUTPUT_DIR }} -type f -ls 2>/dev/null" || true
 
           # Count tar files specifically
-          FILE_COUNT=$(docker exec splunk bash -c \
+          FILE_COUNT=$(docker exec --user splunk splunk bash -c \
             "find ${{ env.OUTPUT_DIR }} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' \) 2>/dev/null | wc -l")
 
           echo "Total backup files found: ${FILE_COUNT}"
@@ -291,10 +291,10 @@ jobs:
             echo "ERROR: No backup files were generated in ${{ env.OUTPUT_DIR }}."
             echo ""
             echo "--- splunkconf-backup log ---"
-            docker exec splunk cat /opt/splunk/var/log/splunk/splunkconf-backup.log 2>/dev/null || true
+            docker exec --user splunk splunk cat /opt/splunk/var/log/splunk/splunkconf-backup.log 2>/dev/null || true
             echo ""
             echo "--- Splunk logs for debugging ---"
-            docker exec splunk tail -100 /opt/splunk/var/log/splunk/splunkd.log || true
+            docker exec --user splunk splunk tail -100 /opt/splunk/var/log/splunk/splunkd.log || true
             exit 1
           fi
 
@@ -309,7 +309,7 @@ jobs:
           mkdir -p ./test_output
 
           # Copy all backup files from the output directory
-          docker exec splunk bash -c \
+          docker exec --user splunk splunk bash -c \
             "find ${{ env.OUTPUT_DIR }} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst'  \)" \
             | while read -r filepath; do
                 filename=$(basename "$filepath")

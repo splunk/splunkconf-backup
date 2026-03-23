@@ -1,0 +1,414 @@
+name: Splunkconf backup app Integration Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  APP_NAME: "splunkconf-backup" 
+  APP_DEPLOY_PATH: "/opt/splunk/etc/apps"
+  OUTPUT_DIR: "/opt/splunk/var/backups"           # Replace with the specific directory to monitor
+  WAIT_TIME: 120                                      # Seconds to wait after restart for file generation
+  SPLUNK_PASSWORD: "Chang3d!"                         # Splunk admin password
+
+jobs:
+  test-splunk-app:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        splunk_version:
+          - "10.2"
+          - "10.0"
+
+    name: "Test on Splunk ${{ matrix.splunk_version }}"
+
+    steps:
+      # -------------------------------------------------------
+      # Step 1: Checkout the repository
+      # -------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------------
+      # Step 2: Prepare the app package with test files
+      # -------------------------------------------------------
+      - name: Prepare app package with test files
+        run: |
+          echo "=== Preparing app package ==="
+          APP_DIR="app_package/${{ env.APP_NAME }}"
+          mkdir -p "${APP_DIR}/default"
+          mkdir -p "${APP_DIR}/local"
+          mkdir -p "${APP_DIR}/bin"
+          mkdir -p "${APP_DIR}/test"
+
+          # Copy app contents from repo into the package directory
+          # Adjust the source path based on your repo structure
+          cp -r . "${APP_DIR}/" 2>/dev/null || true
+
+          # Remove git artifacts from the package
+          rm -rf "${APP_DIR}/.git" "${APP_DIR}/.github" "${APP_DIR}/app_package"
+
+          # fix me add tests here
+          # Copy/Create test configuration files
+          # Adjust these as needed for your specific test scenarios
+          if [ ! -f "${APP_DIR}/default/app.conf" ]; then
+            cat > "${APP_DIR}/default/app.conf" <<EOF
+          [install]
+          is_configured = false
+          build = 1
+
+          [ui]
+          is_visible = true
+          label = ${{ env.APP_NAME }}
+
+          [launcher]
+          author = CI Test
+          description = Automated test deployment
+          version = 1.0.0
+          EOF
+          fi
+
+          # Add test input/configuration if needed
+          # Example: a scripted input that generates output files
+          cat > "${APP_DIR}/default/inputs.conf" <<EOF
+          # Add your test inputs here
+          # Example:
+          # [script://./bin/test_script.sh]
+          # interval = 30
+          # sourcetype = test_output
+          # disabled = false
+          EOF
+
+          echo "=== App package contents ==="
+          find app_package/ -type f | head -50
+          echo "Package prepared successfully."
+
+      # -------------------------------------------------------
+      # Step 3: Start Splunk container
+      # -------------------------------------------------------
+      - name: Start Splunk container
+        run: |
+          echo "=== Starting Splunk ${{ matrix.splunk_version }} ==="
+
+          docker run -d \
+            --name splunk \
+            --hostname splunk \
+            -p 8000:8000 \
+            -p 8089:8089 \
+            -e SPLUNK_START_ARGS="--accept-license" \
+            -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
+            -e TZ="Europe/Paris" \
+            splunk/splunk:${{ matrix.splunk_version }}
+
+          echo "Container started. Waiting for Splunk to become healthy..."
+
+      # -------------------------------------------------------
+      # Step 4: Wait for Splunk to be ready
+      # -------------------------------------------------------
+      - name: Wait for Splunk to be ready
+        run: |
+          echo "=== Waiting for Splunk to become ready ==="
+          MAX_RETRIES=60
+          RETRY_INTERVAL=10
+          RETRIES=0
+
+          while [ $RETRIES -lt $MAX_RETRIES ]; do
+            HEALTH=$(docker inspect --format='{{.State.Health.Status}}' splunk 2>/dev/null || echo "not_found")
+
+            if [ "$HEALTH" = "healthy" ]; then
+              echo "Splunk is healthy after $((RETRIES * RETRY_INTERVAL)) seconds."
+              break
+            fi
+
+            RETRIES=$((RETRIES + 1))
+            echo "  Attempt ${RETRIES}/${MAX_RETRIES} - Status: ${HEALTH}. Retrying in ${RETRY_INTERVAL}s..."
+            sleep $RETRY_INTERVAL
+          done
+
+          if [ "$HEALTH" != "healthy" ]; then
+            echo "ERROR: Splunk did not become healthy within $((MAX_RETRIES * RETRY_INTERVAL)) seconds."
+            docker logs splunk
+            exit 1
+          fi
+
+          # Additional check via REST API
+          HTTP_CODE=$(docker exec splunk curl -s -o /dev/null -w "%{http_code}" \
+            -k -u admin:${{ env.SPLUNK_PASSWORD }} \
+            https://localhost:8089/services/server/info)
+
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "Splunk REST API is responding (HTTP ${HTTP_CODE})."
+          else
+            echo "ERROR: Splunk REST API returned HTTP ${HTTP_CODE}."
+            exit 1
+          fi
+
+      # -------------------------------------------------------
+      # Step 5: Deploy the app into Splunk
+      # -------------------------------------------------------
+      - name: Deploy app to Splunk
+        run: |
+          echo "=== Deploying app to Splunk ==="
+
+          # Copy the app package into the Splunk container
+          docker cp app_package/${{ env.APP_NAME }} \
+            splunk:${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}
+
+          # Fix ownership inside the container
+          docker exec splunk chown -R splunk:splunk \
+            ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}
+
+          # Verify deployment
+          echo "=== Verifying app deployment ==="
+          docker exec splunk ls -la ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}/
+          echo "App deployed successfully."
+
+      # -------------------------------------------------------
+      # Step 6: Restart Splunk to load the app
+      # -------------------------------------------------------
+      - name: Restart Splunk
+        run: |
+          echo "=== Restarting Splunk to load the app ==="
+
+          docker exec splunk /opt/splunk/bin/splunk restart \
+            -auth admin:${{ env.SPLUNK_PASSWORD }}
+
+          echo "Restart command issued. Waiting for Splunk to come back..."
+
+          # Wait for Splunk to be healthy again after restart
+          MAX_RETRIES=60
+          RETRY_INTERVAL=10
+          RETRIES=0
+
+          while [ $RETRIES -lt $MAX_RETRIES ]; do
+            HEALTH=$(docker inspect --format='{{.State.Health.Status}}' splunk 2>/dev/null || echo "not_found")
+
+            if [ "$HEALTH" = "healthy" ]; then
+              echo "Splunk is healthy again after $((RETRIES * RETRY_INTERVAL)) seconds."
+              break
+            fi
+
+            RETRIES=$((RETRIES + 1))
+            echo "  Attempt ${RETRIES}/${MAX_RETRIES} - Status: ${HEALTH}. Retrying in ${RETRY_INTERVAL}s..."
+            sleep $RETRY_INTERVAL
+          done
+
+          if [ "$HEALTH" != "healthy" ]; then
+            echo "ERROR: Splunk did not recover after restart."
+            docker logs splunk
+            exit 1
+          fi
+
+      # -------------------------------------------------------
+      # Step 7: Verify app is loaded in Splunk
+      # -------------------------------------------------------
+      - name: Verify app is loaded
+        run: |
+          echo "=== Verifying app is loaded in Splunk ==="
+
+          APP_STATUS=$(docker exec splunk /opt/splunk/bin/splunk display app ${{ env.APP_NAME }} \
+            -auth admin:${{ env.SPLUNK_PASSWORD }} 2>&1 || true)
+
+          echo "App status: ${APP_STATUS}"
+
+          # Also check via REST API
+          HTTP_CODE=$(docker exec splunk curl -s -o /dev/null -w "%{http_code}" \
+            -k -u admin:${{ env.SPLUNK_PASSWORD }} \
+            https://localhost:8089/servicesNS/nobody/${{ env.APP_NAME }}/configs/conf-app/ui)
+
+          echo "REST API check for app: HTTP ${HTTP_CODE}"
+
+      # -------------------------------------------------------
+      # Step 8: Wait for file generation
+      # -------------------------------------------------------
+      - name: Wait for output files to be generated
+        run: |
+          echo "=== Waiting ${{ env.WAIT_TIME }} seconds for files to be generated ==="
+          echo "Start time: $(date)"
+
+          TOTAL_WAIT=${{ env.WAIT_TIME }}
+          ELAPSED=0
+          CHECK_INTERVAL=15
+
+          while [ $ELAPSED -lt $TOTAL_WAIT ]; do
+            sleep $CHECK_INTERVAL
+            ELAPSED=$((ELAPSED + CHECK_INTERVAL))
+
+            # Periodically check if files have appeared
+            FILE_COUNT=$(docker exec splunk bash -c \
+              "find ${{ env.OUTPUT_DIR }} -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -name '*.tar.zst' 2>/dev/null | wc -l" \
+              || echo "0")
+
+            echo "  [${ELAPSED}s/${TOTAL_WAIT}s] Files found so far: ${FILE_COUNT}"
+
+            # Optional early exit if files are found
+            # if [ "$FILE_COUNT" -gt 0 ]; then
+            #   echo "  Files detected early. Continuing wait for completeness..."
+            # fi
+          done
+
+          echo "End time: $(date)"
+          echo "Wait period complete."
+
+      # -------------------------------------------------------
+      # Step 9: Check for file creation in the output directory
+      # -------------------------------------------------------
+      - name: Verify files were created
+        run: |
+          echo "=== Checking for generated files in ${{ env.OUTPUT_DIR }} dir==="
+
+          # List everything in the output directory
+          echo "--- Full directory listing ---"
+          docker exec splunk bash -c \
+            "find ${{ env.OUTPUT_DIR }} -type f -ls 2>/dev/null" || true
+
+          # Count tar files specifically
+          FILE_COUNT=$(docker exec splunk bash -c \
+            "find ${{ env.OUTPUT_DIR }} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz'  -name '*.tar.zst' \) 2>/dev/null | wc -l")
+
+          echo "Total backup files found: ${FILE_COUNT}"
+
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "ERROR: No backup files were generated in ${{ env.OUTPUT_DIR }}."
+            echo ""
+            echo "--- Splunk logs for debugging ---"
+            docker exec splunk tail -100 /opt/splunk/var/log/splunk/splunkd.log || true
+            exit 1
+          fi
+
+          echo "SUCCESS: ${FILE_COUNT} backup file(s) found."
+
+      # -------------------------------------------------------
+      # Step 10: Download (copy) the generated tar files
+      # -------------------------------------------------------
+      - name: Download generated backup files from container
+        run: |
+          echo "=== Downloading backup files from Splunk container ==="
+          mkdir -p ./test_output
+
+          # Copy all backup files from the output directory
+          docker exec splunk bash -c \
+            "find ${{ env.OUTPUT_DIR }} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -name '*.tar.zst'  \)" \
+            | while read -r filepath; do
+                filename=$(basename "$filepath")
+                echo "  Downloading: ${filepath} -> ./test_output/${filename}"
+                docker cp "splunk:${filepath}" "./test_output/${filename}"
+              done
+
+          echo ""
+          echo "=== Downloaded files ==="
+          ls -la ./test_output/
+
+      # -------------------------------------------------------
+      # Step 11: Verify tar file contents
+      # -------------------------------------------------------
+      - name: Verify tar file contents
+        run: |
+          echo "=== Verifying tar file contents ==="
+
+          # Define the expected files that must be present in the tar archives
+          # MODIFY THIS LIST according to your requirements
+          EXPECTED_FILES=(
+            "expected_file_1.conf"
+            "expected_file_2.log"
+            "path/to/expected_file_3.xml"
+          )
+
+          OVERALL_RESULT=0
+
+          for tarfile in ./test_output/*.tar ./test_output/*.tar.gz ./test_output/*.tgz ./test_output/*.tar.zst; do
+            # Skip if glob didn't match any files
+            [ -e "$tarfile" ] || continue
+
+            echo ""
+            echo "============================================"
+            echo "Inspecting: $(basename "$tarfile")"
+            echo "============================================"
+
+            # List the tar contents
+            # FIXME add -I zstd if end by zst
+            echo "--- Archive contents ---"
+            tar -tf "$tarfile" 2>/dev/null || tar -tzf "$tarfile" 2>/dev/null || {
+              echo "ERROR: Unable to read tar file: $tarfile"
+              OVERALL_RESULT=1
+              continue
+            }
+            echo ""
+
+            # Get the full list of files in the archive
+            TAR_CONTENTS=$(tar -tf "$tarfile" 2>/dev/null || tar -tzf "$tarfile" 2>/dev/null)
+
+            # Check for each expected file
+            for expected in "${EXPECTED_FILES[@]}"; do
+              if echo "$TAR_CONTENTS" | grep -q "$expected"; then
+                echo "  ✅ FOUND: $expected"
+              else
+                echo "  ❌ MISSING: $expected"
+                OVERALL_RESULT=1
+              fi
+            done
+          done
+
+          echo ""
+          echo "============================================"
+          if [ $OVERALL_RESULT -eq 0 ]; then
+            echo "🎉 ALL VERIFICATIONS PASSED"
+          else
+            echo "💥 SOME VERIFICATIONS FAILED"
+            exit 1
+          fi
+
+      # -------------------------------------------------------
+      # Step 12: Upload test artifacts (for debugging)
+      # -------------------------------------------------------
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: splunk-test-output-${{ matrix.splunk_version }}
+          path: ./test_output/
+          retention-days: 7
+
+      # -------------------------------------------------------
+      # Step 13: Collect Splunk logs on failure
+      # -------------------------------------------------------
+      - name: Collect Splunk logs on failure
+        if: failure()
+        run: |
+          echo "=== Collecting Splunk logs for debugging ==="
+          mkdir -p ./debug_logs
+
+          docker exec splunk cat /opt/splunk/var/log/splunk/splunkconf-backup.log \
+            > ./debug_logs/splunkconf-backup.log 2>/dev/null || true
+          docker exec splunk cat /opt/splunk/var/log/splunk/splunkd.log \
+            > ./debug_logs/splunkd.log 2>/dev/null || true
+          docker exec splunk cat /opt/splunk/var/log/splunk/splunk_stderr.log \
+            > ./debug_logs/splunk_stderr.log 2>/dev/null || true
+          docker exec splunk cat /opt/splunk/var/log/splunk/python.log \
+            > ./debug_logs/python.log 2>/dev/null || true
+          docker logs splunk \
+            > ./debug_logs/container.log 2>&1 || true
+
+          echo "Logs collected."
+
+      - name: Upload debug logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: splunk-debug-logs-${{ matrix.splunk_version }}
+          path: ./debug_logs/
+          retention-days: 7
+
+      # -------------------------------------------------------
+      # Step 14: Cleanup
+      # -------------------------------------------------------
+      - name: Cleanup Splunk container
+        if: always()
+        run: |
+          docker stop splunk 2>/dev/null || true
+          docker rm splunk 2>/dev/null || true
+          echo "Cleanup complete."

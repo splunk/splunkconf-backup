@@ -273,7 +273,7 @@ jobs:
 
           # Create the helper script on the runner first, then copy it into the container
           cat > /tmp/count_stable_files.sh << 'SCRIPT'
-          #!/bin/bash
+          #!/bin/bash -x
           OUTPUT_DIR="$1"
           STABLE_AGE="$2"
           NOW=$(date +%s)
@@ -306,6 +306,11 @@ jobs:
           # Copy the script into the container
           docker cp /tmp/count_stable_files.sh splunk:/opt/splunk/count_stable_files.sh
           docker exec --user root splunk chmod +x /opt/splunk/count_stable_files.sh
+          echo "check bash veersion in container"
+          docker exec --user splunk splunk bash --version
+          echo "check bash veersion in container for ansible user"
+          docker exec splunk bash --version
+
 
           while [ $ELAPSED -lt $TOTAL_WAIT ]; do
             sleep $CHECK_INTERVAL

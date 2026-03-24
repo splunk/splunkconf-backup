@@ -157,8 +157,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20251219 propagate error from local to remote to avoid logging disabled when it is a failure du to local (like disk space issue)
 # 20260105 update time logging format
 # 20260324 add more debug logging for remotebackup
+# 20260324 update condition fro unconfigured s3
 
-VERSION="20263245a"
+VERSION="20260324b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -1208,7 +1209,7 @@ debug_log "KVSTOREPOINTINTIMEMODE=$KVSTOREPOINTINTIMEMODE"
 if [ -z ${splunks3backupbucket+x} ]; then 
   if [ -z ${s3backupbucket+x} ]; then 
     debug_log "s3backupbucket=${s3backupbucket}, REMOTEBACKUPDIR=${REMOTEBACKUPDIR}, REMOTEOBJECTSTOREBUCKET=${REMOTEOBJECTSTOREBUCKET} testing which remotebackup situation we are into"
-    if [ "${REMOTEBACKUPDIR}" = "s3://pleaseconfigurenstancetagsorsetdirectlythes3bucketforbackupshere-splunks3splunkbackup/splunkconf-backup" ] && [ "${REMOTEOBJECTSTOREBUCKET}" = "auto" ]; then 
+    if [[ "${REMOTEBACKUPDIR}" == s3://pleaseconfigure* ]] && [[ "${REMOTEOBJECTSTOREBUCKET}" == "auto" ]]; then 
       ## there is no tag from instance metadata so we are not in a cloud instance or that instance hasnt been configured for doing remote backups
       # there is also the REMOTEOBJECTSTOREBUCKET with default value auto
       DOREMOTEBACKUP=0

@@ -12,6 +12,7 @@
 ./etc/apps/alert_webhook/README
 ./etc/apps/alert_webhook/appserver
 ./etc/apps/alert_webhook/bin
+./etc/apps/audit_trail/appserver
 ./etc/apps/appsbrowser/default
 ./etc/apps/gettingstarted/default
 ./etc/apps/introspection_generator_addon/default
@@ -42,6 +43,7 @@
 ./etc/apps/splunk_httpinput/default
 ./etc/apps/splunk_monitoring_console/appserver
 ./etc/apps/splunk_monitoring_console/default
+./etc/apps/splunk_monitoring_console/locale
 ./etc/apps/splunk_monitoring_console/src
 ./etc/apps/splunk_monitoring_console/build_tools
 ./etc/apps/splunk_essentials_8_2/default
@@ -54,6 +56,7 @@
 ./etc/apps/splunk-dashboard-studio/appserver
 ./etc/apps/splunk-dashboard-studio/locale
 ./etc/apps/splunk-dashboard-studio/bin
+./etc/apps/splunk-dashboard-studio/static
 ./etc/apps/splunk_essentials_8_0/
 ./etc/apps/splunk_monitoring_console/README
 ./etc/apps/splunk_monitoring_console/bin
@@ -70,6 +73,14 @@
 ./etc/apps/splunk_rapid_diag/appserver
 ./etc/apps/splunk_rapid_diag/SampleTasks
 ./etc/apps/splunk_rapid_diag/static
+./etc/apps/splunk-visual-exporter/
+./etc/apps/splunk_pipeline_builders/appserver
+./etc/apps/splunk_pipeline_builders/binaries/
+./etc/apps/splunk_app_for_splunk_o11y_cloud/libs
+./etc/apps/splunk_app_for_splunk_o11y_cloud/default
+./etc/apps/splunk_app_for_splunk_o11y_cloud/appserver
+./etc/apps/splunk_app_for_splunk_o11y_cloud/static
+./etc/apps/splunk_app_for_splunk_o11y_cloud/bin
 ./etc/apps/user-prefs/default
 ./etc/log-btool-debug.cfg
 ./etc/log-btool.cfg

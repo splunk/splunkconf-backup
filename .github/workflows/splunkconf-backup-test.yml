@@ -94,7 +94,7 @@ jobs:
 
 
       # -------------------------------------------------------
-      # Step 3: Start Splunk container
+      # Step 4: Start Splunk container
       # -------------------------------------------------------
       - name: Start Splunk container
         run: |
@@ -114,7 +114,7 @@ jobs:
           echo "Container started. Waiting for Splunk to become healthy..."
 
       # -------------------------------------------------------
-      # Step 4: Wait for Splunk to be ready
+      # Step 5: Wait for Splunk to be ready
       # -------------------------------------------------------
       - name: Wait for Splunk ${{ matrix.splunk_version }} to be ready
         run: |
@@ -155,7 +155,7 @@ jobs:
           fi
 
       # -------------------------------------------------------
-      # Step 5: Deploy the app into Splunk
+      # Step 6: Deploy the app into Splunk
       # -------------------------------------------------------
       - name: Deploy ${{ env.APP_NAME }} app to Splunk
         run: |
@@ -165,6 +165,16 @@ jobs:
           # app is inside a git subdirectory with same folder name
           docker cp app_package/${{ env.APP_NAME }} \
             splunk:${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}
+
+          # Create local directory and add configuration file
+          echo "=== Creating local configuration ==="
+          docker exec --user root splunk mkdir -p \
+            ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}/local
+
+          docker exec --user root splunk bash -c 'cat > ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}/local/splunkconf-backup.conf << EOF
+          [settings]
+          DEBUG=1
+          EOF'
 
           echo "=== Fixing app permission, giving files to Splunk ==="
           # Fix ownership inside the container
@@ -178,7 +188,7 @@ jobs:
           echo "App deployed successfully."
 
       # -------------------------------------------------------
-      # Step 6: Restart Splunk to load the app
+      # Step 7: Restart Splunk to load the app
       # -------------------------------------------------------
       - name: Restart Splunk
         run: |
@@ -224,7 +234,7 @@ jobs:
           fi
 
       # -------------------------------------------------------
-      # Step 7: Verify app is loaded in Splunk
+      # Step 8: Verify app is loaded in Splunk
       # -------------------------------------------------------
       - name: Verify app is loaded
         run: |
@@ -243,7 +253,7 @@ jobs:
           echo "REST API check for app: HTTP ${HTTP_CODE}"
 
       # -------------------------------------------------------
-      # Step 8: Wait for file generation
+      # Step 9: Wait for file generation
       # -------------------------------------------------------
       - name: Wait for output files to be generated
         run: |
@@ -315,7 +325,7 @@ jobs:
           fi
 
       # -------------------------------------------------------
-      # Step 9: Check for file creation in the output directory
+      # Step 10: Check for file creation in the output directory
       # -------------------------------------------------------
       - name: Verify files were created
         run: |
@@ -346,7 +356,7 @@ jobs:
           echo "SUCCESS: ${FILE_COUNT} backup file(s) found."
 
       # -------------------------------------------------------
-      # Step 10: Download (copy) the generated tar files
+      # Step 11: Download (copy) the generated tar files
       # -------------------------------------------------------
       - name: Download generated backup files from container
         run: |
@@ -367,7 +377,7 @@ jobs:
           ls -la ./test_output/
 
       # -------------------------------------------------------
-      # Step 11: Verify tar file contents
+      # Step 12: Verify tar file contents
       # -------------------------------------------------------
       - name: Verify tar file contents
         run: |
@@ -513,7 +523,7 @@ jobs:
           fi
 
       # -------------------------------------------------------
-      # Step 12: Upload test artifacts (for debugging)
+      # Step 13: Upload test artifacts (for debugging)
       # -------------------------------------------------------
       - name: Upload test artifacts
         if: always()
@@ -524,7 +534,7 @@ jobs:
           retention-days: 7
 
       # -------------------------------------------------------
-      # Step 13: Collect Splunk logs on failure
+      # Step 14: Collect Splunk logs on failure
       # -------------------------------------------------------
       - name: Collect Splunk logs on failure
         if: failure()
@@ -554,7 +564,7 @@ jobs:
           retention-days: 7
 
       # -------------------------------------------------------
-      # Step 14: Cleanup
+      # Step 15: Cleanup
       # -------------------------------------------------------
       - name: Cleanup Splunk container
         if: always()

@@ -298,8 +298,8 @@ jobs:
 
 
           # Copy the script into the container
-          docker cp /tmp/count_stable_files.sh splunk:/tmp/count_stable_files.sh
-          docker exec --user splunk splunk chmod +x /tmp/count_stable_files.sh
+          docker cp /tmp/count_stable_files.sh splunk:/opt/splunk/count_stable_files.sh
+          docker exec --user splunk splunk chmod +x /opt/splunk/count_stable_files.sh
 
           while [ $ELAPSED -lt $TOTAL_WAIT ]; do
             sleep $CHECK_INTERVAL
@@ -308,7 +308,7 @@ jobs:
             docker exec --user splunk splunk ls -l /opt/splunk/var/backups
 
             # Get total and stable counts
-            COUNTS=$(docker exec --user splunk splunk bash /tmp/count_stable_files.sh \
+            COUNTS=$(docker exec --user splunk splunk bash /opt/splunk/count_stable_files.sh \
               "${{ env.OUTPUT_DIR }}" "$STABLE_AGE_SECONDS" 2>/dev/null || echo "0 0")
 
             TOTAL_COUNT=$(echo "$COUNTS" | awk '{print $1}')

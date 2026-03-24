@@ -381,12 +381,6 @@ jobs:
 
           if [ "$FILE_COUNT" -eq 0 ]; then
             echo "ERROR: No backup files were generated in ${{ env.OUTPUT_DIR }}."
-            echo ""
-            echo "--- splunkconf-backup log ---"
-            docker exec --user splunk splunk cat /opt/splunk/var/log/splunk/splunkconf-backup.log 2>/dev/null || true
-            echo ""
-            echo "--- Splunk logs for debugging ---"
-            docker exec --user splunk splunk tail -100 /opt/splunk/var/log/splunk/splunkd.log || true
             exit 1
           fi
 
@@ -560,7 +554,44 @@ jobs:
           fi
 
       # -------------------------------------------------------
-      # Step 13: Upload test artifacts (for debugging)
+      # Step 13: Check for backup failures via Splunk REST API
+      # -------------------------------------------------------
+      - name: Check for backup failures via Splunk REST API
+        run: |
+          echo "=== Searching for backup failures in Splunk ==="
+
+          SEARCH_QUERY='search index=_internal sourcetype=splunkd source="*splunkconf-backup*" result=failure | head 50'
+
+          SEARCH_RESULTS=$(docker exec --user splunk splunk curl -s -k \
+            -u admin:${{ env.SPLUNK_PASSWORD }} \
+            https://localhost:8089/services/search/jobs/export \
+            -d "search=${SEARCH_QUERY}" \
+            -d "output_mode=json" \
+            -d "earliest_time=-1h" \
+            -d "latest_time=now" \
+            2>/dev/null)
+
+          echo "=== Raw search results ==="
+          echo "$SEARCH_RESULTS"
+          echo ""
+
+          EVENT_COUNT=$(echo "$SEARCH_RESULTS" | grep -c '"result"' || echo "0")
+
+          echo "=== Failure events found: ${EVENT_COUNT} ==="
+
+          if [ "$EVENT_COUNT" -gt 0 ]; then
+            echo ""
+            echo "💥 FAILURE: Found ${EVENT_COUNT} backup failure event(s) in Splunk logs!"
+            echo ""
+            echo "=== Failure details ==="
+            echo "$SEARCH_RESULTS" | python3 -m json.tool 2>/dev/null || echo "$SEARCH_RESULTS"
+            exit 1
+          else
+            echo "✅ No backup failures detected in Splunk logs."
+          fi
+
+      # -------------------------------------------------------
+      # Step 14: Upload test artifacts (for debugging)
       # -------------------------------------------------------
       - name: Upload test artifacts
         if: always()
@@ -571,29 +602,43 @@ jobs:
           retention-days: 7
 
       # -------------------------------------------------------
-      # Step 14: Collect Splunk logs on failure
+      # Step 15: Collect Splunk logs (always, for debugging any failure)
       # -------------------------------------------------------
-      - name: Collect Splunk logs on failure
-        if: failure()
+
+      - name: Collect Splunk logs
+        if: always()
         run: |
-          echo "=== Collecting Splunk logs for debugging ==="
+          echo "=== Collecting Splunk logs ==="
           mkdir -p ./debug_logs
 
-          docker exec --user splunk splunk cat /opt/splunk/var/log/splunk/splunkconf-backup.log \
+          # App-specific log
+          echo "--- splunkconf-backup log ---"
+          docker exec --user splunk splunk cat \
+            /opt/splunk/var/log/splunk/splunkconf-backup.log \
             > ./debug_logs/splunkconf-backup.log 2>/dev/null || true
-          docker exec --user splunk splunk cat /opt/splunk/var/log/splunk/splunkd.log \
-            > ./debug_logs/splunkd.log 2>/dev/null || true
-          docker exec --user splunk splunk cat /opt/splunk/var/log/splunk/splunk_stderr.log \
-            > ./debug_logs/splunk_stderr.log 2>/dev/null || true
-          docker exec --user splunk splunk cat /opt/splunk/var/log/splunk/python.log \
-            > ./debug_logs/python.log 2>/dev/null || true
-          docker logs splunk \
-            > ./debug_logs/container.log 2>&1 || true
 
+          # Splunk main logs
+          echo "--- Splunk logs for debugging ---"
+          docker exec --user splunk splunk tail -100 /opt/splunk/var/log/splunk/splunkd.log \
+            > ./debug_logs/splunkd.log 2>/dev/null || true
+
+          # Backup directory listing
+          echo "--- Backup directory listing ---"
+          docker exec --user splunk splunk ls -la ${{ env.OUTPUT_DIR }}/ \
+            > ./debug_logs/backup-dir-listing.txt 2>/dev/null || true
+
+          echo "=== Collected files ==="
+          ls -la ./debug_logs/
+
+          echo ""
+          echo "=== splunkconf-backup.log preview ==="
+          head -100 ./debug_logs/splunkconf-backup.log 2>/dev/null || echo "(empty or not found)"
+
+          echo ""
           echo "Logs collected."
 
-      - name: Upload debug logs on failure
-        if: failure()
+      - name: Upload debug logs
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: splunk-debug-logs-${{ matrix.splunk_version }}
@@ -601,7 +646,7 @@ jobs:
           retention-days: 7
 
       # -------------------------------------------------------
-      # Step 15: Cleanup
+      # Step 16: Cleanup
       # -------------------------------------------------------
       - name: Cleanup Splunk container
         if: always()

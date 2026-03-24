@@ -326,7 +326,7 @@ jobs:
             STABLE_COUNT=$(echo "$COUNTS" | awk '{print $2}')
             # debug
             echo "debug show any error fron count stable files"
-            docker exec --user splunk splunk bash -x /opt/splunk/count_stable_files.sh
+            docker exec --user splunk splunk bash -x /opt/splunk/count_stable_files.sh  "${{ env.OUTPUT_DIR }}" "$STABLE_AGE_SECONDS"
             echo "after debug"
 
             # Handle empty results

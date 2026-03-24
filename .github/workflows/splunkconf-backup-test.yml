@@ -271,21 +271,45 @@ jobs:
           REQUIRED_FILE_COUNT=2
           STABLE_AGE_SECONDS=5
 
-          # Helper script to count files not modified in the last N seconds
-          # This runs inside the container
-          COUNT_STABLE_FILES='
-            STABLE_AGE='"${STABLE_AGE_SECONDS}"'
-            NOW=$(date +%s)
-            COUNT=0
-            find '"${{ env.OUTPUT_DIR }}"' \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tgz" -o -name "*.tar.zst" \) -type f 2>/dev/null | while read -r f; do
-              MTIME=$(stat -c %Y "$f" 2>/dev/null || echo "0")
-              AGE=$((NOW - MTIME))
-              if [ "$AGE" -ge "$STABLE_AGE" ]; then
-                COUNT=$((COUNT + 1))
-              fi
-              echo "$COUNT"
-            done | tail -1
-          '
+          # Create the helper script inside the container for reliable execution
+          docker exec --user splunk splunk bash -c 'cat > /tmp/count_stable_files.sh << '\''SCRIPT'\''
+          #!/bin/bash
+          OUTPUT_DIR="$1"
+          STABLE_AGE="$2"
+          NOW=$(date +%s)
+          TOTAL=0
+          STABLE=0
+
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            TOTAL=$((TOTAL + 1))
+            MTIME=$(stat -c %Y "$f" 2>/dev/null || echo "0")
+            AGE=$((NOW - MTIME))
+            if [ "$AGE" -ge "$STABLE_AGE" ]; then
+              STABLE=$((STABLE + 1))
+            fi
+          done < <(find "$OUTPUT_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tgz" -o -name "*.tar.zst" \) 2>/dev/null)
+
+          echo "${TOTAL} ${STABLE}"
+          SCRIPT'
+
+          docker exec --user splunk splunk chmod +x /tmp/count_stable_files.sh
+
+  #        # Helper script to count files not modified in the last N seconds
+  #        # This runs inside the container
+  #        COUNT_STABLE_FILES='
+  #          STABLE_AGE='"${STABLE_AGE_SECONDS}"'
+  #          NOW=$(date +%s)
+  #          COUNT=0
+  #          find '"${{ env.OUTPUT_DIR }}"' \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tgz" -o -name "*.tar.zst" \) -type f 2>/dev/null | while read -r f; do
+  #            MTIME=$(stat -c %Y "$f" 2>/dev/null || echo "0")
+  #            AGE=$((NOW - MTIME))
+  #            if [ "$AGE" -ge "$STABLE_AGE" ]; then
+  #              COUNT=$((COUNT + 1))
+  #            fi
+  #            echo "$COUNT"
+  #          done | tail -1
+  #        '
 
 
           while [ $ELAPSED -lt $TOTAL_WAIT ]; do
@@ -294,15 +318,17 @@ jobs:
             docker exec --user splunk splunk ls /opt/splunk/var
             docker exec --user splunk splunk ls -l /opt/splunk/var/backups
 
-           # Total files (including still being written)
-            TOTAL_COUNT=$(docker exec --user splunk splunk bash -c \
-              "find ${{ env.OUTPUT_DIR }} \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' \) -type f 2>/dev/null | wc -l" \
-              || echo "0")
+            # Get total and stable counts
+            COUNTS=$(docker exec --user splunk splunk bash /tmp/count_stable_files.sh \
+              "${{ env.OUTPUT_DIR }}" "$STABLE_AGE_SECONDS" 2>/dev/null || echo "0 0")
 
-            # Stable files (not modified for at least STABLE_AGE_SECONDS)
-            STABLE_COUNT=$(docker exec --user splunk splunk bash -c "$COUNT_STABLE_FILES" || echo "0")
-            # Handle empty result
+            TOTAL_COUNT=$(echo "$COUNTS" | awk '{print $1}')
+            STABLE_COUNT=$(echo "$COUNTS" | awk '{print $2}')
+
+            # Handle empty results
+            TOTAL_COUNT=${TOTAL_COUNT:-0}
             STABLE_COUNT=${STABLE_COUNT:-0}
+
 
             echo "  [${ELAPSED}s/${TOTAL_WAIT}s] Total files: ${TOTAL_COUNT} | Stable (>${STABLE_AGE_SECONDS}s): ${STABLE_COUNT}"
 

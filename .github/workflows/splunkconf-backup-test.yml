@@ -184,7 +184,7 @@ jobs:
 
           # Verify deployment
           echo "=== Verifying app deployment ==="
-          docker exec splunk ls -la ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}/
+          docker exec --user splunk splunk ls -la ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}/
           echo "App deployed successfully."
 
       # -------------------------------------------------------
@@ -214,7 +214,7 @@ jobs:
 
           while [ $RETRIES -lt $MAX_RETRIES ]; do
             docker exec --user splunk splunk ls /opt/splunk/var
-            docker exec --user splunk splunk ls /opt/splunk/var/backups
+            docker exec --user splunk splunk ls -l /opt/splunk/var/backups
 
             HEALTH=$(docker inspect --format='{{.State.Health.Status}}' splunk 2>/dev/null || echo "not_found")
 
@@ -292,15 +292,15 @@ jobs:
             sleep $CHECK_INTERVAL
             ELAPSED=$((ELAPSED + CHECK_INTERVAL))
             docker exec --user splunk splunk ls /opt/splunk/var
-            docker exec --user splunk splunk ls /opt/splunk/var/backups
+            docker exec --user splunk splunk ls -l /opt/splunk/var/backups
 
            # Total files (including still being written)
-            TOTAL_COUNT=$(docker exec splunk bash -c \
+            TOTAL_COUNT=$(docker exec --user splunk splunk bash -c \
               "find ${{ env.OUTPUT_DIR }} \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' \) -type f 2>/dev/null | wc -l" \
               || echo "0")
 
             # Stable files (not modified for at least STABLE_AGE_SECONDS)
-            STABLE_COUNT=$(docker exec splunk bash -c "$COUNT_STABLE_FILES" || echo "0")
+            STABLE_COUNT=$(docker exec --user splunk splunk bash -c "$COUNT_STABLE_FILES" || echo "0")
             # Handle empty result
             STABLE_COUNT=${STABLE_COUNT:-0}
 
@@ -318,7 +318,7 @@ jobs:
           echo "Total wait: ${ELAPSED} seconds"
 
           # Final count
-          FINAL_COUNT=$(docker exec splunk bash -c \
+          FINAL_COUNT=$(docker exec --user splunk splunk bash -c \
             "find ${{ env.OUTPUT_DIR }} \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' \) 2>/dev/null | wc -l" \
             || echo "0")
           echo "Final file count: ${FINAL_COUNT}"
@@ -547,13 +547,13 @@ jobs:
           echo "=== Collecting Splunk logs for debugging ==="
           mkdir -p ./debug_logs
 
-          docker exec splunk cat /opt/splunk/var/log/splunk/splunkconf-backup.log \
+          docker exec --user splunk splunk cat /opt/splunk/var/log/splunk/splunkconf-backup.log \
             > ./debug_logs/splunkconf-backup.log 2>/dev/null || true
-          docker exec splunk cat /opt/splunk/var/log/splunk/splunkd.log \
+          docker exec --user splunk splunk cat /opt/splunk/var/log/splunk/splunkd.log \
             > ./debug_logs/splunkd.log 2>/dev/null || true
-          docker exec splunk cat /opt/splunk/var/log/splunk/splunk_stderr.log \
+          docker exec --user splunk splunk cat /opt/splunk/var/log/splunk/splunk_stderr.log \
             > ./debug_logs/splunk_stderr.log 2>/dev/null || true
-          docker exec splunk cat /opt/splunk/var/log/splunk/python.log \
+          docker exec --user splunk splunk cat /opt/splunk/var/log/splunk/python.log \
             > ./debug_logs/python.log 2>/dev/null || true
           docker logs splunk \
             > ./debug_logs/container.log 2>&1 || true

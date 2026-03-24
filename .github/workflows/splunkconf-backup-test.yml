@@ -280,6 +280,10 @@ jobs:
           TOTAL=0
           STABLE=0
 
+          # Use a temp file to store the file list (avoids subshell/pipe issues)
+          TMPLIST=$(mktemp /opt/splunk/filelist.XXXXXX 2>/dev/null || mktemp /tmp/filelist.XXXXXX)
+          find "$OUTPUT_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tgz" -o -name "*.tar.zst" \) > "$TMPLIST" 2>/dev/null
+
           while IFS= read -r f; do
             [ -z "$f" ] && continue
             TOTAL=$((TOTAL + 1))
@@ -288,10 +292,12 @@ jobs:
             if [ "$AGE" -ge "$STABLE_AGE" ]; then
               STABLE=$((STABLE + 1))
             fi
-          done < <(find "$OUTPUT_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tgz" -o -name "*.tar.zst" \) 2>/dev/null)
+          done < "$TMPLIST"
 
+          rm -f "$TMPLIST"
           echo "${TOTAL} ${STABLE}"
           SCRIPT
+
           
           # commented . cant add executable bit here but we change permission inside docker after anyway
           # chmod +x /tmp/count_stable_files.sh

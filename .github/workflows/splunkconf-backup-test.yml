@@ -299,7 +299,7 @@ jobs:
 
           # Copy the script into the container
           docker cp /tmp/count_stable_files.sh splunk:/opt/splunk/count_stable_files.sh
-          docker exec --user splunk splunk chmod +x /opt/splunk/count_stable_files.sh
+          docker exec --user root splunk chmod +x /opt/splunk/count_stable_files.sh
 
           while [ $ELAPSED -lt $TOTAL_WAIT ]; do
             sleep $CHECK_INTERVAL

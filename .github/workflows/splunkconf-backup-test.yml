@@ -27,7 +27,6 @@ jobs:
           - "9.4"
           - "9.3"
           - "9.2"
-          - "9.1"
           - "9.0"
 
     name: "Splunk ${{ matrix.splunk_version }} : Testing backups"

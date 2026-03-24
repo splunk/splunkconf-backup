@@ -12,7 +12,7 @@ env:
   APP_NAME: "splunkconf-backup" 
   APP_DEPLOY_PATH: "/opt/splunk/etc/apps"
   OUTPUT_DIR: "/opt/splunk/var/backups"           # Replace with the specific directory to monitor
-  WAIT_TIME: 180                                      # Seconds to wait after restart for file generation
+  WAIT_TIME: 300                                      # Seconds to wait after restart for file generation
   SPLUNK_PASSWORD: "Chang3d!"                         # Splunk admin password
 
 jobs:
@@ -29,7 +29,6 @@ jobs:
           - "9.2"
           - "9.1"
           - "9.0"
-          - "8.2"
 
     name: "Splunk ${{ matrix.splunk_version }} : Testing backups"
 

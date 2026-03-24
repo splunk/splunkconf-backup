@@ -292,8 +292,9 @@ jobs:
 
           echo "${TOTAL} ${STABLE}"
           SCRIPT
-
-          chmod +x /tmp/count_stable_files.sh
+          
+          # commented . cant add executable bit here but we change permission inside docker after anyway
+          # chmod +x /tmp/count_stable_files.sh
 
 
           # Copy the script into the container

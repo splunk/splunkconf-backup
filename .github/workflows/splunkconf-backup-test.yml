@@ -213,6 +213,9 @@ jobs:
           RETRIES=0
 
           while [ $RETRIES -lt $MAX_RETRIES ]; do
+            docker exec --user splunk splunk ls /opt/splunk/var
+            docker exec --user splunk splunk ls /opt/splunk/var/backups
+
             HEALTH=$(docker inspect --format='{{.State.Health.Status}}' splunk 2>/dev/null || echo "not_found")
 
             if [ "$HEALTH" = "healthy" ]; then
@@ -288,6 +291,8 @@ jobs:
           while [ $ELAPSED -lt $TOTAL_WAIT ]; do
             sleep $CHECK_INTERVAL
             ELAPSED=$((ELAPSED + CHECK_INTERVAL))
+            docker exec --user splunk splunk ls /opt/splunk/var
+            docker exec --user splunk splunk ls /opt/splunk/var/backups
 
            # Total files (including still being written)
             TOTAL_COUNT=$(docker exec splunk bash -c \

@@ -265,7 +265,6 @@ jobs:
       # -------------------------------------------------------
       - name: Wait for output files to be generated
         run: |
-          $ FIXME we need to also monitor for KVDUMP backup in a different directory in addition
           echo "=== Waiting up to ${{ env.WAIT_TIME }} seconds for files to be generated ==="
           echo "Start time: $(date)"
           echo "Early exit condition: at least 2 backup files found"

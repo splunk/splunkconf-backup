@@ -442,6 +442,7 @@ jobs:
           )
 
           # ---- STATE backups (version-dependent) ----
+          # Filename pattern: backupconfsplunk-*-state-*.tar.gz (or .tar.zst)
           if [ "$MAJOR_VERSION" -le 8 ]; then
             echo "Using Splunk 8.x expected state files"
             EXPECTED_FILES_STATE=(
@@ -454,12 +455,6 @@ jobs:
               "./var/run/splunk/confsnapshot/"
             )
           fi
-          # ---- STATE backups ----
-          # Filename pattern: backupconfsplunk-*-state-*.tar.gz (or .tar.zst)
-          EXPECTED_FILES_STATE=(
-            "./var/lib/splunk/fishbucket/db/"
-            "./var/run/splunk/confsnapshot/"
-          )
 
           OVERALL_RESULT=0
           ETC_FOUND=0

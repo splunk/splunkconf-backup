@@ -11,7 +11,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   APP_NAME: "splunkconf-backup" 
   APP_DEPLOY_PATH: "/opt/splunk/etc/apps"
-  OUTPUT_DIR: "/opt/splunk/var/backups"           # Replace with the specific directory to monitor
+  OUTPUT_DIR: "/opt/splunk/var/backups"           # location for backups except kvdump
+  OUTPUT_DIR_KVDUMP: "/opt/splunk/var/lib/splunk/kvstorebackup"           # location for kvdump backups
   WAIT_TIME: 300                                      # Seconds to wait after restart for file generation
   SPLUNK_PASSWORD: "Chang3d!"                         # Splunk admin password
 
@@ -264,6 +265,7 @@ jobs:
       # -------------------------------------------------------
       - name: Wait for output files to be generated
         run: |
+          $ FIXME we need to also monitor for KVDUMP backup in a different directory in addition
           echo "=== Waiting up to ${{ env.WAIT_TIME }} seconds for files to be generated ==="
           echo "Start time: $(date)"
           echo "Early exit condition: at least 2 backup files found"
@@ -272,40 +274,40 @@ jobs:
           TOTAL_WAIT=${{ env.WAIT_TIME }}
           ELAPSED=0
           CHECK_INTERVAL=15
-          REQUIRED_FILE_COUNT=2
+          # etc, state and kvdump for all versions are expected
+          REQUIRED_FILE_COUNT=3
           STABLE_AGE_SECONDS=5
 
           # Create the helper script on the runner first, then copy it into the container
           cat > /tmp/count_stable_files.sh << 'SCRIPT'
-          #!/bin/bash -x
-          OUTPUT_DIR="$1"
-          STABLE_AGE="$2"
+          #!/bin/bash
+          STABLE_AGE="$1"
+          shift
           NOW=$(date +%s)
           TOTAL=0
           STABLE=0
-          which mktemp >&2
-          which find  >&2
-          mktemp --version >&2
-          find --version >&2
-          # Use a temp file to store the file list (avoids subshell/pipe issues)
-          TMPLIST=$(mktemp /opt/splunk/filelist.XXXXXX 2>/dev/null || mktemp /tmp/filelist.XXXXXX)
-          find "$OUTPUT_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tgz" -o -name "*.tar.zst" \) > "$TMPLIST" 2>/dev/null
 
-          while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            TOTAL=$((TOTAL + 1))
-            MTIME=$(stat -c %Y "$f" 2>/dev/null || echo "0")
-            AGE=$((NOW - MTIME))
-            if [ "$AGE" -ge "$STABLE_AGE" ]; then
-              STABLE=$((STABLE + 1))
-            fi
-          done < "$TMPLIST"
+          # Iterate over all directories passed as arguments
+          for OUTPUT_DIR in "$@"; do
+            TMPLIST=$(mktemp /opt/splunk/filelist.XXXXXX 2>/dev/null || mktemp /tmp/filelist.XXXXXX)
+            find "$OUTPUT_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tgz" -o -name "*.tar.zst" \) > "$TMPLIST" 2>/dev/null
 
-          rm -f "$TMPLIST"
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              TOTAL=$((TOTAL + 1))
+              MTIME=$(stat -c %Y "$f" 2>/dev/null || echo "0")
+              AGE=$((NOW - MTIME))
+              if [ "$AGE" -ge "$STABLE_AGE" ]; then
+                STABLE=$((STABLE + 1))
+              fi
+            done < "$TMPLIST"
+
+            rm -f "$TMPLIST"
+          done
+
           echo "${TOTAL} ${STABLE}"
           SCRIPT
 
-          
           # commented . cant add executable bit here but we change permission inside docker after anyway
           # chmod +x /tmp/count_stable_files.sh
 
@@ -322,19 +324,23 @@ jobs:
           while [ $ELAPSED -lt $TOTAL_WAIT ]; do
             sleep $CHECK_INTERVAL
             ELAPSED=$((ELAPSED + CHECK_INTERVAL))
-            docker exec --user splunk splunk ls /opt/splunk/var
-            docker exec --user splunk splunk ls -l /opt/splunk/var/backups
 
-            # Get total and stable counts
+            # Show both backup directories
+            echo "--- Backup directory ---"
+            docker exec --user splunk splunk ls -l ${{ env.OUTPUT_DIR }}/ 2>/dev/null || echo "  (backup directory not yet created)"
+            echo "--- KVDUMP directory ---"
+            docker exec --user splunk splunk ls -l ${{ env.OUTPUT_DIR_KVDUMP }}/ 2>/dev/null || echo "  (kvdump directory not yet created)"
+
+            # Get total and stable counts across BOTH directories
             COUNTS=$(docker exec --user splunk splunk bash /opt/splunk/count_stable_files.sh \
-              "${{ env.OUTPUT_DIR }}" "$STABLE_AGE_SECONDS" 2>/dev/null || echo "0 0")
+              "$STABLE_AGE_SECONDS" "${{ env.OUTPUT_DIR }}" "${{ env.OUTPUT_DIR_KVDUMP }}" 2>/dev/null || echo "0 0")
 
             TOTAL_COUNT=$(echo "$COUNTS" | awk '{print $1}')
             STABLE_COUNT=$(echo "$COUNTS" | awk '{print $2}')
             # debug
-            echo "debug show any error fron count stable files"
-            docker exec --user splunk splunk bash -x /opt/splunk/count_stable_files.sh  "${{ env.OUTPUT_DIR }}" "$STABLE_AGE_SECONDS"
-            echo "after debug"
+            #echo "debug show any error from count stable files"
+            #docker exec --user splunk splunk bash -x /opt/splunk/count_stable_files.sh  "$STABLE_AGE_SECONDS" "${{ env.OUTPUT_DIR }}" "${{ env.OUTPUT_DIR_KVDUMP }}"
+            #echo "after debug"
 
             # Handle empty results
             TOTAL_COUNT=${TOTAL_COUNT:-0}
@@ -354,38 +360,44 @@ jobs:
           echo "End time: $(date)"
           echo "Total wait: ${ELAPSED} seconds"
 
-          # Final count
-          FINAL_COUNT=$(docker exec --user splunk splunk bash -c \
-            "find ${{ env.OUTPUT_DIR }} \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' \) 2>/dev/null | wc -l" \
-            || echo "0")
-          echo "Final file count: ${FINAL_COUNT}"
+          # Final count across both directories
+          FINAL_COUNTS=$(docker exec --user splunk splunk bash /opt/splunk/count_stable_files.sh \
+            "$STABLE_AGE_SECONDS" "${{ env.OUTPUT_DIR }}" "${{ env.OUTPUT_DIR_KVDUMP }}" 2>/dev/null || echo "0 0")
+          FINAL_TOTAL=$(echo "$FINAL_COUNTS" | awk '{print $1}')
+          FINAL_STABLE=$(echo "$FINAL_COUNTS" | awk '{print $2}')
+          FINAL_TOTAL=${FINAL_TOTAL:-0}
+          FINAL_STABLE=${FINAL_STABLE:-0}
 
-          if [ "$FINAL_COUNT" -lt $REQUIRED_FILE_COUNT ]; then
-            echo "⚠️  WARNING: Only ${FINAL_COUNT} file(s) found after full wait. Expected at least ${REQUIRED_FILE_COUNT}."
+          echo "Final total files: ${FINAL_TOTAL}"
+          echo "Final stable files (not modified for ${STABLE_AGE_SECONDS}s): ${FINAL_STABLE}"
+
+          if [ "$FINAL_STABLE" -lt $REQUIRED_FILE_COUNT ]; then
+            echo "⚠️  WARNING: Only ${FINAL_STABLE} stable file(s) found after full wait. Expected at least ${REQUIRED_FILE_COUNT}."
           else
-            echo "✅ ${FINAL_COUNT} backup file(s) detected."
+            echo "✅ ${FINAL_STABLE} stable backup file(s) detected."
           fi
 
       # -------------------------------------------------------
       # Step 10: Check for file creation in the output directory
       # -------------------------------------------------------
+      # FIXME : need also to check for kvdump
       - name: Verify files were created
         run: |
-          echo "=== Checking for generated files in ${{ env.OUTPUT_DIR }} dir==="
+          echo "=== Checking for generated files in ${{ env.OUTPUT_DIR }} and ${{ env.OUTPUT_DIR_KVDUMP }} dir==="
 
           # List everything in the output directory
           echo "--- Full directory listing ---"
           docker exec --user splunk splunk bash -c \
-            "find ${{ env.OUTPUT_DIR }} -type f -ls 2>/dev/null" || true
+            "find ${{ env.OUTPUT_DIR }} ${{ env.OUTPUT_DIR_KVDUMP }} -type f -ls 2>/dev/null" || true
 
           # Count tar files specifically
           FILE_COUNT=$(docker exec --user splunk splunk bash -c \
-            "find ${{ env.OUTPUT_DIR }} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' \) 2>/dev/null | wc -l")
+            "find ${{ env.OUTPUT_DIR }} ${{ env.OUTPUT_DIR_KVDUMP }} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' \) 2>/dev/null | wc -l")
 
           echo "Total backup files found: ${FILE_COUNT}"
 
           if [ "$FILE_COUNT" -eq 0 ]; then
-            echo "ERROR: No backup files were generated in ${{ env.OUTPUT_DIR }}."
+            echo "ERROR: No backup files were generated in ${{ env.OUTPUT_DIR }} nor ${{ env.OUTPUT_DIR_KVDUMP }}."
             exit 1
           fi
 
@@ -394,6 +406,7 @@ jobs:
       # -------------------------------------------------------
       # Step 11: Download (copy) the generated tar files
       # -------------------------------------------------------
+      # FIXME : add downlaod of kvdump in a different directory
       - name: Download generated backup files from container
         run: |
           echo "=== Downloading backup files from Splunk container ==="
@@ -401,7 +414,7 @@ jobs:
 
           # Copy all backup files from the output directory
           docker exec --user splunk splunk bash -c \
-            "find ${{ env.OUTPUT_DIR }} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst'  \)" \
+            "find ${{ env.OUTPUT_DIR }} ${{ env.OUTPUT_DIR_KVDUMP }} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst'  \)" \
             | while read -r filepath; do
                 filename=$(basename "$filepath")
                 echo "  Downloading: ${filepath} -> ./test_output/${filename}"
@@ -456,9 +469,23 @@ jobs:
             )
           fi
 
+          # ---- KVDUMP backup (versin-dependent) ----
+          if [ "$MAJOR_VERSION" -le 10 ]; then
+            # no collection by default
+            EXPECTED_FILES_KVDUMP=(
+            )
+          else 
+            EXPECTED_FILES_KVDUMP=(
+              "system/JsonWebTokensV1/JsonWebTokensV10.json"
+              "system/RecentlyViewedKO/RecentlyViewedKO0.json"
+              "system/SavedSearchHistory/SavedSearchHistory0.json"
+            )
+          fi
+
           OVERALL_RESULT=0
           ETC_FOUND=0
           STATE_FOUND=0
+          KVDUMP_FOUND=0
 
           # Helper function to list tar contents based on file extension
           list_tar_contents() {
@@ -490,6 +517,8 @@ jobs:
               echo "etc"
             elif echo "$filename" | grep -qE 'backupconfsplunk-.*-state-'; then
               echo "state"
+            elif echo "$filename" | grep -qE 'backupconfsplunk-kvdump-'; then
+              echo "kvdump"
             else
               echo "unknown"
             fi
@@ -506,6 +535,7 @@ jobs:
             echo "============================================"
             echo "Inspecting: ${FILENAME}"
             echo "Detected backup type: ${BACKUP_TYPE}"
+            echo "Splunk version: ${SPLUNK_VERSION} (major: ${MAJOR_VERSION})"
             echo "============================================"
 
             # Select the appropriate expected files list
@@ -518,12 +548,18 @@ jobs:
                 EXPECTED_FILES=("${EXPECTED_FILES_STATE[@]}")
                 STATE_FOUND=1
                 ;;
+              kvdump)
+                EXPECTED_FILES=("${EXPECTED_FILES_KVDUMP[@]}")
+                KVDUMP_FOUND=1
+                ;;
               unknown)
                 echo "  ⚠️  WARNING: Unknown backup type for file: ${FILENAME}"
                 echo "  Skipping content verification for this file."
                 echo "  Expected patterns:"
                 echo "    - ETC:   backupconfsplunk-*-etc-targeted-*.tar.gz (or .tar.zst)"
                 echo "    - STATE: backupconfsplunk-*-state-*.tar.gz (or .tar.zst)"
+                echo "    - KVDUMP: backupconfsplunk-kvdump-*.tar.gz"
+                # no zst from kvdump at the moment as the compression methodis done by splunk kvdump API
                 continue
                 ;;
             esac
@@ -567,6 +603,13 @@ jobs:
             echo "  ✅ STATE backup found and verified"
           else
             echo "  ❌ No STATE backup found (expected: backupconfsplunk-*-state-*)"
+            OVERALL_RESULT=1
+          fi
+
+          if [ "$KVDUMP_FOUND" -eq 1 ]; then
+            echo "  ✅ KVDUMP backup found and verified"
+          else
+            echo "  ❌ No KVDUMP backup found (expected: backupconfsplunk-kvdump-*.tar.gz)"
             OVERALL_RESULT=1
           fi
 

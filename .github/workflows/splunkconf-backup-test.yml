@@ -419,6 +419,19 @@ jobs:
         run: |
           echo "=== Verifying tar file contents ==="
 
+         # Detect major Splunk version from matrix
+          SPLUNK_VERSION="${{ matrix.splunk_version }}"
+          MAJOR_VERSION=$(echo "$SPLUNK_VERSION" | cut -d'.' -f1)
+
+          # If version is not numeric (e.g., "latest"), treat as latest/highest version
+          if ! [[ "$MAJOR_VERSION" =~ ^[0-9]+$ ]]; then
+            echo "Non-numeric version detected: ${SPLUNK_VERSION} — treating as latest (99)"
+            MAJOR_VERSION=99
+          fi
+
+          echo "Splunk version: ${SPLUNK_VERSION} (major: ${MAJOR_VERSION})"
+
+
           # Define expected files per backup type
           # ---- ETC backups ----
           # Filename pattern: backupconfsplunk-*-etc-targeted-*.tar.gz (or .tar.zst)
@@ -428,6 +441,19 @@ jobs:
             "./etc/apps/splunk_metrics_workspace/README/workspace.conf.spec"
           )
 
+          # ---- STATE backups (version-dependent) ----
+          if [ "$MAJOR_VERSION" -le 8 ]; then
+            echo "Using Splunk 8.x expected state files"
+            EXPECTED_FILES_STATE=(
+              "./var/lib/splunk/fishbucket/db/"
+            )
+          else
+            echo "Using Splunk 9+ expected state files"
+            EXPECTED_FILES_STATE=(
+              "./var/lib/splunk/fishbucket/db/"
+              "./var/run/splunk/confsnapshot/"
+            )
+          fi
           # ---- STATE backups ----
           # Filename pattern: backupconfsplunk-*-state-*.tar.gz (or .tar.zst)
           EXPECTED_FILES_STATE=(

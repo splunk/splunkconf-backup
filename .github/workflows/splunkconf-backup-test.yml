@@ -31,7 +31,7 @@ jobs:
           - "9.0"
           - "8.2"
           - "8.1"
-          - "8.0"
+          # - "8.0" excluded as find command not in docker
           # 9.1 excluded as docker missing find command
 
     name: "Splunk ${{ matrix.splunk_version }} : Testing backups"

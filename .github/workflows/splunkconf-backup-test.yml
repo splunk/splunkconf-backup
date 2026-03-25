@@ -419,7 +419,7 @@ jobs:
         run: |
           echo "=== Verifying tar file contents ==="
 
-         # Detect major Splunk version from matrix
+          # Detect major Splunk version from matrix
           SPLUNK_VERSION="${{ matrix.splunk_version }}"
           MAJOR_VERSION=$(echo "$SPLUNK_VERSION" | cut -d'.' -f1)
 

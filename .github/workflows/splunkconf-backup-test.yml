@@ -218,7 +218,7 @@ jobs:
 
           while [ $RETRIES -lt $MAX_RETRIES ]; do
             docker exec --user splunk splunk ls /opt/splunk/var
-            docker exec --user splunk splunk if [ -e /opt/splunk/var/backups ]; then ls -l /opt/splunk/var/backups
+            docker exec --user splunk splunk ls -l /opt/splunk/var/backups 2>/dev/null || echo "  (backup directory not yet created)"
 
             HEALTH=$(docker inspect --format='{{.State.Health.Status}}' splunk 2>/dev/null || echo "not_found")
 

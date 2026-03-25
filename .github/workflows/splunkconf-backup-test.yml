@@ -22,12 +22,17 @@ jobs:
       fail-fast: false
       matrix:
         splunk_version:
+          - "latest"
           - "10.2"
           - "10.0"
           - "9.4"
           - "9.3"
           - "9.2"
           - "9.0"
+          - "8.2"
+          - "8.1"
+          - "8.0"
+          # 9.1 excluded as docker missing find command
 
     name: "Splunk ${{ matrix.splunk_version }} : Testing backups"
 

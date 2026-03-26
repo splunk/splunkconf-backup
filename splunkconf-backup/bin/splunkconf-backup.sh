@@ -158,8 +158,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20260105 update time logging format
 # 20260324 add more debug logging for remotebackup
 # 20260324 update condition fro unconfigured s3
+# 20260326 add test entry in kvstore collection so it can be used for testing 
 
-VERSION="20260324b"
+VERSION="20260326b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -1650,6 +1651,16 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
 	warn_log "COUNTER=$COUNTER  (max=${COUNTERMAX}) $MESSVER $MESS1 type=$TYPE object=$kvbackupmode result=failure dest=${LFICKVDUMP} durationms=${DURATION} size=${FILESIZE}  ATTENTION : we didnt get ready status ! Please investigate or tune up KVSTOREREADYINIT to wait more"
       else
         debug_log "OK: KVSTORE REady state before launching backup"
+        # collections.conf content
+        #[splunkconf-backup-status]
+        #field.status = string
+        #field.date = time
+        #field.version = string
+        echo_log "INFO: adding test entry in splunkconf-backup-status collection"
+        RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/servicesNS/nobody/splunkconf-backup//storage/collections/data/splunkconf-backup-status  --header "Authorization: Splunk ${sessionkey}" \
+             -H 'Content-Type: application/json' \
+             -d '{"status": "OK", "date": 1234, "version": "1.11.1"}' `
+        debug_log "adding entry in collection RES=$RES"
       fi
       # here we try to start backup anyway but if the status was not ready , something is probably wrong
       START=$(($(date +%s%N)));

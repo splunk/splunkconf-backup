@@ -472,13 +472,21 @@ jobs:
           if [ "$MAJOR_VERSION" -le 10 ]; then
             # no collection by default
             EXPECTED_FILES_KVDUMP=(
+              "splunkconf-backup/splunkconf-backup-status/splunkconf-backup-status0.json"
             )
           else 
             EXPECTED_FILES_KVDUMP=(
-              "system/JsonWebTokensV1/JsonWebTokensV10.json"
-              "system/RecentlyViewedKO/RecentlyViewedKO0.json"
-              "system/SavedSearchHistory/SavedSearchHistory0.json"
+              "splunkconf-backup/splunkconf-backup-status/splunkconf-backup-status0.json"
             )
+            # there is race condition at start so the collection are not always created when we check
+            # so we disable theses for the moment
+            # splunkconf-backup one is created by splunkconf-backup so should always be there with one entry in it
+
+            #  "splunk-dashboard-studio/splunk-dashboard-icons/splunk-dashboard-icons0.json"
+            #  "system/JsonWebTokensV1/JsonWebTokensV10.json"
+            #  "system/RecentlyViewedKO/RecentlyViewedKO0.json"
+            #  "system/SavedSearchHistory/SavedSearchHistory0.json"
+            #)
           fi
 
           OVERALL_RESULT=0

@@ -362,7 +362,7 @@ jobs:
 
           # Iterate over all directories passed as arguments
           for OUTPUT_DIR in "$@"; do
-            TMPLIST=$(mktemp ${SPLUNK_HOME}/filelist.XXXXXX 2>/dev/null || mktemp /tmp/filelist.XXXXXX)
+            TMPLIST=$(mktemp /tmp/filelist.XXXXXX)
             find "$OUTPUT_DIR" -type f \( -name "*.tar" -o -name "*.tar.gz" -o -name "*.tgz" -o -name "*.tar.zst" \) > "$TMPLIST" 2>/dev/null
 
             while IFS= read -r f; do
@@ -408,14 +408,10 @@ jobs:
 
             # Get total and stable counts across BOTH directories
             COUNTS=$(docker exec --user ${SPLUNK_USER} splunk bash ${SPLUNK_HOME}/count_stable_files.sh \
-              "$STABLE_AGE_SECONDS" "${OUTPUT_DIR}" "${OUTPUT_DIR_KVDUMP}" 2>/dev/null || echo "0 0")
+              "$STABLE_AGE_SECONDS" ${MONITOR_DIRS}" 2>/dev/null || echo "0 0")
 
             TOTAL_COUNT=$(echo "$COUNTS" | awk '{print $1}')
             STABLE_COUNT=$(echo "$COUNTS" | awk '{print $2}')
-            # debug
-            #echo "debug show any error from count stable files"
-            #docker exec --user splunk ${SPLUNK_USER}k bash -x ${SPLUNK_HOME}/count_stable_files.sh  "$STABLE_AGE_SECONDS" "${{ env.OUTPUT_DIR }}" "${{ env.OUTPUT_DIR_KVDUMP }}"
-            #echo "after debug"
 
             # Handle empty results
             TOTAL_COUNT=${TOTAL_COUNT:-0}
@@ -481,7 +477,7 @@ jobs:
           echo "Total backup files found: ${FILE_COUNT}"
 
           if [ "$FILE_COUNT" -eq 0 ]; then
-            echo "ERROR: No backup files were generated in ${{ env.OUTPUT_DIR }} nor ${{ env.OUTPUT_DIR_KVDUMP }}."
+            echo "ERROR: No backup files were generated in ${SEARCH_DIRS}"
             exit 1
           fi
 

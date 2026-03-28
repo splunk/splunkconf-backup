@@ -302,7 +302,7 @@ jobs:
           docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/etc/splunk-launch.conf
 
           echo "restarting splunk via splunk ansible"
-          docker exec splunk ansible localhost -m include_role -a name=splunk_common -e "tasks_from=restart_splunk" -i /opt/ansible/inventory/environ.py --connection local  
+          docker exec -e ANSIBLE_ROLES_PATH=/opt/ansible/roles splunk ansible localhost -m include_role -a name=splunk_common -e "tasks_from=restart_splunk" -i /opt/ansible/inventory/environ.py --connection local  
 
 
           #echo "restarting splunk as splunk user (${SPLUNK_USER}) with ${SPLUNK_HOME}/bin/splunk restart"

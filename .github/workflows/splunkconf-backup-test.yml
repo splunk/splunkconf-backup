@@ -181,30 +181,35 @@ jobs:
           # Detect the Splunk process owner (splunk vs splunkfwd)
           # This handles UF containers where the user changed in newer versions
           SPLUNK_USER=$(docker exec splunk stat -c '%U' ${SPLUNK_HOME}/etc/splunk-launch.conf 2>/dev/null || echo "")
-          echo "aaaaaa SPLUNK_USER=$SPLUNK_USER}"
+          echo "aaaaaa SPLUNK_USER=${SPLUNK_USER}"
 
           if [ -z "$SPLUNK_USER" ]; then
             # Fallback: check who owns the SPLUNK_HOME directory
             SPLUNK_USER=$(docker exec splunk stat -c '%U' ${SPLUNK_HOME} 2>/dev/null || echo "")
-            echo "bbbb SPLUNK_USER=$SPLUNK_USER}"
+            echo "bbbb SPLUNK_USER=${SPLUNK_USER}"
           fi
 
           if [ -z "$SPLUNK_USER" ]; then
             # Last resort: try common users
-            echo "cccc SPLUNK_USER=$SPLUNK_USER}"
+            echo "cccc SPLUNK_USER=${SPLUNK_USER}"
             if docker exec --user splunkfwd splunk id >/dev/null 2>&1; then
               SPLUNK_USER="splunkfwd"
-              echo "ddd SPLUNK_USER=$SPLUNK_USER}"
+              echo "ddd SPLUNK_USER=${SPLUNK_USER}"
             elif docker exec --user splunk id >/dev/null 2>&1; then
               SPLUNK_USER="splunk"
-              echo "eee SPLUNK_USER=$SPLUNK_USER}"
+              echo "eee SPLUNK_USER=${SPLUNK_USER}"
             else
               echo "ERROR: Could not detect Splunk user"
               docker exec splunk cat /etc/passwd
               exit 1
             fi
           fi
-   
+          if [ "${IS_UF}" = "0" ]; then 
+            echo "forcing user to splunkfwd for uf"
+            SPLUNK_USER="splunkfwd"
+            echo "fff SPLUNK_USER=${SPLUNK_USER}"
+          fi
+           
           echo "Detected Splunk user: ${SPLUNK_USER}"
           echo "SPLUNK_USER=${SPLUNK_USER}" >> "$GITHUB_ENV"
 

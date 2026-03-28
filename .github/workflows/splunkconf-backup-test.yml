@@ -141,6 +141,7 @@ jobs:
             --hostname splunk \
             -p 8000:8000 \
             -p 8089:8089 \
+            -e ENABLE_TCP_MODE=true \
             -e SPLUNK_GENERAL_TERMS="--accept-sgt-current-at-splunk-com" \
             -e SPLUNK_START_ARGS="--accept-license" \
             -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
@@ -299,8 +300,13 @@ jobs:
           docker exec splunk ps aux
           echo "splunk-launch.conf file contain"
           docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/etc/splunk-launch.conf
-          echo "restarting splunk as splunk user (${SPLUNK_USER}) with ${SPLUNK_HOME}/bin/splunk restart"
-          docker exec --user ${SPLUNK_USER} splunk ${SPLUNK_HOME}/bin/splunk restart 
+
+          echo "restarting splunk via splunk ansible"
+          docker exec splunk  ansible-playbook /opt/ansible/playbooks/splunk_common/restart_splunk.yml -i /opt/ansible/inventory/environ.py
+
+
+          #echo "restarting splunk as splunk user (${SPLUNK_USER}) with ${SPLUNK_HOME}/bin/splunk restart"
+          #docker exec --user ${SPLUNK_USER} splunk ${SPLUNK_HOME}/bin/splunk restart 
 
           #          docker exec --user ${SPLUNK_USER} splunk ${SPLUNK_HOME}/bin/splunk restart \
           #            -auth admin:${{ env.SPLUNK_PASSWORD }}

@@ -785,7 +785,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: splunk-debug-logs-${{ matrix.splunk_version }}
+          name: splunk-debug-logs-${{ matrix.splunk_version }}-${{ matrix.splunk_type }}
           path: ./debug_logs/
           retention-days: 7
 

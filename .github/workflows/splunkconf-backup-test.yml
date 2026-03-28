@@ -253,16 +253,17 @@ jobs:
       # -------------------------------------------------------
       # Step 7: Restart Splunk to load the app
       # -------------------------------------------------------
-      - name: Restart Splunk
+      - name: Restart Splunk to load Splunkconf-backup app
         run: |
           echo "=== Restarting Splunk to load ${{ env.APP_NAME }} app ==="
 
-          echo "Checking id"
+          echo "Checking docker default id"
           docker exec splunk id
           echo "listing processes in splunk docker"
           docker exec splunk ps aux
+          echo "splunk-launch.conf file contain"
           docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/etc/splunk-launch.conf
-          echo "restarting splunk as splunk user"
+          echo "restarting splunk as splunk user (${SPLUNK_USER}) with ${SPLUNK_HOME}/bin/splunk restart"
           docker exec --user ${SPLUNK_USER} splunk ${SPLUNK_HOME}/bin/splunk restart 
 
           #          docker exec --user ${SPLUNK_USER} splunk ${SPLUNK_HOME}/bin/splunk restart \
@@ -275,7 +276,10 @@ jobs:
           RETRY_INTERVAL=10
           RETRIES=0
 
+          echo "Waiting for Splunk to be healthy after restart"
+
           while [ $RETRIES -lt $MAX_RETRIES ]; do
+            echo "RETRIES=${RETRIES}  MAX_RETRIES=$MAX_RETRIES"
             docker exec --user ${SPLUNK_USER} splunk ls ${SPLUNK_HOME}/var
             docker exec --user ${SPLUNK_USER} splunk ls -l ${SPLUNK_HOME}/var/backups 2>/dev/null || echo "  (backup directory not yet created)"
 
@@ -388,12 +392,12 @@ jobs:
           # Copy the script into the container
           docker cp /tmp/count_stable_files.sh splunk:${SPLUNK_HOME}/count_stable_files.sh
           docker exec --user root splunk chmod +x ${SPLUNK_HOME}/count_stable_files.sh
-          echo "check bash veersion in container"
+          echo "check bash version in container"
           docker exec --user ${SPLUNK_USER} splunk bash --version
           echo "check bash veersion in container for ansible user"
           docker exec splunk bash --version
 
-
+          echo "Starting loop ELAPSED=${ELAPSED} TOTAL_WAIT=${TOTAL_WAIT} CHECK_INTERVAL=${CHECK_INTERVAL}"
           while [ $ELAPSED -lt $TOTAL_WAIT ]; do
             sleep $CHECK_INTERVAL
             ELAPSED=$((ELAPSED + CHECK_INTERVAL))
@@ -403,7 +407,7 @@ jobs:
             docker exec --user ${SPLUNK_USER} splunk ls -l ${OUTPUT_DIR}/ 2>/dev/null || echo "  (backup directory not yet created)"
             if [ "${IS_UF}" = "0" ]; then
               echo "--- KVDUMP directory ---"
-              docker exec --user ${SPLUNK_USER} splunk ls -l ${OUTPUT_DIR_KVDUMP}/ 2>/dev/null || echo "  (kvdump directory not yet created)"
+              docker exec --user ${SPLUNK_USER} splunk ls -l ${OUTPUT_DIR_KVDUMP} 2>/dev/null || echo "  (kvdump directory not yet created)"
             fi
 
             # Get total and stable counts across BOTH directories

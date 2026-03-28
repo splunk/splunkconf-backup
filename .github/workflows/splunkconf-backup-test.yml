@@ -34,10 +34,41 @@ jobs:
           - "8.1"
           # - "8.0" excluded as find command not in docker
           # 9.1 excluded as docker missing find command
+        splunk_type:
+          - "enterprise"
+          - "uf"
 
-    name: "Splunk ${{ matrix.splunk_version }} : Testing backups"
+    name: "Splunk ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} : Testing backups"
 
     steps:
+      # -------------------------------------------------------
+      # Step 0: Set dynamic environment variables based on type
+      # -------------------------------------------------------
+      - name: Set environment variables for ${{ matrix.splunk_type }}
+        run: |
+          if [ "${{ matrix.splunk_type }}" = "uf" ]; then
+            echo "SPLUNK_HOME=/opt/splunkforwarder" >> "$GITHUB_ENV"
+            echo "DOCKER_IMAGE=splunk/universalforwarder:${{ matrix.splunk_version }}" >> "$GITHUB_ENV"
+            echo "IS_UF=1" >> "$GITHUB_ENV"
+          else
+            echo "SPLUNK_HOME=/opt/splunk" >> "$GITHUB_ENV"
+            echo "DOCKER_IMAGE=splunk/splunk:${{ matrix.splunk_version }}" >> "$GITHUB_ENV"
+            echo "IS_UF=0" >> "$GITHUB_ENV"
+          fi
+
+      - name: Display configuration
+        run: |
+          echo "============================================"
+          echo "Splunk Type:    ${{ matrix.splunk_type }}"
+          echo "Splunk Version: ${{ matrix.splunk_version }}"
+          echo "SPLUNK_HOME:    ${SPLUNK_HOME}"
+          echo "Docker Image:   ${DOCKER_IMAGE}"
+          echo "IS_UF:          ${IS_UF}"
+          echo "APP_DEPLOY_PATH: ${SPLUNK_HOME}/etc/apps"
+          echo "OUTPUT_DIR:      ${SPLUNK_HOME}/var/backups"
+          echo "OUTPUT_DIR_KVDUMP: ${SPLUNK_HOME}/var/lib/splunk/kvstorebackup"
+          echo "============================================"
+
       # -------------------------------------------------------
       # Step 1: Checkout the repository
       # -------------------------------------------------------
@@ -114,7 +145,7 @@ jobs:
             -e SPLUNK_START_ARGS="--accept-license" \
             -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
             -e TZ="Europe/Paris" \
-            splunk/splunk:${{ matrix.splunk_version }}
+            "${DOCKER_IMAGE}"
 
           echo "Container started. Waiting for Splunk to become healthy..."
 
@@ -164,32 +195,29 @@ jobs:
       # -------------------------------------------------------
       - name: Deploy ${{ env.APP_NAME }} app to Splunk
         run: |
-          echo "=== Deploying app to Splunk ==="
+          echo "=== Deploying app to ${DOCKER_IMAGE} ==="
 
           # Copy the app package into the Splunk container
-          # app is inside a git subdirectory with same folder name
           docker cp app_package/${{ env.APP_NAME }} \
-            splunk:${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}
+            splunk:${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}
 
           # Create local directory and add configuration file
           echo "=== Creating local configuration ==="
           docker exec --user root splunk mkdir -p \
-            ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}/local
+            ${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}/local
 
-          docker exec --user root splunk bash -c 'cat > ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}/local/splunkconf-backup.conf << EOF
+          docker exec --user root splunk bash -c "cat > ${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}/local/splunkconf-backup.conf << EOF
           [settings]
           DEBUG=1
-          EOF'
+          EOF"
 
           echo "=== Fixing app permission, giving files to Splunk ==="
-          # Fix ownership inside the container
-          # run as root to be allowed to chown
           docker exec --user root splunk chown -R splunk:splunk \
-            ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}
+            ${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}
 
           # Verify deployment
           echo "=== Verifying app deployment ==="
-          docker exec --user splunk splunk ls -la ${{ env.APP_DEPLOY_PATH }}/${{ env.APP_NAME }}/
+          docker exec --user splunk splunk ls -la ${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}/
           echo "App deployed successfully."
 
       # -------------------------------------------------------
@@ -203,11 +231,11 @@ jobs:
           docker exec splunk id
           echo "listing processes in splunk docker"
           docker exec splunk ps aux
-          docker exec --user splunk splunk cat /opt/splunk/etc/splunk-launch.conf
+          docker exec --user splunk splunk cat ${SPLUNK_HOME}/etc/splunk-launch.conf
           echo "restarting splunk as splunk user"
-          docker exec --user splunk splunk /opt/splunk/bin/splunk restart 
+          docker exec --user splunk splunk ${SPLUNK_HOME}/bin/splunk restart 
 
-          #          docker exec --user splunk splunk /opt/splunk/bin/splunk restart \
+          #          docker exec --user splunk splunk ${SPLUNK_HOME}/bin/splunk restart \
           #            -auth admin:${{ env.SPLUNK_PASSWORD }}
 
           echo "Restart command issued. Waiting for Splunk to come back..."
@@ -218,8 +246,8 @@ jobs:
           RETRIES=0
 
           while [ $RETRIES -lt $MAX_RETRIES ]; do
-            docker exec --user splunk splunk ls /opt/splunk/var
-            docker exec --user splunk splunk ls -l /opt/splunk/var/backups 2>/dev/null || echo "  (backup directory not yet created)"
+            docker exec --user splunk splunk ls ${SPLUNK_HOME}/var
+            docker exec --user splunk splunk ls -l ${SPLUNK_HOME}/var/backups 2>/dev/null || echo "  (backup directory not yet created)"
 
             HEALTH=$(docker inspect --format='{{.State.Health.Status}}' splunk 2>/dev/null || echo "not_found")
 
@@ -248,7 +276,7 @@ jobs:
         run: |
           echo "=== Verifying app is loaded in Splunk ==="
 
-          APP_STATUS=$(docker exec --user splunk splunk /opt/splunk/bin/splunk display app ${{ env.APP_NAME }} \
+          APP_STATUS=$(docker exec --user splunk splunk ${SPLUNK_HOME}/bin/splunk display app ${{ env.APP_NAME }} \
             -auth admin:${{ env.SPLUNK_PASSWORD }} 2>&1 || true)
 
           echo "App status: ${APP_STATUS}"
@@ -265,8 +293,20 @@ jobs:
       # -------------------------------------------------------
       - name: Wait for output files to be generated
         run: |
-          # etc, state and kvdump for all versions are expected
-          REQUIRED_FILE_COUNT=3
+          OUTPUT_DIR="${SPLUNK_HOME}/var/backups"
+          OUTPUT_DIR_KVDUMP="${SPLUNK_HOME}/var/lib/splunk/kvstorebackup"
+
+          # UF has no kvstore so only etc + state expected
+          if [ "${IS_UF}" = "1" ]; then
+            REQUIRED_FILE_COUNT=2
+            MONITOR_DIRS="${OUTPUT_DIR}"
+            echo "Universal Forwarder: expecting 2 backups (etc + state, no kvdump)"
+          else
+            REQUIRED_FILE_COUNT=3
+            MONITOR_DIRS="${OUTPUT_DIR} ${OUTPUT_DIR_KVDUMP}"
+            echo "Enterprise: expecting 3 backups (etc + state + kvdump)"
+          fi
+
           echo "=== Waiting up to ${{ env.WAIT_TIME }} seconds for files to be generated ==="
           echo "Start time: $(date)"
           echo "Early exit condition: at least ${REQUIRED_FILE_COUNT} backup files found"
@@ -312,8 +352,8 @@ jobs:
 
 
           # Copy the script into the container
-          docker cp /tmp/count_stable_files.sh splunk:/opt/splunk/count_stable_files.sh
-          docker exec --user root splunk chmod +x /opt/splunk/count_stable_files.sh
+          docker cp /tmp/count_stable_files.sh splunk:${SPLUNK_HOME}/count_stable_files.sh
+          docker exec --user root splunk chmod +x ${SPLUNK_HOME}/count_stable_files.sh
           echo "check bash veersion in container"
           docker exec --user splunk splunk bash --version
           echo "check bash veersion in container for ansible user"
@@ -331,14 +371,14 @@ jobs:
             docker exec --user splunk splunk ls -l ${{ env.OUTPUT_DIR_KVDUMP }}/ 2>/dev/null || echo "  (kvdump directory not yet created)"
 
             # Get total and stable counts across BOTH directories
-            COUNTS=$(docker exec --user splunk splunk bash /opt/splunk/count_stable_files.sh \
+            COUNTS=$(docker exec --user splunk splunk bash ${SPLUNK_HOME}/count_stable_files.sh \
               "$STABLE_AGE_SECONDS" "${{ env.OUTPUT_DIR }}" "${{ env.OUTPUT_DIR_KVDUMP }}" 2>/dev/null || echo "0 0")
 
             TOTAL_COUNT=$(echo "$COUNTS" | awk '{print $1}')
             STABLE_COUNT=$(echo "$COUNTS" | awk '{print $2}')
             # debug
             #echo "debug show any error from count stable files"
-            #docker exec --user splunk splunk bash -x /opt/splunk/count_stable_files.sh  "$STABLE_AGE_SECONDS" "${{ env.OUTPUT_DIR }}" "${{ env.OUTPUT_DIR_KVDUMP }}"
+            #docker exec --user splunk splunk bash -x ${SPLUNK_HOME}count_stable_files.sh  "$STABLE_AGE_SECONDS" "${{ env.OUTPUT_DIR }}" "${{ env.OUTPUT_DIR_KVDUMP }}"
             #echo "after debug"
 
             # Handle empty results
@@ -360,7 +400,7 @@ jobs:
           echo "Total wait: ${ELAPSED} seconds"
 
           # Final count across both directories
-          FINAL_COUNTS=$(docker exec --user splunk splunk bash /opt/splunk/count_stable_files.sh \
+          FINAL_COUNTS=$(docker exec --user splunk splunk bash ${SPLUNK_HOME}/count_stable_files.sh \
             "$STABLE_AGE_SECONDS" "${{ env.OUTPUT_DIR }}" "${{ env.OUTPUT_DIR_KVDUMP }}" 2>/dev/null || echo "0 0")
           FINAL_TOTAL=$(echo "$FINAL_COUNTS" | awk '{print $1}')
           FINAL_STABLE=$(echo "$FINAL_COUNTS" | awk '{print $2}')
@@ -382,16 +422,25 @@ jobs:
       # FIXME : need also to check for kvdump
       - name: Verify files were created
         run: |
-          echo "=== Checking for generated files in ${{ env.OUTPUT_DIR }} and ${{ env.OUTPUT_DIR_KVDUMP }} dir==="
+          OUTPUT_DIR="${SPLUNK_HOME}/var/backups"
+          OUTPUT_DIR_KVDUMP="${SPLUNK_HOME}/var/lib/splunk/kvstorebackup"
+
+          if [ "${IS_UF}" = "1" ]; then
+            SEARCH_DIRS="${OUTPUT_DIR}"
+          else
+            SEARCH_DIRS="${OUTPUT_DIR} ${OUTPUT_DIR_KVDUMP}"
+          fi
+
+          echo "=== Checking for generated files in ${SEARCH_DIRS} ==="
 
           # List everything in the output directory
           echo "--- Full directory listing ---"
           docker exec --user splunk splunk bash -c \
-            "find ${{ env.OUTPUT_DIR }} ${{ env.OUTPUT_DIR_KVDUMP }} -type f -ls 2>/dev/null" || true
+            "find ${SEARCH_DIRS} -type f -ls 2>/dev/null" || true
 
           # Count tar files specifically
           FILE_COUNT=$(docker exec --user splunk splunk bash -c \
-            "find ${{ env.OUTPUT_DIR }} ${{ env.OUTPUT_DIR_KVDUMP }} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' \) 2>/dev/null | wc -l")
+            "find ${SEARCH_DIRS} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst' \) 2>/dev/null | wc -l")
 
           echo "Total backup files found: ${FILE_COUNT}"
 
@@ -411,9 +460,18 @@ jobs:
           echo "=== Downloading backup files from Splunk container ==="
           mkdir -p ./test_output
 
+          OUTPUT_DIR="${SPLUNK_HOME}/var/backups"
+          OUTPUT_DIR_KVDUMP="${SPLUNK_HOME}/var/lib/splunk/kvstorebackup"
+
+          if [ "${IS_UF}" = "1" ]; then
+            SEARCH_DIRS="${OUTPUT_DIR}"
+          else
+            SEARCH_DIRS="${OUTPUT_DIR} ${OUTPUT_DIR_KVDUMP}"
+          fi
+
           # Copy all backup files from the output directory
           docker exec --user splunk splunk bash -c \
-            "find ${{ env.OUTPUT_DIR }} ${{ env.OUTPUT_DIR_KVDUMP }} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst'  \)" \
+            "find ${SEARCH_DIRS} -type f \( -name '*.tar' -o -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar.zst'  \)" \
             | while read -r filepath; do
                 filename=$(basename "$filepath")
                 echo "  Downloading: ${filepath} -> ./test_output/${filename}"
@@ -430,6 +488,7 @@ jobs:
       - name: Verify tar file contents
         run: |
           echo "=== Verifying tar file contents ==="
+          echo "Splunk type: ${{ matrix.splunk_type }}"
 
           # Detect major Splunk version from matrix
           SPLUNK_VERSION="${{ matrix.splunk_version }}"
@@ -442,6 +501,7 @@ jobs:
           fi
 
           echo "Splunk version: ${SPLUNK_VERSION} (major: ${MAJOR_VERSION})"
+          echo "IS_UF: ${IS_UF}"
 
 
           # Define expected files per backup type
@@ -469,12 +529,18 @@ jobs:
           fi
 
           # ---- KVDUMP backup (versin-dependent) ----
-          if [ "$MAJOR_VERSION" -le 10 ]; then
+          if [ "${IS_UF}" = "1" ]; then
+            # no kvdmp on uf
+            EXPECT_KVDUMP=0
+            EXPECTED_FILES_KVDUMP=()
+          elif [ "$MAJOR_VERSION" -le 10 ]; then
             # no collection by default
+            EXPECT_KVDUMP=1
             EXPECTED_FILES_KVDUMP=(
               "splunkconf-backup/splunkconf-backup-status/splunkconf-backup-status0.json"
             )
           else 
+            EXPECT_KVDUMP=1
             EXPECTED_FILES_KVDUMP=(
               "splunkconf-backup/splunkconf-backup-status/splunkconf-backup-status0.json"
             )
@@ -613,7 +679,9 @@ jobs:
             OVERALL_RESULT=1
           fi
 
-          if [ "$KVDUMP_FOUND" -eq 1 ]; then
+          if [ "$EXPECT_KVDUMP" -eq 0 ]; then
+            echo "  ⏭️  KVDUMP not applicable for Universal Forwarder (skipped)"
+          elif [ "$KVDUMP_FOUND" -eq 1 ]; then
             echo "  ✅ KVDUMP backup found and verified"
           else
             echo "  ❌ No KVDUMP backup found (expected: backupconfsplunk-kvdump-*.tar.gz)"
@@ -690,12 +758,12 @@ jobs:
           # App-specific log
           echo "--- splunkconf-backup log ---"
           docker exec --user splunk splunk cat \
-            /opt/splunk/var/log/splunk/splunkconf-backup.log \
+            ${SPLUNK_HOME}//var/log/splunk/splunkconf-backup.log \
             > ./debug_logs/splunkconf-backup.log 2>/dev/null || true
 
           # Splunk main logs
           echo "--- Splunk logs for debugging ---"
-          docker exec --user splunk splunk tail -100 /opt/splunk/var/log/splunk/splunkd.log \
+          docker exec --user splunk splunk tail -100 ${SPLUNK_HOME}/var/log/splunk/splunkd.log \
             > ./debug_logs/splunkd.log 2>/dev/null || true
 
           # Backup directory listing

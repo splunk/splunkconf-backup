@@ -228,8 +228,10 @@ jobs:
               SPLUNK_USER="splunk"
               echo "fff SPLUNK_USER=${SPLUNK_USER}"
             else
-              echo "forcing user to splunkfwd for uf"
-              SPLUNK_USER="splunkfwd"
+              #echo "forcing user to splunkfwd for uf"
+              #SPLUNK_USER="splunkfwd"
+              echo "forcing user to splunk for uf"
+              SPLUNK_USER="splunk"
               echo "ggg SPLUNK_USER=${SPLUNK_USER}"
             fi
           fi

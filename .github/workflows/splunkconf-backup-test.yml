@@ -159,6 +159,21 @@ jobs:
           RETRY_INTERVAL=10
           RETRIES=0
 
+          echo "Splunk type: ${{ matrix.splunk_type }}"
+
+          # Detect major Splunk version from matrix
+          SPLUNK_VERSION="${{ matrix.splunk_version }}"
+          MAJOR_VERSION=$(echo "$SPLUNK_VERSION" | cut -d'.' -f1)
+
+          # If version is not numeric (e.g., "latest"), treat as latest/highest version
+          if ! [[ "$MAJOR_VERSION" =~ ^[0-9]+$ ]]; then
+            echo "Non-numeric version detected: ${SPLUNK_VERSION} — treating as latest (99)"
+            MAJOR_VERSION=99
+          fi
+
+          echo "Splunk version: ${SPLUNK_VERSION} (major: ${MAJOR_VERSION})"
+          echo "IS_UF: ${IS_UF}"
+
           while [ $RETRIES -lt $MAX_RETRIES ]; do
             HEALTH=$(docker inspect --format='{{.State.Health.Status}}' splunk 2>/dev/null || echo "not_found")
 
@@ -204,10 +219,19 @@ jobs:
               exit 1
             fi
           fi
-          if [ "${IS_UF}" = "0" ]; then 
-            echo "forcing user to splunkfwd for uf"
-            SPLUNK_USER="splunkfwd"
-            echo "fff SPLUNK_USER=${SPLUNK_USER}"
+
+
+
+          if [ "${IS_UF}" = "1" ]; then 
+            if [ "$MAJOR_VERSION" -le 8 ]; then
+              echo "forcing user to splunk for uf 8.x"
+              SPLUNK_USER="splunk"
+              echo "fff SPLUNK_USER=${SPLUNK_USER}"
+            else
+              echo "forcing user to splunkfwd for uf"
+              SPLUNK_USER="splunkfwd"
+              echo "ggg SPLUNK_USER=${SPLUNK_USER}"
+            fi
           fi
            
           echo "Detected Splunk user: ${SPLUNK_USER}"

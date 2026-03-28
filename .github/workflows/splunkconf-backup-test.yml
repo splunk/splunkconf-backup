@@ -152,9 +152,9 @@ jobs:
       # -------------------------------------------------------
       # Step 5: Wait for Splunk to be ready
       # -------------------------------------------------------
-      - name: Wait for Splunk ${{ matrix.splunk_version }} to be ready
+      - name: Wait for Splunk ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} to be ready
         run: |
-          echo "=== Waiting for Splunk ${{ matrix.splunk_version }} to become ready ==="
+          echo "=== Waiting for Splunk ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} to become ready ==="
           MAX_RETRIES=60
           RETRY_INTERVAL=10
           RETRIES=0
@@ -178,16 +178,21 @@ jobs:
             exit 1
           fi
 
-          # Additional check via REST API
-          HTTP_CODE=$(docker exec splunk curl -s -o /dev/null -w "%{http_code}" \
-            -k -u admin:${{ env.SPLUNK_PASSWORD }} \
-            https://localhost:8089/services/server/info)
+          # Additional check via REST API (enterprise only — UF may not have curl)
+          if [ "${IS_UF}" = "0" ]; then
+            HTTP_CODE=$(docker exec splunk curl -s -o /dev/null -w "%{http_code}" \
+              -k -u admin:${{ env.SPLUNK_PASSWORD }} \
+              https://localhost:8089/services/server/info)
 
-          if [ "$HTTP_CODE" -eq 200 ]; then
-            echo "Splunk REST API is responding (HTTP ${HTTP_CODE})."
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "Splunk REST API is responding (HTTP ${HTTP_CODE})."
+            else
+              echo "ERROR: Splunk REST API returned HTTP ${HTTP_CODE}."
+              exit 1
+            fi
           else
-            echo "ERROR: Splunk REST API returned HTTP ${HTTP_CODE}."
-            exit 1
+            echo "Universal Forwarder: skipping REST API check (curl may not be available)"
+            echo "Docker health check passed — UF is ready."
           fi
 
       # -------------------------------------------------------
@@ -281,12 +286,16 @@ jobs:
 
           echo "App status: ${APP_STATUS}"
 
-          # Also check via REST API
-          HTTP_CODE=$(docker exec splunk curl -s -o /dev/null -w "%{http_code}" \
-            -k -u admin:${{ env.SPLUNK_PASSWORD }} \
-            https://localhost:8089/servicesNS/nobody/${{ env.APP_NAME }}/configs/conf-app/ui)
+          # REST API check (enterprise only — UF may not have curl)
+          if [ "${IS_UF}" = "0" ]; then
+            HTTP_CODE=$(docker exec splunk curl -s -o /dev/null -w "%{http_code}" \
+              -k -u admin:${{ env.SPLUNK_PASSWORD }} \
+              https://localhost:8089/servicesNS/nobody/${{ env.APP_NAME }}/configs/conf-app/ui)
 
-          echo "REST API check for app: HTTP ${HTTP_CODE}"
+            echo "REST API check for app: HTTP ${HTTP_CODE}"
+          else
+            echo "Universal Forwarder: skipping REST API check"
+          fi
 
       # -------------------------------------------------------
       # Step 9: Wait for file generation
@@ -366,9 +375,11 @@ jobs:
 
             # Show both backup directories
             echo "--- Backup directory ---"
-            docker exec --user splunk splunk ls -l ${{ env.OUTPUT_DIR }}/ 2>/dev/null || echo "  (backup directory not yet created)"
-            echo "--- KVDUMP directory ---"
-            docker exec --user splunk splunk ls -l ${{ env.OUTPUT_DIR_KVDUMP }}/ 2>/dev/null || echo "  (kvdump directory not yet created)"
+            docker exec --user splunk splunk ls -l ${OUTPUT_DIR}/ 2>/dev/null || echo "  (backup directory not yet created)"
+            if [ "${IS_UF}" = "0" ]; then
+              echo "--- KVDUMP directory ---"
+              docker exec --user splunk splunk ls -l ${OUTPUT_DIR_KVDUMP}/ 2>/dev/null || echo "  (kvdump directory not yet created)"
+            fi
 
             # Get total and stable counts across BOTH directories
             COUNTS=$(docker exec --user splunk splunk bash ${SPLUNK_HOME}/count_stable_files.sh \
@@ -378,7 +389,7 @@ jobs:
             STABLE_COUNT=$(echo "$COUNTS" | awk '{print $2}')
             # debug
             #echo "debug show any error from count stable files"
-            #docker exec --user splunk splunk bash -x ${SPLUNK_HOME}count_stable_files.sh  "$STABLE_AGE_SECONDS" "${{ env.OUTPUT_DIR }}" "${{ env.OUTPUT_DIR_KVDUMP }}"
+            #docker exec --user splunk splunk bash -x ${SPLUNK_HOME}/count_stable_files.sh  "$STABLE_AGE_SECONDS" "${{ env.OUTPUT_DIR }}" "${{ env.OUTPUT_DIR_KVDUMP }}"
             #echo "after debug"
 
             # Handle empty results
@@ -401,7 +412,7 @@ jobs:
 
           # Final count across both directories
           FINAL_COUNTS=$(docker exec --user splunk splunk bash ${SPLUNK_HOME}/count_stable_files.sh \
-            "$STABLE_AGE_SECONDS" "${{ env.OUTPUT_DIR }}" "${{ env.OUTPUT_DIR_KVDUMP }}" 2>/dev/null || echo "0 0")
+            "$STABLE_AGE_SECONDS" "${OUTPUT_DIR}" "${OUTPUT_DIR_KVDUMP}" 2>/dev/null || echo "0 0")
           FINAL_TOTAL=$(echo "$FINAL_COUNTS" | awk '{print $1}')
           FINAL_STABLE=$(echo "$FINAL_COUNTS" | awk '{print $2}')
           FINAL_TOTAL=${FINAL_TOTAL:-0}
@@ -702,6 +713,14 @@ jobs:
       # -------------------------------------------------------
       - name: Check for backup failures via Splunk REST API
         run: |
+          # UF doesn't have curl or search capabilities
+          if [ "${IS_UF}" = "1" ]; then
+            echo "Universal Forwarder: skipping REST API search (no search capability / no curl)"
+            echo "✅ Skipped — not applicable for UF"
+            # FIXME use a grep over splunkconf-backup.conf log file
+            exit 0
+          fi
+
           echo "=== Searching for backup failures in Splunk ==="
 
           SEARCH_QUERY='search index=_internal sourcetype=splunkd source="*splunkconf-backup*" result=failure | head 50'
@@ -741,7 +760,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: splunk-test-output-${{ matrix.splunk_version }}
+          name: splunk-test-output-${{ matrix.splunk_version }}-${{ matrix.splunk_type }}
           path: ./test_output/
           retention-days: 7
 
@@ -758,7 +777,7 @@ jobs:
           # App-specific log
           echo "--- splunkconf-backup log ---"
           docker exec --user splunk splunk cat \
-            ${SPLUNK_HOME}//var/log/splunk/splunkconf-backup.log \
+            ${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log \
             > ./debug_logs/splunkconf-backup.log 2>/dev/null || true
 
           # Splunk main logs
@@ -768,8 +787,16 @@ jobs:
 
           # Backup directory listing
           echo "--- Backup directory listing ---"
-          docker exec --user splunk splunk ls -la ${{ env.OUTPUT_DIR }}/ \
+          docker exec --user splunk splunk ls -la \
+            ${SPLUNK_HOME}/var/backups/ \
             > ./debug_logs/backup-dir-listing.txt 2>/dev/null || true
+
+          # KVDUMP directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user splunk splunk ls -la \
+              ${SPLUNK_HOME}/var/lib/splunk/kvstorebackup/ \
+              > ./debug_logs/kvdump-dir-listing.txt 2>/dev/null || true
+          fi
 
           echo "=== Collected files ==="
           ls -la ./debug_logs/

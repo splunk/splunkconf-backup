@@ -543,23 +543,31 @@ jobs:
           # Define expected files per backup type
           # ---- ETC backups ----
           # Filename pattern: backupconfsplunk-*-etc-targeted-*.tar.gz (or .tar.zst)
-          EXPECTED_FILES_ETC=(
-            "./etc/apps/splunkconf-backup/lookups/splunkconf-backup-expected.csv"
-            "./etc/apps/journald_input/default/inputs.conf"
-            "./etc/apps/splunk_metrics_workspace/README/workspace.conf.spec"
-          )
+          if [ "${IS_UF}" = "1" ]; then
+            EXPECTED_FILES_ETC=(
+              "./etc/apps/splunkconf-backup/lookups/splunkconf-backup-expected.csv"
+              "./etc/apps/journald_input/default/inputs.conf"
+            )
+            # splunk metrics workspace not present on uf
+          else 
+            EXPECTED_FILES_ETC=(
+              "./etc/apps/splunkconf-backup/lookups/splunkconf-backup-expected.csv"
+              "./etc/apps/journald_input/default/inputs.conf"
+              "./etc/apps/splunk_metrics_workspace/README/workspace.conf.spec"
+            )
+          fi
 
           # ---- STATE backups (version-dependent) ----
           # Filename pattern: backupconfsplunk-*-state-*.tar.gz (or .tar.zst)
           if [ "$MAJOR_VERSION" -le 8 ]; then
             echo "Using Splunk 8.x expected state files"
             EXPECTED_FILES_STATE=(
-              "./var/lib/splunk/fishbucket/db/"
+              "./var/lib/splunk/fishbucket/splunk_private_db/"
             )
           else
             echo "Using Splunk 9+ expected state files"
             EXPECTED_FILES_STATE=(
-              "./var/lib/splunk/fishbucket/db/"
+              "./var/lib/splunk/fishbucket/splunk_private_dbdb/"
               "./var/run/splunk/confsnapshot/"
             )
           fi
@@ -819,6 +827,11 @@ jobs:
             ${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log \
             > ./debug_logs/splunkconf-backup.log 2>/dev/null || true
 
+          # Splunk start logs
+          echo "--- Splunk utility logs (what happend before splunkd log start) for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk tail -100 ${SPLUNK_HOME}/var/log/splunk/splunkd-utility.log \
+            > ./debug_logs/splunkd-utility.log 2>/dev/null || true
+
           # Splunk main logs
           echo "--- Splunk logs for debugging ---"
           docker exec --user ${SPLUNK_USER} splunk tail -100 ${SPLUNK_HOME}/var/log/splunk/splunkd.log \
@@ -844,6 +857,9 @@ jobs:
           echo "=== splunkconf-backup.log preview ==="
           head -100 ./debug_logs/splunkconf-backup.log 2>/dev/null || echo "(empty or not found)"
 
+          echo ""
+          echo "=== splunkd.log preview ==="
+          head -100 ./debug_logs/splunkd.log 2>/dev/null || echo "(empty or not found)"
           echo ""
           echo "Logs collected."
 

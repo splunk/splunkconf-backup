@@ -114,14 +114,10 @@ jobs:
           # Remove any git artifacts that might have been included
           rm -rf "app_package/${{ env.APP_NAME }}/.git"
 
-         # Create local directory and add configuration file
+          # Create local directory and add configuration file
           echo "=== Creating local configuration for Splunkconf-backup app (set DEBUG mode)==="
           mkdir "app_package/${{ env.APP_NAME }}/local"
-
-          cat > app_package/${{ env.APP_NAME }}/local/splunkconf-backup.conf << EOF
-          [settings]
-          DEBUG=1
-          EOF
+          printf '[settings]\nDEBUG=1\n' > app_package/${{ env.APP_NAME }}/local/splunkconf-backup.conf
 
           echo "=== App package contents ==="
           find app_package/ -type f | head -50

@@ -102,6 +102,8 @@ jobs:
       # -------------------------------------------------------
       - name: Prepare app package
         run: |
+          echo "=== Current working directory ==="
+          pwd
           echo "=== Preparing app package ==="
           mkdir -p apppackage
 

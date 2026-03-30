@@ -36,8 +36,14 @@ jobs:
         splunk_type:
           - "enterprise"
           - "uf"
+        context_type:
+          - default
+          - kvstore_disabled
+        exclude:
+          - splunk_type: uf
+            context_type: kvstore_disabled
 
-    name: "Splunk ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} : Testing backups"
+    name: "Splunk ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} : Testing backups (context: ${{ matrix.contexrt_type }}"
 
     steps:
       # -------------------------------------------------------
@@ -60,6 +66,7 @@ jobs:
           echo "============================================"
           echo "Splunk Type:    ${{ matrix.splunk_type }}"
           echo "Splunk Version: ${{ matrix.splunk_version }}"
+          echo "Test Context type : ${{ matrix.context_type }}"
           echo "SPLUNK_HOME:    ${SPLUNK_HOME}"
           echo "Docker Image:   ${DOCKER_IMAGE}"
           echo "IS_UF:          ${IS_UF}"

@@ -150,7 +150,7 @@ jobs:
             -e SPLUNK_START_ARGS="--accept-license" \
             -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
             -e TZ="Europe/Paris" \
-            -v "/home/runner/work/splunkconf-backup/splunkconf-backup/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
+            -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
             "${DOCKER_IMAGE}"
 
           echo "Container started. Waiting for Splunk to become healthy..."

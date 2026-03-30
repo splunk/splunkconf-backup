@@ -200,7 +200,7 @@ jobs:
           fi
 
           # normally splunk user should be splunkfwd for uf on latest version but inside docker Splunk doesnt use systemd so it still use splunk as a user
-          SPLUNK_USER=splunk
+          SPLUNK_USER="splunk"
           echo "SPLUNK_USER=${SPLUNK_USER}" >> "$GITHUB_ENV"
 
           # Additional check via REST API (enterprise only — UF may not have curl)
@@ -230,16 +230,6 @@ jobs:
           # Copy the app package into the Splunk container
           docker cp app_package/${{ env.APP_NAME }} \
             splunk:${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}
-
-          ## Create local directory and add configuration file
-          #echo "=== Creating local configuration ==="
-          #docker exec --user root splunk mkdir -p \
-          #  ${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}/local
-#
-#          docker exec --user root splunk bash -c "cat > ${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}/local/splunkconf-backup.conf << EOF
-#          [settings]
-#          DEBUG=1
-#          EOF"
 
           echo "=== Fixing app permission, giving files to Splunk ==="
           docker exec --user root splunk chown -R ${SPLUNK_USER}:${SPLUNK_USER} \

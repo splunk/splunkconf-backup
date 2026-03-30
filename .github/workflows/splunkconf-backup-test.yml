@@ -342,6 +342,10 @@ jobs:
             REQUIRED_FILE_COUNT=2
             MONITOR_DIRS="${OUTPUT_DIR}"
             echo "Universal Forwarder: expecting 2 backups (etc + state, no kvdump)"
+          elif [ "${{ matrix.context_type }}" = "kvstore_disabled" ]; then
+            REQUIRED_FILE_COUNT=2
+            MONITOR_DIRS="${OUTPUT_DIR}"
+            echo "Enterprise with kvstore_disabled: expecting 2 backups (etc + state, no kvdump)"
           else
             REQUIRED_FILE_COUNT=3
             MONITOR_DIRS="${OUTPUT_DIR} ${OUTPUT_DIR_KVDUMP}"
@@ -580,6 +584,9 @@ jobs:
             # no kvdmp on uf
             EXPECT_KVDUMP=0
             EXPECTED_FILES_KVDUMP=()
+          elif [ "${{ matrix.context_type }}" = "kvstore_disabled" ]; then
+            EXPECT_KVDUMP=0
+            EXPECTED_FILES_KVDUMP=()
           elif [ "$MAJOR_VERSION" -le 10 ]; then
             # no collection by default
             EXPECT_KVDUMP=1
@@ -656,6 +663,7 @@ jobs:
             echo "Inspecting: ${FILENAME}"
             echo "Detected backup type: ${BACKUP_TYPE}"
             echo "Splunk version: ${SPLUNK_VERSION} (major: ${MAJOR_VERSION})"
+            echo "Test context : ${{ matrix.context_type }} "
             echo "============================================"
 
             # Select the appropriate expected files list

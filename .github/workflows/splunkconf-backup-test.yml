@@ -129,6 +129,8 @@ jobs:
             echo "Creating app disable_kvstore which will test splunk to disable kvstore"
             mkdir -p apppackage/disable_kvstore/local
             printf '[kvstore]\ndisabled=true\n' > apppackage/disable_kvstore/local/server.conf
+          else
+            echo "INFO: not creating disable_kvstore app"
           fi
 
 
@@ -154,7 +156,7 @@ jobs:
         run: |
           echo "=== Starting Splunk ${{ matrix.splunk_version }} ==="
 
-          if [ "{{ matric.context_type  }}" = "kvstore_disabled" ]; then
+          if [ "{{ matrix.context_type  }}" = "kvstore_disabled" ]; then
             echo "Adding disable_kvstore app to docker run as context_type is disable_kvstore"
             docker run -d \
               --name splunk \

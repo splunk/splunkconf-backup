@@ -43,7 +43,7 @@ jobs:
           - splunk_type: uf
             context_type: kvstore_disabled
 
-    name: "Splunk ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} : Testing backups (context: ${{ matrix.contexrt_type }}"
+    name: "Splunk ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} Test Context: ${{ matrix.context_type }}"
 
     steps:
       # -------------------------------------------------------
@@ -728,6 +728,11 @@ jobs:
 
           if [ "$EXPECT_KVDUMP" -eq 0 ]; then
             echo "  ⏭️  KVDUMP not applicable for Universal Forwarder (skipped)"
+          elif [ "$KVDUMP_FOUND" -eq 1 ] && [ "${{ matrix.context_type }}" -eq "kvstore_disabled" ]; then
+            echo "  ❌ KVDUMP backup found while kvstore is disabled, Something is wrong"
+            OVERALL_RESULT=1
+          elif [ "$KVDUMP_FOUND" -eq 0 ] && [ "${{ matrix.context_type }}" -eq "kvstore_disabled" ]; then
+            echo "  ✅ KVSTORE disabled and no KVDUMP backup as expected"
           elif [ "$KVDUMP_FOUND" -eq 1 ]; then
             echo "  ✅ KVDUMP backup found and verified"
           else
@@ -810,7 +815,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: splunk-test-output-${{ matrix.splunk_version }}-${{ matrix.splunk_type }}
+          name: splunk-test-output-${{ matrix.splunk_version }}-${{ matrix.splunk_type }}-${{ matrix.context_type }}
           path: ./test_output/
           retention-days: 7
 
@@ -870,7 +875,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: splunk-debug-logs-${{ matrix.splunk_version }}-${{ matrix.splunk_type }}
+          name: splunk-debug-logs-${{ matrix.splunk_version }}-${{ matrix.splunk_type }}-${{ matrix.context_type }}
           path: ./debug_logs/
           retention-days: 7
 

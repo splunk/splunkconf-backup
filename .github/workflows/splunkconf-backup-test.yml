@@ -306,22 +306,20 @@ jobs:
       # -------------------------------------------------------
       - name: Verify app is loaded
         run: |
-          echo "=== Verifying app is loaded in Splunk ==="
-
-          APP_STATUS=$(docker exec --user ${SPLUNK_USER} splunk ${SPLUNK_HOME}/bin/splunk display app ${{ env.APP_NAME }} \
-            -auth admin:${{ env.SPLUNK_PASSWORD }} 2>&1 || true)
-
-          echo "App status: ${APP_STATUS}"
 
           # REST API check (enterprise only — UF may not have curl)
           if [ "${IS_UF}" = "0" ]; then
+            echo "=== Verifying app is loaded in Splunk ==="
+            APP_STATUS=$(docker exec --user ${SPLUNK_USER} splunk ${SPLUNK_HOME}/bin/splunk display app ${{ env.APP_NAME }} \
+              -auth admin:${{ env.SPLUNK_PASSWORD }} 2>&1 || true)
+            echo "App status: ${APP_STATUS}"
             HTTP_CODE=$(docker exec splunk curl -s -o /dev/null -w "%{http_code}" \
               -k -u admin:${{ env.SPLUNK_PASSWORD }} \
               https://localhost:8089/servicesNS/nobody/${{ env.APP_NAME }}/configs/conf-app/ui)
 
             echo "REST API check for app: HTTP ${HTTP_CODE}"
           else
-            echo "Universal Forwarder: skipping REST API check"
+            echo "Universal Forwarder: skipping App and REST API check"
           fi
 
       # -------------------------------------------------------

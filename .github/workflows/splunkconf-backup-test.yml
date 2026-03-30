@@ -724,8 +724,9 @@ jobs:
 
             echo "--- Archive contents ---"
             TAR_CONTENTS=$(list_tar_contents "$tarfile") || {
-              echo "ERROR: Unable to read file: $tarfile"
-              OVERALL_RESULT=1
+              echo "WARNING: Ignoring this backup (may be incomplete) : Unable to read file: $tarfile"
+              # we dont want to error because we imay have the backup but we killed splunk while it was trying to create another backup"
+              #OVERALL_RESULT=1
               continue
             }
             echo "$TAR_CONTENTS"

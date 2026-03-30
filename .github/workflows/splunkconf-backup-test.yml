@@ -125,6 +125,13 @@ jobs:
           mkdir "apppackage/${{ env.APP_NAME }}/local"
           printf '[settings]\nDEBUG=1\n' > apppackage/${{ env.APP_NAME }}/local/splunkconf-backup.conf
 
+          if [ "{{ matric.context_type  }}" = "kvstore_disabled" ]; then
+            echo "Creating app disable_kvstore which will test sp;lunk to disable kvstore"
+            mkdir -p apppackage/disable_kvstore/local
+            printf '[kvstore]\n#disabled=true\n' > apppackage/disable_kvstore/local/server.conf
+          fi
+
+
           echo "=== App package contents ==="
           find apppackage/ -type f | head -50
           echo ""
@@ -147,18 +154,36 @@ jobs:
         run: |
           echo "=== Starting Splunk ${{ matrix.splunk_version }} ==="
 
-          docker run -d \
-            --name splunk \
-            --hostname splunk \
-            -p 8000:8000 \
-            -p 8089:8089 \
-            -e ENABLE_TCP_MODE=true \
-            -e SPLUNK_GENERAL_TERMS="--accept-sgt-current-at-splunk-com" \
-            -e SPLUNK_START_ARGS="--accept-license" \
-            -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
-            -e TZ="Europe/Paris" \
-            -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
-            "${DOCKER_IMAGE}"
+          if [ "{{ matric.context_type  }}" = "kvstore_disabled" ]; then
+            echo "Adding disable_kvstore app to docker run as context_type is disable_kvstore"
+            docker run -d \
+              --name splunk \
+              --hostname splunk \
+              -p 8000:8000 \
+              -p 8089:8089 \
+              -e ENABLE_TCP_MODE=true \
+              -e SPLUNK_GENERAL_TERMS="--accept-sgt-current-at-splunk-com" \
+              -e SPLUNK_START_ARGS="--accept-license" \
+              -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
+              -e TZ="Europe/Paris" \
+              -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
+              -v "$(pwd)/apppackage/disable_kvstore:${SPLUNK_HOME}/etc/apps/disable_kvstore/" \
+              "${DOCKER_IMAGE}"
+          else 
+            echo "default docker run"
+            docker run -d \
+              --name splunk \
+              --hostname splunk \
+              -p 8000:8000 \
+              -p 8089:8089 \
+              -e ENABLE_TCP_MODE=true \
+              -e SPLUNK_GENERAL_TERMS="--accept-sgt-current-at-splunk-com" \
+              -e SPLUNK_START_ARGS="--accept-license" \
+              -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
+              -e TZ="Europe/Paris" \
+              -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
+              "${DOCKER_IMAGE}"
+          fi
 
           echo "Container started. Waiting for Splunk to become healthy..."
 
@@ -734,7 +759,7 @@ jobs:
             OVERALL_RESULT=1
           fi
 
-          if [ "$EXPECT_KVDUMP" -eq 0 ]; then
+          if [ "$EXPECT_KVDUMP" -eq 0 ] $$ [ "${IS_UF}" = "1" ]; then
             echo "  ⏭️  KVDUMP not applicable for Universal Forwarder (skipped)"
           elif [ "$KVDUMP_FOUND" -eq 1 ] && [ "${{ matrix.context_type }}" = "kvstore_disabled" ]; then
             echo "  ❌ KVDUMP backup found while kvstore is disabled, Something is wrong"

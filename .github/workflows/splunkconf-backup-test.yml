@@ -148,6 +148,7 @@ jobs:
             -e SPLUNK_START_ARGS="--accept-license" \
             -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
             -e TZ="Europe/Paris" \
+            -v "app_package/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/
             "${DOCKER_IMAGE}"
 
           echo "Container started. Waiting for Splunk to become healthy..."
@@ -222,6 +223,7 @@ jobs:
       # -------------------------------------------------------
       - name: Deploy ${{ env.APP_NAME }} app to Splunk
         run: |
+          exit 0
           echo "=== Deploying app to ${DOCKER_IMAGE} ==="
 
           # Copy the app package into the Splunk container
@@ -242,6 +244,7 @@ jobs:
       # -------------------------------------------------------
       - name: Restart Splunk to load Splunkconf-backup app
         run: |
+          exit 0
           echo "=== Restarting Splunk to load ${{ env.APP_NAME }} app ==="
 
           echo "Checking docker default id"

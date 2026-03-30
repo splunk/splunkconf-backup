@@ -128,7 +128,7 @@ jobs:
           if [ "{{ matric.context_type  }}" = "kvstore_disabled" ]; then
             echo "Creating app disable_kvstore which will test sp;lunk to disable kvstore"
             mkdir -p apppackage/disable_kvstore/local
-            printf '[kvstore]\n#disabled=true\n' > apppackage/disable_kvstore/local/server.conf
+            printf '[kvstore]\ndisabled=true\n' > apppackage/disable_kvstore/local/server.conf
           fi
 
 

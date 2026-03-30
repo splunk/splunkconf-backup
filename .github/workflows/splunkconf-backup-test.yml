@@ -253,6 +253,8 @@ jobs:
           docker exec splunk ps aux
           echo "splunk-launch.conf file contain"
           docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/etc/splunk-launch.conf
+          echo ""
+          echo ""
 
           #echo "restarting splunk via splunk ansible"
           #docker exec -e ANSIBLE_ROLES_PATH=/opt/ansible/roles splunk ansible localhost -m include_role -a name=splunk_common -e "tasks_from=restart_splunk" -i /opt/ansible/inventory/environ.py --connection local  

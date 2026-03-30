@@ -125,15 +125,15 @@ jobs:
           mkdir "apppackage/${{ env.APP_NAME }}/local"
           printf '[settings]\nDEBUG=1\n' > apppackage/${{ env.APP_NAME }}/local/splunkconf-backup.conf
 
-          if [ "{{ matric.context_type  }}" = "kvstore_disabled" ]; then
-            echo "Creating app disable_kvstore which will test sp;lunk to disable kvstore"
+          if [ "{{ matrix.context_type  }}" = "kvstore_disabled" ]; then
+            echo "Creating app disable_kvstore which will test splunk to disable kvstore"
             mkdir -p apppackage/disable_kvstore/local
             printf '[kvstore]\ndisabled=true\n' > apppackage/disable_kvstore/local/server.conf
           fi
 
 
           echo "=== App package contents ==="
-          find apppackage/ -type f | head -50
+          find apppackage/ -type f | head -100
           echo ""
           du -sh apppackage/
           echo "Package prepared successfully."

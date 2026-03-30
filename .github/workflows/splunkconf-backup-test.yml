@@ -11,10 +11,9 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   APP_NAME: "splunkconf-backup" 
   APP_DEPLOY_PATH: "/opt/splunk/etc/apps"
-  OUTPUT_DIR: "/opt/splunk/var/backups"           # location for backups except kvdump
-  OUTPUT_DIR_KVDUMP: "/opt/splunk/var/lib/splunk/kvstorebackup"           # location for kvdump backups
   WAIT_TIME: 300                                      # Seconds to wait after restart for file generation
   SPLUNK_PASSWORD: "Chang3d!"                         # Splunk admin password
+  DOCKER_RESTART_TIMEOUT: 60
 
 jobs:
   test-splunk-app:
@@ -65,8 +64,6 @@ jobs:
           echo "Docker Image:   ${DOCKER_IMAGE}"
           echo "IS_UF:          ${IS_UF}"
           echo "APP_DEPLOY_PATH: ${SPLUNK_HOME}/etc/apps"
-          echo "OUTPUT_DIR:      ${SPLUNK_HOME}/var/backups"
-          echo "OUTPUT_DIR_KVDUMP: ${SPLUNK_HOME}/var/lib/splunk/kvstorebackup"
           echo "============================================"
 
       # -------------------------------------------------------
@@ -256,22 +253,14 @@ jobs:
           echo ""
           echo ""
 
-          #echo "restarting splunk via splunk ansible"
-          #docker exec -e ANSIBLE_ROLES_PATH=/opt/ansible/roles splunk ansible localhost -m include_role -a name=splunk_common -e "tasks_from=restart_splunk" -i /opt/ansible/inventory/environ.py --connection local  
-          #docker exec splunk /sbin/entrypoint.sh restart 
-
-
           if [ "${IS_UF}" = "0" ]; then
             echo "restarting splunk as splunk user (${SPLUNK_USER}) with ${SPLUNK_HOME}/bin/splunk restart"
             docker exec --user ${SPLUNK_USER} splunk ${SPLUNK_HOME}/bin/splunk restart 
           else
             # UF cases
-            echo "restarting splunk via docker restart command with 370 seconds timeout"
-            docker restart splunk --timeout 370
+            echo "UF : restarting splunk via docker restart command with ${{ env.DOCKER_RESTART_TIMEOUT }} seconds timeout"
+            docker restart splunk --timeout ${{ env.DOCKER_RESTART_TIMEOUT }}
           fi
-
-          #          docker exec --user ${SPLUNK_USER} splunk ${SPLUNK_HOME}/bin/splunk restart \
-          #            -auth admin:${{ env.SPLUNK_PASSWORD }}
 
           echo "Restart command issued. Waiting for Splunk to come back..."
 

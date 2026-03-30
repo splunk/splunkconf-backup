@@ -639,6 +639,8 @@ jobs:
           STATE_FOUND=0
           KVDUMP_FOUND=0
 
+          echo "before check : EXPECT_KVDUMP: ${EXPECT_KVDUMP}"
+
           # Helper function to list tar contents based on file extension
           list_tar_contents() {
             local tarfile="$1"

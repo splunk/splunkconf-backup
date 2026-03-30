@@ -761,7 +761,7 @@ jobs:
             OVERALL_RESULT=1
           fi
 
-          if [ "$EXPECT_KVDUMP" -eq 0 ] $$ [ "${IS_UF}" = "1" ]; then
+          if [ "$EXPECT_KVDUMP" -eq 0 ] && [ "${IS_UF}" = "1" ]; then
             echo "  ⏭️  KVDUMP not applicable for Universal Forwarder (skipped)"
           elif [ "$KVDUMP_FOUND" -eq 1 ] && [ "${{ matrix.context_type }}" = "kvstore_disabled" ]; then
             echo "  ❌ KVDUMP backup found while kvstore is disabled, Something is wrong"

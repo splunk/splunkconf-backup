@@ -159,8 +159,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20260324 add more debug logging for remotebackup
 # 20260324 update condition fro unconfigured s3
 # 20260326 add test entry in kvstore collection so it can be used for testing 
+# 20260330 add check for postgres
 
-VERSION="20260326b"
+VERSION="20260330a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -876,11 +877,11 @@ else
   MODE="0"
 fi
 case $MODE in
-  "0"|"etc"|"state"|"kvauto"|"kvdump"|"kvstore"|"scripts"|"init") debug_log "argument valid" ;;
+  "0"|"etc"|"state"|"kvauto"|"kvdump"|"kvstore"|"scripts"|"init"|"pg") debug_log "argument valid" ;;
   *) fail_log "argument $MODE is NOT a valid value, please fix"; exit 1;;
 esac
 case $MODE in
-  "0"|"kvauto"|"kvdump"i|"init") 
+  "0"|"kvauto"|"kvdump"|"init") 
       debug_log "MODE=$MODE reading sessionkey via env or stdin"
       # important : this need passauth correctly set or the script could block !
       # This is avoiding to hardcode password or token in the app
@@ -1860,6 +1861,79 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
   fi
   # if mode explicit state or all
 fi
+
+pg_done=0
+LFICSTATE="disabled"
+OBJECT="pg"
+#debug_log "before pg test reached. MODE=${MODE}."
+if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
+  #debug_log "after pg test reached, MODE=$MODE "
+  # PG
+  FIC="disabled"
+  # TEMP TEMP
+  BACKUPPG=1
+  if [ -z ${BACKUPPG+x} ]; then
+    echo_log "action=backup type=$TYPE object=$OBJECT result=disabled"
+  else
+    debug_log "start to backup postgresql";
+
+
+        #  if [ "${IS_UF}" = "1" ]; then
+        #    echo "UF : disabling postsgres check"
+        #    exit 0
+        #  elif [ "$MAJOR_VERSION" -le 10 ]; then
+        #    echo "Splunk Enterprise less than 10, no PG"
+        #    exit 0
+        #  else
+            #  Check if Postgres process is running inside container
+            #echo_log "--- Checking for Splunk Postgres process ---"
+            # if Splunk 10.0 process is named postgres
+            # for splunk 10.2 and newer, process name is  splunk-postgres
+            #docker exec --user ${SPLUNK_USER} splunk bash -c \
+            #"ps aux 2>/dev/null | grep -i [p]ostgres  grep -v grep || echo '❌ Error : No Postgres process found'" || true
+
+            # Check if .pgpass file exists (indicates Postgres credentials are configured)
+            #echo ""
+          debug_log "--- Checking for Postgres credentials file ---"
+          if test -f ${SPLUNK_HOME}/var/packages/data/postgres/.pgpass 2>/dev/null; then
+            PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/.pgpass"
+            debug_log "Found .pgpass in packages/data/postgres directory"
+
+            #  Attempt to verify Postgres connectivity (if psql is available)
+            echo "--- Attempting Postgres connectivity check ---"
+            if test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
+              debug_log "psql binary found at ${SPLUNK_HOME}/bin/psql"
+              debug_log "Using pgpass file: ${PGPASS_FILE}"
+              PG_RESULT=$(bash -c \
+                "export PGPASSFILE=${PGPASS_FILE}; \
+                 export LD_LIBRARY_PATH=${SPLUNK_HOME}/lib; \
+                 ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U postgres_admin -p 5432 \
+                 -c '\l' 2>&1" || echo "CONNECTION_FAILED")
+
+              if echo "${PG_RESULT}" | grep -q "CONNECTION_FAILED\|could not connect\|FATAL"; then
+                warn_log "❌ ERROR: Could not connect to Postgres directly."
+                debug_log "Output: ${PG_RESULT}"
+              else
+                echo_log "Postgres databases:"
+                echo_log "${PG_RESULT}"
+                echo_log ""
+                echo_log "✅ Postgres connectivity verified"
+              fi
+            else
+              warn_log "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
+            fi
+
+         # fi
+
+          else
+            echo "❌ ERROR  No .pgpass file found"
+          fi
+  fi    #BACKUPPG
+fi    # mode
+
+
+
+
 debug_log "MODE=$MODE, extmode=${extmode} starting remote part"
 
 ###############################    REMOTE    #############################################3

@@ -254,86 +254,68 @@ jobs:
             echo "Docker health check passed — UF is ready."
           fi
 
+
       # -------------------------------------------------------
-      # Step 6: Deploy the app into Splunk
+      # Step 6: Check Postgres
       # -------------------------------------------------------
-      - name: Deploy ${{ env.APP_NAME }} app to Splunk
+      - name: Check Postgres
         run: |
-          exit 0
-          echo "=== Deploying app to ${DOCKER_IMAGE} ==="
-
-          # Copy the app package into the Splunk container
-          docker cp apppackage/${{ env.APP_NAME }} \
-            splunk:${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}
-
-          echo "=== Fixing app permission, giving files to Splunk ==="
-          docker exec --user root splunk chown -R ${SPLUNK_USER}:${SPLUNK_USER} \
-            ${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}
-
-          # Verify deployment
-          echo "=== Verifying app deployment ==="
-          docker exec --user ${SPLUNK_USER} splunk ls -la ${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}/
-          echo "App deployed successfully."
-
-      # -------------------------------------------------------
-      # Step 7: Restart Splunk to load the app
-      # -------------------------------------------------------
-      - name: Restart Splunk to load Splunkconf-backup app
-        run: |
-          exit 0
-          echo "=== Restarting Splunk to load ${{ env.APP_NAME }} app ==="
-
-          echo "Checking docker default id"
-          docker exec splunk id
-          echo "listing processes in splunk docker"
-          docker exec splunk ps aux
-          echo "splunk-launch.conf file contain"
-          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/etc/splunk-launch.conf
-          echo ""
-          echo ""
-
-          if [ "${IS_UF}" = "0" ]; then
-            echo "restarting splunk as splunk user (${SPLUNK_USER}) with ${SPLUNK_HOME}/bin/splunk restart"
-            docker exec --user ${SPLUNK_USER} splunk ${SPLUNK_HOME}/bin/splunk restart 
+          if [ "${IS_UF}" = "1" ]; then
+            echo "UF : disabling postsgres check"
+            exit 0
           else
-            # UF cases
-            echo "UF : restarting splunk via docker restart command with ${{ env.DOCKER_RESTART_TIMEOUT }} seconds timeout"
-            docker restart splunk --timeout ${{ env.DOCKER_RESTART_TIMEOUT }}
-          fi
+            #  Check if Postgres process is running inside container
+            echo ""
+            echo "--- Checking for Splunk Postgres process ---"
+            docker exec --user ${SPLUNK_USER} splunk bash -c \
+            "ps aux 2>/dev/null | grep -i [p]ostgres || echo 'No Postgres process found'" || true
 
-          echo "Restart command issued. Waiting for Splunk to come back..."
-
-          # Wait for Splunk to be healthy again after restart
-          MAX_RETRIES=60
-          RETRY_INTERVAL=10
-          RETRIES=0
-
-          echo "Waiting for Splunk to be healthy after restart"
-
-          while [ $RETRIES -lt $MAX_RETRIES ]; do
-            echo "RETRIES=${RETRIES}  MAX_RETRIES=$MAX_RETRIES"
-            docker exec --user ${SPLUNK_USER} splunk ls ${SPLUNK_HOME}/var
-            docker exec --user ${SPLUNK_USER} splunk ls -l ${SPLUNK_HOME}/var/backups 2>/dev/null || echo "  (backup directory not yet created)"
-
-            HEALTH=$(docker inspect --format='{{.State.Health.Status}}' splunk 2>/dev/null || echo "not_found")
-
-            if [ "$HEALTH" = "healthy" ]; then
-              echo "Splunk is healthy again after $((RETRIES * RETRY_INTERVAL)) seconds."
-              break
+            # Step 6d: Check if .pgpass file exists (indicates Postgres credentials are configured)
+            echo ""
+            echo "--- Checking for Postgres credentials file ---"
+            if docker exec --user ${SPLUNK_USER} splunk test -f ${SPLUNK_HOME}/var/packages/data/postgres/.pgpass 2>/dev/null; then
+              PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/.pgpass"
+              echo "Found .pgpass in packages/data/postgres directory"
+            else
+              echo "No .pgpass file found (this may be normal depending on Splunk version)"
+              exit 0
             fi
 
-            RETRIES=$((RETRIES + 1))
-            echo "  Attempt ${RETRIES}/${MAX_RETRIES} - Status: ${HEALTH}. Retrying in ${RETRY_INTERVAL}s..."
-            sleep $RETRY_INTERVAL
-          done
+            # Step 6e: Attempt to verify Postgres connectivity (if psql is available)
+            echo ""
+            echo "--- Attempting Postgres connectivity check ---"
+            if docker exec --user ${SPLUNK_USER} splunk test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
+              echo "psql binary found at ${SPLUNK_HOME}/bin/psql"
+              echo "Using pgpass file: ${PGPASS_FILE}"
+              PG_RESULT=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
+                "export PGPASSFILE=${PGPASS_FILE}; \
+                 export LD_LIBRARY_PATH=${SPLUNK_HOME}/lib; \
+                 ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U postgres_admin -p 5432 \
+                 -c '\l' 2>&1" || echo "CONNECTION_FAILED")
 
-          echo "after restart : listing processes in splunk docker"
-          docker exec splunk ps aux
-          if [ "$HEALTH" != "healthy" ]; then
-            echo "ERROR: Splunk did not recover after restart."
-            docker logs splunk
-            exit 1
+              if echo "${PG_RESULT}" | grep -q "CONNECTION_FAILED\|could not connect\|FATAL"; then
+                echo "⚠️  WARNING: Could not connect to Postgres directly."
+                echo "Output: ${PG_RESULT}"
+                echo "This may be normal if Postgres uses a different socket or port."
+                exit 0
+              else
+                echo "Postgres databases:"
+                echo "${PG_RESULT}"
+                echo ""
+                echo "✅ Postgres connectivity verified"
+                # FIXME : List table in the database
+              fi
+            else
+              echo "psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
+            fi
+
           fi
+
+
+      # -------------------------------------------------------
+      # Step 7: xxxxxxxxx
+      # -------------------------------------------------------
+
 
       # -------------------------------------------------------
       # Step 8: Verify app is loaded in Splunk

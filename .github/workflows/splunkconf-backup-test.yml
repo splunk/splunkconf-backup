@@ -260,25 +260,42 @@ jobs:
       # -------------------------------------------------------
       - name: Check Postgres
         run: |
+          # Detect major Splunk version from matrix
+          SPLUNK_VERSION="${{ matrix.splunk_version }}"
+          MAJOR_VERSION=$(echo "$SPLUNK_VERSION" | cut -d'.' -f1)
+            
+          # If version is not numeric (e.g., "latest"), treat as latest/highest version
+          if ! [[ "$MAJOR_VERSION" =~ ^[0-9]+$ ]]; then
+            echo "Non-numeric version detected: ${SPLUNK_VERSION} — treating as latest (99)"
+            MAJOR_VERSION=99
+          fi
+          
+          echo "Splunk version: ${SPLUNK_VERSION} (major: ${MAJOR_VERSION})"
+
           if [ "${IS_UF}" = "1" ]; then
             echo "UF : disabling postsgres check"
+            exit 0
+          elif [ "$MAJOR_VERSION" -le 10 ]; then
+            echo "Splunk Enterprise less than 10, no PG"
             exit 0
           else
             #  Check if Postgres process is running inside container
             echo ""
             echo "--- Checking for Splunk Postgres process ---"
+            # if Splunk 10.0 process is named postgres
+            # for splunk 10.2 and newer, process name is  splunk-postgres
             docker exec --user ${SPLUNK_USER} splunk bash -c \
-            "ps aux 2>/dev/null | grep -i [p]ostgres || echo 'No Postgres process found'" || true
+            "ps aux 2>/dev/null | grep -i [p]ostgres  grep -v grep || echo '❌ Error : No Postgres process found'" || true
 
-            # Step 6d: Check if .pgpass file exists (indicates Postgres credentials are configured)
+            # Check if .pgpass file exists (indicates Postgres credentials are configured)
             echo ""
             echo "--- Checking for Postgres credentials file ---"
             if docker exec --user ${SPLUNK_USER} splunk test -f ${SPLUNK_HOME}/var/packages/data/postgres/.pgpass 2>/dev/null; then
               PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/.pgpass"
               echo "Found .pgpass in packages/data/postgres directory"
             else
-              echo "No .pgpass file found (this may be normal depending on Splunk version)"
-              exit 0
+              echo "❌ ERROR  No .pgpass file found"
+              exit 1
             fi
 
             # Step 6e: Attempt to verify Postgres connectivity (if psql is available)
@@ -294,19 +311,18 @@ jobs:
                  -c '\l' 2>&1" || echo "CONNECTION_FAILED")
 
               if echo "${PG_RESULT}" | grep -q "CONNECTION_FAILED\|could not connect\|FATAL"; then
-                echo "⚠️  WARNING: Could not connect to Postgres directly."
+                echo "❌ ERROR: Could not connect to Postgres directly."
                 echo "Output: ${PG_RESULT}"
-                echo "This may be normal if Postgres uses a different socket or port."
-                exit 0
+                exit 1
               else
                 echo "Postgres databases:"
                 echo "${PG_RESULT}"
                 echo ""
                 echo "✅ Postgres connectivity verified"
-                # FIXME : List table in the database
               fi
             else
-              echo "psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
+              echo "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
+              exit 1
             fi
 
           fi

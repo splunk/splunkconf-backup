@@ -278,6 +278,9 @@ jobs:
           elif [ "$MAJOR_VERSION" -le 9 ]; then
             echo "Splunk Enterprise less than 10, no PG"
             exit 0
+          elif [ "${{ matrix.context_type  }}" = "kvstore_disabled" ]; then
+            echo "Splunk Enterprise KVSTORE disable, it also disable postgres"
+            exit 0
           else
             #  Check if Postgres process is running inside container
             echo ""
@@ -286,30 +289,10 @@ jobs:
             # for splunk 10.2 and newer, process name is  splunk-postgres
             docker exec --user ${SPLUNK_USER} splunk bash -c \
             "ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
-            echo "Waiting and redoing test"
-            sleep 10
-            docker exec --user ${SPLUNK_USER} splunk bash -c \
-            "ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
-            echo "Waiting and redoing test"
-            sleep 10
-            docker exec --user ${SPLUNK_USER} splunk bash -c \
-            "ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
-            echo "Waiting and redoing test"
-            sleep 10
-            docker exec --user ${SPLUNK_USER} splunk bash -c \
-            "ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
-            echo "Waiting and redoing test"
-            sleep 10
-            docker exec --user ${SPLUNK_USER} splunk bash -c \
-            "ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
-            echo "Waiting and redoing test"
-            sleep 10
-            docker exec --user ${SPLUNK_USER} splunk bash -c \
-            "ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
-            echo "Waiting 60s and redoing test"
-            sleep 10
-            docker exec --user ${SPLUNK_USER} splunk bash -c \
-            "ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
+            #echo "Waiting and redoing test"
+            #sleep 10
+            #docker exec --user ${SPLUNK_USER} splunk bash -c \
+            #"ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
             # Check if .pgpass file exists (indicates Postgres credentials are configured)
             echo ""
             echo "--- Checking for Postgres credentials file ---"

@@ -317,6 +317,7 @@ jobs:
               PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/.pgpass"
               echo "Found .pgpass in packages/data/postgres directory"
             else
+              docker exec --user ${SPLUNK_USER} splunk find /opt/splunk -name .pgpass 2>/dev/null || echo '❌ Error : No .pgpass found via find command '" || true
               echo "❌ ERROR  No .pgpass file found"
               exit 1
             fi

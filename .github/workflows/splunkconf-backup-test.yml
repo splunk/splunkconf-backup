@@ -896,12 +896,12 @@ jobs:
 
           # Splunk start logs
           echo "--- Splunk utility logs (what happend before splunkd log start) for debugging ---"
-          docker exec --user ${SPLUNK_USER} splunk tail -100 ${SPLUNK_HOME}/var/log/splunk/splunkd-utility.log \
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/splunkd-utility.log \
             > ./debug_logs/splunkd-utility.log 2>/dev/null || true
 
           # Splunk main logs
           echo "--- Splunk logs for debugging ---"
-          docker exec --user ${SPLUNK_USER} splunk tail -100 ${SPLUNK_HOME}/var/log/splunk/splunkd.log \
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/splunkd.log \
             > ./debug_logs/splunkd.log 2>/dev/null || true
 
           # Backup directory listing

@@ -904,6 +904,21 @@ jobs:
           docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/splunkd.log \
             > ./debug_logs/splunkd.log 2>/dev/null || true
 
+          # Splunk postgres  logs
+          echo "--- Splunk Postgres for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/postgres-*.log \
+            > ./debug_logs/postgres.log 2>/dev/null || true
+
+          # Splunk sup postgres stdout logs
+          echo "--- Splunk sup Postgres stdout for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/sup-pkg-postgres-stdout.log \
+            > ./debug_logs/sup-pkg-postgres-stdout.log 2>/dev/null || true
+
+          # Splunk sup postgres logs
+          echo "--- Splunk sup Postgres for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/sup-pkg-postgres.log \
+            > ./debug_logs/sup-pkg-postgres.log 2>/dev/null || true
+
           # Backup directory listing
           echo "--- Backup directory listing ---"
           docker exec --user ${SPLUNK_USER} splunk ls -la \
@@ -915,6 +930,27 @@ jobs:
             docker exec --user ${SPLUNK_USER} splunk ls -la \
               ${SPLUNK_HOME}/var/lib/splunk/kvstorebackup/ \
               > ./debug_logs/kvdump-dir-listing.txt 2>/dev/null || true
+          fi
+
+          # package directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user ${SPLUNK_USER} splunk ls -la \
+              ${SPLUNK_HOME}/var/packages/ \
+              > ./debug_logs/var-packages-dir-listing.txt 2>/dev/null || true
+          fi
+
+          # package data directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user ${SPLUNK_USER} splunk ls -la \
+              ${SPLUNK_HOME}/var/packages/data/ \
+              > ./debug_logs/var-packages-data-dir-listing.txt 2>/dev/null || true
+          fi
+
+          # package data pg directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user ${SPLUNK_USER} splunk ls -la \
+              ${SPLUNK_HOME}/var/packages/data/postgres/ \
+              > ./debug_logs/var-packages-data-postgres-dir-listing.txt 2>/dev/null || true
           fi
 
           echo "=== Collected files ==="

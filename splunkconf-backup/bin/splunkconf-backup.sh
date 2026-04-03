@@ -160,8 +160,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20260324 update condition fro unconfigured s3
 # 20260326 add test entry in kvstore collection so it can be used for testing 
 # 20260330 add check for postgres
+# 20260403 use different location for pgpass on splunk 10.0
 
-VERSION="20260330a"
+VERSION="20260403a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -1896,9 +1897,19 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
             #echo ""
           debug_log "--- Checking for Postgres credentials file ---"
           if test -f ${SPLUNK_HOME}/var/packages/data/postgres/.pgpass 2>/dev/null; then
+            # Splunk 10.2+
             PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/.pgpass"
             debug_log "Found .pgpass in packages/data/postgres directory"
-
+          elif test -f ${SPLUNK_HOME}/var/packages/data/postgres/db/.pgpass 2>/dev/null; then
+            # Splunk 10.0
+            PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/db/.pgpass"
+            debug_log "Found .pgpass in packages/data/db/postgres directory"
+          else
+            debug_log "❌ ERROR  No .pgpass file found"
+          fi
+          if [ -z ${PGPASS_FILE+x} ]; then
+            debug_log "no pg pass" 
+          else 
             #  Attempt to verify Postgres connectivity (if psql is available)
             echo "--- Attempting Postgres connectivity check ---"
             if test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
@@ -1923,11 +1934,8 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
               warn_log "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
             fi
 
-         # fi
+          fi # if pgpass_file
 
-          else
-            echo "❌ ERROR  No .pgpass file found"
-          fi
   fi    #BACKUPPG
 fi    # mode
 

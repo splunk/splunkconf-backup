@@ -1934,11 +1934,11 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
                 if command -v ss &>/dev/null; then
                   debug_log "using ss to detect PG API Port"
                   PG_API_PORT=$(ss -tlnp | awk '/postgres/ && $4 !~ /:5432$/ {split($4, a, ":"); print a[length(a)]; exit}')
-                elif ! command -v lsof &>/dev/null; then
+                elif command -v lsof &>/dev/null; then
                   debug_log "using lsof to detect PG API Port"
                   PG_API_PORT=$(lsof -i -P | awk '/postgres/ && /LISTEN/ && $9 ~ /localhost/ && $9 !~ /5432/ {split($9, a, ":"); ports[++count] = a[2]} END {if (count >= 2) print ports[2]}')
                 elif command -v netstat &>/dev/null; then
-                  debug_log "WARNING: i'ss' and 'lsof' not found, falling back to 'netstat'"
+                  debug_log "WARNING: 'ss' and 'lsof' not found, falling back to 'netstat'"
                   PG_API_PORT=$(netstat -tlnp 2>/dev/null | awk '/postgres/ && $4 !~ /:5432$/ {split($4, a, ":"); print a[length(a)]; exit}')
                 else
                   warn_log "ERROR: None of 'lsof', 'ss', or 'netstat' are available"

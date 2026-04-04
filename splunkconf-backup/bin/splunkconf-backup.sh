@@ -1928,8 +1928,9 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
                 echo_log "Postgres databases:"
                 echo_log "${PG_RESULT}"
                 echo_log ""
-                echo_log "✅ Postgres connectivity verified"
+                echo_log "✅ Postgres connectivity verified ---"
                 # Check lsof is available before attempting to use it
+                echo_log "TEST1
                 if ! command -v lsof &>/dev/null; then
                   echo_log "ERROR: 'lsof' is not installed or not in PATH"
                 fi

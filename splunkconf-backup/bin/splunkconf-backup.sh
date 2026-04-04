@@ -1930,12 +1930,20 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
                 echo_log ""
                 echo_log "✅ Postgres connectivity verified ---"
                 # Check lsof is available before attempting to use it
-                echo_log "TEST1"
-                if ! command -v lsof &>/dev/null; then
-                  echo_log "ERROR: 'lsof' is not installed or not in PATH"
+                debug_log "TEST1"
+                if command -v ss &>/dev/null; then
+                  debug_log "using ss to detect PG API Port"
+                  PG_API_PORT=$(ss -tlnp | awk '/postgres/ && $4 !~ /:5432$/ {split($4, a, ":"); print a[length(a)]; exit}')
+                elif ! command -v lsof &>/dev/null; then
+                  debug_log "using lsof to detect PG API Port"
+                  PG_API_PORT=$(lsof -i -P | awk '/postgres/ && /LISTEN/ && $9 ~ /localhost/ && $9 !~ /5432/ {split($9, a, ":"); ports[++count] = a[2]} END {if (count >= 2) print ports[2]}')
+                elif command -v netstat &>/dev/null; then
+                  debug_log "WARNING: i'ss' and 'lsof' not found, falling back to 'netstat'"
+                  PG_API_PORT=$(netstat -tlnp 2>/dev/null | awk '/postgres/ && $4 !~ /:5432$/ {split($4, a, ":"); print a[length(a)]; exit}')
+                else
+                  warn_log "ERROR: None of 'lsof', 'ss', or 'netstat' are available"
                 fi
-                PG_API_PORT=$(lsof -i -P | awk '/postgres/ && /LISTEN/ && $9 ~ /localhost/ && $9 !~ /5432/ {split($9, a, ":"); ports[++count] = a[2]} END {if (count >= 2) print ports[2]}')
-                echo_log "TEST"
+                debug_log "TEST"
                 if [ -z "$PG_API_PORT" ]; then
                   debug_log "ERROR: Could not determine PostgreSQL API port"
                 else

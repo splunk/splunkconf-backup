@@ -1929,7 +1929,12 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
                 echo_log "${PG_RESULT}"
                 echo_log ""
                 echo_log "✅ Postgres connectivity verified"
+                # Check lsof is available before attempting to use it
+                if ! command -v lsof &>/dev/null; then
+                  echo_log "ERROR: 'lsof' is not installed or not in PATH"
+                fi
                 PG_API_PORT=$(lsof -i -P | awk '/postgres/ && /LISTEN/ && $9 ~ /localhost/ && $9 !~ /5432/ {split($9, a, ":"); ports[++count] = a[2]} END {if (count >= 2) print ports[2]}')
+                echo_log "TEST"
                 if [ -z "$PG_API_PORT" ]; then
                   debug_log "ERROR: Could not determine PostgreSQL API port"
                 else
@@ -1952,7 +1957,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
                     DB_NAME="opamp_service"
 
                     BACKUP_FILE="/tmp/testdump"
-                    debug_log "Triggering backup for database: $DB_NAME ..."
+                    echo_log "Triggering backup for database: $DB_NAME ..."
 
                     BACKUP_RESPONSE=$(curl -s -X POST "https://localhost:$PG_API_PORT/v1/postgres/recovery/backup" \
                       -H "Content-Type: application/json" \

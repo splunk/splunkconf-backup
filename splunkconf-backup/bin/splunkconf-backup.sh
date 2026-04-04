@@ -1864,7 +1864,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
 fi
 
 pg_done=0
-LFICSTATE="disabled"
+LFICPG="disabled"
 OBJECT="pg"
 debug_log "before pg test reached. MODE=${MODE}."
 if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
@@ -1988,18 +1988,19 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
   -H "Content-Type: application/json" \
   -H "Authorization: Basic $PG_AUTH_BASIC" \
   -k )
-                    if [ -z "$BACKUP_STATUS" ]; then
-                      debug_log  "ERROR: Could not get backup status"
-                    else
-                      debug_log "Got BACKUP_STATUS=$BACKUP_STATUS  PG_BACKUP_ID=$PG_BACKUP_ID"
-                    fi
-                  fi        
-                fi
-              fi
+                      if [ -z "$BACKUP_STATUS" ]; then
+                        debug_log  "ERROR: Could not get backup status"
+                      else
+                        debug_log "Got BACKUP_STATUS=$BACKUP_STATUS  PG_BACKUP_ID=$PG_BACKUP_ID"
+                      fi # -z "$BACKUP_STATUS"
+                    fi  #  -z "$PG_BACKUP_ID"       
+                  fi #  -z "$PG_ADMIN_PASS"
+                fi # -z "$PG_API_PORT"
+              fi # pg result
             else
               warn_log "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
-            fi
-
+            fi # if test -x ${SPLUNK_HOME}/bin/psql
+           
           fi # if pgpass_file
 
   fi    #BACKUPPG

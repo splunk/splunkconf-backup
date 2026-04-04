@@ -1929,6 +1929,66 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
                 echo_log "${PG_RESULT}"
                 echo_log ""
                 echo_log "✅ Postgres connectivity verified"
+                PG_API_PORT=$(lsof -i -P | awk '/postgres/ && /LISTEN/ && $9 ~ /localhost/ && $9 !~ /5432/ {split($9, a, ":"); ports[++count] = a[2]} END {if (count >= 2) print ports[2]}')
+                if [ -z "$PG_API_PORT" ]; then
+                  debug_log "ERROR: Could not determine PostgreSQL API port"
+                else
+                  debug_log "PostgreSQL API port: $PG_API_PORT"
+                  PG_ADMIN_USER=postgres_admin
+
+                  # Retrieve password from PGPASSFILE (extracts password field for postgres_admin)
+                  PG_ADMIN_PASS=$(awk -F':' -v user="$PG_ADMIN_USER" '$4 == user {print $5; exit}' "$PGPASS_FILE")
+
+                  if [ -z "$PG_ADMIN_PASS" ]; then
+                    echo_log "ERROR: Could not retrieve password for user '$PG_ADMIN_USER' from $PGPASS_FILE"
+                  else
+                    PG_AUTH_BASIC=$(echo -n "$PG_ADMIN_USER:$PG_ADMIN_PASS" | base64)
+                    debug_log "Using API port : $PG_API_PORT"
+                    debug_log "Using admin user: $PG_ADMIN_USER"
+                    # Set the target database (uncomment the one you need)
+                    # DB_NAME="search_metadata"
+                    # DB_NAME="kvstore"
+                    # DB_NAME="acies_config_service"
+                    DB_NAME="opamp_service"
+
+                    BACKUP_FILE="/tmp/testdump"
+                    debug_log "Triggering backup for database: $DB_NAME ..."
+
+                    BACKUP_RESPONSE=$(curl -s -X POST "https://localhost:$PG_API_PORT/v1/postgres/recovery/backup" \
+                      -H "Content-Type: application/json" \
+                      -H "Authorization: Basic $PG_AUTH_BASIC" \
+                      -d "{\"database\": \"$DB_NAME\", \"backupFile\": \"$BACKUP_FILE\"}" \
+                      -k)
+                    debug_log "Backup response: $BACKUP_RESPONSE"
+# ---------------------------------------------------------------------------
+# --- 4. Extract Backup ID from Response ---
+# ---------------------------------------------------------------------------
+
+# Assumes the response is JSON containing an "id" field e.g. {"id":"abc-123",...}
+                    PG_BACKUP_ID=$(echo "$BACKUP_RESPONSE" | grep -o '"id":"[^"]*"' | cut -d':' -f2 | tr -d '"')
+
+                    if [ -z "$PG_BACKUP_ID" ]; then
+                      debug_log  "ERROR: Could not extract backup ID from response"
+                    else
+
+                      debug_log "Backup ID: $PG_BACKUP_ID"
+
+# ---------------------------------------------------------------------------
+# --- 5. Verify Backup Status ---
+# ---------------------------------------------------------------------------
+                      debug_log "Checking backup status for ID: $PG_BACKUP_ID ..."
+
+                      BACKUP_STATUS=$(curl -s -X GET "https://localhost:$PG_API_PORT/v1/postgres/recovery/status/$PG_BACKUP_ID" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Basic $PG_AUTH_BASIC" \
+  -k )
+                    if [ -z "$BACKUP_STATUS" ]; then
+                      debug_log  "ERROR: Could not get backup status"
+                    else
+                      debug_log "Got BACKUP_STATUS=$BACKUP_STATUS  PG_BACKUP_ID=$PG_BACKUP_ID"
+                    fi
+                  fi        
+                fi
               fi
             else
               warn_log "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"

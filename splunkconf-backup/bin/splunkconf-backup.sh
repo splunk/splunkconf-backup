@@ -1866,9 +1866,9 @@ fi
 pg_done=0
 LFICSTATE="disabled"
 OBJECT="pg"
-#debug_log "before pg test reached. MODE=${MODE}."
+debug_log "before pg test reached. MODE=${MODE}."
 if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
-  #debug_log "after pg test reached, MODE=$MODE "
+  debug_log "after pg test reached, MODE=$MODE "
   # PG
   FIC="disabled"
   # TEMP TEMP

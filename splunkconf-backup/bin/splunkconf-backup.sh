@@ -161,8 +161,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20260326 add test entry in kvstore collection so it can be used for testing 
 # 20260330 add check for postgres
 # 20260403 use different location for pgpass on splunk 10.0
+# 20260404 add backup pg code block + fix multiple typos
 
-VERSION="20260403a"
+VERSION="20260404a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -462,7 +463,7 @@ function check_cloud() {
     fi
   fi
   # if detection not yet successfull, try fallback method
-  if [[ $cloud_type -eq "0" ]]; then
+  if [[ "$cloud_type" -eq 0 ]]; then
     # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
     # authoritative, we could follow Amazon's suggestions for cryptographically
     # verifying their signature, see here:
@@ -690,7 +691,7 @@ function do_remote_copy() {
       if [ $RES -eq 0 ]; then
         result="success"
         echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} ${S3ENDPOINTLOGMESSAGE}  ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY" 
-        if [[ "cloud_type" -eq 1 ]]; then
+        if [[ "$cloud_type" -eq 1 ]]; then
           # AWS
           if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ] && [ "${REMOTETECHNO}" = "2" ]; then
             debug_log "setting tag via aws ${S3ENDPOINTOPTION}s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
@@ -825,7 +826,7 @@ function check_assist () {
 
 
       else
-        debug_log "assist.conf check, inconsistency=$INCONSISTENTi (fine), FI1=$FI1, FI2=$FI2";
+        debug_log "assist.conf check, inconsistency=$INCONSISTENT (fine), FI1=$FI1";
 
       fi
 
@@ -906,7 +907,7 @@ if [ "${MODE}" == "init" ]; then
   debug_log "running in init mode, setting up lock to prevent concurrent backup at init"
   MODE="0"
   INIT=1
-  `touch ${SPLUNK_HOME}/var/run/splunkconf-init.lock`
+  touch ${SPLUNK_HOME}/var/run/splunkconf-init.lock
 fi
 debug_log "splunkconf-backup running with MODE=${MODE} and INIT=${INIT}"
 
@@ -1014,7 +1015,7 @@ fi
 
 INSTANCEFILE="${SPLUNK_HOME}/var/run/splunk/instance-tags"
 if [ $CHECK -ne 0 ]; then
-  if [[ "cloud_type" -eq 1 ]]; then
+  if [[ "$cloud_type" -eq 1 ]]; then
     # aws
     # setting up token (IMDSv2)
     TOKEN=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
@@ -1032,36 +1033,35 @@ if [ $CHECK -ne 0 ]; then
       debug_log "splunk prefixed tags not found, reverting to full tag inclusion (file=$INSTANCEFILE)" 
       aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/' | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' > $INSTANCEFILE
     fi
+  elif [[ "$cloud_type" -eq 2 ]]; then
+    # GCP
+    splunkinstanceType=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
+    if [ -z ${splunkinstanceType+x} ]; then
+      debug_log "GCP : Missing splunkinstanceType in instance metadata"
+    else
+      # > to overwrite any old file here (upgrade case)
+      echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
+    fi
+    splunks3installbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
+    if [ -z ${splunks3installbucket+x} ]; then
+      debug_log "GCP : Missing splunks3installbucket in instance metadata"
+    else
+      echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
+    fi
+    splunks3backupbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
+    if [ -z ${splunks3backupbucket+x} ]; then
+      debug_log "GCP : Missing splunks3backupbucket in instance metadata"
+    else 
+      echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
+    fi
+    splunks3databucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
+    if [ -z ${splunks3databucket+x} ]; then
+      debug_log "GCP : Missing splunks3databucket in instance metadata"
+    else 
+      echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
+    fi
+    splunks3endpointurl=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3endpointurl`
   fi
-elif [[ "cloud_type" -eq 2 ]]; then
-  # GCP
-  splunkinstanceType=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
-  if [ -z ${splunkinstanceType+x} ]; then
-    debug_log "GCP : Missing splunkinstanceType in instance metadata"
-  else
-    # > to overwrite any old file here (upgrade case)
-    echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
-  fi
-  splunks3installbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
-  if [ -z ${splunks3installbucket+x} ]; then
-    debug_log "GCP : Missing splunks3installbucket in instance metadata"
-  else
-    echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
-  fi
-  splunks3backupbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
-  if [ -z ${splunks3backupbucket+x} ]; then
-    debug_log "GCP : Missing splunks3backupbucket in instance metadata"
-  else 
-    echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
-  fi
-  splunks3databucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
-  if [ -z ${splunks3databucket+x} ]; then
-    debug_log "GCP : Missing splunks3databucket in instance metadata"
-  else 
-    echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
-  fi
-  splunks3endpointurl=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3endpointurl`
-  
 else
   warn_log "aws cloud tag detection disabled (missing commands)"
 fi
@@ -1220,7 +1220,7 @@ if [ -z ${splunks3backupbucket+x} ]; then
     elif  [ "${REMOTEOBJECTSTOREBUCKET}" != "auto" ]; then 
       # REMOTEOBJECTSTOREBUCKET is set lets use this
        s3backupbucket=$REMOTEOBJECTSTOREBUCKET
-      if [[ "cloud_type" -eq 2 ]]; then
+      if [[ "$cloud_type" -eq 2 ]]; then
         # GCP
         debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
         # we already have the scheme in var for gcp
@@ -1242,7 +1242,7 @@ if [ -z ${splunks3backupbucket+x} ]; then
       debug_log "remote techno=3 and running in cloud , not using tags"
     elif (( REMOTETECHNO == 4 )); then 
       debug_log "remote techno=4 and running in cloud , not using tags"
-    elif [[ "cloud_type" -eq 2 ]]; then
+    elif [[ "$cloud_type" -eq 2 ]]; then
       # GCP
       debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
       # we already have the scheme in var for gcp
@@ -1264,7 +1264,7 @@ else
       debug_log "remote techno=3 and running in cloud , not using tags"
   elif (( REMOTETECHNO == 4 )); then 
       debug_log "remote techno=4 , not using tags"
-  elif [[ "cloud_type" -eq 2 ]]; then
+  elif [[ "$cloud_type" -eq 2 ]]; then
     # GCP
     debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=true";
       # we already have the scheme in var for gcp
@@ -1488,7 +1488,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
   #debug_log "start to backup scripts"; 
   if [ ${LOCALTYPE} -eq 2 ]; then
     FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
-    ESS1="backuptype=scriptstargetedinstanceoverwrite ";
+    MESS1="backuptype=scriptstargetedinstanceoverwrite ";
   elif [ ${LOCALTYPE} -eq 3 ]; then
     FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}scripts.tar.${EXTENSION}";
     MESS1="backuptype=scriptstargetednoinstanceoverwrite  ";
@@ -1518,7 +1518,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
         LIS=`ls ${backuptardir}/$i|wc -l`
         if (( $LIS > 0 )); then 
           debug_log "fileverif : $i exist and not empty"
-          FILELIST2="${STATELIST2} $i"
+          FILELIST2="${FILELIST2} $i"
         else
           debug_log "fileverif : $i exist and  empty, not adding it"
         fi
@@ -1526,7 +1526,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
         debug_log "fileverif : $i NOT exist"
      fi
     done
-    debug_log "FILELIST=${STATELIST} FILELIST2=${FILELIST2}"
+    debug_log "FILELIST=${FILELIST} FILELIST2=${FILELIST2}"
     if [ ! -z "${FILELIST2}" ]; then
 
       #tar -zcf ${FIC}  ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
@@ -1867,7 +1867,7 @@ pg_done=0
 LFICSTATE="disabled"
 OBJECT="pg"
 debug_log "before pg test reached. MODE=${MODE}."
-if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
+if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
   debug_log "after pg test reached, MODE=$MODE "
   # PG
   FIC="disabled"
@@ -1911,7 +1911,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
             debug_log "no pg pass" 
           else 
             #  Attempt to verify Postgres connectivity (if psql is available)
-            echo "--- Attempting Postgres connectivity check ---"
+            echo_log "--- Attempting Postgres connectivity check ---"
             if test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
               debug_log "psql binary found at ${SPLUNK_HOME}/bin/psql"
               debug_log "Using pgpass file: ${PGPASS_FILE}"
@@ -1930,7 +1930,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
                 echo_log ""
                 echo_log "✅ Postgres connectivity verified ---"
                 # Check lsof is available before attempting to use it
-                echo_log "TEST1
+                echo_log "TEST1"
                 if ! command -v lsof &>/dev/null; then
                   echo_log "ERROR: 'lsof' is not installed or not in PATH"
                 fi
@@ -2081,12 +2081,12 @@ fi
   if [ ${BACKUPTYPE} -eq 2 ]; then
     # full etc mode
     if [ ${REMOTETYPE} -eq 2 ]; then
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk$-{extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
         FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
-        SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk$-{extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
+        SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
         SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
         SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
         SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
@@ -2166,7 +2166,7 @@ fi
     OPTION="";
   elif [ ${REMOTETECHNO} -eq 2 ]; then
     # azure, see https://docs.microsoft.com/en-us/cli/azure/storage?view=azure-cli-latest#az-storage-copy
-    if [[ "cloud_type" -eq 2 ]]; then
+    if [[ "$cloud_type" -eq 2 ]]; then
      # gcp
       CPCMD="gsutil -q cp";
       OPTION="";
@@ -2312,7 +2312,7 @@ fi
 
 if [ "$INIT" == "1" ]; then
   echo_log "INIT mode , removing lock file so other backup process may run"
-  `rm ${SPLUNK_HOME}/var/run/splunkconf-init.lock`
+  rm ${SPLUNK_HOME}/var/run/splunkconf-init.lock
 fi
 
 debug_log "MODE=$MODE, end of splunkconf_backup script"

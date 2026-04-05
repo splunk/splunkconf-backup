@@ -856,7 +856,8 @@ function get_pg_api_port() {
 
     if command -v lsof &>/dev/null; then
         debug_log "INFO: Using lsof to detect port" 
-        port=$(lsof -i -P | awk '/postgres/ && /LISTEN/ && $9 ~ /localhost/ && $9 !~ /5432/ {split($9, a, ":"); ports[++count] = a[2]} END {if (count >= 2) print ports[2]}')
+        # note starting with 10.2 the process may be called splunk-postgres so we need to add -c 15 to increase length output or it doesnt work
+        port=$(lsof +c 15 -i -P | awk '/postgres/ && /LISTEN/ && $9 ~ /localhost/ && $9 !~ /5432/ {split($9, a, ":"); ports[++count] = a[2]} END {if (count >= 2) print ports[2]}')
     elif command -v ss &>/dev/null; then
         debug_log "INFO: Using ss to detect port" 
         port=$(ss -tlnp | awk '/postgres/ && $4 !~ /:5432$/ {split($4, a, ":"); print a[length(a)]; exit}')

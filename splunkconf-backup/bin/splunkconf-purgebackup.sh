@@ -57,7 +57,7 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20240623 add check_cloud function from backup , add variable and fix bug with purge for kvdump
 # 20240629 replace direct var inclusion with loading function logic
 # 20240701 add debugmode flag as arg to splunkconf-backup-helper
-# 20230702 add more ec2 tag support taken from backup part
+# 20240702 add more ec2 tag support taken from backup part
 # 20250917 update load setting with regex version (same as for backup) 
 # 20251007 resync load settings with updated regex
 # 20251215 add mode=purge to have more consistent logging
@@ -65,9 +65,10 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20251216 more curl timeout
 # 20260105 update time logging format
 # 20260106 add purgestats
+# 20260406 fix multiple typos, add pg purge
 
 
-VERSION="2026010r65a"
+VERSION="20260406a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -75,7 +76,7 @@ VERSION="2026010r65a"
 
 # get script dir
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-cd $DIR
+cd "$DIR"
 # we are in bin
 cd ..
 # we are in the app dir
@@ -91,6 +92,8 @@ SPLUNK_HOME=`cd ../../..;pwd`
 # set timeout to avoid very long timeout when calling curl to autodetect AWS (for on prem with firewalls droping it)
 CURLCONNECTTIMEOUT=10
 CURLMAXTIME=60
+
+MINFREESPACE=6000000
 
 #### purge parameters
 
@@ -108,9 +111,12 @@ LOCALBACKUPRETENTIONDAYSPARTIAL=180
 LOCALBACKUPKVRETENTIONDAYS=20
 # scripts
 LOCALBACKUPSCRIPTSRETENTIONDAYS=100
-# modinput
+# modinput (legacy, now produce state)
 LOCALBACKUPMODINPUTRETENTIONDAYS=7
+# state
 LOCALBACKUPSTATERETENTIONDAYS=7
+# pg
+LOCALBACKUPPGRETENTIONDAYS=7
 
 # ATTENTION : you need to free enough space or as the backup are now concurrent, one could eat the space and prevent the other one to run
 # in all case, it is important to verify that backups are effectively running succesfully
@@ -134,7 +140,10 @@ REMOTEBACKUPKVRETENTIONDAYS=60
 REMOTEBACKUPSCRIPTSRETENTIONDAYS=200
 # modinput
 REMOTEBACKUPMODINPUTRETENTIONDAYS=7
+# state
 REMOTEBACKUPSTATERETENTIONDAYS=7
+# pg
+REMOTEBACKUPPGRETENTIONDAYS=7
 
 REMOTEMAXSIZE=100000000000 #100G
 
@@ -344,7 +353,7 @@ lockmindelay=5
 lockmessage="splunkconf-purgebackup is currently running, stopping purgebackup to avoid conflic"
 checklock;
 
-`touch ${SPLUNK_HOME}/var/run/splunkconf-purge.lock`
+touch "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock"
 
 LOCALKVDUMPDIR="${SPLUNK_DB}/kvstorebackup"
 
@@ -373,7 +382,7 @@ fi
 INSTANCEFILE="${SPLUNK_HOME}/var/run/splunk/instance-tags"
 
 if [ $CHECK -ne 0 ]; then
-  if [[ "cloud_type" -eq 1 ]]; then
+  if [[ "$cloud_type" -eq 1 ]]; then
     # aws
     # setting up token (IMDSv2)
     TOKEN=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
@@ -391,49 +400,48 @@ if [ $CHECK -ne 0 ]; then
       debug_log "splunk prefixed tags not found, reverting to full tag inclusion (file=$INSTANCEFILE)"
       aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/' | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' > $INSTANCEFILE
     fi
+  elif [[ "$cloud_type" -eq 2 ]]; then
+    # GCP
+    splunkinstanceType=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
+    if [ -z ${splunkinstanceType+x} ]; then
+      debug_log "GCP : Missing splunkinstanceType in instance metadata"
+    else
+      # > to overwrite any old file here (upgrade case)
+      echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
+    fi
+    splunks3installbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
+    if [ -z ${splunks3installbucket+x} ]; then
+      debug_log "GCP : Missing splunks3installbucket in instance metadata"
+    else
+      echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
+    fi
+    splunks3backupbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
+    if [ -z ${splunks3backupbucket+x} ]; then
+      debug_log "GCP : Missing splunks3backupbucket in instance metadata"
+    else
+      echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
+    fi
+    splunks3databucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
+    if [ -z ${splunks3databucket+x} ]; then
+      debug_log "GCP : Missing splunks3databucket in instance metadata"
+    else
+      echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
+    fi
+    splunklocalbackupretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupretentiondays`
+    splunklocalbackupkvretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupkvretentiondays`
+    splunklocalbackupscriptsretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupscriptsretentiondays`
+    splunklocalbackupstateretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupstateretentiondays`
+    splunklocalbackupdir=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupdir`
+    splunklocalmaxsize=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsize`
+    splunklocalmaxsizeauto=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsizeauto`
   fi
-elif [[ "cloud_type" -eq 2 ]]; then
-  # GCP
-  splunkinstanceType=`curl ---connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
-  if [ -z ${splunkinstanceType+x} ]; then
-    debug_log "GCP : Missing splunkinstanceType in instance metadata"
-  else
-    # > to overwrite any old file here (upgrade case)
-    echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
-  fi
-  splunks3installbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
-  if [ -z ${splunks3installbucket+x} ]; then
-    debug_log "GCP : Missing splunks3installbucket in instance metadata"
-  else
-    echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
-  fi
-  splunks3backupbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
-  if [ -z ${splunks3backupbucket+x} ]; then
-    debug_log "GCP : Missing splunks3backupbucket in instance metadata"
-  else
-    echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
-  fi
-  splunks3databucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
-  if [ -z ${splunks3databucket+x} ]; then
-    debug_log "GCP : Missing splunks3databucket in instance metadata"
-  else
-    echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
-  fi
-  splunklocalbackupretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupretentiondays`
-  splunklocalbackupkvretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupkvretentiondays`
-  splunklocalbackupscriptsretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupscriptsretentiondays`
-  splunklocalbackupstateretentiondays=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupstateretentiondays`
-  splunklocalbackupdir=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupdir`
-  splunklocalmaxsize=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsize`
-  splunklocalmaxsizeauto=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsizeauto`
-
 else
-  warn_log "aws cloud tag detection disabled (missing commands)"
+  warn_log "cloud tag detection disabled (missing commands)"
 fi
 if [ -e "$INSTANCEFILE" ]; then
-  chmod 644 $INSTANCEFILE
+  chmod 644 "$INSTANCEFILE"
   # including the tags for use in this script
-  . $INSTANCEFILE
+  . "$INSTANCEFILE"
   # note : if the tag detection failed , file may be empty -> we are still checking after
 fi
 
@@ -473,7 +481,7 @@ if [ ! -z ${splunklocalbackupscriptsretentiondays+x} ]; then
   fi
 fi 
 
-if [ ! -z ${splunklocalstatebackupretentiondays+x} ]; then 
+if [ ! -z ${splunklocalbackupstateretentiondays+x} ]; then 
   splunklocalbackupstateretentiondays=${splunklocalbackupstateretentiondays##+( )}
   splunklocalbackupstateretentiondays=${splunklocalbackupstateretentiondays%%+( )}
   if [ ${splunklocalbackupstateretentiondays} -gt 0 ]; then 
@@ -482,10 +490,19 @@ if [ ! -z ${splunklocalstatebackupretentiondays+x} ]; then
   fi
 fi 
 
+if [ ! -z ${splunklocalbackuppgretentiondays+x} ]; then
+  splunklocalbackuppgretentiondays=${splunklocalbackuppgretentiondays##+( )}
+  splunklocalbackuppgretentiondays=${splunklocalbackuppgretentiondays%%+( )}
+  if [ ${splunklocalbackuppgretentiondays} -gt 0 ]; then
+    LOCALBACKUPPGRETENTIONDAYS=${splunklocalbackuppgretentiondays}
+    debug_log "set LOCALBACKUPPGRETENTIONDAYS=$LOCALBACKUPPGRETENTIONDAYS from tag"
+  fi
+fi
+
 if [ ! -z ${splunklocalbackupdir+x} ]; then 
   splunklocalbackupdir=${splunklocalbackupdir##+( )}
   splunklocalbackupdir=${splunklocalbackupdir%%+( )}
-  if [ -e ${splunklocalbackupdir} ]; then 
+  if [ -e "${splunklocalbackupdir}" ]; then 
     LOCALBACKUPDIR=${splunklocalbackupdir}
     debug_log "set LOCALBACKUPDIR=$LOCALBACKUPDIR from tag"
   else
@@ -511,13 +528,14 @@ if [ ! -z ${splunklocalmaxsizeauto+x} ]; then
   fi
 fi 
 
-if [ -z ${LOCALBACKUPRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPRETENTIONDAYS defined and set to ${LOCALBACKUPRETENTIONDAYS}"; fi
-if [ -z ${LOCALBACKUPKVRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPKVRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPKVRETENTIONDAYS defined and set to ${LOCALBACKUPKVRETENTIONDAYS}"; fi
-if [ -z ${LOCALBACKUPSCRIPTSRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPSCRIPTSRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPSCRIPTSRETENTIONDAYS defined and set to ${LOCALBACKUPSCRIPTSRETENTIONDAYS}"; fi
-if [ -z ${LOCALBACKUPMODINPUTRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPMODINPUTRETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPMODINPUTRETENTIONDAYS defined and set to ${LOCALBACKUPMODINPUTRETENTIONDAYS}"; fi
-if [ -z ${LOCALBACKUPSTATERETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPSTATERETENTIONDAYS. Exiting !"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPSTATERETENTIONDAYS defined and set to ${LOCALBACKUPSTATERETENTIONDAYS}"; fi
-if [ -z ${SPLUNK_HOME+x} ]; then fail_log "SPLUNK_HOME not defined  !!!!"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "SPLUNK_HOME defined to ${SPLUNK_HOME}"; fi
-if [ -z ${LOCALBACKUPDIR+x} ]; then fail_log "LOCALBACKUPDIR not defined !!!!"; `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`;exit 1; else debug_log "LOCALBACKUPDIR defined and set to ${LOCALBACKUPDIR}"; fi
+if [ -z ${LOCALBACKUPRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPRETENTIONDAYS. Exiting !"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPRETENTIONDAYS defined and set to ${LOCALBACKUPRETENTIONDAYS}"; fi
+if [ -z ${LOCALBACKUPKVRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPKVRETENTIONDAYS. Exiting !"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPKVRETENTIONDAYS defined and set to ${LOCALBACKUPKVRETENTIONDAYS}"; fi
+if [ -z ${LOCALBACKUPSCRIPTSRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPSCRIPTSRETENTIONDAYS. Exiting !"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPSCRIPTSRETENTIONDAYS defined and set to ${LOCALBACKUPSCRIPTSRETENTIONDAYS}"; fi
+if [ -z ${LOCALBACKUPMODINPUTRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPMODINPUTRETENTIONDAYS. Exiting !"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPMODINPUTRETENTIONDAYS defined and set to ${LOCALBACKUPMODINPUTRETENTIONDAYS}"; fi
+if [ -z ${LOCALBACKUPSTATERETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPSTATERETENTIONDAYS. Exiting !"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPSTATERETENTIONDAYS defined and set to ${LOCALBACKUPSTATERETENTIONDAYS}"; fi
+if [ -z ${LOCALBACKUPPGRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPPGRETENTIONDAYS. Exiting !"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPPGRETENTIONDAYS defined and set to ${LOCALBACKUPPGRETENTIONDAYS}"; fi
+if [ -z ${SPLUNK_HOME+x} ]; then fail_log "SPLUNK_HOME not defined  !!!!"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "SPLUNK_HOME defined to ${SPLUNK_HOME}"; fi
+if [ -z ${LOCALBACKUPDIR+x} ]; then fail_log "LOCALBACKUPDIR not defined !!!!"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPDIR defined and set to ${LOCALBACKUPDIR}"; fi
 if (( ${LOCALMAXSIZE} > 1000000000 )); then 
   debug_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check ok" 
 elif [ ${LOCALMAXSIZE} = "auto" ]; then
@@ -526,8 +544,13 @@ elif [ ${LOCALMAXSIZE} = "auto" ]; then
 else 
   fail_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check KO ! Need to be at least 1G(1000000000). Exiting to avoid deletion of all backups on invalid value"
   debug_log "removing lock file so other purgebackup process may run"
-  `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`
+  rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock"
   exit 1;
+fi
+if (( ${MINFREESPACE} > 1000000 )); then 
+  debug_log "we got MINFREESPACE=${MINFREESPACE}"
+else
+  MINFREESPACE=6000000
 fi
 
 splunkconf_checkspace
@@ -611,6 +634,17 @@ EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 # delete with exclusion of latest backup of this type
 /usr/bin/find ${BACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
 
+
+# pg
+BACKUPDIR=${LOCALBACKUPDIR}
+OBJECT="pg"
+RETENTIONDAYS=${LOCALBACKUPPGRETENTIONDAYS}
+A=`ls -tr ${BACKUPDIR}/backupconfsplunk-*${OBJECT}*tar.*| tail -1`
+A=${A:-"na"}
+EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
+# delete with exclusion of latest backup of this type
+/usr/bin/find ${BACKUPDIR} -type f \( -name "backupconfsplunk-*${OBJECT}*tar.*" ! -wholename $A \) -mtime +${RETENTIONDAYS} -print0 -delete | xargs --null -I {}  echo_log "action=purge type=$TYPE reason=${REASON} object=${OBJECT} result=success  dest={}   retentiondays=${RETENTIONDAYS} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} "
+
 # delete on size
 REASON=size
 CURRENTSIZE=`du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump* | cut -f1 | tail -1`
@@ -624,13 +658,13 @@ do
   debug_log " in current size loop, need to purge !"
   #OLDESTFILE=`ls -t ${LOCALBACKUPDIR}/backup* | tail -1`;
   #OLDESTFILE=`echo ${LASTSIZE} | cut -d ' ' -f 2 | tail -1`;
-  for OBJECT in "etc" "scripts" "kvstore" "kvdump" "modinput" "state"; 
+  for OBJECT in "etc" "scripts" "kvstore" "kvdump" "modinput" "state" "pg"; 
   do
     debug_log " in current size and object (${OBJECT}) loop"
     OLDESTFILE=`find ${LOCALBACKUPDIR} ${LOCALKVDUMPDIR}  -type f \( -name "*${OBJECT}*.tar.*" ${EXCLUSION_LIST} \) -printf '%Cs %p\n'|sort -rn | cut -d ' ' -f 2 | tail -1`
     OLDESTFILE=${OLDESTFILE:-"na"}
-    if [ -e ${OLDESTFILE} ]; then
-      rm -f ${OLDESTFILE}  && RES="success" || RES="failure";
+    if [ -e "${OLDESTFILE}" ]; then
+      rm -f "${OLDESTFILE}"  && RES="success" || RES="failure";
       CURRENTSIZEPRE=${CURRENTSIZE}
       CURRENTSIZE=`du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump*| cut -f1 | tail -1`
       # in case of purge by size, we get available free space after purging which is better
@@ -650,6 +684,7 @@ do
     fi
   done
   # potential max value is 6 currently
+  # etc kvdump state scripts pg      legacy modinput kvstore
   if [ ${EXITSIZE} -gt 5 ]; then
     debug_log "forwarding starving condition size exit to underlying loop"
     splunkconf_checkspace
@@ -664,10 +699,10 @@ done;
 
 # adding stats so we know how any backups we have
 ME=""
-for OBJECT in "etc" "scripts" "kvstore" "kvdump" "state";
+for OBJECT in "etc" "scripts" "kvstore" "kvdump" "state" "pg";
 do
   if [[ "$OBJECT" = "kvdump" ]]; then
-    B=$(find "${LOCALKVDUMPDIR}" -maxdepth 1 -type f -name "*kvdump**" -printf '.' | wc -m )
+    B=$(find "${LOCALKVDUMPDIR}" -maxdepth 1 -type f -name "*kvdump*" -printf '.' | wc -m )
   else
     B=$(find "${BACKUPDIR}" -maxdepth 1 -type f -name "backupconfsplunk-*${OBJECT}*tar.*" -printf '.' | wc -m )
   fi
@@ -688,13 +723,13 @@ TYPE="remote"
 if [ -z ${REMOTEBACKUPDIR+x} ]; then 
   debug_log "REMOTEBACKUPDIR not defined, remote purge disabled";
   debug_log "removing lock file so other purgebackup process may run"
-  `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`
+  rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock"
   exit 0;
 elif [[ ${REMOTEBACKUPDIR} == s3* ]] ; then
   # by design, we should not be able to delete here
   debug_log "REMOTEBACKUPDIR is on s3, remote purge disabled, please use lifecycle policy in object store to remove oldest versions"; 
   debug_log "removing lock file so other purgebackup process may run"
-  `rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`
+  rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock"
   exit 0;
 else
   debug_log "REMOTEBACKUP"
@@ -711,7 +746,7 @@ else
     OPTION="-oConnectTimeout=30 -oServerAliveInterval=60 -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
     RESSCPPU=`scp $OPTION  ${SPLUNK_HOME}/etc/apps/splunkconf-backup/bin/splunkconf-purgebackup-helper.sh ${RCPREMOTEUSER}@${RCPHOST}: `
     RESMKDIR=`ssh $OPTION  ${RCPREMOTEUSER}@${RCPHOST} ./splunkconf-purgebackup-helper.sh $REMOTEBACKUPDIR $REMOTEBACKUPRETENTIONDAYS $REMOTEMAXSIZE $DEBUG` 
-  elif [ -d "${REMOTEBACKUPDIR}" ]; then
+  elif [ ! -z ${REMOTEBACKUPDIR+x} ] && [ -d "${REMOTEBACKUPDIR}" ]; then
     debug_log "Starting to purging old backups"
 # FIXME : reuse exclusion_list logic to always keep one backup for remote nas condition
     /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*etc*tar.*" -mtime +${REMOTEBACKUPRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=etc result=success purge remote etc backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=etc result=fail   error purging remote etc backup "
@@ -719,26 +754,33 @@ else
     /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*kvstore*tar.*" -mtime +${REMOTEBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=kvstore result=success purge remote kv backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=kvstore result=fail  error purging remote kv backups"
     # kv dump
     # note after a restore the file end by tar.gz.processed, we still want to clean it up after a while
-    /usr/bin/find ${REMOTEKVDUMPDIR} -type f -name "backupconfsplunk-*kvdump*tar.*" -mtime +${REMOTEBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=kvdump result=success purge remote kv dump done" || fail_log "action=purge type=remote reason=retentionpolicy object=kvdump result=fail error purging remote kv dump"
+    # just in case we do extra check if the variable is undefined even if the user should really set both
+    if [ ! -z ${REMOTEKVDUMPDIR+x} ] && [ -d "${REMOTEKVDUMPDIR}" ]; then
+      /usr/bin/find ${REMOTEKVDUMPDIR} -type f -name "backupconfsplunk-*kvdump*tar.*" -mtime +${REMOTEBACKUPKVRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=kvdump result=success purge remote kv dump done" || fail_log "action=purge type=remote reason=retentionpolicy object=kvdump result=fail error purging remote kv dump"
+    else
+      debug_log "REMOTEKVDUMPDIR not defined or not present, skipping remote kvdump purge"
+    fi
     # scripts
     /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*script*tar.*" -mtime +${REMOTEBACKUPSCRIPTSRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=scripts result=success purge remote scripts backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=scripts result=fail error purging remote scripts backup"
     # modinput (upgrade case)
     /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*modinput*tar.*" -mtime +${REMOTEBACKUPMODINPUTRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=modinput result=success purge remote modinput backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=modinput result=fail error purging remote modinput backup"
     # state
-    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*state*tar.*" -mtime +${REMOTEBACKUPMODINPUTRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=state result=success purge remote state backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=state result=fail error purging remote state backup"
+    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*state*tar.*" -mtime +${REMOTEBACKUPSTATERETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=state result=success purge remote state backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=state result=fail error purging remote state backup"
+    # pg
+    /usr/bin/find ${REMOTEBACKUPDIR} -type f -name "backupconfsplunk-*pg*tar.*" -mtime +${REMOTEBACKUPPGRETENTIONDAYS} -print -delete && echo_log "action=purge type=remote reason=retentionpolicy object=pg result=success purge remote pg backup done" || fail_log "action=purge type=remote reason=retentionpolicy object=pg result=fail error purging remote pg backup"
 
     # delete on size, we try to delete a whole set of backups so we hopefully have enough space for a new whole set of backups 
     while [ `du -c ${REMOTEBACKUPDIR}/backup* | cut -f1 | tail -1` -gt ${REMOTEMAXSIZE} ];
     do 
       #OBJECT
       OLDESTFILE=`ls -t ${REMOTEBACKUPDIR}/backup* | tail -n1`;
-      rm -f ${OLDESTFILE} && echo_log "action=purge type=$TYPE reason=size file=${OLDESTFILE} result=success" ||  fail_log "action=purge type=remote reason=size file=${OLDESTFILE} result=fail"
+      rm -f "${OLDESTFILE}" && echo_log "action=purge type=$TYPE reason=size file=${OLDESTFILE} result=success" ||  fail_log "action=purge type=remote reason=size file=${OLDESTFILE} result=fail"
     done;
     debug_log "End purging old backups"
   else
-    debug_log "nothing to purge, remote backup dir ${REMOTEBACKUPDIR} not found"
+      warn_log "remote backup dir ${REMOTEBACKUPDIR} is set but directory not found. Please check as this is not expected (possible mount issue or typo in config)"
   fi
 fi
 
 debug_log "removing lock file so other purgebackup process may run"
-`rm ${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock`
+rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock"

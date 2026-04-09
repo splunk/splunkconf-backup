@@ -282,8 +282,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20260129 archive mycerts when upgrading to force new ones
 # 20260210 force permission removal for etc auth so custom certs dont have group and other permission as this is both good security practise and required for postgres sidecar 
 # 20260302 up to 10.2.1
+# 20260409 up to 10.2.2
 
-VERSION="20260302a"
+VERSION="20260409a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1621,8 +1622,8 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
-splversion="10.2.1"
-splhash="c892b66d163d"
+splversion="10.2.2"
+splhash="80b90d638de6"
 splversionhash=${splversion}-${splhash}""
 # this is spl arch, arch will be the one from os
 splarch="x86_64"

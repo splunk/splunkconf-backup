@@ -66,9 +66,10 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20260105 update time logging format
 # 20260106 add purgestats
 # 20260406 fix multiple typos, add pg purge
+# 20260419 rework check_cloud and add azure deection
 
 
-VERSION="20260406a"
+VERSION="20260419a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -222,50 +223,147 @@ function checklock() {
   fi
 }
 
-METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
+# ------------------------------------------------------------------------------
+# This function tries to autodetect when running in a cloud environment.
+# Sets global variable cloud_type:
+#   0 = unknown / on-prem
+#   1 = AWS
+#   2 = GCP
+#   3 = Azure
+# Returns 0 on success (detection ran), 1 on unexpected error.
+# Requires: curl (optional but recommended)
+# ------------------------------------------------------------------------------
+
 function check_cloud() {
-  cloud_type=0
-  response=$(curl -fs -m 5  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" ${METADATA_URL})
-  if [ $? -eq 0 ]; then
-    debug_log 'GCP instance detected'
-    cloud_type=2
-  # old aws hypervisor
-  elif [ -f /sys/hypervisor/uuid ]; then
-    if [ `head -c 3 /sys/hypervisor/uuid` == "ec2" ]; then
-      debug_log 'AWS instance detected'
-      cloud_type=1
+    cloud_type=0
+
+    # ------------------------------------------------------------------
+    # Preflight: check required dependencies
+    # ------------------------------------------------------------------
+    local missing_deps=()
+
+    if ! command -v curl &>/dev/null; then
+        missing_deps+=("curl")
     fi
-  fi
-  # newer aws hypervisor (test require root)
-  if [ -r /sys/devices/virtual/dmi/id/product_uuid ]; then
-    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "EC2" ]; then
-      debug_log 'AWS instance detected'
-      cloud_type=1
+
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        echo "WARNING: check_cloud requires missing commands: ${missing_deps[*]}" >&2
+        echo "WARNING: Install missing dependencies for reliable cloud detection." >&2
+        echo "WARNING: Falling back to filesystem-only checks." >&2
     fi
-    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "ec2" ]; then
-      debug_log 'AWS instance detected'
-      cloud_type=1
+
+    # ------------------------------------------------------------------
+    # Condition 1: GCP — via metadata server
+    # ------------------------------------------------------------------
+    if command -v curl &>/dev/null; then
+        local gcp_response
+        gcp_response=$(curl -fs --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
+            -H "Metadata-Flavor: Google" \
+            "http://metadata.google.internal/computeMetadata/v1/instance/zone" \
+            2>/dev/null)
+
+        if [ $? -eq 0 ] && [ -n "$gcp_response" ]; then
+            echo "GCP instance detected via condition 1"
+            cloud_type=2
+            return 0
+        fi
+    else
+        echo "WARNING: Skipping GCP IMDS check (curl missing)" >&2
     fi
-  fi
-  # if detection not yet successfull, try fallback method
-  if [[ $cloud_type -eq "0" ]]; then
-    # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
-    # authoritative, we could follow Amazon's suggestions for cryptographically
-    # verifying their signature, see here:
-    #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
-    # but this is almost certainly overkill for this purpose (and the above
-    # checks of "EC2" prefixes have a higher false positive potential, anyway).
-    #  imdsv2 support : TOKEN should exist if inside AWS even if not enforced
-    TOKEN=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
-    if [ -z ${TOKEN+x} ]; then
-      # TOKEN NOT SET , NOT inside AWS
-      cloud_type=0
-    elif $(curl --silent -m 5 --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
-      debug_log 'AWS instance detected'
-      cloud_type=1
+
+    # ------------------------------------------------------------------
+    # Condition 2: AWS — old hypervisor UUID (no curl needed)
+    # ------------------------------------------------------------------
+    if [ -f /sys/hypervisor/uuid ]; then
+        local uuid_prefix
+        uuid_prefix=$(head -c 3 /sys/hypervisor/uuid 2>/dev/null)
+        if [[ "${uuid_prefix,,}" == "ec2" ]]; then
+            echo "AWS instance detected via condition 2 (hypervisor uuid)"
+            cloud_type=1
+            return 0
+        fi
     fi
-  fi
+
+    # ------------------------------------------------------------------
+    # Condition 3: AWS — newer hypervisor DMI product_uuid (no curl needed)
+    # ------------------------------------------------------------------
+    if [ -r /sys/devices/virtual/dmi/id/product_uuid ]; then
+        local product_uuid_prefix
+        product_uuid_prefix=$(head -c 3 \
+            /sys/devices/virtual/dmi/id/product_uuid 2>/dev/null)
+        if [[ "${product_uuid_prefix,,}" == "ec2" ]]; then
+            echo "AWS instance detected via condition 3 (DMI product_uuid)"
+            cloud_type=1
+            return 0
+        fi
+    fi
+
+    # ------------------------------------------------------------------
+    # Condition 4: AWS — IMDSv2 (requires curl)
+    # ------------------------------------------------------------------
+    if command -v curl &>/dev/null; then
+        local token
+        token=$(curl --silent --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
+            -X PUT "http://169.254.169.254/latest/api/token" \
+            -H "X-aws-ec2-metadata-token-ttl-seconds: 3600" \
+            2>/dev/null)
+
+        if [ -n "$token" ]; then
+            local az_check
+            az_check=$(curl --silent --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
+                -H "X-aws-ec2-metadata-token: $token" \
+                "http://169.254.169.254/latest/dynamic/instance-identity/document" \
+                2>/dev/null)
+
+            if echo "$az_check" | grep -q "availabilityZone"; then
+                echo "AWS instance detected via condition 4 (IMDSv2)"
+                cloud_type=1
+                return 0
+            fi
+        fi
+    else
+        echo "WARNING: Skipping AWS IMDSv2 check (curl missing)" >&2
+    fi
+
+    # ------------------------------------------------------------------
+    # Condition 5: Azure — DMI sys_vendor (no curl needed)
+    # ------------------------------------------------------------------
+    local dmi_file="/sys/class/dmi/id/sys_vendor"
+    if [ -f "$dmi_file" ]; then
+        if grep -qi "microsoft" "$dmi_file" 2>/dev/null; then
+            echo "Azure instance detected via condition 5 (DMI sys_vendor)"
+            cloud_type=3
+            return 0
+        fi
+    fi
+
+    # ------------------------------------------------------------------
+    # Condition 6: Azure — IMDS endpoint (requires curl)
+    # ------------------------------------------------------------------
+    if command -v curl &>/dev/null; then
+        local azure_response
+        azure_response=$(curl -s -f --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
+            -H "Metadata: true" \
+            "http://169.254.169.254/metadata/instance?api-version=2021-02-01" \
+            2>/dev/null)
+
+        if echo "$azure_response" | grep -q "azEnvironment"; then
+            echo "Azure instance detected via condition 6 (IMDS)"
+            cloud_type=3
+            return 0
+        fi
+    else
+        echo "WARNING: Skipping Azure IMDS check (curl missing)" >&2
+    fi
+
+    # ------------------------------------------------------------------
+    # No cloud detected
+    # ------------------------------------------------------------------
+    echo "No cloud environment detected — assuming on-premises"
+    cloud_type=0
+    return 0
 }
+
 
 function load_settings_from_file () {
  FI=$1

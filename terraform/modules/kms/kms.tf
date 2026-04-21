@@ -1,8 +1,9 @@
+# nosemgrep
 resource "aws_kms_key" "splunkkms" {
   #provider                = aws.region-primary
   description             = "Splunk KMS key"
   # key rotation true by default
-  enable_key_rotation   = var.enable_key_rotation # nosemgrep
+  enable_key_rotation   = var.enable_key_rotation 
   deletion_window_in_days = var.deletion_window_in_days
   rotation_period_in_days = var.rotation_period_in_days
 

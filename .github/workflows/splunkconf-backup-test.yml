@@ -318,31 +318,75 @@ jobs:
 
             # Step 6e: Attempt to verify Postgres connectivity (if psql is available)
             echo ""
-            echo "--- Attempting Postgres connectivity check ---"
+            echo "--- Attempting Postgres connectivity check (with retries) ---"
             if docker exec --user ${SPLUNK_USER} splunk test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
               echo "psql binary found at ${SPLUNK_HOME}/bin/psql"
               echo "Using pgpass file: ${PGPASS_FILE}"
-              PG_RESULT=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
-                "export PGPASSFILE=${PGPASS_FILE}; \
-                 export LD_LIBRARY_PATH=${SPLUNK_HOME}/lib; \
-                 ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U postgres_admin -p 5432 \
-                 -c '\l' 2>&1" || echo "CONNECTION_FAILED")
 
-              if echo "${PG_RESULT}" | grep -q "CONNECTION_FAILED\|could not connect\|FATAL"; then
-                echo "❌ ERROR: Could not connect to Postgres directly."
-                echo "Output: ${PG_RESULT}"
-                exit 1
-              else
+              # Retry parameters - Postgres may still be starting in background
+              PG_MAX_RETRIES=12        # 12 retries x 10s = up to 120 seconds
+              PG_RETRY_INTERVAL=10
+              PG_RETRIES=0
+              PG_CONNECTED=0
+              PG_RESULT=""
+
+              while [ $PG_RETRIES -lt $PG_MAX_RETRIES ]; do
+                PG_RETRIES=$((PG_RETRIES + 1))
+                echo ""
+                echo "  Postgres connection attempt ${PG_RETRIES}/${PG_MAX_RETRIES}..."
+
+                # First, quick check: is the postgres process actually running?
+                PG_PROC=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
+                  "ps aux 2>/dev/null | grep -i '[p]ostgres' | grep -v grep | wc -l" || echo "0")
+                echo "  Postgres processes detected: ${PG_PROC}"
+
+                PG_RESULT=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
+                  "export PGPASSFILE=${PGPASS_FILE}; \
+                   export LD_LIBRARY_PATH=${SPLUNK_HOME}/lib; \
+                   ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U postgres_admin -p 5432 \
+                   -c '\l' 2>&1" || echo "CONNECTION_FAILED")
+
+                if echo "${PG_RESULT}" | grep -q "CONNECTION_FAILED\|could not connect\|FATAL\|starting up\|not yet accepting"; then
+                  echo "  ❌ Attempt ${PG_RETRIES} failed. Postgres may still be starting."
+                  echo "  Partial output (last 5 lines):"
+                  echo "${PG_RESULT}" | tail -5 | sed 's/^/    /'
+
+                  if [ $PG_RETRIES -lt $PG_MAX_RETRIES ]; then
+                    echo "  Retrying in ${PG_RETRY_INTERVAL}s..."
+                    sleep $PG_RETRY_INTERVAL
+                  fi
+                else
+                  echo "  ✅  Postgres connection succeeded on attempt ${PG_RETRIES}"
+                  PG_CONNECTED=1
+                  break
+                fi
+              done
+
+              if [ "$PG_CONNECTED" -eq 1 ]; then
+                echo ""
                 echo "Postgres databases:"
                 echo "${PG_RESULT}"
                 echo ""
-                echo "✅ Postgres connectivity verified"
+                echo "✅ Postgres connectivity verified after ${PG_RETRIES} attempt(s)"
+              else
+                echo ""
+                echo "❌  ERROR: Could not connect to Postgres after ${PG_MAX_RETRIES} attempts ($((PG_MAX_RETRIES * PG_RETRY_INTERVAL))s total)."
+                echo "Last output:"
+                echo "${PG_RESULT}"
+                echo ""
+                echo "=== Postgres-related process state ==="
+                docker exec --user ${SPLUNK_USER} splunk bash -c \
+                  "ps aux 2>/dev/null | grep -i [p]ostgres | grep -v grep" || true
+                echo ""
+                echo "=== Recent Postgres log entries ==="
+                docker exec --user ${SPLUNK_USER} splunk bash -c \
+                  "tail -50 ${SPLUNK_HOME}/var/log/splunk/postgres-*.log 2>/dev/null" || true
+                exit 1
               fi
             else
-              echo "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
+              echo "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql : skipping direct connectivity test"
               exit 1
             fi
-
           fi
 
 

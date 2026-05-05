@@ -914,6 +914,16 @@ jobs:
           docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/sup-pkg-postgres.log \
             > ./debug_logs/sup-pkg-postgres.log 2>/dev/null || true
 
+          # Splunk web access
+          echo "--- Splunk web access for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/web_access.log \
+            > ./debug_logs/web_access.log 2>/dev/null || true
+
+          # Ansible
+          echo "--- Ansible for debugging ---"
+          docker exec splunk cat /opt/ansible/ansible.log \
+            > ./debug_logs/ansible.log 2>/dev/null || true
+
           # Backup directory listing
           echo "--- Backup directory listing ---"
           docker exec --user ${SPLUNK_USER} splunk ls -la \
@@ -1139,6 +1149,11 @@ jobs:
           echo "--- Splunk web access for debugging ---"
           docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/web_access.log \
             > ./debug_logs/web_access.log 2>/dev/null || true
+
+          # Ansible
+          echo "--- Ansible for debugging ---"
+          docker exec splunk cat /opt/ansible/ansible.log \
+            > ./debug_logs/ansible.log 2>/dev/null || true
 
           # Backup directory listing
           echo "--- Backup directory listing ---"

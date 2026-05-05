@@ -619,7 +619,7 @@ jobs:
             )
           fi
 
-          # ---- KVDUMP backup (versin-dependent) ----
+          # ---- KVDUMP backup (version-dependent) ----
           if [ "${IS_UF}" = "1" ]; then
             # no kvdmp on uf
             EXPECT_KVDUMP=0
@@ -1000,6 +1000,89 @@ jobs:
               "${DOCKER_IMAGE}" no-provision
 
           echo "Container started with Splunk in no-provision mode..."
+
+      # -------------------------------------------------------
+      # Step 18: find latest backup of each type and restore them inside container
+      # -------------------------------------------------------
+      - name: Restore files
+        run: |
+          # get latest (more recent) backup of each type
+          # we already tested for each type of backup before
+          # for etc, state , copy the backup to docker FS then restore via tar at the correct location
+          # for kvdump , we need to copy backup to /opt/splunk/var/lib/splunk/kvstorebackup/backupconfsplunk-kvdump-toberestored.tar.gz
+          # at first start splunkconf-backup app will restore the content automatically
+
+      # -------------------------------------------------------
+      # Step 19: Run ansible and start splunk inside container
+      # -------------------------------------------------------
+      - name: Start Splunk 
+        run: |
+          docker exec -u ansible splunk /sbin/entrypoint.sh start-service
+
+      # -------------------------------------------------------
+      # Step 5: Wait for Splunk restore to be ready
+      # -------------------------------------------------------
+      - name: Wait for Splunk restore ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} to be ready
+        run: |
+          echo "=== Waiting for Splunk restore ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} to become ready ==="
+          MAX_RETRIES=60
+          RETRY_INTERVAL=10
+          RETRIES=0
+
+          echo "Splunk type: ${{ matrix.splunk_type }}"
+
+          # Detect major Splunk version from matrix
+          SPLUNK_VERSION="${{ matrix.splunk_version }}"
+          MAJOR_VERSION=$(echo "$SPLUNK_VERSION" | cut -d'.' -f1)
+
+          # If version is not numeric (e.g., "latest"), treat as latest/highest version
+          if ! [[ "$MAJOR_VERSION" =~ ^[0-9]+$ ]]; then
+            echo "Non-numeric version detected: ${SPLUNK_VERSION} — treating as latest (99)"
+            MAJOR_VERSION=99
+          fi
+
+          echo "Splunk version: ${SPLUNK_VERSION} (major: ${MAJOR_VERSION})"
+          echo "IS_UF: ${IS_UF}"
+
+          while [ $RETRIES -lt $MAX_RETRIES ]; do
+            HEALTH=$(docker inspect --format='{{.State.Health.Status}}' splunk 2>/dev/null || echo "not_found")
+
+            if [ "$HEALTH" = "healthy" ]; then
+              echo "Splunk is healthy after $((RETRIES * RETRY_INTERVAL)) seconds."
+              break
+            fi
+
+            RETRIES=$((RETRIES + 1))
+            echo "  Attempt ${RETRIES}/${MAX_RETRIES} - Status: ${HEALTH}. Retrying in ${RETRY_INTERVAL}s..."
+            sleep $RETRY_INTERVAL
+          done
+
+          if [ "$HEALTH" != "healthy" ]; then
+            echo "ERROR: Splunk did not become healthy within $((MAX_RETRIES * RETRY_INTERVAL)) seconds."
+            docker logs splunk
+            exit 1
+          fi
+
+          # normally splunk user should be splunkfwd for uf on latest version but inside docker Splunk doesnt use systemd so it still use splunk as a user
+          SPLUNK_USER="splunk"
+          echo "SPLUNK_USER=${SPLUNK_USER}" >> "$GITHUB_ENV"
+
+          # Additional check via REST API (enterprise only — UF may not have curl)
+          if [ "${IS_UF}" = "0" ]; then
+            HTTP_CODE=$(docker exec splunk curl -s -o /dev/null -w "%{http_code}" \
+              -k -u admin:${{ env.SPLUNK_PASSWORD }} \
+              https://localhost:8089/services/server/info)
+
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "Splunk REST API is responding (HTTP ${HTTP_CODE})."
+            else
+              echo "ERROR: Splunk REST API returned HTTP ${HTTP_CODE}."
+              exit 1
+            fi
+          else
+            echo "Universal Forwarder: skipping REST API check (curl may not be available)"
+            echo "Docker health check passed — UF (restored) is ready."
+          fi
 
       # -------------------------------------------------------
       # Step xx: Cleanup docker used for restore

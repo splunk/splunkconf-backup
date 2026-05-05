@@ -1072,6 +1072,225 @@ jobs:
           # for etc, state , copy the backup to docker FS then restore via tar at the correct location
           # for kvdump , we need to copy backup to /opt/splunk/var/lib/splunk/kvstorebackup/backupconfsplunk-kvdump-toberestored.tar.gz
           # at first start splunkconf-backup app will restore the content automatically
+          echo "=== Restoring backup files into the new Splunk container ==="
+          echo "Splunk type: ${{ matrix.splunk_type }}"
+          echo "Context type: ${{ matrix.context_type }}"
+          echo "SPLUNK_HOME: ${SPLUNK_HOME}"
+          echo "IS_UF: ${IS_UF}"
+          echo ""
+
+          # ------------------------------------------------------------
+          # Helper: find the most recent file matching a glob pattern
+          # ------------------------------------------------------------
+          find_latest() {
+            local pattern="$1"
+            # List matching files with mtime, sort descending, return the newest
+            ls -1t ./test_output/${pattern} 2>/dev/null | head -n 1 || true
+          }
+
+          # ------------------------------------------------------------
+          # Helper: choose tar decompression flag based on extension
+          # ------------------------------------------------------------
+          tar_extract_cmd() {
+            local archive="$1"
+            local target="$2"
+            case "$archive" in`
+              *.tar.zst)
+                # zstd must be available inside the container.
+                # Splunk Enterprise images typically have it; fallback otherwise.
+                echo "tar -I zstd -xf '${archive}' -C '${target}'"
+                ;;
+              *.tar.gz|*.tgz)
+                echo "tar -xzf '${archive}' -C '${target}'"
+                ;;
+              *.tar)
+                echo "tar -xf '${archive}' -C '${target}'"
+                ;;
+              *)
+                # Best-effort auto-detect
+                echo "tar -xf '${archive}' -C '${target}' 2>/dev/null || tar -xzf '${archive}' -C '${target}' 2>/dev/null || tar -I zstd -xf '${archive}' -C '${target}'"
+                ;;
+            esac
+          }
+
+          # ------------------------------------------------------------
+          # Helper: copy a backup into the container and extract at SPLUNK_HOME
+          # Creates SPLUNK_HOME if missing, and chowns to splunk user afterwards.
+          # ------------------------------------------------------------
+          restore_archive_to_splunk_home() {
+            local local_path="$1"
+            local label="$2"
+
+            if [ -z "$local_path" ] || [ ! -f "$local_path" ]; then
+              echo "  ⚠️   ${label}: no archive provided or file does not exist (${local_path})"
+              return 1
+            fi
+
+            local fname
+            fname=$(basename "$local_path")
+            echo ""
+            echo "  ⚠️  ¦ Restoring ${label} backup: ${fname}"
+            echo "     Source:  ${local_path}"
+            echo "     Target:  ${SPLUNK_HOME}/ (inside container)"
+
+            # Make sure SPLUNK_HOME exists in the container (it does for normal images,
+            # but safe-guard in case of unusual layouts)
+            docker exec --user root splunk bash -c "mkdir -p '${SPLUNK_HOME}'"
+
+            # Copy archive to /tmp inside the container
+            docker cp "${local_path}" "splunk:/tmp/${fname}"
+
+            # Build and execute the appropriate extract command (as splunk so we dont have to fix permissions
+            local extract_cmd
+            extract_cmd=$(tar_extract_cmd "/tmp/${fname}" "${SPLUNK_HOME}")
+            echo "     Extract: ${extract_cmd}"
+
+            docker exec --user splunk splunk bash -c "${extract_cmd}"
+            local rc=$?
+            if [ $rc -ne 0 ]; then
+              echo " 💥  Extraction failed for ${label} (rc=${rc})"
+              return 1
+            fi
+
+            # Cleanup tmp file
+            docker exec --user root splunk bash -c "rm -f '/tmp/${fname}'"
+
+            echo "  ✅  ${label} backup extracted successfully."
+            return 0
+          }
+
+          # ------------------------------------------------------------
+          # 1) Restore the latest ETC backup
+          # ------------------------------------------------------------
+          echo "--- Locating latest ETC backup ---"
+          LATEST_ETC=$(find_latest "backupconfsplunk-*-etc-targeted-*.tar.gz")
+          if [ -z "$LATEST_ETC" ]; then
+            LATEST_ETC=$(find_latest "backupconfsplunk-*-etc-targeted-*.tar.zst")
+          fi
+          if [ -z "$LATEST_ETC" ]; then
+            LATEST_ETC=$(find_latest "backupconfsplunk-*-etc-targeted-*.tar")
+          fi
+          echo "Latest ETC backup: ${LATEST_ETC:-<none>}"
+
+          if [ -n "$LATEST_ETC" ]; then
+            restore_archive_to_splunk_home "$LATEST_ETC" "ETC" || {
+              echo "â  ERROR: Failed to restore ETC backup"
+              exit 1
+            }
+          else
+            echo "â  ERROR: No ETC backup found in ./test_output/ â cannot proceed with restore"
+            ls -la ./test_output/ || true
+            exit 1
+          fi
+
+          # ------------------------------------------------------------
+          # 2) Restore the latest STATE backup
+          # ------------------------------------------------------------
+          echo ""
+          echo "--- Locating latest STATE backup ---"
+          LATEST_STATE=$(find_latest "backupconfsplunk-*-state-*.tar.gz")
+          if [ -z "$LATEST_STATE" ]; then
+            LATEST_STATE=$(find_latest "backupconfsplunk-*-state-*.tar.zst")
+          fi
+          if [ -z "$LATEST_STATE" ]; then
+            LATEST_STATE=$(find_latest "backupconfsplunk-*-state-*.tar")
+          fi
+          echo "Latest STATE backup: ${LATEST_STATE:-<none>}"
+
+          if [ -n "$LATEST_STATE" ]; then
+            restore_archive_to_splunk_home "$LATEST_STATE" "STATE" || {
+              echo "💥  ERROR: Failed to restore STATE backup"
+              exit 1
+            }
+          else
+            echo "💥  ERROR: No STATE backup found in ./test_output/"
+            ls -la ./test_output/ || true
+            exit 1
+          fi
+
+          # ------------------------------------------------------------
+          # 3) Restore the latest KVDUMP backup (Enterprise only, kvstore enabled)
+          #    For kvdump we DO NOT extract: we drop the archive into
+          #    ${SPLUNK_HOME}/var/lib/splunk/kvstorebackup/ with the special name
+          #    backupconfsplunk-kvdump-toberestored.tar.gz so splunkconf-backup
+          #    auto-restores it on first start.
+          # ------------------------------------------------------------
+          echo ""
+          echo "--- KVDUMP restore decision ---"
+          if [ "${IS_UF}" = "1" ]; then
+            echo " ⚠️    Universal Forwarder: skipping KVDUMP restore (not applicable)"
+          elif [ "${{ matrix.context_type }}" = "kvstore_disabled" ]; then
+            echo "  ⚠️    kvstore_disabled context: skipping KVDUMP restore"
+          else
+            echo "--- Locating latest KVDUMP backup ---"
+            LATEST_KVDUMP=$(find_latest "backupconfsplunk-kvdump-*.tar.gz")
+            if [ -z "$LATEST_KVDUMP" ]; then
+              LATEST_KVDUMP=$(find_latest "backupconfsplunk-kvdump-*.tgz")
+            fi
+            echo "Latest KVDUMP backup: ${LATEST_KVDUMP:-<none>}"
+
+            if [ -n "$LATEST_KVDUMP" ]; then
+              KV_DEST_DIR="${SPLUNK_HOME}/var/lib/splunk/kvstorebackup"
+              KV_DEST_NAME="backupconfsplunk-kvdump-toberestored.tar.gz"
+
+              echo "  ✅ ¦ Placing KVDUMP backup for auto-restore"
+              echo "     Source: ${LATEST_KVDUMP}"
+              echo "     Target: ${KV_DEST_DIR}/${KV_DEST_NAME}"
+
+              # Make sure target directory exists with correct ownership
+              docker exec --user root splunk bash -c "mkdir -p '${KV_DEST_DIR}'"
+
+              # Copy with the special "toberestored" name so the app picks it up
+              docker cp "${LATEST_KVDUMP}" "splunk:${KV_DEST_DIR}/${KV_DEST_NAME}"
+
+              # Fix ownership so splunk user can read it
+              docker exec --user root splunk bash -c \
+                "chown -R ${SPLUNK_USER:-splunk}:${SPLUNK_USER:-splunk} '${KV_DEST_DIR}'"
+
+              echo "  ✅   KVDUMP backup placed for auto-restore on first start."
+            else
+              echo "  ⚠️    WARNING: No KVDUMP backup found in ./test_output/ (continuing without it)"
+            fi
+          fi
+
+          # ------------------------------------------------------------
+          # 4) Fix ownership across SPLUNK_HOME so Splunk can start cleanly
+          # ------------------------------------------------------------
+          echo ""
+          echo "--- Fixing ownership of ${SPLUNK_HOME} ---"
+          docker exec --user root splunk bash -c \
+            "chown -R ${SPLUNK_USER:-splunk}:${SPLUNK_USER:-splunk} '${SPLUNK_HOME}'" || {
+              echo "⚠️    WARNING: chown failed (may be ok depending on image)"
+            }
+
+          # ------------------------------------------------------------
+          # 5) Sanity-check: list a few key restored locations
+          # ------------------------------------------------------------
+          echo ""
+          echo "--- Post-restore sanity checks ---"
+          echo "Apps directory:"
+          docker exec --user root splunk bash -c "ls -la '${SPLUNK_HOME}/etc/apps/' 2>/dev/null | head -30" || true
+          echo ""
+          echo "splunkconf-backup app present?"
+          docker exec --user root splunk bash -c \
+            "test -d '${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}' && echo 'YES' || echo 'NO'"
+          echo ""
+          echo "testapp present?"
+          docker exec --user root splunk bash -c \
+            "test -f '${SPLUNK_HOME}/etc/apps/testapp/local/props.conf' && echo 'YES' || echo 'NO'"
+          echo ""
+          if [ "${IS_UF}" = "0" ] && [ "${{ matrix.context_type }}" != "kvstore_disabled" ]; then
+            echo "KVDUMP staging directory:"
+            docker exec --user root splunk bash -c \
+              "ls -la '${SPLUNK_HOME}/var/lib/splunk/kvstorebackup/' 2>/dev/null" || true
+          fi
+          echo ""
+          echo "Fishbucket present (state restore check)?"
+          docker exec --user root splunk bash -c \
+            "test -d '${SPLUNK_HOME}/var/lib/splunk/fishbucket' && echo 'YES' || echo 'NO'"
+
+          echo ""
+          echo "✅  Restore step complete."
 
       # -------------------------------------------------------
       # Step 19: Run ansible and start splunk inside container

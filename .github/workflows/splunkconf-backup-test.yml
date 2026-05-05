@@ -1096,7 +1096,6 @@ jobs:
         run: |
           echo "=== Removing logs from backup steps (so we only collect restore) ==="
           find ./debug_logs -delete
-          rmdir ./debug_logs
           echo "=== Collecting Splunk logs (restore) ==="
           mkdir -p ./debug_logs
 

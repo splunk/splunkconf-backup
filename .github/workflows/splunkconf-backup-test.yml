@@ -1018,8 +1018,10 @@ jobs:
       - name: Start Splunk 
         run: |
           # do not use start-service without detaching with -d  , doesnt return so would block
-          #docker exec -d -u ansible splunk /sbin/entrypoint.sh start-service
-          docker exec -u ansible splunk /sbin/entrypoint.sh start-and-exit
+          docker exec -d -u ansible splunk /sbin/entrypoint.sh start-service
+          # start-and-exit kill the container, not what we want
+          #docker exec -u ansible splunk /sbin/entrypoint.sh start-and-exit
+          echo "Checking container status after ansible run"
           sleep 1
           docker ps -a
           docker inspect splunk --format='{{.State.Status}} - {{.State.ExitCode}}'
@@ -1030,7 +1032,7 @@ jobs:
       - name: Wait for Splunk restore ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} to be ready
         run: |
           echo "=== Waiting for Splunk restore ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} to become ready ==="
-          @MAX_RETRIES=60
+          #MAX_RETRIES=60
           MAX_RETRIES=10
           RETRY_INTERVAL=10
           RETRIES=0

@@ -688,7 +688,7 @@ jobs:
               echo "state"
             elif echo "$filename" | grep -qE 'backupconfsplunk-kvdump-'; then
               echo "kvdump"
-# FIXME add postgres here
+          # FIXME add postgres here
             else
               echo "unknown"
             fi
@@ -723,7 +723,7 @@ jobs:
                 EXPECTED_FILES=("${EXPECTED_FILES_KVDUMP[@]}")
                 KVDUMP_FOUND=1
                 ;;
-# FIXME add postgres here
+              # FIXME add postgres here
               unknown)
                 echo "  ⚠️  WARNING: Unknown backup type for file: ${FILENAME}"
                 echo "  Skipping content verification for this file."
@@ -731,7 +731,7 @@ jobs:
                 echo "    - ETC:   backupconfsplunk-*-etc-targeted-*.tar.gz (or .tar.zst)"
                 echo "    - STATE: backupconfsplunk-*-state-*.tar.gz (or .tar.zst)"
                 echo "    - KVDUMP: backupconfsplunk-kvdump-*.tar.gz"
-# FIXME add postgres here
+                # FIXME add postgres here
                 # no zst from kvdump at the moment as the compression method is done by splunk kvdump API and it will use tar.gz
                 continue
                 ;;

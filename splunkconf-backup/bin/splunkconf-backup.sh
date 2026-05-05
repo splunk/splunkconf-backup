@@ -1196,7 +1196,69 @@ if [ $CHECK -ne 0 ]; then
       echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
     fi
     splunks3endpointurl=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3endpointurl`
-  fi
+  elif [[ "$cloud_type" -eq 3 ]]; then
+    # ------------------------------------------------------------------
+    # Azure
+    # Fetch VM tags from IMDS tagsList endpoint
+    # Tags are returned as JSON array: [{"name":"key","value":"val"},...]
+    # We parse with grep+sed to avoid jq dependency
+    # ------------------------------------------------------------------
+    ## Raw IMDS response:
+    #[{"name":"splunkinstanceType","value":"indexer"},
+    # {"name":"splunks3installbucket","value":"my-bucket"},
+    # {"name":"environment","value":"prod"}]
+    #
+    ## After parsing:
+    #splunkinstanceType="indexer"
+    #splunks3installbucket="my-bucket"
+    #environment="prod"
+    #
+    ## After splunk prefix filter:
+    #splunkinstanceType="indexer"
+    #splunks3installbucket="my-bucket"
+    debug_log "Azure: fetching VM tags from IMDS"
+
+    local azure_tags_response
+    azure_tags_response=$(curl --silent --show-error \
+        --connect-timeout $CURLCONNECTTIMEOUT \
+        --max-time $CURLMAXTIME \
+        -H "Metadata: true" \
+        "http://169.254.169.254/metadata/instance/compute/tagsList?api-version=2021-02-01" \
+        2>/dev/null)
+
+    if [ -z "$azure_tags_response" ]; then
+        warn_log "Azure: empty response from IMDS tagsList endpoint"
+    else
+        debug_log "Azure: IMDS tagsList response received, parsing tags"
+
+        # Parse JSON tagsList array into key="value" format
+        # Input:  [{"name":"splunkinstanceType","value":"indexer"},...]
+        # Output: splunkinstanceType="indexer"
+        local all_tags
+        all_tags=$(echo "$azure_tags_response" \
+            | grep -oP '"name"\s*:\s*"\K[^"]+(?="[^"]*"value")' \
+            | paste - <(echo "$azure_tags_response" \
+                | grep -oP '"value"\s*:\s*"\K[^"]*(?=")') \
+            | awk '{print $1"=\""$2"\""}')
+
+        # Filter splunk-prefixed tags
+        local splunk_tags
+        splunk_tags=$(echo "$all_tags" | grep -E "^splunk")
+
+        if [ -n "$splunk_tags" ]; then
+            debug_log "Azure: filtered tags with splunk prefix (file=$INSTANCEFILE)"
+            echo "$splunk_tags" > $INSTANCEFILE
+        else
+            debug_log "Azure: no splunk prefixed tags found, tags are not configured for Splunk"
+        fi
+
+        if [ -s "$INSTANCEFILE" ]; then
+            debug_log "Azure: tags successfully written to $INSTANCEFILE"
+        else
+            warn_log "Azure: no tags written "
+        fi
+    fi
+  fi # cloud_type
 else
   warn_log "aws cloud tag detection disabled (missing commands)"
 fi
@@ -2298,12 +2360,11 @@ fi
     CPCMD="cp -p ";
     OPTION="";
   elif [ ${REMOTETECHNO} -eq 2 ]; then
-    # azure, see https://docs.microsoft.com/en-us/cli/azure/storage?view=azure-cli-latest#az-storage-copy
     if [[ "$cloud_type" -eq 2 ]]; then
      # gcp
       CPCMD="gsutil -q cp";
       OPTION="";
-    else 
+    elif [[ "$cloud_type" -eq 1 ]]; then
       # aws
       tagname="frequency"
       # - disable padding with 0
@@ -2335,7 +2396,7 @@ fi
         REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSHOURLY}
         debug_log "hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=hourly, S3TAGS=$S3TAGS, REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSCURRENT}"
       fi
-      if [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
+      if [ ${AWSCOPYMODE} = "1" ]; then
         # we use s3api because it allow to set tags at same time which s3 cp doenst suppport at the moment
         CPCMD="aws ${S3ENDPOINTOPTION}s3api put-object --bucket ${s3backupbucket} --body ";
         CPCMD2="--key "
@@ -2350,6 +2411,92 @@ fi
         OPTION=" --quiet --storage-class ${REMOTES3STORAGECLASSCURRENT}";
         #OPTION=" --quiet --storage-class STANDARD_IA";
       fi
+    elif [[ "$cloud_type" -eq 3 ]]; then
+      # ------------------------------------------------------------------
+      # Azure Blob Storage
+      # ref: https://docs.microsoft.com/en-us/cli/azure/storage/blob
+      # Variables expected from config / instance tags:
+      #   azurestorageaccount         : Azure storage account name
+      #   azurecontainer              : Azure blob container name (~ S3 bucket)
+      #   REMOTEAZURESTORAGECLASSHOURLY/DAILY/WEEKLY/MONTHLY : Hot|Cool|Cold|Archive
+      #   AZURECOPYMODE               : 1 = az storage blob upload (with tag support)
+      #                                 0 = az storage blob upload (no tags)
+      #   REMOTEOBJECTSTORETAGS3      : 1 = attach frequency tag to blob
+      # ------------------------------------------------------------------
+      tagname="frequency"
+      # disable padding with 0
+      hournumber=$(date +"%-H")
+      # day of week (1..7); 1 is Monday
+      weekdaynumber=$(date +"%-u")
+      dayofmonthnumber=$(date +"%-d")
+      debug_log "Azure: hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber"
+
+      # Determine backup frequency tier — same schedule logic as AWS
+      if (( "${dayofmonthnumber}" == 1 )) && (( "${hournumber}" == 4 )); then
+        # first day of month at 4
+        AZURETAGS="${tagname}=monthly"
+        REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSMONTHLY}
+        debug_log "Azure: hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=monthly, AZURETAGS=$AZURETAGS, REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSCURRENT}"
+
+      elif (( "${weekdaynumber}" == 1 )) && (( "${hournumber}" == 5 )); then
+        # monday at 5
+        AZURETAGS="${tagname}=weekly"
+        REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSWEEKLY}
+        debug_log "Azure: hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=weekly, AZURETAGS=$AZURETAGS, REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSCURRENT}"
+
+      elif (( "${hournumber}" == 6 )); then
+        # every day at 6
+        AZURETAGS="${tagname}=daily"
+        REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSDAILY}
+        debug_log "Azure: hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=daily, AZURETAGS=$AZURETAGS, REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSCURRENT}"
+
+      else
+        AZURETAGS="${tagname}=hourly"
+        REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSHOURLY}
+        debug_log "Azure: hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=hourly, AZURETAGS=$AZURETAGS, REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSCURRENT}"
+      fi
+
+      # Validate required Azure variables
+      if [ -z "${azurestorageaccount+x}" ] || [ -z "$azurestorageaccount" ]; then
+        warn_log "Azure: azurestorageaccount is not set — upload will likely fail"
+      fi
+      if [ -z "${azurecontainer+x}" ] || [ -z "$azurecontainer" ]; then
+        warn_log "Azure: azurecontainer is not set — upload will likely fail"
+      fi
+
+      if [ "${AZURECOPYMODE}" = "1" ]; then
+        # az storage blob upload with tier and optional blob tags
+        # Note: --tags uses "key=value" space-separated format
+        # equivalent of AWS s3api put-object mode
+        CPCMD="az storage blob upload \
+            --account-name ${azurestorageaccount} \
+            --container-name ${azurecontainer} \
+            --tier ${REMOTEAZURESTORAGECLASSCURRENT} \
+            --only-show-errors \
+            --file "
+        CPCMD2="--name "
+        if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ]; then
+          OPTION=" --tags ${AZURETAGS}"
+        else
+          OPTION=""
+        fi
+        debug_log "Azure: AZURECOPYMODE=1 (blob upload with tier=${REMOTEAZURESTORAGECLASSCURRENT}, tags=${AZURETAGS})"
+
+      else
+        # az storage blob upload without tagging
+        # equivalent of AWS s3 cp mode
+        CPCMD="az storage blob upload \
+            --account-name ${azurestorageaccount} \
+            --container-name ${azurecontainer} \
+            --tier ${REMOTEAZURESTORAGECLASSCURRENT} \
+            --only-show-errors \
+            --file "
+        CPCMD2="--name "
+        OPTION=""
+        debug_log "Azure: AZURECOPYMODE=0 (blob upload without tags, tier=${REMOTEAZURESTORAGECLASSCURRENT})"
+      fi
+    else 
+      warn_log "ATTENTION : unimplemented value cloud_type=${cloud_type}"
     fi
 # --storage-class STANDARD_IA reduce cost for infrequent access objects such as backups while not decreasing availability/redundancy
   elif [ ${REMOTETECHNO} -eq 3 ]; then

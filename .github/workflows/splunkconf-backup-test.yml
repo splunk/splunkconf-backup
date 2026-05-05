@@ -1022,12 +1022,13 @@ jobs:
           docker exec -u ansible splunk /sbin/entrypoint.sh start-and-exit
 
       # -------------------------------------------------------
-      # Step 5: Wait for Splunk restore to be ready
+      # Step 20: Wait for Splunk restore to be ready
       # -------------------------------------------------------
       - name: Wait for Splunk restore ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} to be ready
         run: |
           echo "=== Waiting for Splunk restore ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} to become ready ==="
-          MAX_RETRIES=60
+          @MAX_RETRIES=60
+          MAX_RETRIES=10
           RETRY_INTERVAL=10
           RETRIES=0
 
@@ -1085,6 +1086,108 @@ jobs:
             echo "Universal Forwarder: skipping REST API check (curl may not be available)"
             echo "Docker health check passed — UF (restored) is ready."
           fi
+
+      # -------------------------------------------------------
+      # Step 21: Collect Splunk logs from backup operations (always, for debugging any failure)
+      # -------------------------------------------------------
+
+      - name: Collect Splunk logs
+        if: always()
+        run: |
+          echo "=== Removing logs from backup steps (so we only collect restore) ==="
+          find ./debug_logs -delete
+          rmdir ./debug_logs
+          echo "=== Collecting Splunk logs (restore) ==="
+          mkdir -p ./debug_logs
+
+          # App-specific log
+          echo "--- splunkconf-backup log ---"
+          docker exec --user ${SPLUNK_USER} splunk cat \
+            ${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log \
+            > ./debug_logs/splunkconf-backup.log 2>/dev/null || true
+
+          # Splunk start logs
+          echo "--- Splunk utility logs (what happend before splunkd log start) for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/splunkd-utility.log \
+            > ./debug_logs/splunkd-utility.log 2>/dev/null || true
+
+          # Splunk main logs
+          echo "--- Splunk logs for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/splunkd.log \
+            > ./debug_logs/splunkd.log 2>/dev/null || true
+
+          # Splunk postgres  logs
+          echo "--- Splunk Postgres for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/postgres-*.log \
+            > ./debug_logs/postgres.log 2>/dev/null || true
+
+          # Splunk sup postgres stdout logs
+          echo "--- Splunk sup Postgres stdout for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/sup-pkg-postgres-stdout.log \
+            > ./debug_logs/sup-pkg-postgres-stdout.log 2>/dev/null || true
+
+          # Splunk sup postgres logs
+          echo "--- Splunk sup Postgres for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/sup-pkg-postgres.log \
+            > ./debug_logs/sup-pkg-postgres.log 2>/dev/null || true
+
+          # Backup directory listing
+          echo "--- Backup directory listing ---"
+          docker exec --user ${SPLUNK_USER} splunk ls -la \
+            ${SPLUNK_HOME}/var/backups/ \
+            > ./debug_logs/backup-dir-listing.txt 2>/dev/null || true
+
+          # KVDUMP directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user ${SPLUNK_USER} splunk ls -la \
+              ${SPLUNK_HOME}/var/lib/splunk/kvstorebackup/ \
+              > ./debug_logs/kvdump-dir-listing.txt 2>/dev/null || true
+          fi
+
+          # package directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user ${SPLUNK_USER} splunk ls -la \
+              ${SPLUNK_HOME}/var/packages/ \
+              > ./debug_logs/var-packages-dir-listing.txt 2>/dev/null || true
+          fi
+
+          # package data directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user ${SPLUNK_USER} splunk ls -la \
+              ${SPLUNK_HOME}/var/packages/data/ \
+              > ./debug_logs/var-packages-data-dir-listing.txt 2>/dev/null || true
+          fi
+
+          # package data pg directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user ${SPLUNK_USER} splunk ls -la \
+              ${SPLUNK_HOME}/var/packages/data/postgres/ \
+              > ./debug_logs/var-packages-data-postgres-dir-listing.txt 2>/dev/null || true
+          fi
+
+          echo "=== Collected files ==="
+          ls -la ./debug_logs/
+
+          echo ""
+          echo "=== splunkconf-backup.log preview ==="
+          head -100 ./debug_logs/splunkconf-backup.log 2>/dev/null || echo "(empty or not found)"
+
+
+          echo ""
+          echo "=== splunkd.log preview ==="
+          head -100 ./debug_logs/splunkd.log 2>/dev/null || echo "(empty or not found)"
+          echo ""
+          echo "Logs collected."
+
+      - name: Upload debug logs (restore)
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: splunk-debug-logs-restore-${{ matrix.splunk_version }}-${{ matrix.splunk_type }}-${{ matrix.context_type }}
+          path: ./debug_logs/
+          retention-days: 7
+
+
 
       # -------------------------------------------------------
       # Step xx: Cleanup docker used for restore

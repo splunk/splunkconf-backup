@@ -688,6 +688,7 @@ jobs:
               echo "state"
             elif echo "$filename" | grep -qE 'backupconfsplunk-kvdump-'; then
               echo "kvdump"
+# FIXME add postgres here
             else
               echo "unknown"
             fi
@@ -722,6 +723,7 @@ jobs:
                 EXPECTED_FILES=("${EXPECTED_FILES_KVDUMP[@]}")
                 KVDUMP_FOUND=1
                 ;;
+# FIXME add postgres here
               unknown)
                 echo "  ⚠️  WARNING: Unknown backup type for file: ${FILENAME}"
                 echo "  Skipping content verification for this file."
@@ -729,7 +731,8 @@ jobs:
                 echo "    - ETC:   backupconfsplunk-*-etc-targeted-*.tar.gz (or .tar.zst)"
                 echo "    - STATE: backupconfsplunk-*-state-*.tar.gz (or .tar.zst)"
                 echo "    - KVDUMP: backupconfsplunk-kvdump-*.tar.gz"
-                # no zst from kvdump at the moment as the compression methodis done by splunk kvdump API
+# FIXME add postgres here
+                # no zst from kvdump at the moment as the compression method is done by splunk kvdump API and it will use tar.gz
                 continue
                 ;;
             esac
@@ -860,7 +863,7 @@ jobs:
           fi
 
       # -------------------------------------------------------
-      # Step 14: Upload test artifacts (for debugging)
+      # Step 14: Upload test artifacts from backup operations (for debugging)
       # -------------------------------------------------------
       - name: Upload test artifacts
         if: always()
@@ -871,7 +874,7 @@ jobs:
           retention-days: 7
 
       # -------------------------------------------------------
-      # Step 15: Collect Splunk logs (always, for debugging any failure)
+      # Step 15: Collect Splunk logs from backup operations (always, for debugging any failure)
       # -------------------------------------------------------
 
       - name: Collect Splunk logs
@@ -967,11 +970,62 @@ jobs:
           retention-days: 7
 
       # -------------------------------------------------------
-      # Step 16: Cleanup
+      # Step 16: Cleanup docker used for backup
       # -------------------------------------------------------
       - name: Cleanup Splunk container
         if: always()
         run: |
           docker stop splunk 2>/dev/null || true
           docker rm splunk 2>/dev/null || true
-          echo "Cleanup complete."
+          echo "Splunk backup docker Cleanup complete."
+
+      # -------------------------------------------------------
+      # Step 17: Start new Splunk container (same version) to test restoration - do NOT start Splunk before ingesting backup 
+      # -------------------------------------------------------
+      - name: Start Splunk container for restoration
+        run: |
+          echo "=== Starting Splunk ${{ matrix.splunk_version }} with no provision to test restoration==="
+
+          if [ "${{ matrix.context_type  }}" = "kvstore_disabled" ]; then
+            echo "Adding disable_kvstore app to docker run as context_type is disable_kvstore"
+            docker run -d \
+              --name splunk \
+              --hostname splunk \
+              -p 8000:8000 \
+              -p 8089:8089 \
+              -e ENABLE_TCP_MODE=true \
+              -e SPLUNK_GENERAL_TERMS="--accept-sgt-current-at-splunk-com" \
+              -e SPLUNK_START_ARGS="--accept-license" \
+              -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
+              -e TZ="Europe/Paris" \
+              -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
+              -v "$(pwd)/apppackage/disable_kvstore:${SPLUNK_HOME}/etc/apps/disable_kvstore/" \
+              "${DOCKER_IMAGE}" no-provision
+          else
+            echo "default docker run"
+            docker run -d \
+              --name splunk \
+              --hostname splunk \
+              -p 8000:8000 \
+              -p 8089:8089 \
+              -e ENABLE_TCP_MODE=true \
+              -e SPLUNK_GENERAL_TERMS="--accept-sgt-current-at-splunk-com" \
+              -e SPLUNK_START_ARGS="--accept-license" \
+              -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
+              -e TZ="Europe/Paris" \
+              -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
+              "${DOCKER_IMAGE}" no-provision
+          fi
+
+          echo "Container started with Splunk in no-provision mode..."
+
+      # -------------------------------------------------------
+      # Step xx: Cleanup docker used for restore
+      # -------------------------------------------------------
+      - name: Cleanup Splunk container
+        if: always()
+        run: |
+          docker stop splunk 2>/dev/null || true
+          docker rm splunk 2>/dev/null || true
+          echo "Splunk restore backup docker Cleanup complete."
+

@@ -986,9 +986,8 @@ jobs:
         run: |
           echo "=== Starting Splunk ${{ matrix.splunk_version }} with no provision to test restoration==="
 
-          if [ "${{ matrix.context_type  }}" = "kvstore_disabled" ]; then
-            echo "Adding disable_kvstore app to docker run as context_type is disable_kvstore"
-            docker run -d \
+          echo "default docker run (not mounting app directory as we will restore files so they should come back locally in the container"
+          docker run -d \
               --name splunk \
               --hostname splunk \
               -p 8000:8000 \
@@ -998,31 +997,14 @@ jobs:
               -e SPLUNK_START_ARGS="--accept-license" \
               -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
               -e TZ="Europe/Paris" \
-              -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
-              -v "$(pwd)/apppackage/disable_kvstore:${SPLUNK_HOME}/etc/apps/disable_kvstore/" \
               "${DOCKER_IMAGE}" no-provision
-          else
-            echo "default docker run"
-            docker run -d \
-              --name splunk \
-              --hostname splunk \
-              -p 8000:8000 \
-              -p 8089:8089 \
-              -e ENABLE_TCP_MODE=true \
-              -e SPLUNK_GENERAL_TERMS="--accept-sgt-current-at-splunk-com" \
-              -e SPLUNK_START_ARGS="--accept-license" \
-              -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
-              -e TZ="Europe/Paris" \
-              -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
-              "${DOCKER_IMAGE}" no-provision
-          fi
 
           echo "Container started with Splunk in no-provision mode..."
 
       # -------------------------------------------------------
       # Step xx: Cleanup docker used for restore
       # -------------------------------------------------------
-      - name: Cleanup Splunk container
+      - name: Cleanup Splunk restoration container
         if: always()
         run: |
           docker stop splunk 2>/dev/null || true

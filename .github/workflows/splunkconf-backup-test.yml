@@ -1089,26 +1089,29 @@ jobs:
           }
 
           # ------------------------------------------------------------
-          # Helper: choose tar decompression flag based on extension
+          # Helper: extract an archive inside the container at SPLUNK_HOME
+          # Uses explicit case logic (no dynamic command strings).
           # ------------------------------------------------------------
-          tar_extract_cmd() {
-            local archive="$1"
-            local target="$2"
-            case "$archive" in`
+          extract_in_container() {
+            local archive_in_container="$1"   # full path inside the container
+            local target_dir="$2"             # extraction target inside container
+
+            case "$archive_in_container" in
               *.tar.zst)
-                # zstd must be available inside the container.
-                # Splunk Enterprise images typically have it; fallback otherwise.
-                echo "tar -I zstd -xf '${archive}' -C '${target}'"
+                docker exec --user root splunk bash -c \
+                  "tar --zstd -xf '$archive_in_container' -C '$target_dir'"
                 ;;
               *.tar.gz|*.tgz)
-                echo "tar -xzf '${archive}' -C '${target}'"
+                docker exec --user root splunk bash -c \
+                  "tar -xzf '$archive_in_container' -C '$target_dir'"
                 ;;
               *.tar)
-                echo "tar -xf '${archive}' -C '${target}'"
+                docker exec --user root splunk bash -c \
+                  "tar -xf '$archive_in_container' -C '$target_dir'"
                 ;;
               *)
-                # Best-effort auto-detect
-                echo "tar -xf '${archive}' -C '${target}' 2>/dev/null || tar -xzf '${archive}' -C '${target}' 2>/dev/null || tar -I zstd -xf '${archive}' -C '${target}'"
+                echo "Unknown archive format: $archive_in_container"
+                return 1
                 ;;
             esac
           }
@@ -1132,30 +1135,19 @@ jobs:
             echo "  ⚠️  ¦ Restoring ${label} backup: ${fname}"
             echo "     Source:  ${local_path}"
             echo "     Target:  ${SPLUNK_HOME}/ (inside container)"
-
-            # Make sure SPLUNK_HOME exists in the container (it does for normal images,
-            # but safe-guard in case of unusual layouts)
-            docker exec --user root splunk bash -c "mkdir -p '${SPLUNK_HOME}'"
-
-            # Copy archive to /tmp inside the container
+            
+            docker exec --user root splunk mkdir -p "${SPLUNK_HOME}"
             docker cp "${local_path}" "splunk:/tmp/${fname}"
 
-            # Build and execute the appropriate extract command (as splunk so we dont have to fix permissions
-            local extract_cmd
-            extract_cmd=$(tar_extract_cmd "/tmp/${fname}" "${SPLUNK_HOME}")
-            echo "     Extract: ${extract_cmd}"
-
-            docker exec --user splunk splunk bash -c "${extract_cmd}"
-            local rc=$?
-            if [ $rc -ne 0 ]; then
-              echo " 💥  Extraction failed for ${label} (rc=${rc})"
+            if extract_in_container "/tmp/${fname}" "${SPLUNK_HOME}"; then
+              echo " ✅  OK: ${label} backup extracted successfully."
+            else
+              echo " ❌  ERROR: Extraction failed for ${label}"
+              docker exec --user root splunk rm -f "/tmp/${fname}" || true
               return 1
             fi
 
-            # Cleanup tmp file
-            docker exec --user root splunk bash -c "rm -f '/tmp/${fname}'"
-
-            echo "  ✅  ${label} backup extracted successfully."
+            docker exec --user root splunk rm -f "/tmp/${fname}" || true
             return 0
           }
 
@@ -1174,7 +1166,7 @@ jobs:
 
           if [ -n "$LATEST_ETC" ]; then
             restore_archive_to_splunk_home "$LATEST_ETC" "ETC" || {
-              echo "â  ERROR: Failed to restore ETC backup"
+              echo "❌  ERROR: Failed to restore ETC backup"
               exit 1
             }
           else
@@ -1199,11 +1191,11 @@ jobs:
 
           if [ -n "$LATEST_STATE" ]; then
             restore_archive_to_splunk_home "$LATEST_STATE" "STATE" || {
-              echo "💥  ERROR: Failed to restore STATE backup"
+              echo "❌  ERROR: Failed to restore STATE backup"
               exit 1
             }
           else
-            echo "💥  ERROR: No STATE backup found in ./test_output/"
+            echo "❌   ERROR: No STATE backup found in ./test_output/"
             ls -la ./test_output/ || true
             exit 1
           fi

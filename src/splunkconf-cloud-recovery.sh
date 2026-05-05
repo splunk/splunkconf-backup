@@ -284,16 +284,60 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20260302 up to 10.2.1
 # 20260409 up to 10.2.2
 # 20260419 rework/improve check_cloud and add Azure detection 
+# 20240419 import function from backup app and curl variables to allow more common code
 
-VERSION="20260419a"
+VERSION="20260419b"
 
 # dont break script on error as we rely on tests for this
 set +e
 
+LOGFILE="/var/log/splunkconf-cloud-recovery-info.log"
 TODAY=`date '+%Y%m%d-%H%M_%u'`;
 TIMESTAMP=$(date +%s)
-echo "${TODAY} running splunkconf-cloud-recovery.sh with ${VERSION} versioni (TIMESTAMP=$TIMESTAMP)" >> /var/log/splunkconf-cloud-recovery-info.log
+echo "${TODAY} running splunkconf-cloud-recovery.sh with ${VERSION} version (TIMESTAMP=$TIMESTAMP)" >> /var/log/splunkconf-cloud-recovery-info.log
 
+
+# set timeout to avoid very long timeout when calling curl to autodetect AWS (for on prem with firewalls droping it)
+CURLCONNECTTIMEOUT=5
+CURLMAXTIME=15
+
+
+###### function definition
+
+function echo_log_ext {
+  LANG=C
+  #NOW=(date "+%Y/%m/%d %H:%M:%S")
+  #NOW=(date)
+  NOW=$(date -u +"%d-%m-%Y %H:%M:%S.%3N %z")
+  echo "$NOW ${SCRIPTNAME} $1 " >> $LOGFILE
+}
+
+function debug_log {
+  # set DEBUG=1 in conf file or splunkbackupdebug=1 via tag to enable debugging
+  if [ -z ${splunkbackupdebug+x} ]; then
+    splunkbackupdebug=0
+  fi
+  if [ -z ${DEBUG+x} ]; then
+    DEBUG=0
+  fi
+  if [ "$DEBUG" == "1" ] || [ "$splunkbackupdebug" == "1" ] ; then
+    echo_log_ext  "DEBUG id=$ID $1"
+  fi
+}
+
+function echo_log {
+  echo_log_ext  "INFO id=$ID $1"
+}
+
+function warn_log {
+  echo_log_ext  "WARN id=$ID $1"
+}
+
+function fail_log {
+  echo_log_ext  "FAIL id=$ID $1"
+}
+
+# ------------------------------------------------------------------------------
 # This function tries to autodetect when running in a cloud environment.
 # Sets global variable cloud_type:
 #   0 = unknown / on-prem
@@ -301,6 +345,8 @@ echo "${TODAY} running splunkconf-cloud-recovery.sh with ${VERSION} versioni (TI
 #   2 = GCP
 #   3 = Azure
 # Returns 0 on success (detection ran), 1 on unexpected error.
+# Requires: curl (optional but recommended)
+# ------------------------------------------------------------------------------
 
 function check_cloud() {
     cloud_type=0
@@ -325,7 +371,7 @@ function check_cloud() {
     # ------------------------------------------------------------------
     if command -v curl &>/dev/null; then
         local gcp_response
-        gcp_response=$(curl -fs --max-time 3 \
+        gcp_response=$(curl -fs --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
             -H "Metadata-Flavor: Google" \
             "http://metadata.google.internal/computeMetadata/v1/instance/zone" \
             2>/dev/null)
@@ -371,14 +417,14 @@ function check_cloud() {
     # ------------------------------------------------------------------
     if command -v curl &>/dev/null; then
         local token
-        token=$(curl --silent --max-time 3 \
+        token=$(curl --silent --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
             -X PUT "http://169.254.169.254/latest/api/token" \
             -H "X-aws-ec2-metadata-token-ttl-seconds: 3600" \
             2>/dev/null)
 
         if [ -n "$token" ]; then
             local az_check
-            az_check=$(curl --silent --max-time 3 \
+            az_check=$(curl --silent --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
                 -H "X-aws-ec2-metadata-token: $token" \
                 "http://169.254.169.254/latest/dynamic/instance-identity/document" \
                 2>/dev/null)
@@ -410,7 +456,7 @@ function check_cloud() {
     # ------------------------------------------------------------------
     if command -v curl &>/dev/null; then
         local azure_response
-        azure_response=$(curl -s -f --max-time 3 \
+        azure_response=$(curl -s -f --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
             -H "Metadata: true" \
             "http://169.254.169.254/metadata/instance?api-version=2021-02-01" \
             2>/dev/null)

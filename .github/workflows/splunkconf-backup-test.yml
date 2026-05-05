@@ -132,6 +132,10 @@ jobs:
           else
             echo "INFO: not creating disable_kvstore app. Context type : ${{ matrix.context_type }}"
           fi
+         
+          echo "=== Creating custom app testapp so we can check it is in backup after restore==="
+          mkdir -p apppackage/testapp/local
+          printf '[mytest]\nREPORT-test=test\n' > apppackage/testapp/local/props.conf
 
 
           echo "=== App package contents ==="
@@ -169,6 +173,7 @@ jobs:
               -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
               -e TZ="Europe/Paris" \
               -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
+              -v "$(pwd)/apppackage/testapp:${SPLUNK_HOME}/etc/apps/testapp/" \
               -v "$(pwd)/apppackage/disable_kvstore:${SPLUNK_HOME}/etc/apps/disable_kvstore/" \
               "${DOCKER_IMAGE}"
           else 
@@ -184,6 +189,7 @@ jobs:
               -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
               -e TZ="Europe/Paris" \
               -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
+              -v "$(pwd)/apppackage/testapp:${SPLUNK_HOME}/etc/apps/testapp/" \
               "${DOCKER_IMAGE}"
           fi
 
@@ -594,6 +600,7 @@ jobs:
             EXPECTED_FILES_ETC=(
               "./etc/apps/splunkconf-backup/lookups/splunkconf-backup-expected.csv"
               "./etc/apps/journald_input/default/inputs.conf"
+              "./etc/apps/testapp/local/props.conf"
             )
             # splunk metrics workspace not present on uf
           else 

@@ -1017,7 +1017,9 @@ jobs:
       # -------------------------------------------------------
       - name: Start Splunk 
         run: |
-          docker exec -u ansible splunk /sbin/entrypoint.sh start-service
+          # do not use , doesnt return so would block, use start-and-exit instead
+          #docker exec -u ansible splunk /sbin/entrypoint.sh start-service
+          docker exec -u ansible splunk /sbin/entrypoint.sh start-and-exit
 
       # -------------------------------------------------------
       # Step 5: Wait for Splunk restore to be ready

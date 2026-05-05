@@ -1017,9 +1017,12 @@ jobs:
       # -------------------------------------------------------
       - name: Start Splunk 
         run: |
-          # do not use , doesnt return so would block, use start-and-exit instead
-          #docker exec -u ansible splunk /sbin/entrypoint.sh start-service
+          # do not use start-service without detaching with -d  , doesnt return so would block
+          #docker exec -d -u ansible splunk /sbin/entrypoint.sh start-service
           docker exec -u ansible splunk /sbin/entrypoint.sh start-and-exit
+          sleep 1
+          docker ps -a
+          docker inspect splunk --format='{{.State.Status}} - {{.State.ExitCode}}'
 
       # -------------------------------------------------------
       # Step 20: Wait for Splunk restore to be ready
@@ -1129,6 +1132,11 @@ jobs:
           echo "--- Splunk sup Postgres for debugging ---"
           docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/sup-pkg-postgres.log \
             > ./debug_logs/sup-pkg-postgres.log 2>/dev/null || true
+
+          # Splunk web access
+          echo "--- Splunk web access for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/web_access.log \
+            > ./debug_logs/web_access.log 2>/dev/null || true
 
           # Backup directory listing
           echo "--- Backup directory listing ---"

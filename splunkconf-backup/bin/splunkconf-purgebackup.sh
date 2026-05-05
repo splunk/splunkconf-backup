@@ -532,7 +532,56 @@ if [ $CHECK -ne 0 ]; then
     splunklocalbackupdir=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalbackupdir`
     splunklocalmaxsize=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsize`
     splunklocalmaxsizeauto=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunklocalmaxsizeauto`
-  fi
+  elif [[ "$cloud_type" -eq 3 ]]; then
+    # ------------------------------------------------------------------
+    # Azure
+    # Fetch VM tags from IMDS tagsList endpoint
+    # Tags are returned as JSON array: [{"name":"key","value":"val"},...]
+    # We parse with grep+sed to avoid jq dependency
+    # ------------------------------------------------------------------
+    debug_log "Azure: fetching VM tags from IMDS"
+
+    local azure_tags_response
+    azure_tags_response=$(curl --silent --show-error \
+        --connect-timeout $CURLCONNECTTIMEOUT \
+        --max-time $CURLMAXTIME \
+        -H "Metadata: true" \
+        "http://169.254.169.254/metadata/instance/compute/tagsList?api-version=2021-02-01" \
+        2>/dev/null)
+
+    if [ -z "$azure_tags_response" ]; then
+        warn_log "Azure: empty response from IMDS tagsList endpoint"
+    else
+        debug_log "Azure: IMDS tagsList response received, parsing tags"
+
+        # Parse JSON tagsList array into key="value" format
+        # Input:  [{"name":"splunkinstanceType","value":"indexer"},...]
+        # Output: splunkinstanceType="indexer"
+        local all_tags
+        all_tags=$(echo "$azure_tags_response" \
+            | grep -oP '"name"\s*:\s*"\K[^"]+(?="[^"]*"value")' \
+            | paste - <(echo "$azure_tags_response" \
+                | grep -oP '"value"\s*:\s*"\K[^"]*(?=")') \
+            | awk '{print $1"=\""$2"\""}')
+
+        # Filter splunk-prefixed tags 
+        local splunk_tags
+        splunk_tags=$(echo "$all_tags" | grep -E "^splunk")
+
+        if [ -n "$splunk_tags" ]; then
+            debug_log "Azure: filtered tags with splunk prefix (file=$INSTANCEFILE)"
+            echo "$splunk_tags" > $INSTANCEFILE
+        else
+            debug_log "Azure: no splunk prefixed tags found, tags are not configured for Splunk"
+        fi
+
+        if [ -s "$INSTANCEFILE" ]; then
+            debug_log "Azure: tags successfully written to $INSTANCEFILE"
+        else
+            warn_log "Azure: no tags written "
+        fi
+    fi 
+  fi # cloud_type
 else
   warn_log "cloud tag detection disabled (missing commands)"
 fi

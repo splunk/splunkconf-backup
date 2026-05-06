@@ -1299,7 +1299,7 @@ jobs:
           docker inspect splunk --format='{{.State.Status}} - {{.State.ExitCode}}'
 
       # -------------------------------------------------------
-      # Step 20: Wait for Splunk restore to be ready
+      # Step 20: Wait for Splunk pod restore to be ready
       # -------------------------------------------------------
       - name: Wait for Splunk restore ${{ matrix.splunk_type }} ${{ matrix.splunk_version }} to be ready
         run: |
@@ -1329,6 +1329,9 @@ jobs:
 
             if [ "$HEALTH" = "healthy" ]; then
               echo "Splunk is healthy after $((RETRIES * RETRY_INTERVAL)) seconds."
+              echo "sleeping 90s to wait for splunk restore to finish" 
+              # temp - to be replaced by check
+              sleep 90
               break
             fi
 

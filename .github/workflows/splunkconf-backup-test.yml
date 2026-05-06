@@ -1329,9 +1329,10 @@ jobs:
 
             if [ "$HEALTH" = "healthy" ]; then
               echo "Splunk is healthy after $((RETRIES * RETRY_INTERVAL)) seconds."
-              echo "sleeping 90s to wait for splunk restore to finish" 
+              WAITSEC=300
+              echo "sleeping ${WAITSEC}s to wait for splunk restore to finish" 
               # temp - to be replaced by check
-              sleep 90
+              sleep $WAITSEC
               break
             fi
 

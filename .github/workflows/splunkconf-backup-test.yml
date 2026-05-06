@@ -927,7 +927,6 @@ jobs:
       # -------------------------------------------------------
       # Step 15: Collect Splunk logs from backup operations (always, for debugging any failure)
       # -------------------------------------------------------
-
       - name: Collect Splunk logs
         if: always()
         run: |
@@ -1329,10 +1328,10 @@ jobs:
 
             if [ "$HEALTH" = "healthy" ]; then
               echo "Splunk is healthy after $((RETRIES * RETRY_INTERVAL)) seconds."
-              WAITSEC=300
-              echo "sleeping ${WAITSEC}s to wait for splunk restore to finish" 
-              # temp - to be replaced by check
-              sleep $WAITSEC
+              #WAITSEC=300
+              #echo "sleeping ${WAITSEC}s to wait for splunk restore to finish" 
+              ## temp - to be replaced by check
+              #sleep $WAITSEC
               break
             fi
 
@@ -1369,10 +1368,170 @@ jobs:
           fi
 
       # -------------------------------------------------------
-      # Step 21: Collect Splunk logs from backup operations (always, for debugging any failure)
+      # Step 21: Wait for Splunk to restore kvdump
       # -------------------------------------------------------
+      - name: Wait for Splunk to restore kvdump
+        run: |
+          # should run only is splunk is up from previous Step
+          # (task to repeat every 30s until max seconds (about 300s)
+          # search in splunk via rest API source=*splunkconf-backup.log sourcetype=splunkd for results
+          # 06-05-2026 11:22:33.169 +0000 splunkconf-restore INFO id=1778066430 action=restorebackup type=local COUNTER=97 currentversion=10.2, minimalversionover=7 MGMTURL=0.0.0.0:8089 KVARCHIVE=backupconfsplunk-kvdump-toberestored.tar.gz object=kvdump dest=/opt/splunk/var/lib/splunk/kvstorebackup/backupconfsplunk-kvdump-toberestored.tar.gz result=success kvstore online (kvdump) restore complete 
+          # result=failure mean it fail and the test should error (it can fail because we didnt get a ok status from kvstroe api or for other reason like no disk space to restore initally , it is produced by fail_log "action=restorebackup type=${TYPE} object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
+          # do not use result=running lines, they will be followed by a success or failure at end of the loop (as the restore script call splunk REST API to restore kvdump then loop to fetch kvstore restore status every x seconds
+          # if uf or kvstore disabled then the log will be different (either we reuse the info from previous step and we know there was no kvdump or we fetch the correct status from logs
+          # log will be starting with echo_log "action=restorebackup type=$TYPE object=${OBJECT} result=disabled
+          echo "=== Checking kvdump restore status ==="
+          echo "Splunk type: ${{ matrix.splunk_type }}"
+          echo "Context type: ${{ matrix.context_type }}"
+          echo "IS_UF: ${IS_UF}"
 
-      - name: Collect Splunk logs
+          # ------------------------------------------------------------
+          # Skip conditions: UF or kvstore_disabled => no kvdump expected
+          # ------------------------------------------------------------
+          if [ "${IS_UF}" = "1" ]; then
+            echo "✅   Universal Forwarder: no kvdump restore expected. Skipping."
+            exit 0
+          fi
+
+          if [ "${{ matrix.context_type }}" = "kvstore_disabled" ]; then
+            echo "✅ ¸  kvstore_disabled context: no kvdump restore expected."
+            echo "Verifying that splunkconf-backup logged result=disabled (informational)..."
+            docker exec --user ${SPLUNK_USER} splunk bash -c \
+              "grep -E 'action=restorebackup.*object=kvdump.*result=disabled' \
+                 ${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log 2>/dev/null | tail -5" \
+              || echo "(no result=disabled line found yet, but not fatal)"
+            exit 0
+          fi
+
+          # ------------------------------------------------------------
+          # Polling parameters
+          # ------------------------------------------------------------
+          MAX_WAIT=300          # total max wait in seconds
+          INTERVAL=30           # seconds between polls
+          ELAPSED=0
+          KV_RESULT=""          # final captured result: success | failure | disabled
+          KV_LINE=""            # the matching log line (for reporting)
+
+          LOG_PATH="${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log"
+
+          echo "Polling ${LOG_PATH} every ${INTERVAL}s (max ${MAX_WAIT}s)..."
+          echo "Looking for: action=restorebackup ... object=kvdump ... result=(success|failure|disabled)"
+          echo ""
+
+          # ------------------------------------------------------------
+          # Try Splunk REST API first (search), fall back to grep on the
+          # log file inside the container if the search returns nothing.
+          # We accept either path: whichever surfaces a terminal result.
+          # ------------------------------------------------------------
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+
+            # ---- (a) Try via Splunk REST search ----
+            SEARCH_QUERY='search index=_internal source=*splunkconf-backup.log action=restorebackup object=kvdump (result=success OR result=failure OR result=disabled) | head 5'
+
+            SEARCH_RESULTS=$(docker exec --user ${SPLUNK_USER} splunk curl -s -k \
+              -u admin:${{ env.SPLUNK_PASSWORD }} \
+              https://localhost:8089/services/search/jobs/export \
+              -d "search=${SEARCH_QUERY}" \
+              -d "output_mode=json" \
+              -d "earliest_time=-1h" \
+              -d "latest_time=now" \
+              2>/dev/null || echo "")
+
+            # Extract the most recent matching raw line, if any
+            REST_LINE=$(echo "$SEARCH_RESULTS" \
+              | grep -oE '"_raw"[[:space:]]*:[[:space:]]*"[^"]*action=restorebackup[^"]*object=kvdump[^"]*result=(success|failure|disabled)[^"]*"' \
+              | head -n 1 || true)
+
+            # ---- (b) Fall back to direct log grep inside container ----
+            FILE_LINE=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
+              "grep -E 'action=restorebackup.*object=kvdump.*result=(success|failure|disabled)' \
+                 '${LOG_PATH}' 2>/dev/null | tail -n 1" || true)
+
+            # Prefer the file line (most authoritative & easiest to parse);
+            # fall back to REST line if file is empty.
+            CANDIDATE_LINE=""
+            if [ -n "$FILE_LINE" ]; then
+              CANDIDATE_LINE="$FILE_LINE"
+            elif [ -n "$REST_LINE" ]; then
+              CANDIDATE_LINE="$REST_LINE"
+            fi
+
+            if [ -n "$CANDIDATE_LINE" ]; then
+              # Extract the result= token (success|failure|disabled)
+              MATCHED=$(echo "$CANDIDATE_LINE" \
+                | grep -oE 'result=(success|failure|disabled)' \
+                | head -n 1 \
+                | cut -d= -f2)
+
+              if [ -n "$MATCHED" ]; then
+                KV_RESULT="$MATCHED"
+                KV_LINE="$CANDIDATE_LINE"
+                echo "  [${ELAPSED}s] Found terminal kvdump restore status: result=${KV_RESULT}"
+                break
+              fi
+            fi
+
+            echo "  [${ELAPSED}s/${MAX_WAIT}s] No terminal kvdump restore status yet (still running or not started). Retrying in ${INTERVAL}s..."
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+
+          # ------------------------------------------------------------
+          # Evaluate result
+          # ------------------------------------------------------------
+          echo ""
+          echo "============================================"
+          echo "kvdump restore final evaluation"
+          echo "============================================"
+
+          if [ -z "$KV_RESULT" ]; then
+            echo "❌  ERROR: Did not observe a terminal kvdump restore status (success/failure/disabled) within ${MAX_WAIT}s."
+            echo ""
+            echo "--- Last 50 lines of splunkconf-backup.log ---"
+            docker exec --user ${SPLUNK_USER} splunk bash -c \
+              "tail -50 '${LOG_PATH}' 2>/dev/null" || true
+            echo ""
+            echo "--- Any kvdump-related lines (incl. running) ---"
+            docker exec --user ${SPLUNK_USER} splunk bash -c \
+              "grep -E 'object=kvdump' '${LOG_PATH}' 2>/dev/null | tail -20" || true
+            exit 1
+          fi
+
+          echo "Matching log line:"
+          echo "  ${KV_LINE}"
+          echo ""
+
+          case "$KV_RESULT" in
+            success)
+              echo "✅  kvdump restore SUCCESS."
+              exit 0
+              ;;
+            disabled)
+              # We don't expect 'disabled' here because UF / kvstore_disabled
+              # were short-circuited above. If we do see it, it's unexpected.
+              echo "❌¸  kvdump restore reported result=disabled, but this context expected an actual restore."
+              echo "    Treating as failure for this matrix combination."
+              exit 1
+              ;;
+            failure)
+              echo "❌  kvdump restore FAILED."
+              echo ""
+              echo "--- Recent kvdump-related log lines ---"
+              docker exec --user ${SPLUNK_USER} splunk bash -c \
+                "grep -E 'object=kvdump' '${LOG_PATH}' 2>/dev/null | tail -20" || true
+              exit 1
+              ;;
+            *)
+              echo "❌  Unexpected result token: ${KV_RESULT}"
+              exit 1
+              ;;
+          esac
+
+
+      # -------------------------------------------------------
+      # Step 22: Collect Splunk logs from backup operations (always, for debugging any failure)
+      # -------------------------------------------------------
+      - name: Collect Splunk logs after restore
         if: always()
         run: |
           echo "=== Removing logs from backup steps (so we only collect restore) ==="

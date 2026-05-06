@@ -84,8 +84,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20251219 add failure log for backup in disk space situation at first start in order to fill dashboard from start with correct info
 # 20260105 update time logging format
 # 20260105 rework logging, rework case for disk space to really call splunkconf-backup to produce better error message
+# 20260506 add more info logging at end of restore
 
-VERSION="20260105b"
+VERSION="20260506a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -633,8 +634,10 @@ elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto
       # increase here if needed (ie take more time !)
       until [[  $COUNTER -lt 1 || -n "$RES"  ]]; do
         RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/status  --header "Authorization: Splunk ${sessionkey}" | grep backupRestoreStatus | grep -i Ready`
-        #echo_log "RES=$RES"
+        debug_log "COUNTER=$COUNTER RES=$RES"
         echo_log "action=restorebackup type=$TYPE COUNTER=$COUNTER $MESSVER $MESS1 kvbackupmode=$kvbackupmode "
+        RES2=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/services/kvstore/backup/restore -X post --header "Authorization: Splunk ${sessionkey}" -d"archiveName=${KVARCHIVE}"`
+        debug_log "in restore loop restore KVDUMP RESTORE FULL RES=$RES, RES2=${RES2}  "
         let COUNTER-=1
         sleep 30
       done

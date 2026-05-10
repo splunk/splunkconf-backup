@@ -258,6 +258,47 @@ function load_settings_from_file () {
   fi
 }
 
+# --- Usage Examples ---
+# removeifexist "testfile.txt"
+# removeifexist "/path/to/symlink"
+function removeifexist () {
+    local TARGET="$1"
+    local ERR_MSG
+    
+    # 1. Check if the target exists (as a file or a symbolic link)
+    # -e checks existence; -L checks for symbolic links (even broken ones)
+    if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then
+        
+        # 2. Check for permissions on the parent directory
+        # Deleting a file requires write permission on the folder it is in
+        local PARENT_DIR
+        PARENT_DIR=$(dirname "$TARGET")
+
+        if [ ! -w "$PARENT_DIR" ]; then
+            fail_log "Permission Error: You do not have write access to the directory '$PARENT_DIR'. This will prevent removing ${TARGET}" 
+            return 1
+        fi
+
+        # 3. Attempt to remove and capture the error message
+        # 2>&1 redirects the system error message into the variable
+        ERR_MSG=$(rm "$TARGET" 2>&1)
+
+        # 4. Check if the rm command succeeded
+        if [ $? -eq 0 ]; then
+            debug_log "Success: '$TARGET' has been removed."
+        else
+            # 5. Report the captured system error
+            fail_log "Could not remove '$TARGET'  even with write permission on folderSystem Error: $ERR_MSG"
+            return 1
+        fi
+    else
+        # Do nothing if the file/link does not exist
+        return 0
+    fi
+}
+
+
+
 ###### start
 
 # %u is day of week , we may use this for custom purge
@@ -367,6 +408,7 @@ fi
 
 case $MODE in
   "etcremoterestore"|"stateremoterestore"|"scriptsremoterestore") 
+     # This is usually launched remotely by backup when in rsync mode in order to prepare the second host (for which Splunk status is currently down)
      debug_log "argument valid, we are in autorestoremode with MODE=$MODE and FILE=$FILE"
      if [ -e $FILE ]; then
        echo_log "MODE=$MODE  file=$FILE, restoring with tar under ${RESTOREPATH}"
@@ -378,24 +420,24 @@ case $MODE in
      fi
    ;;
   "kvdumpremoterestore") 
+     # This is usually launched remotely by backup when in rsync mode in order to prepare the second host (for which Splunk status is currently down)
      debug_log "argument valid , we are in kvdump restore mode launched remotely so we are going to alias backup so kvdump restore at start will use it"
      KVARCHIVE="backupconfsplunk-kvdump-toberestored.tar.gz"
      LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}"
      LFICKVDUMP2=${LFICKVDUMP}."processed"
-     if [ -e ${LFICKVDUMP2} ]; then
-       rm ${LFICKVDUMP2}
-       debug_log "removed ${LFICKVDUMP2}"
-     fi
-     if [ -e ${LFICKVDUMP} ]; then
-       rm ${LFICKVDUMP}
-       debug_log "removed ${LFICKVDUMP}"
-     fi
+     removeifexist "${LFICKVDUMP2}"
+     removeifexist "${LFICKVDUMP}"
      if [ -e $FILE ]; then
-       ln -s $FILE ${LFICKVDUMP}
-       debug_log "created link ${LFICKVDUMP} pointing to $FILE so the kvdump will be used at next splunk start"
-       exit 0
+       ln -s $FILE ${LFICKVDUMP} 
+       if [ $? -eq 0 ]; then
+         debug_log "created link ${LFICKVDUMP} pointing to $FILE so the kvdump will be used at next splunk start"
+         exit 0
+       else 
+         fail_log "error creating link with ln -s $FILE ${LFICKVDUMP} Please check permissions"
+         exit 1
+       fi
     else
-       fail_log "MODE=$MODE  file=$FILE file is not present on filesystem, something wrong , impossible to create link to make it restored at start,please investigate"
+       fail_log "MODE=$MODE  file=$FILE file is not present on filesystem, something wrong (did rsync worked ?)  , impossible to create link to make it restored at start,please investigate"
        exit 1
      fi
      ;;

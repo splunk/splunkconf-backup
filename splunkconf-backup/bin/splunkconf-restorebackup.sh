@@ -84,8 +84,10 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20251219 add failure log for backup in disk space situation at first start in order to fill dashboard from start with correct info
 # 20260105 update time logging format
 # 20260105 rework logging, rework case for disk space to really call splunkconf-backup to produce better error message
+# 20260506 add more info logging at end of restore
+# 20260510 add error handling for removing files and link
 
-VERSION="20260105b"
+VERSION="20260510a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them

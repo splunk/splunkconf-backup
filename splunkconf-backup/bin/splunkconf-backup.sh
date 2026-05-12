@@ -163,8 +163,10 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20260403 use different location for pgpass on splunk 10.0
 # 20260404 add backup pg code block + fix multiple typos
 # 20260419 rework check_cloud and add azure deection
+# 20260511 more backup pg stuff
+# 20260511 fix regression with autodisabling remote backup when in rcp or rsync mode 
 
-VERSION="20260419a"
+VERSION="20260511b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -316,6 +318,8 @@ BACKUPKV=1
 BACKUPSTATE=1
 # set to backup scripts
 BACKUPSCRIPTS=1
+# set to backup PG (Postgresql)
+BACKUPPG=1
 
 
 # KVSTORE Backup options
@@ -1342,6 +1346,13 @@ else
   debug_log "splunkbackupstate tag set, BACKUPSTATE=${BACKUPSTATE}"
 fi
   
+if [ -z ${splunkbackuppg+x} ]; then 
+  debug_log "splunkbackuppg tag not set, using value from conf file BACKUPPG=${BACKUPPG}"
+else
+  BACKUPPG=${splunkbackuppg}
+  debug_log "splunkbackuppg tag set, BACKUPPG=${BACKUPPG}"
+fi
+  
 if [ -z ${splunkbackupscripts+x} ]; then 
   debug_log "splunkbackupscripts tag not set, using value from conf file BACKUPSCRIPTS=${BACKUPSCRIPTS}"
 else
@@ -1599,6 +1610,21 @@ if [ ! -w $LOCALBACKUPDIR ] ; then
 fi
 
 
+###### Common : prepare variables common to multiple backup types
+isforwarder=`${SPLUNK_HOME}/bin/splunk version | tail -1 | grep -i forwarder`
+# we do a tail to get the last line as sometimes there can be warning on first lines so the version is always last line
+version=`${SPLUNK_HOME}/bin/splunk version | tail -1 | cut -d ' ' -f 2`;
+if [[ $version =~ ^([^.]+\.[^.]+)\. ]]; then
+   ver=${BASH_REMATCH[1]}
+   vermajor=$(printf "%.0f" "$ver")
+   debug_log "splunkversion=$ver vermajor=$ver"
+else
+   fail_log "splunkversion : unable to parse string $version"
+   # in order to force kvdump when version detection fail as we are probably in a compatible version
+   vermajor=10
+fi
+
+
 ############# START HERE DO DO THE BACKUPS   ####################3
 TYPE="local"
 
@@ -1753,23 +1779,11 @@ OBJECT="kvdump"
 if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || [ "$MODE" == "kvauto" ]; then 
   debug_log "object=kvstore  action=start"
   FIC="disabled"
-  isforwarder=`${SPLUNK_HOME}/bin/splunk version | tail -1 | grep -i forwarder`;
   if [ -z ${isforwarder+x} ] || [[ "${isforwarder}" =~ "orwarder" ]];  then
     echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=ufdisabled"; 
   elif [ -z ${BACKUPKV+x} ] || [ $BACKUPKV -eq 0 ]; then
     echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=disabledbyconfiguration"; 
   else
-    # we do a tail to get the last line as sometimes there can be warning on first lines so the version is always last line
-    version=`${SPLUNK_HOME}/bin/splunk version | tail -1 | cut -d ' ' -f 2`;
-    if [[ $version =~ ^([^.]+\.[^.]+)\. ]]; then
-      ver=${BASH_REMATCH[1]}
-      vermajor=$(printf "%.0f" "$ver")
-      debug_log "splunkversion=$ver vermajor=$ver"
-    else
-      fail_log "splunkversion : unable to parse string $version"
-      # in order to force kvdump when version detection fail as we are probably in a compatible version
-      vermajor=10
-    fi
     # integer here
     minimalversion=7
     kvbackupmode=taronline
@@ -1778,7 +1792,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
     splunkconf_purgebackup;
     splunkconf_checkspace;
     if [[ $btoolkvstore =~ "true" ]] || [[ $btoolkvstore =~ "1" ]]; then
-      echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=kvstoredisabledonsplunkbyconfig";
+      echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=disabledbyconfigurationatsplunklevel";
     elif [ -z ${BACKUPKV+x} ] || [ $BACKUPKV -eq 0 ]; then
       # we echo here to have it appear in logs as it will allow to identify disabled versus missing case
       echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled dest=$FIC reason=disabled ${MESS1}"
@@ -2002,7 +2016,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
   # STATE : scheduler,  MODINPUT,...
   FIC="disabled"
   if [ -z ${BACKUPSTATE+x} ]; then 
-    echo_log "action=backup type=$TYPE object=$OBJECT result=disabled"
+    echo_log "action=backup type=$TYPE object=$OBJECT result=disabled reason=byconfiguration"
   else
     debug_log "start to backup state (modinputs , scheduler states, bundle, fishbuckets,....)";
     if [ ${LOCALTYPE} -eq 2 ]; then
@@ -2068,137 +2082,215 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
   debug_log "after pg test reached, MODE=$MODE "
   # PG
   FIC="disabled"
-  # TEMP TEMP
-  BACKUPPG=1
-  if [ -z ${BACKUPPG+x} ]; then
-    echo_log "action=backup type=$TYPE object=$OBJECT result=disabled"
-  else
-    debug_log "start to backup postgresql";
-
-
-        #  if [ "${IS_UF}" = "1" ]; then
-        #    echo "UF : disabling postsgres check"
-        #    exit 0
+  if [[ -n "$isforwarder" ]] && [[ "$isforwarder" =~ "orwarder" ]]; then
+    echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled reason=ufdisabled"
+  elif [ -z ${BACKUPPG+x} ]; then
+    echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled reason=byconfiguration"
+        # to see if add a version test 
         #  elif [ "$MAJOR_VERSION" -le 10 ]; then
         #    echo "Splunk Enterprise less than 10, no PG"
         #    exit 0
-        #  else
-            #  Check if Postgres process is running inside container
-            #echo_log "--- Checking for Splunk Postgres process ---"
-            # if Splunk 10.0 process is named postgres
-            # for splunk 10.2 and newer, process name is  splunk-postgres
-            #docker exec --user ${SPLUNK_USER} splunk bash -c \
-            #"ps aux 2>/dev/null | grep -i [p]ostgres  grep -v grep || echo '❌ Error : No Postgres process found'" || true
-
-            # Check if .pgpass file exists (indicates Postgres credentials are configured)
-            #echo ""
-          debug_log "--- Checking for Postgres credentials file ---"
-          if test -f ${SPLUNK_HOME}/var/packages/data/postgres/.pgpass 2>/dev/null; then
-            # Splunk 10.2+
-            PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/.pgpass"
-            debug_log "Found .pgpass in packages/data/postgres directory"
-          elif test -f ${SPLUNK_HOME}/var/packages/data/postgres/db/.pgpass 2>/dev/null; then
-            # Splunk 10.0
-            PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/db/.pgpass"
-            debug_log "Found .pgpass in packages/data/db/postgres directory"
+  else # backupg case
+    splunkconf_purgebackup;
+    splunkconf_checkspace;
+    debug_log "start to backup postgresql";
+    # Build the final backup archive name following existing conventions
+    if [ ${LOCALTYPE} -eq 2 ]; then
+      FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}pg-${INSTANCE}.tar.${EXTENSION}"
+      MESS1="backuptype=pginstanceoverwrite "
+    elif [ ${LOCALTYPE} -eq 3 ]; then
+      FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}pg.tar.${EXTENSION}"
+      MESS1="backuptype=pgnoinstanceoverwrite "
+    else
+      FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}pg-${INSTANCE}-${TODAY}.tar.${EXTENSION}"
+      MESS1="backuptype=pginstanceversion "
+    fi
+    #  Check if Postgres process is running inside container
+    #echo_log "--- Checking for Splunk Postgres process ---"
+    # if Splunk 10.0 process is named postgres
+    # for splunk 10.2 and newer, process name is  splunk-postgres
+    #docker exec --user ${SPLUNK_USER} splunk bash -c \
+    #"ps aux 2>/dev/null | grep -i [p]ostgres  grep -v grep || echo '❌ Error : No Postgres process found'" || true
+    # ----- Locate .pgpass for the running Splunk PG version -----
+    PGPASS_FILE=""
+    # Check if .pgpass file exists (indicates Postgres credentials are configured)
+    #echo ""
+    debug_log "--- Checking for Postgres credentials file ---"
+    if test -f ${SPLUNK_HOME}/var/packages/data/postgres/.pgpass 2>/dev/null; then
+      # Splunk 10.2+
+      PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/.pgpass"
+      debug_log "Found .pgpass in packages/data/postgres directory"
+    elif test -f ${SPLUNK_HOME}/var/packages/data/postgres/db/.pgpass 2>/dev/null; then
+      # Splunk 10.0
+      PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/db/.pgpass"
+      debug_log "Found .pgpass in packages/data/db/postgres directory"
+    else
+      debug_log "❌ ERROR  No .pgpass file found"
+      LFICPG="nopgpass"
+    fi
+    if [ -n "${PGPASS_FILE}" ]; then
+      #  Attempt to verify Postgres connectivity (if psql is available)
+      echo_log "--- Attempting Postgres connectivity check ---"
+      if test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
+        debug_log "psql binary found at ${SPLUNK_HOME}/bin/psql"
+        debug_log "Using pgpass file: ${PGPASS_FILE}"
+        # ----- Create the dedicated working directory -----
+        PG_WORK_BASE="${SPLUNK_HOME}/var/run/splunkconf-backup/pg"
+        # Use PID + timestamp to avoid collisions if multiple runs overlap
+        PG_WORK_DIR="${PG_WORK_BASE}/run-$$-${TODAY}"
+        mkdir -p "${PG_WORK_DIR}"
+        if [ ! -d "${PG_WORK_DIR}" ] || [ ! -w "${PG_WORK_DIR}" ]; then
+          fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=workdirnotwritable dir=${PG_WORK_DIR}"
+          LFICPG="pgworkdirerror"
+        else
+          debug_log "PG work dir created: ${PG_WORK_DIR}"
+          # ----- Detect the Postgres API port -----
+          PG_API_PORT=$(get_pg_api_port)
+          if [ -z "$PG_API_PORT" ]; then
+            warn_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=cannotdetectpgapiport"
+            LFICPG="pgapiporterror"
           else
-            debug_log "❌ ERROR  No .pgpass file found"
-          fi
-          if [ -z ${PGPASS_FILE+x} ]; then
-            debug_log "no pg pass" 
-          else 
-            #  Attempt to verify Postgres connectivity (if psql is available)
-            echo_log "--- Attempting Postgres connectivity check ---"
-            if test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
-              debug_log "psql binary found at ${SPLUNK_HOME}/bin/psql"
-              debug_log "Using pgpass file: ${PGPASS_FILE}"
-              PG_RESULT=$(bash -c \
-                "export PGPASSFILE=${PGPASS_FILE}; \
-                 export LD_LIBRARY_PATH=${SPLUNK_HOME}/lib; \
-                 ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U postgres_admin -p 5432 \
-                 -c '\l' 2>&1" || echo "CONNECTION_FAILED")
+            debug_log "PostgreSQL API port: $PG_API_PORT"
+            PG_ADMIN_USER="postgres_admin"
+            PG_ADMIN_PASS=$(awk -F':' -v user="$PG_ADMIN_USER" '$4 == user {print $5; exit}' "$PGPASS_FILE")
 
-              if echo "${PG_RESULT}" | grep -q "CONNECTION_FAILED\|could not connect\|FATAL"; then
-                warn_log "❌ ERROR: Could not connect to Postgres directly."
-                debug_log "Output: ${PG_RESULT}"
+            if [ -z "$PG_ADMIN_PASS" ]; then
+              warn_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=cannotretrievepgadminpassword pgpass=${PGPASS_FILE}"
+              LFICPG="pgcredentialerror"
+            else
+              PG_AUTH_BASIC=$(echo -n "$PG_ADMIN_USER:$PG_ADMIN_PASS" | base64 -w 0)
+
+              # ----- Enumerate databases dynamically -----
+              # We exclude template0/template1 which are not meant to be dumped
+              DB_LIST=$(bash -c "export PGPASSFILE=${PGPASS_FILE}; \
+                                 export LD_LIBRARY_PATH=${SPLUNK_HOME}/lib; \
+                                 ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U ${PG_ADMIN_USER} -p 5432 \
+                                 -tAc \"SELECT datname FROM pg_database WHERE datistemplate = false AND datname <> 'postgres';\" 2>/dev/null")
+
+              if [ -z "$DB_LIST" ]; then
+                warn_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=nodatabaselistedorconnectionfailed"
+                LFICPG="pgdblisterror"
               else
-                echo_log "Postgres databases:"
-                echo_log "${PG_RESULT}"
-                echo_log ""
-                echo_log "✅ Postgres connectivity verified ---"
-                # Check lsof is available before attempting to use it
-                debug_log "TEST1"
-                PG_API_PORT=$(get_pg_api_port)
-                debug_log "TEST"
-                if [ -z "$PG_API_PORT" ]; then
-                  debug_log "ERROR: Could not determine PostgreSQL API port"
-                else
-                  debug_log "PostgreSQL API port: $PG_API_PORT"
-                  PG_ADMIN_USER=postgres_admin
+                debug_log "Databases discovered for backup: $(echo "$DB_LIST" | tr '\n' ',' )"
 
-                  # Retrieve password from PGPASSFILE (extracts password field for postgres_admin)
-                  PG_ADMIN_PASS=$(awk -F':' -v user="$PG_ADMIN_USER" '$4 == user {print $5; exit}' "$PGPASS_FILE")
+                PG_GLOBAL_OK=1
+                PG_DB_COUNT=0
+                PG_DB_FAILED=0
 
-                  if [ -z "$PG_ADMIN_PASS" ]; then
-                    echo_log "ERROR: Could not retrieve password for user '$PG_ADMIN_USER' from $PGPASS_FILE"
-                  else
-                    PG_AUTH_BASIC=$(echo -n "$PG_ADMIN_USER:$PG_ADMIN_PASS" | base64)
-                    debug_log "Using API port : $PG_API_PORT"
-                    debug_log "Using admin user: $PG_ADMIN_USER"
-                    # Set the target database (uncomment the one you need)
-                    # DB_NAME="search_metadata"
-                    # DB_NAME="kvstore"
-                    # DB_NAME="acies_config_service"
-                    DB_NAME="opamp_service"
+                for DB_NAME in $DB_LIST; do
+                  # Skip empty entries
+                  [ -z "$DB_NAME" ] && continue
+                  PG_DB_COUNT=$((PG_DB_COUNT + 1))
 
-                    BACKUP_FILE="/tmp/testdump"
-                    echo_log "Triggering backup for database: $DB_NAME ..."
+                  # Disk space check before each per-DB dump (errors out if insufficient)
+                  splunkconf_checkspace
+                  if [ $ERROR -ne 0 ]; then
+                    fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=localdiskspacecheck db=${DB_NAME}"
+                    PG_GLOBAL_OK=0
+                    LFICPG="localdiskspacecheck"
+                    break
+                  fi
 
-                    BACKUP_RESPONSE=$(curl -s -X POST "https://localhost:$PG_API_PORT/v1/postgres/recovery/backup" \
+                  PG_BACKUP_FILE="${PG_WORK_DIR}/${DB_NAME}.dump"
+                  debug_log "Triggering PG backup for database=${DB_NAME} dest=${PG_BACKUP_FILE}"
+
+                  PG_START=$(($(date +%s%N)))
+                  BACKUP_RESPONSE=$(curl -s --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
+                    -X POST "https://localhost:$PG_API_PORT/v1/postgres/recovery/backup" \
+                    -H "Content-Type: application/json" \
+                    -H "Authorization: Basic $PG_AUTH_BASIC" \
+                    -d "{\"database\": \"$DB_NAME\", \"backupFile\": \"$PG_BACKUP_FILE\"}" \
+                    -k)
+                  debug_log "Backup response for db=${DB_NAME}: $BACKUP_RESPONSE"
+
+                  PG_BACKUP_ID=$(echo "$BACKUP_RESPONSE" | grep -o '"id":"[^"]*"' | cut -d':' -f2 | tr -d '"')
+
+                  if [ -z "$PG_BACKUP_ID" ]; then
+                    warn_log "action=backup type=$TYPE object=${OBJECT} result=failure db=${DB_NAME} reason=nobackupidreturned response=${BACKUP_RESPONSE}"
+                    PG_DB_FAILED=$((PG_DB_FAILED + 1))
+                    PG_GLOBAL_OK=0
+                    continue
+                  fi
+
+                  # Poll backup status (with timeout)
+                  PG_POLL_MAX=60   # 60 * 5s = 5 min per DB
+                  PG_POLL=0
+                  PG_FINAL_STATUS=""
+                  while [ $PG_POLL -lt $PG_POLL_MAX ]; do
+                    BACKUP_STATUS=$(curl -s --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
+                      -X GET "https://localhost:$PG_API_PORT/v1/postgres/recovery/status/$PG_BACKUP_ID" \
                       -H "Content-Type: application/json" \
                       -H "Authorization: Basic $PG_AUTH_BASIC" \
-                      -d "{\"database\": \"$DB_NAME\", \"backupFile\": \"$BACKUP_FILE\"}" \
                       -k)
-                    debug_log "Backup response: $BACKUP_RESPONSE"
-# ---------------------------------------------------------------------------
-# --- 4. Extract Backup ID from Response ---
-# ---------------------------------------------------------------------------
 
-# Assumes the response is JSON containing an "id" field e.g. {"id":"abc-123",...}
-                    PG_BACKUP_ID=$(echo "$BACKUP_RESPONSE" | grep -o '"id":"[^"]*"' | cut -d':' -f2 | tr -d '"')
+                    if echo "$BACKUP_STATUS" | grep -qi '"status":"completed"\|"status":"success"'; then
+                      PG_FINAL_STATUS="success"
+                      break
+                    elif echo "$BACKUP_STATUS" | grep -qi '"status":"failed"\|"status":"error"'; then
+                      PG_FINAL_STATUS="failure"
+                      break
+                    fi
+                    PG_POLL=$((PG_POLL + 1))
+                    sleep 5
+                  done
 
-                    if [ -z "$PG_BACKUP_ID" ]; then
-                      debug_log  "ERROR: Could not extract backup ID from response"
-                    else
+                  PG_END=$(($(date +%s%N)))
+                  let PG_DURATION=(PG_END-PG_START)/1000000
 
-                      debug_log "Backup ID: $PG_BACKUP_ID"
+                  if [ "$PG_FINAL_STATUS" = "success" ] && [ -e "$PG_BACKUP_FILE" ]; then
+                    PG_FILESIZE=$(/usr/bin/stat -c%s "$PG_BACKUP_FILE")
+                    echo_log "action=backup type=$TYPE object=${OBJECT}-db db=${DB_NAME} result=success dest=${PG_BACKUP_FILE} durationms=${PG_DURATION} size=${PG_FILESIZE}"
+                  else
+                    warn_log "action=backup type=$TYPE object=${OBJECT}-db db=${DB_NAME} result=failure dest=${PG_BACKUP_FILE} durationms=${PG_DURATION} status=${PG_FINAL_STATUS} response=${BACKUP_STATUS}"
+                    PG_DB_FAILED=$((PG_DB_FAILED + 1))
+                    PG_GLOBAL_OK=0
+                  fi
+                done
 
-# ---------------------------------------------------------------------------
-# --- 5. Verify Backup Status ---
-# ---------------------------------------------------------------------------
-                      debug_log "Checking backup status for ID: $PG_BACKUP_ID ..."
+                # ----- Bundle all per-DB dumps into a single archive -----
+                if [ $PG_GLOBAL_OK -eq 1 ] && [ $PG_DB_COUNT -gt 0 ]; then
+                  # Use do_backup_tar to stay consistent (compression, retry, logging)
+                  # We point tar at the work dir relative path
+                  PG_TAR_PARENT=$(dirname "${PG_WORK_DIR}")
+                  PG_TAR_LEAF=$(basename "${PG_WORK_DIR}")
 
-                      BACKUP_STATUS=$(curl -s -X GET "https://localhost:$PG_API_PORT/v1/postgres/recovery/status/$PG_BACKUP_ID" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Basic $PG_AUTH_BASIC" \
-  -k )
-                      if [ -z "$BACKUP_STATUS" ]; then
-                        debug_log  "ERROR: Could not get backup status"
-                      else
-                        debug_log "Got BACKUP_STATUS=$BACKUP_STATUS  PG_BACKUP_ID=$PG_BACKUP_ID"
-                      fi # -z "$BACKUP_STATUS"
-                    fi  #  -z "$PG_BACKUP_ID"       
-                  fi #  -z "$PG_ADMIN_PASS"
-                fi # -z "$PG_API_PORT"
-              fi # pg result
-            else
-              warn_log "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
-            fi # if test -x ${SPLUNK_HOME}/bin/psql
-           
-          fi # if pgpass_file
+                  debug_log "Creating final PG archive from ${PG_WORK_DIR} into ${FIC}"
+                  PG_START=$(($(date +%s%N)))
+                  VARERR=$(tar -I ${COMPRESS} -C "${PG_TAR_PARENT}" -cf "${FIC}" "${PG_TAR_LEAF}" 2>&1)
+                  RES=$?
+                  PG_END=$(($(date +%s%N)))
+                  let DURATION=(PG_END-PG_START)/1000000
 
-  fi    #BACKUPPG
-fi    # mode
+                  if [ -e "$FIC" ]; then
+                    FILESIZE=$(/usr/bin/stat -c%s "$FIC")
+                  else
+                    FILESIZE=0
+                  fi
+
+                  if [ $RES -eq 0 ]; then
+                    echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} dbcount=${PG_DB_COUNT} ${MESS1}"
+                    pg_done=1
+                    LFICPG="$FIC"
+                  else
+                    fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC durationms=${DURATION} size=${FILESIZE} reason=tar${RES} ${MESS1} ${VARERR}"
+                    LFICPG="pgtarerror"
+                  fi
+                else
+                  fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=somedbsfailed dbcount=${PG_DB_COUNT} dbfailed=${PG_DB_FAILED} ${MESS1}"
+                  LFICPG="pgdbbackupfailure"
+                fi
+              fi # else after if dblist (ie we obtained db list)
+            fi # pgadminpass
+          fi # pgapiport
+        fi # pgworkdir
+      else
+        warn_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=psqlbinarymissing dest=$FIC"
+        LFICPG="nopsql"
+        #warn_log "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
+      fi # if test -x ${SPLUNK_HOME}/bin/psql
+    fi # if pgpass_file
+  fi    #BACKUPPG is on
+fi    # mode = pg
 
 
 
@@ -2281,11 +2373,13 @@ fi
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
+        FICPG="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}pg-${INSTANCE}.tar.${EXTENSION}";
         SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
         SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
         SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
         SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
         SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
+        SFICPG="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}pg-${INSTANCE}.tar.${EXTENSION}";
         debug_log "backup type will be etc full no date";
     elif [ ${REMOTETYPE} -eq 3 ]; then
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-full.tar.${EXTENSION}";
@@ -2293,11 +2387,13 @@ fi
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state.tar.${EXTENSION}";
+        FICPG="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}pg.tar.${EXTENSION}";
         SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-full.tar.${EXTENSION}";
         SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts.tar.${EXTENSION}";
         SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore.tar.${EXTENSION}";
         SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump.tar.${EXTENSIONKV}";
         SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state.tar.${EXTENSION}";
+        SFICPG="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}pg.tar.${EXTENSION}";
         debug_log "backup type will be etc full no date no instance";
     else
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-full-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
@@ -2305,11 +2401,13 @@ fi
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICPG="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}pg-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-full-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSIONKV}";
         SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        SFICPG="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}pg-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         debug_log "backup type will be etc full (date versioned backup mode with instance name)";
     fi
   else
@@ -2320,11 +2418,13 @@ fi
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
+        FICPG="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}pg-${INSTANCE}.tar.${EXTENSION}";
         SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-targeted-${INSTANCE}.tar.${EXTENSION}";
         SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
         SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
         SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
         SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
+        SFICPG="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}pg-${INSTANCE}.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted no date";
     elif [ ${REMOTETYPE} -eq 3 ]; then
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-targeted.tar.${EXTENSION}";
@@ -2332,11 +2432,13 @@ fi
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state.tar.${EXTENSION}";
+        FICPG="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}pg.tar.${EXTENSION}";
         SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-targeted.tar.${EXTENSION}";
         SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts.tar.${EXTENSION}";
         SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore.tar.${EXTENSION}";
         SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump.tar.${EXTENSIONKV}";
         SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state.tar.${EXTENSION}";
+        SFICPG="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}pg.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted no date no instance ";
     else
         FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-targeted-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
@@ -2344,11 +2446,13 @@ fi
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        FICPG="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}pg-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-targeted-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump-${INSTANCE}-${TODAY}.tar.${EXTENSIONKV}";
         SFICSTATE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}state-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
+        SFICPG="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}pg-${INSTANCE}-${TODAY}.tar.${EXTENSION}";
         debug_log "backup type will be etc targeted (date versioned backup mode)";
     fi
   fi
@@ -2569,6 +2673,17 @@ fi
     LFIC=${LFICSTATE}
     RFIC=${FICSTATE}
     SRFIC=${SFICSTATE}
+    if [ ${REMOTETECHNO} -eq 4 ]; then
+      LOCALSYNCDIR="$LOCALBACKUPDIR/"
+      REMOTERSYNCDIR="${REMOTEBACKUPDIR}${LOCALBACKUPDIR}"
+    fi
+    do_remote_copy;
+  fi
+  if [ "$MODE" == "0" ] || [ "$MODE" == "pg" ]; then
+    OBJECT="pg"
+    LFIC=${LFICPG}
+    RFIC=${FICPG}
+    SRFIC=${SFICPG}
     if [ ${REMOTETECHNO} -eq 4 ]; then
       LOCALSYNCDIR="$LOCALBACKUPDIR/"
       REMOTERSYNCDIR="${REMOTEBACKUPDIR}${LOCALBACKUPDIR}"

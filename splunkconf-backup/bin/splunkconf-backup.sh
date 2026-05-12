@@ -775,7 +775,7 @@ function do_remote_copy() {
         else 
           debug_log "autorestore via rsync disabled by config"
         fi
-      elif [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
+      elif [ "${AWSCOPYMODE}" = "1" ]; then
         debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}"
         # Attention , we do tags at the same time so if iam are incorrectly set the whole put is going to fail
         # This is why we default now to do it in 2 steps
@@ -952,10 +952,18 @@ function check_assist () {
     fi
 }
 
+
 function get_pg_api_port() {
     local port=""
+    # note hardcoded PG_SQL_PORT=5432 here
+    # we will need to replace with a variable if this need to be dynamically detected
 
     if command -v lsof &>/dev/null; then
+        # With 10.2
+        #lsof +c 15 -i -P| grep postgres| grep -v ESTABLISHED
+        #splunk-postgres   8418 splunk    3u  IPv4    45595      0t0  TCP localhost:4978 (LISTEN)
+        #splunk-postgres   8418 splunk   11u  IPv4    39251      0t0  TCP localhost:5435 (LISTEN)
+        #postgres          8436 splunk    7u  IPv4    34187      0t0  TCP *:5432 (LISTEN)
         debug_log "INFO: Using lsof to detect port" 
         # note starting with 10.2 the process may be called splunk-postgres so we need to add -c 15 to increase length output or it doesnt work
         port=$(lsof +c 15 -i -P | awk '/postgres/ && /LISTEN/ && $9 ~ /localhost/ && $9 !~ /5432/ {split($9, a, ":"); ports[++count] = a[2]} END {if (count >= 2) print ports[2]}')
@@ -1635,10 +1643,11 @@ fi
 ############# START HERE DO DO THE BACKUPS   ####################3
 TYPE="local"
 
-# etc
+########## LOCAL  etc  #####################
 etc_done=0
 LFICETC="disabled";
 OBJECT="etc"
+MESS1=""
 if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then 
   cd /
   # building name depending on options
@@ -1710,9 +1719,11 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
 # if mode explicit etc or all
 fi
 
+#################### LOCAL scripts   ############################
 scripts_done=0
 LFICSCRIPT="disabled";
 OBJECT="scripts"
+MESS1=""
 if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then 
   FIC="disabled"
   #debug_log "start to backup scripts"; 
@@ -1776,13 +1787,14 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
   # if mode explicit scripts or all
 fi
 
-
+################    LOCAL KVSTORE/KVDUMP  ###################################
 kvstore_done=0
 LFICKVSTORE="disabled"
 kvdump_done=0
 LFICKVDUMP="disabled"
 #OBJECT="kvstore"
 OBJECT="kvdump"
+MESS1=""
 if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || [ "$MODE" == "kvauto" ]; then 
   debug_log "object=kvstore  action=start"
   FIC="disabled"
@@ -2013,10 +2025,11 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
   # if mode explicit kvxxx or all
 fi
 
-
+################### LOCAL STATE ######################################
 state_done=0
 LFICSTATE="disabled"
 OBJECT="state"
+MESS1=""
 #debug_log "before state test reached. MODE=${MODE}."
 if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
   #debug_log "after state test reached, MODE=$MODE "
@@ -2081,9 +2094,11 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
   # if mode explicit state or all
 fi
 
+################ LOCAL PG #############################
 pg_done=0
 LFICPG="disabled"
 OBJECT="pg"
+MESS1=""
 debug_log "before pg test reached. MODE=${MODE}."
 if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
   debug_log "after pg test reached, MODE=$MODE "
@@ -2091,7 +2106,9 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
   FIC="disabled"
   if [[ -n "$isforwarder" ]] && [[ "$isforwarder" =~ "orwarder" ]]; then
     echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled reason=ufdisabled"
-  elif [ -z ${BACKUPPG+x} ]; then
+  elif [ "$vermajor" -lt 10 ]; then
+    echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled reason=splunkversionbelow10 vermajor=$vermajor"
+  elif [ -z ${BACKUPPG+x} ] || [ "$BACKUPPG" -eq 0 ]; then
     echo_log "action=backup type=${TYPE} object=${OBJECT} result=disabled reason=byconfiguration"
         # to see if add a version test 
         #  elif [ "$MAJOR_VERSION" -le 10 ]; then
@@ -2131,13 +2148,10 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
       # Splunk 10.0
       PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/db/.pgpass"
       debug_log "Found .pgpass in packages/data/db/postgres directory"
-    else
-      debug_log "❌ ERROR  No .pgpass file found"
-      LFICPG="nopgpass"
     fi
     if [ -n "${PGPASS_FILE}" ]; then
       #  Attempt to verify Postgres connectivity (if psql is available)
-      echo_log "--- Attempting Postgres connectivity check ---"
+      debug_log "--- Attempting Postgres connectivity check ---"
       if test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
         debug_log "psql binary found at ${SPLUNK_HOME}/bin/psql"
         debug_log "Using pgpass file: ${PGPASS_FILE}"
@@ -2147,23 +2161,28 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
         PG_WORK_DIR="${PG_WORK_BASE}/run-$$-${TODAY}"
         mkdir -p "${PG_WORK_DIR}"
         if [ ! -d "${PG_WORK_DIR}" ] || [ ! -w "${PG_WORK_DIR}" ]; then
-          fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=workdirnotwritable dir=${PG_WORK_DIR}"
-          LFICPG="pgworkdirerror"
+          ERROR_MESS="pgworkdirnotwritable"
+          LFICPG="disabled"
+          fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=${ERROR_MESS} dir=${PG_WORK_DIR}"
         else
           debug_log "PG work dir created: ${PG_WORK_DIR}"
+          # static value, it seems Splunk is using the default at the moment
+          PG_SQL_PORT=5432
           # ----- Detect the Postgres API port -----
           PG_API_PORT=$(get_pg_api_port)
           if [ -z "$PG_API_PORT" ]; then
-            warn_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=cannotdetectpgapiport"
-            LFICPG="pgapiporterror"
+            ERROR_MESS="cannotdetectpgapiport"
+            LFICPG="disabled"
+            fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=${ERROR_MESS} ${MESS1}"
           else
             debug_log "PostgreSQL API port: $PG_API_PORT"
             PG_ADMIN_USER="postgres_admin"
             PG_ADMIN_PASS=$(awk -F':' -v user="$PG_ADMIN_USER" '$4 == user {print $5; exit}' "$PGPASS_FILE")
 
             if [ -z "$PG_ADMIN_PASS" ]; then
-              warn_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=cannotretrievepgadminpassword pgpass=${PGPASS_FILE}"
-              LFICPG="pgcredentialerror"
+              ERROR_MESS="pgcredentialerror"
+              LFICPG="disabled"
+              fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=cannotretrievepgadminpassword pgpass=${PGPASS_FILE}"
             else
               PG_AUTH_BASIC=$(echo -n "$PG_ADMIN_USER:$PG_ADMIN_PASS" | base64 -w 0)
 
@@ -2171,12 +2190,13 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
               # We exclude template0/template1 which are not meant to be dumped
               DB_LIST=$(bash -c "export PGPASSFILE=${PGPASS_FILE}; \
                                  export LD_LIBRARY_PATH=${SPLUNK_HOME}/lib; \
-                                 ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U ${PG_ADMIN_USER} -p 5432 \
+                                 ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U ${PG_ADMIN_USER} -p ${PG_SQL_PORT} \
                                  -tAc \"SELECT datname FROM pg_database WHERE datistemplate = false AND datname <> 'postgres';\" 2>/dev/null")
 
               if [ -z "$DB_LIST" ]; then
-                warn_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=nodatabaselistedorconnectionfailed"
-                LFICPG="pgdblisterror"
+                ERROR_MESS="pgdblisterror"
+                LFICPG="disabled"
+                fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=nodatabaselistedorconnectionfailed"
               else
                 debug_log "Databases discovered for backup: $(echo "$DB_LIST" | tr '\n' ',' )"
 
@@ -2213,7 +2233,7 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
                   PG_BACKUP_ID=$(echo "$BACKUP_RESPONSE" | grep -o '"id":"[^"]*"' | cut -d':' -f2 | tr -d '"')
 
                   if [ -z "$PG_BACKUP_ID" ]; then
-                    warn_log "action=backup type=$TYPE object=${OBJECT} result=failure db=${DB_NAME} reason=nobackupidreturned response=${BACKUP_RESPONSE}"
+                    fail_log "action=backup type=$TYPE object=${OBJECT} result=failure db=${DB_NAME} reason=nobackupidreturned response=${BACKUP_RESPONSE}"
                     PG_DB_FAILED=$((PG_DB_FAILED + 1))
                     PG_GLOBAL_OK=0
                     continue
@@ -2248,7 +2268,7 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
                     PG_FILESIZE=$(/usr/bin/stat -c%s "$PG_BACKUP_FILE")
                     echo_log "action=backup type=$TYPE object=${OBJECT}-db db=${DB_NAME} result=success dest=${PG_BACKUP_FILE} durationms=${PG_DURATION} size=${PG_FILESIZE}"
                   else
-                    warn_log "action=backup type=$TYPE object=${OBJECT}-db db=${DB_NAME} result=failure dest=${PG_BACKUP_FILE} durationms=${PG_DURATION} status=${PG_FINAL_STATUS} response=${BACKUP_STATUS}"
+                    fail_log "action=backup type=$TYPE object=${OBJECT}-db db=${DB_NAME} result=failure dest=${PG_BACKUP_FILE} durationms=${PG_DURATION} status=${PG_FINAL_STATUS} response=${BACKUP_STATUS}"
                     PG_DB_FAILED=$((PG_DB_FAILED + 1))
                     PG_GLOBAL_OK=0
                   fi
@@ -2275,36 +2295,51 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
                   fi
 
                   if [ $RES -eq 0 ]; then
-                    echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} dbcount=${PG_DB_COUNT} ${MESS1}"
                     pg_done=1
                     LFICPG="$FIC"
+                    echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} dbcount=${PG_DB_COUNT} ${MESS1}"
                   else
+                    ERROR_MESS="pgtarerror"
+                    LFICPG="disabled"
                     fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC durationms=${DURATION} size=${FILESIZE} reason=tar${RES} ${MESS1} ${VARERR}"
-                    LFICPG="pgtarerror"
                   fi
                 else
+                  ERROR_MESS="pgdbbackupfailure"
+                  LFICPG="disabled"
                   fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=somedbsfailed dbcount=${PG_DB_COUNT} dbfailed=${PG_DB_FAILED} ${MESS1}"
-                  LFICPG="pgdbbackupfailure"
                 fi
               fi # else after if dblist (ie we obtained db list)
             fi # pgadminpass
           fi # pgapiport
+          # ----- Cleanup temp files -----
+          if [ -d "${PG_WORK_DIR}" ]; then
+            debug_log "Cleaning up PG work dir: ${PG_WORK_DIR}"
+            rm -rf "${PG_WORK_DIR}"
+          else
+            debug_log "Nothing to clean up as PGWORKDIR doenst exist. PG work dir: ${PG_WORK_DIR}"
+          fi
         fi # pgworkdir
       else
-        warn_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=psqlbinarymissing dest=$FIC"
-        LFICPG="nopsql"
+        ERROR_MESS="psqlbinarymissing"
+        LFICPG="disabled"
+        fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
         #warn_log "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
       fi # if test -x ${SPLUNK_HOME}/bin/psql
+    else
+      ERROR_MESS="nopgpassfound"
+      LFICPG="disabled"
+      fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
     fi # if pgpass_file
   fi    #BACKUPPG is on
 fi    # mode = pg
 
 
 
-
 debug_log "MODE=$MODE, extmode=${extmode} starting remote part"
 
-###############################    REMOTE    #############################################3
+##########################################################################################
+###############################    REMOTE    #############################################
+##########################################################################################
 
 # remote techno 1 = nas, 2=S3, 3= scp to nas, 4 = rsync
 # remotetype 0=auto, 1=date, 2 = no date, 3= no date, no instance

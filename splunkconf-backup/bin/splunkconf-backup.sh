@@ -1487,9 +1487,16 @@ else
   fi
 fi
 
-if (( REMOTETECHNO == 4 )); then 
+if (( REMOTETECHNO == 3 )); then
+  # we need to force doremotebackup to 1 as it will be disabled automatically if the remote s3 is not configured to avoid unecessary remote errors and logging in s3 situation
+  DOREMOTEBACKUP=1
+fi
+
+if (( REMOTETECHNO == 4 )); then
   debug_log "remote techno=4 (rsync) setting REMOTEBACKUPDIR to empty as we rsync to same path"
   REMOTEBACKUPDIR=""
+  # we need to force doremotebackup to 1 as it will be disabled automatically if the remote s3 is not configured to avoid unecessary remote errors and logging in s3 situation
+  DOREMOTEBACKUP=1
   #if [ ${REMOTETECHNO} -eq 4 ]; then
     OPTION=" ssh -oConnectTimeout=30 -oServerAliveInterval=60 -oBatchMode=yes -oStrictHostKeyChecking=accept-new";
     if (( RSYNCDISABLEREMOTE == 1 )); then

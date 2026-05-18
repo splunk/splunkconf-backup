@@ -158,8 +158,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20260105 update time logging format
 # 20260324 add more debug logging for remotebackup
 # 20260324 update condition fro unconfigured s3
+# 20260511 fix regression with autodisabling remote backup when in rcp or rsync mode 
 
-VERSION="20260324b"
+VERSION="20260511b"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them

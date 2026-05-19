@@ -23,6 +23,7 @@ jobs:
       matrix:
         splunk_version:
           - "latest"
+          - "10.4"
           - "10.2"
           - "10.0"
           - "9.4"

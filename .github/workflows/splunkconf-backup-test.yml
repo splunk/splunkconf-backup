@@ -315,6 +315,9 @@ jobs:
               echo ".pgpass not found at usual location, trying to find it anyway (if success please fix workflow for new location)"
               docker exec --user ${SPLUNK_USER} splunk bash -c \
               "find ${SPLUNK_HOME} -name .pgpass -print 2>/dev/null || echo '❌ Error : No .pgpass found via find command '" || true
+              echo "Trying to see if race condition at start - sleeping 60s and retrying"
+              sleep 60
+              "find ${SPLUNK_HOME} -name .pgpass -print 2>/dev/null || echo '❌ Error : No .pgpass found via find command '" || true
               exit 1
             fi
 

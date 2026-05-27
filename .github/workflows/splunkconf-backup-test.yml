@@ -1836,12 +1836,12 @@ jobs:
 
 
       # -------------------------------------------------------
-      # Step xx: Collect Splunk logs from backup operations (always, for debugging any failure)
+      # Step 24: Collect Splunk logs from backup operations (always, for debugging any failure)
       # -------------------------------------------------------
       - name: Collect Splunk logs
         # Strict gate: only run if Step 21 (kvdump_restore) explicitly reported success.
         # This covers all three "ok" paths: UF skip, kvstore_disabled skip, and real kvdump success.
-        if: steps.kvdump_restore.outputs.restore_ok == '1'
+        if: always() && steps.kvdump_restore.outputs.restore_ok == '1'
         run: |
           echo "=== Collecting Splunk logs ==="
           mkdir -p ./debug_logs
@@ -1937,7 +1937,7 @@ jobs:
       - name: Upload debug logs
         # Strict gate: only run if Step 21 (kvdump_restore) explicitly reported success.
         # This covers all three "ok" paths: UF skip, kvstore_disabled skip, and real kvdump success.
-        if: steps.kvdump_restore.outputs.restore_ok == '1'
+        if: always() && steps.kvdump_restore.outputs.restore_ok == '1'
         uses: actions/upload-artifact@v6
         with:
           name: splunk-debug-logs-${{ matrix.splunk_version }}-${{ matrix.splunk_type }}-${{ matrix.context_type }}

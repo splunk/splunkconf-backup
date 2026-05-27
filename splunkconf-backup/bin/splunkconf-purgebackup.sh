@@ -67,9 +67,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20260106 add purgestats
 # 20260406 fix multiple typos, add pg purge
 # 20260419 rework check_cloud and add azure deection
+# 20260527 add localmaxsize_minimum so we can change the value for automated testing purpose
 
-
-VERSION="20260419a"
+VERSION="20260527a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -675,6 +675,15 @@ if [ ! -z ${splunklocalmaxsizeauto+x} ]; then
   fi
 fi 
 
+if [ ! -z ${splunklocalmaxsizeminimum+x} ]; then 
+  splunklocalmaxsizeminimum=${splunklocalmaxsizeminimum##+( )}
+  splunklocalmaxsizeminimum=${splunklocalmaxsizeminimum%%+( )}
+  if [ ${splunklocalmaxsizeminimum} -gt 0 ]; then 
+    LOCALMAXSIZE_MINIMUM=${splunklocalmaxsizeminimum}
+    debug_log "set LOCALMAXSIZE_MINIMUM=$LOCALMAXSIZE_MINIMUM from tag"
+  fi
+fi 
+
 if [ -z ${LOCALBACKUPRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPRETENTIONDAYS. Exiting !"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPRETENTIONDAYS defined and set to ${LOCALBACKUPRETENTIONDAYS}"; fi
 if [ -z ${LOCALBACKUPKVRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPKVRETENTIONDAYS. Exiting !"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPKVRETENTIONDAYS defined and set to ${LOCALBACKUPKVRETENTIONDAYS}"; fi
 if [ -z ${LOCALBACKUPSCRIPTSRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPSCRIPTSRETENTIONDAYS. Exiting !"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPSCRIPTSRETENTIONDAYS defined and set to ${LOCALBACKUPSCRIPTSRETENTIONDAYS}"; fi
@@ -683,21 +692,31 @@ if [ -z ${LOCALBACKUPSTATERETENTIONDAYS+x} ]; then fail_log "missing parameter L
 if [ -z ${LOCALBACKUPPGRETENTIONDAYS+x} ]; then fail_log "missing parameter LOCALBACKUPPGRETENTIONDAYS. Exiting !"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPPGRETENTIONDAYS defined and set to ${LOCALBACKUPPGRETENTIONDAYS}"; fi
 if [ -z ${SPLUNK_HOME+x} ]; then fail_log "SPLUNK_HOME not defined  !!!!"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "SPLUNK_HOME defined to ${SPLUNK_HOME}"; fi
 if [ -z ${LOCALBACKUPDIR+x} ]; then fail_log "LOCALBACKUPDIR not defined !!!!"; rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock";exit 1; else debug_log "LOCALBACKUPDIR defined and set to ${LOCALBACKUPDIR}"; fi
-if (( ${LOCALMAXSIZE} > 1000000000 )); then 
+
+# localmaxsize
+if (( ${LOCALMAXSIZE_MINIMUM} < 1 )); then 
+  warn_log "invalid value for LOCALMAXSIZE_MINIMUM, setting it at 1000000000 which is 1G"
+  LOCALMAXSIZE_MINIMUM=1000000000
+fi
+# LOCALMAXSIZE_MINIMUM is 1000000000 which is 1G
+# it should not be changed unless for automated testing purpose as we want to test purge protection
+if (( ${LOCALMAXSIZE} > ${LOCALMAXSIZE_MINIMUM} )); then 
   debug_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check ok" 
 elif [ ${LOCALMAXSIZE} = "auto" ]; then
   # FIXME add more logic here
   LOCALMAXSIZE=${LOCALMAXSIZEAUTO}
 else 
-  fail_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check KO ! Need to be at least 1G(1000000000). Exiting to avoid deletion of all backups on invalid value"
+  fail_log "LOCALMAXSIZE=${LOCALMAXSIZE} value check KO ! Need to be at least 1G(1000000000) (configured value for minimum LOCALMAXSIZE_MINIMUM=${LOCALMAXSIZE_MINIMUM}) . Exiting to avoid deletion of all backups on invalid value"
   debug_log "removing lock file so other purgebackup process may run"
   rm "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock"
   exit 1;
 fi
+
 if (( ${MINFREESPACE} > 1000000 )); then 
-  debug_log "we got MINFREESPACE=${MINFREESPACE}"
+  debug_log "ok, we got MINFREESPACE=${MINFREESPACE}"
 else
   MINFREESPACE=6000000
+  debug_log "Minfreespace value incorrect, setting it to MINFREESPACE=${MINFREESPACE}"
 fi
 
 splunkconf_checkspace

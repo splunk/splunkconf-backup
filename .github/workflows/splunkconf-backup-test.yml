@@ -1709,6 +1709,7 @@ jobs:
           DEBUG=1
           # constrained size for test under constraint (KB)
           LOCALMAXSIZE=100
+          LOCALMAXSIZE_MINIMUM=10
           EOF
             chown -R ${SPLUNK_USER}:${SPLUNK_USER} '${APP_LOCAL_DIR}'
             echo '--- Effective ${APP_LOCAL_CONF} ---'

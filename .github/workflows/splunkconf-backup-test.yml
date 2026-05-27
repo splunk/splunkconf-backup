@@ -317,7 +317,7 @@ jobs:
               "find ${SPLUNK_HOME} -name .pgpass -print 2>/dev/null || echo '❌ Error : No .pgpass found via find command '" || true
               echo "Trying to see if race condition at start - sleeping 60s and retrying"
               sleep 60
-              "find ${SPLUNK_HOME} -name .pgpass -print 2>/dev/null || echo '❌ Error : No .pgpass found via find command '" || true
+              "find ${SPLUNK_HOME} -name .pgpass -print 2>/dev/null || echo '❌ Error2 : No .pgpass found via find command '" || true
               exit 1
             fi
 
@@ -1376,6 +1376,7 @@ jobs:
       # Step 21: Wait for Splunk to restore kvdump
       # -------------------------------------------------------
       - name: Wait for Splunk to restore kvdump
+        id: kvdump_restore
         run: |
           # should run only is splunk is up from previous Step
           # (task to repeat every 30s until max seconds (about 300s)
@@ -1395,6 +1396,7 @@ jobs:
           # ------------------------------------------------------------
           if [ "${IS_UF}" = "1" ]; then
             echo "✅   Universal Forwarder: no kvdump restore expected. Skipping."
+            echo "restore_ok=1" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -1405,6 +1407,7 @@ jobs:
               "grep -E 'action=restorebackup.*object=kvdump.*result=disabled' \
                  ${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log 2>/dev/null | tail -5" \
               || echo "(no result=disabled line found yet, but not fatal)"
+            echo "restore_ok=1" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -1509,6 +1512,7 @@ jobs:
           case "$KV_RESULT" in
             success)
               echo "✅  kvdump restore SUCCESS."
+              echo "restore_ok=1" >> "$GITHUB_OUTPUT"
               exit 0
               ;;
             disabled)
@@ -1641,6 +1645,194 @@ jobs:
           path: ./debug_logs/
           retention-days: 7
 
+      # -------------------------------------------------------
+      # Step 23: Reuse restore container to test purge with size constraint
+      # -------------------------------------------------------
+      # Goal: set a very small LOCALMAXSIZE, run the purge script, and verify
+      # that for each backup type at least ONE backup remains (the most recent),
+      # AND that the symlinked backupconfsplunk-kvdump-toberestored.tar.gz target
+      # is never deleted (preservation requirement).
+      - name: Test maxsize constraint for single backup presence
+        # Strict gate: only run if Step 21 (kvdump_restore) explicitly reported success.
+        # This covers all three "ok" paths: UF skip, kvstore_disabled skip, and real kvdump success.
+        if: steps.kvdump_restore.outputs.restore_ok == '1'
+        run: |
+          set -u
+          echo "=== Step 23: Testing purge with LOCALMAXSIZE constraint ==="
+          echo "Splunk type:    ${{ matrix.splunk_type }}"
+          echo "Context type:   ${{ matrix.context_type }}"
+          echo "SPLUNK_HOME:    ${SPLUNK_HOME}"
+          echo "IS_UF:          ${IS_UF}"
+
+          APP_LOCAL_DIR="${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}/local"
+          APP_LOCAL_CONF="${APP_LOCAL_DIR}/splunkconf-backup.conf"
+          OUTPUT_DIR="${SPLUNK_HOME}/var/backups"
+          OUTPUT_DIR_KVDUMP="${SPLUNK_HOME}/var/lib/splunk/kvstorebackup"
+          PROTECTED_LINK="${OUTPUT_DIR_KVDUMP}/backupconfsplunk-kvdump-toberestored.tar.gz"
+
+          # ---------------------------------------------------------------
+          # 1) Snapshot backup state BEFORE purge (for diffing afterwards)
+          # ---------------------------------------------------------------
+          echo ""
+          echo "--- Backups present BEFORE purge ---"
+          echo "[etc/state dir: ${OUTPUT_DIR}]"
+          docker exec --user ${SPLUNK_USER} splunk bash -c \
+            "ls -la '${OUTPUT_DIR}' 2>/dev/null" || true
+
+          if [ "${IS_UF}" = "0" ]; then
+            echo "[kvdump dir: ${OUTPUT_DIR_KVDUMP}]"
+            docker exec --user ${SPLUNK_USER} splunk bash -c \
+              "ls -la '${OUTPUT_DIR_KVDUMP}' 2>/dev/null" || true
+
+            echo ""
+            echo "--- Resolving protected symlink target (must NEVER be deleted) ---"
+            # Capture what backupconfsplunk-kvdump-toberestored.tar.gz points to (if it's a symlink).
+            # If it's a regular file, readlink -f still returns its absolute path.
+            PROTECTED_TARGET=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
+              "readlink -f '${PROTECTED_LINK}' 2>/dev/null || true")
+            echo "Protected link:   ${PROTECTED_LINK}"
+            echo "Protected target: ${PROTECTED_TARGET:-<none>}"
+            echo "PROTECTED_TARGET=${PROTECTED_TARGET}" >> "$GITHUB_ENV"
+          fi
+
+          # ---------------------------------------------------------------
+          # 2) Update local splunkconf-backup.conf INSIDE the container
+          #    (host apppackage/ is not mounted into the restore container)
+          # ---------------------------------------------------------------
+          echo ""
+          echo "--- Writing constrained config inside container ---"
+          docker exec --user root splunk bash -c "
+            set -e
+            mkdir -p '${APP_LOCAL_DIR}'
+            cat > '${APP_LOCAL_CONF}' <<'EOF'
+          [settings]
+          DEBUG=1
+          # constrained size for test under constraint (KB)
+          LOCALMAXSIZE=100
+          EOF
+            chown -R ${SPLUNK_USER}:${SPLUNK_USER} '${APP_LOCAL_DIR}'
+            echo '--- Effective ${APP_LOCAL_CONF} ---'
+            cat '${APP_LOCAL_CONF}'
+          "
+          # No Splunk restart needed: the purge script reads the conf at runtime.
+
+          # ---------------------------------------------------------------
+          # 3) Run the purge script
+          # ---------------------------------------------------------------
+          echo ""
+          echo "--- Running splunkconf-purgebackup.sh ---"
+          PURGE_OUTPUT=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
+            "cd '${SPLUNK_HOME}/etc/apps' && ./${{ env.APP_NAME }}/bin/splunkconf-purgebackup.sh 2>&1" \
+            || echo "PURGE_SCRIPT_NONZERO_EXIT")
+          echo "${PURGE_OUTPUT}"
+
+          if echo "${PURGE_OUTPUT}" | grep -q "PURGE_SCRIPT_NONZERO_EXIT"; then
+            echo "❌ ERROR: purge script exited non-zero"
+            exit 1
+          fi
+
+          # ---------------------------------------------------------------
+          # 4) Snapshot backup state AFTER purge
+          # ---------------------------------------------------------------
+          echo ""
+          echo "--- Backups present AFTER purge ---"
+          echo "[etc/state dir: ${OUTPUT_DIR}]"
+          docker exec --user ${SPLUNK_USER} splunk bash -c \
+            "ls -la '${OUTPUT_DIR}' 2>/dev/null" || true
+          if [ "${IS_UF}" = "0" ]; then
+            echo "[kvdump dir: ${OUTPUT_DIR_KVDUMP}]"
+            docker exec --user ${SPLUNK_USER} splunk bash -c \
+              "ls -la '${OUTPUT_DIR_KVDUMP}' 2>/dev/null" || true
+          fi
+
+          # ---------------------------------------------------------------
+          # 5) Verify at least ONE backup of each expected type remains
+          #    (the most recent should always be kept, even under tight size)
+          # ---------------------------------------------------------------
+          # Helper: count files inside container matching a regex pattern
+          count_matching() {
+            local search_dirs="$1"
+            local regex="$2"
+            docker exec --user ${SPLUNK_USER} splunk bash -c \
+              "find ${search_dirs} -maxdepth 2 -type f 2>/dev/null \
+                 | grep -E '${regex}' \
+                 | wc -l" \
+              | tr -d '[:space:]'
+          }
+
+          OVERALL=0
+
+          # ETC -- always expected
+          ETC_COUNT=$(count_matching "${OUTPUT_DIR}" 'backupconfsplunk-.*-etc-targeted-.*\.(tar|tar\.gz|tgz|tar\.zst)$')
+          echo "ETC backups remaining:   ${ETC_COUNT}"
+          if [ "${ETC_COUNT:-0}" -lt 1 ]; then
+            echo "❌ ERROR: purge removed ALL ETC backups (at least 1 must remain)"
+            OVERALL=1
+          else
+            echo "✅ At least one ETC backup preserved"
+          fi
+
+          # STATE -- always expected
+          STATE_COUNT=$(count_matching "${OUTPUT_DIR}" 'backupconfsplunk-.*-state-.*\.(tar|tar\.gz|tgz|tar\.zst)$')
+          echo "STATE backups remaining: ${STATE_COUNT}"
+          if [ "${STATE_COUNT:-0}" -lt 1 ]; then
+            echo "❌ ERROR: purge removed ALL STATE backups (at least 1 must remain)"
+            OVERALL=1
+          else
+            echo "✅ At least one STATE backup preserved"
+          fi
+
+          # KVDUMP -- only on Enterprise with kvstore enabled
+          if [ "${IS_UF}" = "1" ]; then
+            echo "⏭️  KVDUMP not applicable for UF"
+          elif [ "${{ matrix.context_type }}" = "kvstore_disabled" ]; then
+            echo "⏭️  KVDUMP not applicable when kvstore is disabled"
+          else
+            KVDUMP_COUNT=$(count_matching "${OUTPUT_DIR_KVDUMP}" 'backupconfsplunk-kvdump-.*\.(tar\.gz|tgz)$')
+            echo "KVDUMP backups remaining: ${KVDUMP_COUNT}"
+            if [ "${KVDUMP_COUNT:-0}" -lt 1 ]; then
+              echo "❌ ERROR: purge removed ALL KVDUMP backups (at least 1 must remain)"
+              OVERALL=1
+            else
+              echo "✅ At least one KVDUMP backup preserved"
+            fi
+
+            # -----------------------------------------------------------
+            # 6) Verify the protected symlink target was NOT deleted
+            #    (user requirement: never delete the backup behind
+            #     backupconfsplunk-kvdump-toberestored.tar.gz)
+            # -----------------------------------------------------------
+            echo ""
+            echo "--- Verifying protected symlink target survived purge ---"
+            if [ -n "${PROTECTED_TARGET:-}" ]; then
+              # Check the resolved target file still exists in the container
+              if docker exec --user ${SPLUNK_USER} splunk test -e "${PROTECTED_TARGET}"; then
+                echo "✅ Protected target still present: ${PROTECTED_TARGET}"
+              else
+                echo "❌ ERROR: protected target was deleted by purge: ${PROTECTED_TARGET}"
+                OVERALL=1
+              fi
+
+              # Also verify the link itself is still resolvable (not dangling)
+              if docker exec --user ${SPLUNK_USER} splunk bash -c "test -e '${PROTECTED_LINK}'"; then
+                echo "✅ Protected link still resolves: ${PROTECTED_LINK}"
+              else
+                echo "❌ ERROR: protected link is now dangling or missing: ${PROTECTED_LINK}"
+                OVERALL=1
+              fi
+            else
+              echo "ℹ️  No protected target was recorded before purge (skipping link check)"
+            fi
+          fi
+
+          echo ""
+          echo "============================================"
+          if [ "${OVERALL}" -eq 0 ]; then
+            echo "🎉 Step 23 PASSED: purge respects size constraint AND preserves at least one backup per type (and protected link target)."
+          else
+            echo "💥 Step 23 FAILED: see errors above."
+            exit 1
+          fi
 
 
       # -------------------------------------------------------

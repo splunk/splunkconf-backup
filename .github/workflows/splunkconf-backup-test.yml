@@ -1721,13 +1721,35 @@ jobs:
           # ---------------------------------------------------------------
           echo ""
           echo "--- Running splunkconf-purgebackup.sh ---"
-          PURGE_OUTPUT=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
-            "cd '${SPLUNK_HOME}/etc/apps' && ./${{ env.APP_NAME }}/bin/splunkconf-purgebackup.sh 2>&1" \
-            || echo "PURGE_SCRIPT_NONZERO_EXIT")
-          echo "${PURGE_OUTPUT}"
 
-          if echo "${PURGE_OUTPUT}" | grep -q "PURGE_SCRIPT_NONZERO_EXIT"; then
-            echo "❌ ERROR: purge script exited non-zero"
+          # Run purge and capture stdout, stderr, AND exit code separately
+          set +e
+          PURGE_OUTPUT=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
+  "cd '${SPLUNK_HOME}/etc/apps' && ./splunkconf-backup/bin/splunkconf-purgebackup.sh 2>&1; echo __EXIT__:\$?")
+          PURGE_EXEC_RC=$?
+          set -e
+
+          echo "===== Raw purge output (full) ====="
+          echo "${PURGE_OUTPUT}"
+          echo "===== End raw purge output ====="
+          echo "docker exec wrapper exit code: ${PURGE_EXEC_RC}"
+
+          # Extract the embedded script exit code if present
+          SCRIPT_RC=$(echo "${PURGE_OUTPUT}" | grep -oE '__EXIT__:[0-9]+$' | tail -1 | cut -d: -f2)
+          echo "Inner purge script exit code: ${SCRIPT_RC:-<none>}"
+
+          # Extra diagnostics: are we even able to read these things?
+          echo ""
+          echo "--- Container sanity checks (post-purge) ---"
+          docker ps -a --filter name=splunk
+          docker exec --user ${SPLUNK_USER} splunk bash -c "id; pwd; echo SPLUNK_HOME=${SPLUNK_HOME}; ls -la '${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}/bin/splunkconf-purgebackup.sh' 2>&1 || echo 'purge script not visible'" || echo "docker exec failed entirely"
+          docker exec --user ${SPLUNK_USER} splunk bash -c "test -r '${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log' && wc -l '${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log' || echo 'backup log not readable'" || echo "log check failed"
+
+          if [ -n "${SCRIPT_RC}" ] && [ "${SCRIPT_RC}" -ne 0 ]; then
+            echo "❌ ERROR: purge script exited with code ${SCRIPT_RC}"
+            exit 1
+          elif [ "${PURGE_EXEC_RC}" -ne 0 ]; then
+            echo "❌ ERROR: docker exec wrapper failed (rc=${PURGE_EXEC_RC}) — script may not have started"
             exit 1
           fi
 

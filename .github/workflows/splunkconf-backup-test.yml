@@ -1123,6 +1123,7 @@ jobs:
           # ------------------------------------------------------------
           # Helper: copy a backup into the container and extract at SPLUNK_HOME
           # Creates SPLUNK_HOME if missing, and chowns to splunk user afterwards.
+          # Create backup dir if needed, copy the backup to it and extract from it
           # ------------------------------------------------------------
           restore_archive_to_splunk_home() {
             local local_path="$1"
@@ -1135,23 +1136,27 @@ jobs:
 
             local fname
             fname=$(basename "$local_path")
+
+            BACKUPDIR="${SPLUNK_HOME}/var/backups"
             echo ""
             echo "  ⚠️  ¦ Restoring ${label} backup: ${fname}"
             echo "     Source:  ${local_path}"
             echo "     Target:  ${SPLUNK_HOME}/ (inside container)"
+            echo "     BACKUPDIR: ${BACKUPDIR} (inside container)"
             
-            docker exec --user root splunk mkdir -p "${SPLUNK_HOME}"
-            docker cp "${local_path}" "splunk:/tmp/${fname}"
+            docker exec --user root splunk mkdir -p "${BACKUPDIR}"
+            docker exec --user root "chown -R ${SPLUNK_USER:-splunk}:${SPLUNK_USER:-splunk} '${BACKUPDIR}'"
+            docker cp "${local_path}" "splunk:/${BACKUPDIR}/${fname}"
 
-            if extract_in_container "/tmp/${fname}" "${SPLUNK_HOME}"; then
+            if extract_in_container "/${BACKUPDIR}/${fname}" "${SPLUNK_HOME}"; then
               echo " ✅  OK: ${label} backup extracted successfully."
             else
               echo " ❌  ERROR: Extraction failed for ${label}"
-              docker exec --user root splunk rm -f "/tmp/${fname}" || true
+              docker exec --user root splunk rm -f "/${BACKUPDIR}/${fname}" || true
               return 1
             fi
 
-            docker exec --user root splunk rm -f "/tmp/${fname}" || true
+            # we keep the backup here as we need it later to test purge
             return 0
           }
 

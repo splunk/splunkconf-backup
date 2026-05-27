@@ -1836,6 +1836,117 @@ jobs:
 
 
       # -------------------------------------------------------
+      # Step xx: Collect Splunk logs from backup operations (always, for debugging any failure)
+      # -------------------------------------------------------
+      - name: Collect Splunk logs
+        # Strict gate: only run if Step 21 (kvdump_restore) explicitly reported success.
+        # This covers all three "ok" paths: UF skip, kvstore_disabled skip, and real kvdump success.
+        if: steps.kvdump_restore.outputs.restore_ok == '1'
+        run: |
+          echo "=== Collecting Splunk logs ==="
+          mkdir -p ./debug_logs
+
+          # App-specific log
+          echo "--- splunkconf-backup log ---"
+          docker exec --user ${SPLUNK_USER} splunk cat \
+            ${SPLUNK_HOME}/var/log/splunk/splunkconf-backup.log \
+            > ./debug_logs/splunkconf-backup.log 2>/dev/null || true
+
+          # Splunk start logs
+          echo "--- Splunk utility logs (what happend before splunkd log start) for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/splunkd-utility.log \
+            > ./debug_logs/splunkd-utility.log 2>/dev/null || true
+
+          # Splunk main logs
+          echo "--- Splunk logs for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/splunkd.log \
+            > ./debug_logs/splunkd.log 2>/dev/null || true
+
+          # Splunk postgres  logs
+          echo "--- Splunk Postgres for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/postgres-*.log \
+            > ./debug_logs/postgres.log 2>/dev/null || true
+
+          # Splunk sup postgres stdout logs
+          echo "--- Splunk sup Postgres stdout for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/sup-pkg-postgres-stdout.log \
+            > ./debug_logs/sup-pkg-postgres-stdout.log 2>/dev/null || true
+
+          # Splunk sup postgres logs
+          echo "--- Splunk sup Postgres for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/sup-pkg-postgres.log \
+            > ./debug_logs/sup-pkg-postgres.log 2>/dev/null || true
+
+          # Splunk web access
+          echo "--- Splunk web access for debugging ---"
+          docker exec --user ${SPLUNK_USER} splunk cat ${SPLUNK_HOME}/var/log/splunk/web_access.log \
+            > ./debug_logs/web_access.log 2>/dev/null || true
+
+          # Ansible
+          echo "--- Ansible for debugging ---"
+          docker exec splunk cat /opt/ansible/ansible.log \
+            > ./debug_logs/ansible.log 2>/dev/null || true
+
+          # Backup directory listing
+          echo "--- Backup directory listing ---"
+          docker exec --user ${SPLUNK_USER} splunk ls -la \
+            ${SPLUNK_HOME}/var/backups/ \
+            > ./debug_logs/backup-dir-listing.txt 2>/dev/null || true
+
+          # KVDUMP directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user ${SPLUNK_USER} splunk ls -la \
+              ${SPLUNK_HOME}/var/lib/splunk/kvstorebackup/ \
+              > ./debug_logs/kvdump-dir-listing.txt 2>/dev/null || true
+          fi
+
+          # package directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user ${SPLUNK_USER} splunk ls -la \
+              ${SPLUNK_HOME}/var/packages/ \
+              > ./debug_logs/var-packages-dir-listing.txt 2>/dev/null || true
+          fi
+
+          # package data directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user ${SPLUNK_USER} splunk ls -la \
+              ${SPLUNK_HOME}/var/packages/data/ \
+              > ./debug_logs/var-packages-data-dir-listing.txt 2>/dev/null || true
+          fi
+
+          # package data pg directory listing (enterprise only)
+          if [ "${IS_UF}" = "0" ]; then
+            docker exec --user ${SPLUNK_USER} splunk ls -la \
+              ${SPLUNK_HOME}/var/packages/data/postgres/ \
+              > ./debug_logs/var-packages-data-postgres-dir-listing.txt 2>/dev/null || true
+          fi
+
+          echo "=== Collected files ==="
+          ls -la ./debug_logs/
+
+          echo ""
+          echo "=== splunkconf-backup.log preview ==="
+          head -100 ./debug_logs/splunkconf-backup.log 2>/dev/null || echo "(empty or not found)"
+
+          echo ""
+          echo "=== splunkd.log preview ==="
+          head -100 ./debug_logs/splunkd.log 2>/dev/null || echo "(empty or not found)"
+          echo ""
+          echo "Logs collected."
+
+      - name: Upload debug logs
+        # Strict gate: only run if Step 21 (kvdump_restore) explicitly reported success.
+        # This covers all three "ok" paths: UF skip, kvstore_disabled skip, and real kvdump success.
+        if: steps.kvdump_restore.outputs.restore_ok == '1'
+        uses: actions/upload-artifact@v6
+        with:
+          name: splunk-debug-logs-${{ matrix.splunk_version }}-${{ matrix.splunk_type }}-${{ matrix.context_type }}
+          path: ./debug_logs/
+          retention-days: 7
+
+
+
+      # -------------------------------------------------------
       # Step xx: Cleanup docker used for restore
       # -------------------------------------------------------
       - name: Cleanup Splunk restoration container

@@ -1724,8 +1724,7 @@ jobs:
 
           # Run purge and capture stdout, stderr, AND exit code separately
           set +e
-          PURGE_OUTPUT=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
-  "cd '${SPLUNK_HOME}/etc/apps' && ./splunkconf-backup/bin/splunkconf-purgebackup.sh 2>&1; echo __EXIT__:\$?")
+          PURGE_OUTPUT=$(docker exec --user ${SPLUNK_USER} splunk bash -c "cd '${SPLUNK_HOME}/etc/apps' && ./splunkconf-backup/bin/splunkconf-purgebackup.sh 2>&1; echo __EXIT__:\$?")
           PURGE_EXEC_RC=$?
           set -e
 

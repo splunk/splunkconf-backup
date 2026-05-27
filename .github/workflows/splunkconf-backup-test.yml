@@ -1544,7 +1544,7 @@ jobs:
         if: always()
         run: |
           echo "=== Removing logs from backup steps (so we only collect restore) ==="
-          find ./debug_logs -delete
+          find ./debug_logs -delete 2>/dev/null || true
           echo "=== Collecting Splunk logs (restore) ==="
           mkdir -p ./debug_logs
 
@@ -1838,15 +1838,13 @@ jobs:
       # -------------------------------------------------------
       # Step 24: Collect Splunk logs from backup operations (always, for debugging any failure)
       # -------------------------------------------------------
-      - name: Collect Splunk logs
+      - name: Collect Splunk logs after purge under maxsize constraint
         # Strict gate: only run if Step 21 (kvdump_restore) explicitly reported success.
         # This covers all three "ok" paths: UF skip, kvstore_disabled skip, and real kvdump success.
         if: always() && steps.kvdump_restore.outputs.restore_ok == '1'
         run: |
           echo "=== Removing logs from previous steps (so we only collect the last ones) ==="
-          find ./debug_logs -delete
-          echo "=== Collecting Splunk logs  ==="
-          mkdir -p ./debug_logs
+          find ./debug_logs -delete 2>/dev/null || true
           echo "=== Collecting Splunk logs ==="
           mkdir -p ./debug_logs
 
@@ -1944,7 +1942,7 @@ jobs:
         if: always() && steps.kvdump_restore.outputs.restore_ok == '1'
         uses: actions/upload-artifact@v6
         with:
-          name: splunk-debug-logs-${{ matrix.splunk_version }}-${{ matrix.splunk_type }}-${{ matrix.context_type }}
+          name: splunk-debug-logs-purge-maxsize-${{ matrix.splunk_version }}-${{ matrix.splunk_type }}-${{ matrix.context_type }}
           path: ./debug_logs/
           retention-days: 7
 

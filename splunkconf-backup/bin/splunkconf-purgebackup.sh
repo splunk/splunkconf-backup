@@ -68,8 +68,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20260406 fix multiple typos, add pg purge
 # 20260419 rework check_cloud and add azure deection
 # 20260527 add localmaxsize_minimum so we can change the value for automated testing purpose
+# 20260528 more localmaxsize_minimum safeguard and initialization
 
-VERSION="20260527a"
+VERSION="20260528a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -127,6 +128,8 @@ LOCALMAXSIZE=8100000000
 #LOCALMAXSIZE=2000000000 #2G
 # LOCALMAXSIZEDEFAULT is used when LOCALMAXSIZE set to auto as a failover valuye when needed
 LOCALMAXSIZEDEFAULT=8100000000 
+# value checked. should not be changed except for automated testing
+LOCALMAXSIZE_MINIMUM=1000000000
 
 ##### REMOTE 
 # number of days after which we completely remove backups
@@ -813,7 +816,8 @@ EXCLUSION_LIST="${EXCLUSION_LIST} ! -wholename $A"
 
 # delete on size
 REASON=size
-CURRENTSIZE=`du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump* | cut -f1 | tail -1`
+CURRENTSIZE=$(du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump* 2>/dev/null | cut -f1 | tail -1)
+CURRENTSIZE=${CURRENTSIZE:-0}
 #LASTSIZE=`find ${LOCALBACKUPDIR} ${LOCALKVDUMPDIR}  -type f -name "*.tar.gz" -printf '%Cs %p\n'|sort -rn | tail -1`
 #CURRENTSIZE=`echo ${LASTSIZE} | cut -d ' ' -f 1`
 debug_log "checking purge on size action=checksize currentlocalsize=${CURRENTSIZE},currentmaxlocalsize=${LOCALMAXSIZE} EXCLUSION_LIST=${EXCLUSION_LIST} minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL}"
@@ -832,7 +836,8 @@ do
     if [ -e "${OLDESTFILE}" ]; then
       rm -f "${OLDESTFILE}"  && RES="success" || RES="failure";
       CURRENTSIZEPRE=${CURRENTSIZE}
-      CURRENTSIZE=`du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump*| cut -f1 | tail -1`
+      CURRENTSIZE=$(du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump* 2>/dev/null | cut -f1 | tail -1)
+      CURRENTSIZE=${CURRENTSIZE:-0}
       # in case of purge by size, we get available free space after purging which is better
       splunkconf_checkspace
 
@@ -842,7 +847,8 @@ do
       debug_log "checking purge on size action=checksize currentlocalsize=${CURRENTSIZE},currentmaxlocalsize=${LOCALMAXSIZE} , OBJECT=${OBJECT} "
     else
       CURRENTSIZEPRE=${CURRENTSIZE}
-      CURRENTSIZE=`du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump*| cut -f1 | tail -1`
+      CURRENTSIZE=$(du -c --bytes ${LOCALBACKUPDIR}/backup* ${LOCALKVDUMPDIR}/*kvdump* 2>/dev/null | cut -f1 | tail -1)
+      CURRENTSIZE=${CURRENTSIZE:-0}
       # we must exit loop, we cant purge more
       let "EXITSIZE=EXITSIZE+1"
       debug_log "just increased existsize to ${EXITSIZE}, OBJECT=${OBJECT}"

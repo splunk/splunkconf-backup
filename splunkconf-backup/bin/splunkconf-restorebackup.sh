@@ -86,8 +86,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20260105 rework logging, rework case for disk space to really call splunkconf-backup to produce better error message
 # 20260506 add more info logging at end of restore
 # 20260510 add error handling for removing files and link
+# 20260529 move file rename after kvdump restore before logging to allow automated testing without race condition
 
-VERSION="20260510a"
+VERSION="20260529a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -686,7 +687,12 @@ elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto
       done
       #echo_log "RES=$RES"
       if [[ -z "$RES" ]];  then
-	warn_log "action=restorebackup type=$TYPE COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode result=failure ATTENTION : we didnt get ready status ! Either restore kvstore (kvdump) has failed or takes too long"
+        echo_log "renaming local backup file to avoid restoring it again at next start even if this failed as we dont want to loop here at every start. If you really want to redo it, rename back file without .processed suffix"
+        LFICKVDUMP2=${LFICKVDUMP}."processed"
+        # backuprestore dir should be owned by splunk or the operation will fail and the restore op will occur at each start which you dont want !
+        # we need to move file before logging so the automated restore test isnt in a race condition as the file get renamed
+        `mv ${LFICKVDUMP} ${LFICKVDUMP2}` || fail_log "cant rename ${LFICKVDUMP} . Please correct asap and give write permission to splunk user on backuprestore dir at ${SPLUNK_DB}/kvstorebackup OR the restore operation will be repeated at next Splunk start, which you probably dont want !";
+	fail_log "action=restorebackup type=$TYPE COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode result=failure ATTENTION : we didnt get ready status ! Either restore kvstore (kvdump) has failed or takes too long. You need to investigate and fix the situation"
 	kvdump_done="-1"
 # FIXME, add detection here 
 # kvstore may fail without having a error via the kvstore rest endpoint
@@ -700,12 +706,13 @@ elif ([[ "$MODE" == "0" ]] || [[ "$MODE" == "kvdump" ]] || [[ "$MODE" == "kvauto
       else
 	kvdump_done="1"
 	LFICKVDUMP="${SPLUNK_DB}/kvstorebackup/${KVARCHIVE}"
+        echo_log "renaming local backup file to avoid restoring it again at next start"
+        LFICKVDUMP2=${LFICKVDUMP}."processed"
+        # backuprestore dir should be owned by splunk or the operation will fail and the restore op will occur at each start which you dont want !
+        # we need to move file before logging so the automated restore test isnt in a race condition as the file get renamed
+        `mv ${LFICKVDUMP} ${LFICKVDUMP2}` || fail_log "cant rename ${LFICKVDUMP} . Please correct asap and give write permission to splunk user on backuprestore dir at ${SPLUNK_DB}/kvstorebackup OR the restore operation will be repeated at next Splunk start, which you probably dont want !";
 	echo_log "action=restorebackup type=$TYPE COUNTER=$COUNTER $MESSVER $MESS1 object=$kvbackupmode dest=${LFICKVDUMP} result=success kvstore online (kvdump) restore complete"
       fi
-      echo_log "renaming local backup file to avoid restoring it again at next start"
-      LFICKVDUMP2=${LFICKVDUMP}."processed"
-      # backuprestore dir should be owned by splunk or the operation will fail and the restore op will occur at each start which you dont want !
-      `mv ${LFICKVDUMP} ${LFICKVDUMP2}` || fail_log "cant rename ${LFICKVDUMP} . Please correct asap and give write permission to splunk user on backuprestore dir at ${SPLUNK_DB}/kvstorebackup OR the restore operation will be repeated at next Splunk start, which you probably dont want !";
   else
       kvbackupmode=kvdump
       debug_log "willing to restore $KVARCHIVE from $LFICKVDUMP with MGMTURL=$MGMTURL but file not present which is probably because we are not in a restore situation, which is fine"

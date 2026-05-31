@@ -305,7 +305,7 @@ jobs:
             STANZA="credential:postgres:postgres_admin:"
             # 1. Extract the obfuscated password
             # Using btool to read the configuration directly from disk
-            OBFUSCATED_PASS=$($SPLUNK_HOME/bin/splunk btool passwords list "$STANZA" | grep "password =" | awk '{print $3}')
+            OBFUSCATED_PASS=$(docker exec --user ${SPLUNK_USER} splunk $SPLUNK_HOME/bin/splunk btool passwords list "$STANZA" | grep "password =" | awk '{print $3}')
 
             # 2. Decrypt the value
             if [ -n "$OBFUSCATED_PASS" ]; then

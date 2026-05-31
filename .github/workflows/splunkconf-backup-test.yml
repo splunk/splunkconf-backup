@@ -309,11 +309,12 @@ jobs:
 
             # 2. Decrypt the value
             if [ -n "$OBFUSCATED_PASS" ]; then
-              DECRYPTED_PASS=$($SPLUNK_HOME/bin/splunk show-decrypted --value "$OBFUSCATED_PASS")
+              DECRYPTED_PASS=$(docker exec --user ${SPLUNK_USER} splunk $SPLUNK_HOME/bin/splunk show-decrypted --value "$OBFUSCATED_PASS")
               if [ $? -eq 0 ]; then
                 # Successfully decrypted
                 echo "Successfully retrieved password for $STANZA"
                 # You can now use $DECRYPTED_PASS later
+                echo "DECRYPTED_PASS=${DECRYPTED_PASS}.Stop."
               else
                 echo "Error: Failed to decrypt the password. Ensure splunk.secret is accessible."
                 exit 1

@@ -87,8 +87,9 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20260506 add more info logging at end of restore
 # 20260510 add error handling for removing files and link
 # 20260529 move file rename after kvdump restore before logging to allow automated testing without race condition
+# 20260601 add more debugging for version detection
 
-VERSION="20260529a"
+VERSION="20260601a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -567,13 +568,16 @@ cd /
 FIC="disabled"
 #if [ -z ${BACKUPKV+x} ]; then echo_log "backuptype=kvstore result=disabled"; else
 # we do a tail to get the last line as sometimes there can be warning on first lines so the version is always last line
-version=`${SPLUNK_HOME}/bin/splunk version | tail -1 | cut -d ' ' -f 2`;
+# full line
+version_full=`${SPLUNK_HOME}/bin/splunk version | tail -1 `;
+# line with just the field we look into
+version=`echo ${version_full} | cut -d ' ' -f 2`;
 if [[ $version =~ ^([^.]+\.[^.]+)\. ]]; then
   ver=${BASH_REMATCH[1]}
   vermajor=$(printf "%.0f" "$ver")
-  debug_log "splunkversion=$ver vermajor=$ver"
+  debug_log "splunkversion=$ver vermajor=$ver , version_full=${version_full}"
 else
-  fail_log "splunkversion : unable to parse string $version"
+  fail_log "splunkversion : unable to parse string $version,  , version_full=${version_full}"
   # in order to force kvdump when version detection fail as we are probably in a compatible version
   vermajor=10
 fi

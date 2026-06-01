@@ -283,52 +283,30 @@ jobs:
             echo "UF : disabling postsgres check"
             exit 0
           elif [ "$MAJOR_VERSION" -le 9 ]; then
-            echo "Splunk Enterprise less than 10, no PG"
+            echo "Splunk Enterprise less than 10, no PG expected"
             exit 0
           elif [ "${{ matrix.context_type  }}" = "kvstore_disabled" ]; then
-            echo "Splunk Enterprise KVSTORE disable, it also disable postgres"
+            echo "Splunk Enterprise KVSTORE disabled by configuration, it will also disable postgres"
             exit 0
           else
             #  Check if Postgres process is running inside container
-            echo ""
-            echo "--- Checking for Splunk Postgres process ---"
+            #echo ""
+            #echo "--- Checking for Splunk Postgres process ---"
             # if Splunk 10.0 process is named postgres
             # for splunk 10.2 and newer, process name is  splunk-postgres
-            docker exec --user ${SPLUNK_USER} splunk bash -c \
-            "ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
+            #docker exec --user ${SPLUNK_USER} splunk bash -c \
+            #"ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
             #echo "Waiting and redoing test"
             #sleep 10
             #docker exec --user ${SPLUNK_USER} splunk bash -c \
             #"ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
 
-            # replaced by dynamic value from splunk conf files in the loop
-            ## Check if .pgpass file exists (indicates Postgres credentials are configured)
-            #echo ""
-            #echo "--- Checking for Postgres credentials file ---"
-            #if docker exec --user ${SPLUNK_USER} splunk test -f ${SPLUNK_HOME}/var/packages/data/postgres/.pgpass 2>/dev/null; then
-            #  # location for splunk 10.2
-            #  PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/.pgpass"
-            #  echo "Found .pgpass at ${PGPASS_FILE}"
-            #elif docker exec --user ${SPLUNK_USER} splunk test -f ${SPLUNK_HOME}/var/packages/data/postgres/db/.pgpass 2>/dev/null; then
-            #  # location for splunk 10.0
-            #  PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/db/.pgpass"
-            #  echo "Found .pgpass at ${PGPASS_FILE}"
-            #else
-            #  echo ".pgpass not found at usual location, trying to find it anyway (if success please fix workflow for new location)"
-            #  docker exec --user ${SPLUNK_USER} splunk bash -c \
-            #  "find ${SPLUNK_HOME} -name .pgpass -print 2>/dev/null || echo '❌ Error : No .pgpass found via find command '" || true
-            #  echo "Trying to see if race condition at start - sleeping 60s and retrying"
-            #  sleep 60
-            #  "find ${SPLUNK_HOME} -name .pgpass -print 2>/dev/null || echo '❌ Error2 : No .pgpass found via find command '" || true
-            #  exit 1
-            #fi
 
             # Step 6e: Attempt to verify Postgres connectivity (if psql is available)
             echo ""
             echo "--- Attempting Postgres connectivity check (with retries) ---"
             if docker exec --user ${SPLUNK_USER} splunk test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
               echo "psql binary found at ${SPLUNK_HOME}/bin/psql"
-              echo "Using pgpass file: ${PGPASS_FILE}"
 
               # Retry parameters - Postgres may still be starting in background
               PG_MAX_RETRIES=12        # 12 retries x 10s = up to 120 seconds

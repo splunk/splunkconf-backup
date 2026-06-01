@@ -300,30 +300,8 @@ jobs:
             #sleep 10
             #docker exec --user ${SPLUNK_USER} splunk bash -c \
             #"ps aux 2>/dev/null | grep -i [p]ostgres |  grep -v grep || echo '❌ Error : No Postgres process found'" || true
-            # Trying to get pg pass . It has moved to a dynamic version from 10.4 (ie no longer .pgpass) so let's try to get it only from there
-            # Define the target stanza
-            STANZA="credential:postgres:postgres_admin:"
-            # 1. Extract the obfuscated password
-            # Using btool to read the configuration directly from disk
-            OBFUSCATED_PASS=$(docker exec --user ${SPLUNK_USER} splunk $SPLUNK_HOME/bin/splunk btool passwords list "$STANZA" | grep "password =" | awk '{print $3}')
 
-            # 2. Decrypt the value
-            if [ -n "$OBFUSCATED_PASS" ]; then
-              DECRYPTED_PASS=$(docker exec --user ${SPLUNK_USER} splunk $SPLUNK_HOME/bin/splunk show-decrypted --value "$OBFUSCATED_PASS")
-              if [ $? -eq 0 ]; then
-                # Successfully decrypted
-                echo "Successfully retrieved password for $STANZA"
-                # You can now use $DECRYPTED_PASS later
-                echo "DECRYPTED_PASS=${DECRYPTED_PASS}.Stop."
-              else
-                echo "Error: Failed to decrypt the password. Ensure splunk.secret is accessible."
-                exit 1
-              fi
-            else
-              echo "Error: Credential stanza [$STANZA] not found in passwords.conf."
-              exit 1
-            fi
-
+            # replaced by dynamic value from splunk conf files in the loop
             ## Check if .pgpass file exists (indicates Postgres credentials are configured)
             #echo ""
             #echo "--- Checking for Postgres credentials file ---"
@@ -369,25 +347,49 @@ jobs:
                   "ps aux 2>/dev/null | grep -i '[p]ostgres' | grep -v grep | wc -l" || echo "0")
                 echo "  Postgres processes detected: ${PG_PROC}"
 
-                PG_RESULT=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
-                  "export PGPASSWORD="$DECRYPTED_PASS"; \
-                   export LD_LIBRARY_PATH=${SPLUNK_HOME}/lib; \
-                   ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U postgres_admin -p 5432 \
-                   -c '\l' 2>&1" || echo "CONNECTION_FAILED")
+                # ******* PG PASS *******
+                # Trying to get pg pass . It has moved to a dynamic version from 10.4 (ie no longer .pgpass) so let's try to get it only from there
+                # Define the target stanza
+                STANZA="credential:postgres:postgres_admin:"
+                # 1. Extract the obfuscated password
+                # Using btool to read the configuration directly from disk
+                OBFUSCATED_PASS=$(docker exec --user ${SPLUNK_USER} splunk $SPLUNK_HOME/bin/splunk btool passwords list "$STANZA" | grep "password =" | awk '{print $3}')
 
-                if echo "${PG_RESULT}" | grep -q "CONNECTION_FAILED\|could not connect\|FATAL\|starting up\|not yet accepting"; then
-                  echo "  ❌ Attempt ${PG_RETRIES} failed. Postgres may still be starting."
-                  echo "  Partial output (last 5 lines):"
-                  echo "${PG_RESULT}" | tail -5 | sed 's/^/    /'
+                # 2. Decrypt the value
+                if [ -n "$OBFUSCATED_PASS" ]; then
+                  DECRYPTED_PASS=$(docker exec --user ${SPLUNK_USER} splunk $SPLUNK_HOME/bin/splunk show-decrypted --value "$OBFUSCATED_PASS")
+                  if [ $? -eq 0 ]; then
+                    # Successfully decrypted
+                    echo "Successfully retrieved password for $STANZA"
+                    # You can now use $DECRYPTED_PASS later
+                    echo "DECRYPTED_PASS=${DECRYPTED_PASS}.Stop."
+                    PG_RESULT=$(docker exec --user ${SPLUNK_USER} splunk bash -c \
+                      "export PGPASSWORD="$DECRYPTED_PASS"; \
+                       export LD_LIBRARY_PATH=${SPLUNK_HOME}/lib; \
+                       ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U postgres_admin -p 5432 \
+                       -c '\l' 2>&1" || echo "CONNECTION_FAILED")
 
-                  if [ $PG_RETRIES -lt $PG_MAX_RETRIES ]; then
-                    echo "  Retrying in ${PG_RETRY_INTERVAL}s..."
-                    sleep $PG_RETRY_INTERVAL
+                    if echo "${PG_RESULT}" | grep -q "CONNECTION_FAILED\|could not connect\|FATAL\|starting up\|not yet accepting"; then
+                      echo "Got password but PG not functional, may be still starting"
+                      echo "  Partial output (last 5 lines):"
+                      echo "${PG_RESULT}" | tail -5 | sed 's/^/    /'
+                    else
+                      echo "  ✅  Postgres connection succeeded on attempt ${PG_RETRIES}"
+                      PG_CONNECTED=1
+                      # exiting loop
+                      break
+                    fi
+                  else
+                    echo "Error: Failed to decrypt the password. Ensure splunk.secret is accessible. PG may be initializing first time"
                   fi
                 else
-                  echo "  ✅  Postgres connection succeeded on attempt ${PG_RETRIES}"
-                  PG_CONNECTED=1
-                  break
+                  echo "Error: Credential stanza [$STANZA] not found in passwords.conf. PG may be initializing first time"
+                fi
+                # if we reach here, we are in the loop after a failure 
+                echo "  ❌ Attempt ${PG_RETRIES} failed. Postgres may still be starting."
+                if [ $PG_RETRIES -lt $PG_MAX_RETRIES ]; then
+                  echo "  Retrying in ${PG_RETRY_INTERVAL}s..."
+                  sleep $PG_RETRY_INTERVAL
                 fi
               done
 

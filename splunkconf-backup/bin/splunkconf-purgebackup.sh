@@ -220,8 +220,9 @@ function checklock() {
     if [ -e "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock" ]; then
       ERROR=1
       ERROR_MESSAGE="${lockname}lock"
-      fail_log ${lockmessage}
-      exit 1
+      warn_log ${lockmessage}
+      # we dont return a error here, it is normal sometimes to get multiple purge process either because it is called within a backup process (and 2 may be running) or because the purge is called directly for testing purpose in a runner but at the same time splunk is launching it 
+      exit 0
     fi
   fi
 }
@@ -451,7 +452,7 @@ fi
 debug_log "checking for purge lock"
 lockname="purge"
 lockmindelay=5
-lockmessage="splunkconf-purgebackup is currently running, stopping purgebackup to avoid conflic"
+lockmessage="another splunkconf-purgebackup is currently running (has lock) , stopping this purgebackup run to avoid conflict"
 checklock;
 
 touch "${SPLUNK_HOME}/var/run/splunkconf-${lockname}.lock"

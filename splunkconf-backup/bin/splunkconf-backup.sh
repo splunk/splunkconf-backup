@@ -2135,63 +2135,68 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
     # for splunk 10.2 and newer, process name is  splunk-postgres
     #docker exec --user ${SPLUNK_USER} splunk bash -c \
     #"ps aux 2>/dev/null | grep -i [p]ostgres  grep -v grep || echo '❌ Error : No Postgres process found'" || true
-    # ----- Locate .pgpass for the running Splunk PG version -----
-    PGPASS_FILE=""
-    # Check if .pgpass file exists (indicates Postgres credentials are configured)
-    #echo ""
-    debug_log "--- Checking for Postgres credentials file ---"
-    if test -f ${SPLUNK_HOME}/var/packages/data/postgres/.pgpass 2>/dev/null; then
-      # Splunk 10.2+
-      PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/.pgpass"
-      debug_log "Found .pgpass in packages/data/postgres directory"
-    elif test -f ${SPLUNK_HOME}/var/packages/data/postgres/db/.pgpass 2>/dev/null; then
-      # Splunk 10.0
-      PGPASS_FILE="${SPLUNK_HOME}/var/packages/data/postgres/db/.pgpass"
-      debug_log "Found .pgpass in packages/data/db/postgres directory"
-    fi
-    if [ -n "${PGPASS_FILE}" ]; then
-      #  Attempt to verify Postgres connectivity (if psql is available)
-      debug_log "--- Attempting Postgres connectivity check ---"
-      if test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
-        debug_log "psql binary found at ${SPLUNK_HOME}/bin/psql"
-        debug_log "Using pgpass file: ${PGPASS_FILE}"
-        # ----- Create the dedicated working directory -----
-        PG_WORK_BASE="${SPLUNK_HOME}/var/run/splunkconf-backup/pg"
-        # Use PID + timestamp to avoid collisions if multiple runs overlap
-        PG_WORK_DIR="${PG_WORK_BASE}/run-$$-${TODAY}"
-        mkdir -p "${PG_WORK_DIR}"
-        if [ ! -d "${PG_WORK_DIR}" ] || [ ! -w "${PG_WORK_DIR}" ]; then
-          ERROR_MESS="pgworkdirnotwritable"
-          LFICPG="disabled"
-          fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=${ERROR_MESS} dir=${PG_WORK_DIR}"
-        else
-          debug_log "PG work dir created: ${PG_WORK_DIR}"
-          # static value, it seems Splunk is using the default at the moment
-          PG_SQL_PORT=5432
-          # ----- Detect the Postgres API port -----
-          PG_API_PORT=$(get_pg_api_port)
-          if [ -z "$PG_API_PORT" ]; then
-            ERROR_MESS="cannotdetectpgapiport"
-            LFICPG="disabled"
-            fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=${ERROR_MESS} ${MESS1}"
-          else
-            debug_log "PostgreSQL API port: $PG_API_PORT"
-            PG_ADMIN_USER="postgres_admin"
-            PG_ADMIN_PASS=$(awk -F':' -v user="$PG_ADMIN_USER" '$4 == user {print $5; exit}' "$PGPASS_FILE")
 
-            if [ -z "$PG_ADMIN_PASS" ]; then
-              ERROR_MESS="pgcredentialerror"
+    #  Attempt to verify Postgres connectivity (if psql is available)
+    debug_log "--- Attempting Postgres connectivity check ---"
+    if test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
+      debug_log "psql binary found at ${SPLUNK_HOME}/bin/psql"
+
+      # Postgres depends on kvstore; skip when kvstore is disabled at Splunk level
+      btoolkvstore=`${SPLUNK_HOME}/bin/splunk btool server list kvstore | grep disabled`;
+      if [[ $btoolkvstore =~ "true" ]] || [[ $btoolkvstore =~ "1" ]]; then
+        echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=disabledbyconfigurationatsplunklevel"
+      else
+        # Trying to get pg pass . It has moved to a dynamic version from 10.4 (ie no longer .pgpass) so let's try to get it only from there
+        # Define the target stanza
+        PG_ADMIN_USER="postgres_admin"
+        STANZA="credential:postgres:postgres_admin:"
+        PG_ADMIN_PASS=""
+        # 1. Extract the obfuscated password
+        # Using btool to read the configuration directly from disk
+        OBFUSCATED_PASS=$($SPLUNK_HOME/bin/splunk btool passwords list "$STANZA" | grep "password =" | awk '{print $3}')
+        # 2. Decrypt the value
+        if [ -n "$OBFUSCATED_PASS" ]; then
+          PG_ADMIN_PASS=$($SPLUNK_HOME/bin/splunk show-decrypted --value "$OBFUSCATED_PASS")
+          if [ $? -ne 0 ] || [ -z "$PG_ADMIN_PASS" ]; then
+            PG_ADMIN_PASS=""
+            warn_log "Error: Failed to decrypt pg password. Ensure splunk.secret is accessible. PG may be initializing first time"
+          else
+            debug_log "Successfully retrieved password for $STANZA"
+          fi
+        else
+          warn_log "Error: Credential stanza [$STANZA] not found in passwords.conf. PG may be initializing first time"
+        fi
+
+        if [ -n "${PG_ADMIN_PASS}" ]; then
+          debug_log "--- Attempting Postgres backup ---"
+          # ----- Create the dedicated working directory -----
+          PG_WORK_BASE="${SPLUNK_HOME}/var/run/splunkconf-backup/pg"
+          # Use PID + timestamp to avoid collisions if multiple runs overlap
+          PG_WORK_DIR="${PG_WORK_BASE}/run-$$-${TODAY}"
+          mkdir -p "${PG_WORK_DIR}"
+          if [ ! -d "${PG_WORK_DIR}" ] || [ ! -w "${PG_WORK_DIR}" ]; then
+            ERROR_MESS="pgworkdirnotwritable"
+            LFICPG="disabled"
+            fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=${ERROR_MESS} dir=${PG_WORK_DIR}"
+          else
+            debug_log "PG work dir created: ${PG_WORK_DIR}"
+            # static value, it seems Splunk is using the default at the moment
+            PG_SQL_PORT=5432
+            # ----- Detect the Postgres API port -----
+            PG_API_PORT=$(get_pg_api_port)
+            if [ -z "$PG_API_PORT" ]; then
+              ERROR_MESS="cannotdetectpgapiport"
               LFICPG="disabled"
-              fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=cannotretrievepgadminpassword pgpass=${PGPASS_FILE}"
+              fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=${ERROR_MESS} ${MESS1}"
             else
+              debug_log "PostgreSQL API port: $PG_API_PORT"
               PG_AUTH_BASIC=$(echo -n "$PG_ADMIN_USER:$PG_ADMIN_PASS" | base64 -w 0)
 
               # ----- Enumerate databases dynamically -----
               # We exclude template0/template1 which are not meant to be dumped
-              DB_LIST=$(bash -c "export PGPASSFILE=${PGPASS_FILE}; \
-                                 export LD_LIBRARY_PATH=${SPLUNK_HOME}/lib; \
-                                 ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U ${PG_ADMIN_USER} -p ${PG_SQL_PORT} \
-                                 -tAc \"SELECT datname FROM pg_database WHERE datistemplate = false AND datname <> 'postgres';\" 2>/dev/null")
+              DB_LIST=$(export PGPASSWORD="$PG_ADMIN_PASS"; export LD_LIBRARY_PATH="${SPLUNK_HOME}/lib"; \
+                         ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U ${PG_ADMIN_USER} -p ${PG_SQL_PORT} \
+                         -tAc "SELECT datname FROM pg_database WHERE datistemplate = false AND datname <> 'postgres';" 2>/dev/null)
 
               if [ -z "$DB_LIST" ]; then
                 ERROR_MESS="pgdblisterror"
@@ -2309,27 +2314,27 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
                   fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=somedbsfailed dbcount=${PG_DB_COUNT} dbfailed=${PG_DB_FAILED} ${MESS1}"
                 fi
               fi # else after if dblist (ie we obtained db list)
-            fi # pgadminpass
-          fi # pgapiport
-          # ----- Cleanup temp files -----
-          if [ -d "${PG_WORK_DIR}" ]; then
-            debug_log "Cleaning up PG work dir: ${PG_WORK_DIR}"
-            rm -rf "${PG_WORK_DIR}"
-          else
-            debug_log "Nothing to clean up as PGWORKDIR doenst exist. PG work dir: ${PG_WORK_DIR}"
-          fi
-        fi # pgworkdir
-      else
-        ERROR_MESS="psqlbinarymissing"
-        LFICPG="disabled"
-        fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
-        #warn_log "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
-      fi # if test -x ${SPLUNK_HOME}/bin/psql
+            fi # pgapiport
+            # ----- Cleanup temp files -----
+            if [ -d "${PG_WORK_DIR}" ]; then
+              debug_log "Cleaning up PG work dir: ${PG_WORK_DIR}"
+              rm -rf "${PG_WORK_DIR}"
+            else
+              debug_log "Nothing to clean up as PGWORKDIR doenst exist. PG work dir: ${PG_WORK_DIR}"
+            fi
+          fi # pgworkdir
+        else
+          ERROR_MESS="nopgcredentialfound"
+          LFICPG="disabled"
+          fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
+        fi # if pg_admin_pass
+      fi # if kvstore not disabled
     else
-      ERROR_MESS="nopgpassfound"
+      ERROR_MESS="psqlbinarymissing"
       LFICPG="disabled"
       fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason=${ERROR_MESS} ${MESS1}"
-    fi # if pgpass_file
+      #warn_log "❌ ERROR: psql binary not found at ${SPLUNK_HOME}/bin/psql — skipping direct connectivity test"
+    fi # if test -x ${SPLUNK_HOME}/bin/psql
   fi    #BACKUPPG is on
 fi    # mode = pg
 

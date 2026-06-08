@@ -1183,7 +1183,7 @@ jobs:
               exit 1
             }
           else
-            echo "â  ERROR: No ETC backup found in ./test_output/ â cannot proceed with restore"
+            echo "❌  ERROR: No ETC backup found in ./test_output/ â cannot proceed with restore"
             ls -la ./test_output/ || true
             exit 1
           fi

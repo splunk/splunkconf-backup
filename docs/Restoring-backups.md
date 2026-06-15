@@ -2,6 +2,7 @@
 layout: default
 title: Restoring Backups
 nav_order: 3
+nav_fold: false
 has_children: true
 ---
 # Context

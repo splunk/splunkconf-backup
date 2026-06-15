@@ -1,10 +1,8 @@
 ---
 layout: default
-title: index
----
----
-layout: default
-title: index
+title: Home
+nav_order: 1
+permalink: /
 ---
 Welcome to the splunkconf-backup wiki!
 

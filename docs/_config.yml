@@ -5,6 +5,11 @@ description: "Backup and Recovery tool for Splunk (with terraform to prepare the
 # This ensures links work on splunk.github.io/splunkconf-backup/
 url: "https://splunk.github.io"
 baseurl: "/splunkconf-backup"
+aux_links:
+  "GitHub Repository":
+    - "https://github.com/splunk/splunkconf-backup"
+  "Splunkbase App":
+    - "https://splunkbase.splunk.com/app/5600"
 
 # Enable search
 search_enabled: true

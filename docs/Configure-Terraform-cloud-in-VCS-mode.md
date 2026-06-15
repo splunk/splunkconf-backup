@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Configure-Terraform-cloud-in-VCS-mode
----
----
-layout: default
-title: Configure-Terraform-cloud-in-VCS-mode
+parent: Restoring Backups
+nav_order: 1
 ---
 # Objective 
 

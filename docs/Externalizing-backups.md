@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Externalizing-backups
----
----
-layout: default
-title: Externalizing-backups
+parent: Backups
+nav_order: 2
 ---
 # Remote Mounted FS
   Mount remote directory under filesystem via NFS

@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Getting-credentials
----
----
-layout: default
-title: Getting-credentials
+parent: Restoring Backups
+nav_order: 3
 ---
 # Context
 

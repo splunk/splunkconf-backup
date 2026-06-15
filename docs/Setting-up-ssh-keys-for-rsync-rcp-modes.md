@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Setting-up-ssh-keys-for-rsync-rcp-modes
----
----
-layout: default
-title: Setting-up-ssh-keys-for-rsync-rcp-modes
+parent: Backups
+nav_order: 3.5
 ---
 # Context
 

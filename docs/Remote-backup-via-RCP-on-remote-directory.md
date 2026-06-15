@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Remote-backup-via-RCP-on-remote-directory
----
----
-layout: default
-title: Remote-backup-via-RCP-on-remote-directory
+parent: Backups
+nav_order: 3.6
 ---
 ![RCP schema](https://github.com/splunk/splunkconf-backup/blob/main/docs/splunkconf-backup-rcp.png)
 

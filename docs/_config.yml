@@ -1,0 +1,13 @@
+remote_theme: just-the-docs/just-the-docs
+title: Splunkconf-backup
+description: "Backup and Recovery tool for Splunk (with terraform to prepare the env when running in public cloud)"
+
+# This ensures links work on splunk.github.io/splunkconf-backup/
+url: "https://splunk.github.io"
+baseurl: "/splunkconf-backup"
+
+# Enable search
+search_enabled: true
+
+# Color scheme (Splunk-like)
+color_scheme: dark

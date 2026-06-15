@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Local-backups
----
----
-layout: default
-title: Local-backups
+parent: Backups
+nav_order: 1
 ---
 # Fire and forget mode
 

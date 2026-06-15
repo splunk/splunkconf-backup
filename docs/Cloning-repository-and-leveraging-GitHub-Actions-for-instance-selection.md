@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Cloning-repository-and-leveraging-GitHub-Actions-for-instance-selection
----
----
-layout: default
-title: Cloning-repository-and-leveraging-GitHub-Actions-for-instance-selection
+parent: Restoring Backups
+nav_order: 2
 ---
 This step is useful when you will want to run terraform in VCS mode
 

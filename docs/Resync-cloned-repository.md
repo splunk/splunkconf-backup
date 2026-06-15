@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Resync-cloned-repository
----
----
-layout: default
-title: Resync-cloned-repository
+parent: Restoring Backups
+nav_order: 4
 ---
 to resync your cloned repository after main repository was updated
 

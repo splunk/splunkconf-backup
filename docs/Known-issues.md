@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Known-issues
----
----
-layout: default
-title: Known-issues
+parent: Backups
+nav_order: 6
 ---
 Backup dont run when Splunk is running as root -> This is by design, please configure your Splunk to work with a non root user (or edit scripts to remove check if you are brave enough)
 

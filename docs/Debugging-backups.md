@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Debugging-backups
----
----
-layout: default
-title: Debugging-backups
+parent: Backups
+nav_order: 5
 ---
 Or when things go wrong....
 

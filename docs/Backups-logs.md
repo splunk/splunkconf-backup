@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Backups-logs
----
----
-layout: default
-title: Backups-logs
+parent: Backups
+nav_order: 4
 ---
 There are 3 differents logs : 
 

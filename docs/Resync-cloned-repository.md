@@ -1,8 +1,8 @@
 ---
 layout: default
-title: Resync-cloned-repository
-parent: Restoring Backups
-nav_order: 4
+title: Resync cloned repository
+parent:  Updating and Upgrading Terraform
+nav_order: 1
 ---
 to resync your cloned repository after main repository was updated
 

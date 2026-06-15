@@ -1,10 +1,9 @@
 ---
 layout: default
-title: Updating-Upgrading
----
----
-layout: default
-title: Updating-Upgrading
+title: Updating and Upgrading Terraform
+parent: Restoring Backups
+nav_order: 6
+has_children: true
 ---
 # Introduction
 

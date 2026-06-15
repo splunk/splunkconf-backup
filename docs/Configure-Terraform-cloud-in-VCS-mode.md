@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Configure-Terraform-cloud-in-VCS-mode
+title: Configure Terraform cloud in VCS mode
 parent: Restoring Methods
 nav_order: 1
 ---

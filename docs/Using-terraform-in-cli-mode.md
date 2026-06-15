@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Using-terraform-in-cli-mode
+title: Using terraform in cli mode
 parent: Restoring Methods
 nav_order: 2
 ---

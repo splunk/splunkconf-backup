@@ -165,8 +165,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20260419 rework check_cloud and add azure deection
 # 20260511 more backup pg stuff
 # 20260511 fix regression with autodisabling remote backup when in rcp or rsync mode 
+# 20260608 replace pg pass file with version that get it from splunk configuration file
 
-VERSION="20260511b"
+VERSION="20260608a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -320,6 +321,11 @@ BACKUPSTATE=1
 BACKUPSCRIPTS=1
 # set to backup PG (Postgresql)
 BACKUPPG=1
+# PG backup method: sidecar (Splunk API dumps) or pgbackrest (physical backup)
+PG_BACKUP_METHOD=sidecar
+PGBACKREST_CONFIG=
+PGBACKREST_STANZA=splunk
+PGBACKREST_CMD=pgbackrest
 
 
 # KVSTORE Backup options
@@ -2141,12 +2147,12 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
     if test -x ${SPLUNK_HOME}/bin/psql 2>/dev/null; then
       debug_log "psql binary found at ${SPLUNK_HOME}/bin/psql"
 
-      # Postgres depends on kvstore; skip when kvstore is disabled at Splunk level
+      # Postgres is also disabled if kvstore disabled setting is used
       btoolkvstore=`${SPLUNK_HOME}/bin/splunk btool server list kvstore | grep disabled`;
       if [[ $btoolkvstore =~ "true" ]] || [[ $btoolkvstore =~ "1" ]]; then
         echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=disabledbyconfigurationatsplunklevel"
       else
-        # Trying to get pg pass . It has moved to a dynamic version from 10.4 (ie no longer .pgpass) so let's try to get it only from there
+        # Trying to get pg pass . It has moved to a dynamic version from 10.4 (ie no longer .pgpass) so let's try to get it only from configuration file as it works for all version 
         # Define the target stanza
         PG_ADMIN_USER="postgres_admin"
         STANZA="credential:postgres:postgres_admin:"
@@ -2159,7 +2165,7 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
           PG_ADMIN_PASS=$($SPLUNK_HOME/bin/splunk show-decrypted --value "$OBFUSCATED_PASS")
           if [ $? -ne 0 ] || [ -z "$PG_ADMIN_PASS" ]; then
             PG_ADMIN_PASS=""
-            warn_log "Error: Failed to decrypt pg password. Ensure splunk.secret is accessible. PG may be initializing first time"
+            fail_log "Error: Failed to decrypt pg password. Ensure splunk.secret is accessible. PG may be initializing first time or PG is not working properly, please investigate"
           else
             debug_log "Successfully retrieved password for $STANZA"
           fi
@@ -2169,6 +2175,51 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
 
         if [ -n "${PG_ADMIN_PASS}" ]; then
           debug_log "--- Attempting Postgres backup ---"
+          if [ -z "${PG_BACKUP_METHOD}" ]; then
+            PG_BACKUP_METHOD="sidecar"
+          fi
+          if [ "${PG_BACKUP_METHOD}" = "pgbackrest" ]; then
+            if [ -z "${PGBACKREST_CONFIG}" ]; then
+              PGBACKREST_CONFIG="${SPLUNK_HOME}/etc/apps/splunkconf-backup/default/pgbackrest.conf"
+            fi
+            if ! command -v "${PGBACKREST_CMD}" >/dev/null 2>&1; then
+              ERROR_MESS="pgbackrestmissing"
+              LFICPG="disabled"
+              fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=${ERROR_MESS} cmd=${PGBACKREST_CMD} ${MESS1}"
+            elif [ ! -f "${PGBACKREST_CONFIG}" ]; then
+              ERROR_MESS="pgbackrestconfmissing"
+              LFICPG="disabled"
+              fail_log "action=backup type=$TYPE object=${OBJECT} result=failure reason=${ERROR_MESS} file=${PGBACKREST_CONFIG} ${MESS1}"
+            else
+              PG_START=$(($(date +%s%N)))
+              PGBR_OUT=$("${PGBACKREST_CMD}" --config="${PGBACKREST_CONFIG}" --stanza="${PGBACKREST_STANZA}" backup 2>&1)
+              RES=$?
+              PG_END=$(($(date +%s%N)))
+              let DURATION=(PG_END-PG_START)/1000000
+              if [ $RES -eq 0 ]; then
+                PG_REPO_PATH=$("${PGBACKREST_CMD}" --config="${PGBACKREST_CONFIG}" info --stanza="${PGBACKREST_STANZA}" 2>/dev/null | awk '/repo1-path/ {print $3}' | head -n 1)
+                if [ -z "${PG_REPO_PATH}" ]; then
+                  PG_REPO_PATH="${SPLUNK_HOME}/var/backups/pgbackrest"
+                fi
+                VARERR=$(tar -I ${COMPRESS} -C "$(dirname "${PG_REPO_PATH}")" -cf "${FIC}" "$(basename "${PG_REPO_PATH}")" 2>&1)
+                RES=$?
+                if [ $RES -eq 0 ] && [ -e "$FIC" ]; then
+                  FILESIZE=$(/usr/bin/stat -c%s "$FIC")
+                  pg_done=1
+                  LFICPG="$FIC"
+                  echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC durationms=${DURATION} size=${FILESIZE} method=pgbackrest ${MESS1}"
+                else
+                  ERROR_MESS="pgbackresttarerror"
+                  LFICPG="disabled"
+                  fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC durationms=${DURATION} reason=tar${RES} method=pgbackrest ${MESS1} ${VARERR}"
+                fi
+              else
+                ERROR_MESS="pgbackrestbackuperror"
+                LFICPG="disabled"
+                fail_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC durationms=${DURATION} reason=${ERROR_MESS} method=pgbackrest output=${PGBR_OUT} ${MESS1}"
+              fi
+            fi
+          else
           # ----- Create the dedicated working directory -----
           PG_WORK_BASE="${SPLUNK_HOME}/var/run/splunkconf-backup/pg"
           # Use PID + timestamp to avoid collisions if multiple runs overlap
@@ -2323,6 +2374,7 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
               debug_log "Nothing to clean up as PGWORKDIR doenst exist. PG work dir: ${PG_WORK_DIR}"
             fi
           fi # pgworkdir
+          fi # PG_BACKUP_METHOD sidecar
         else
           ERROR_MESS="nopgcredentialfound"
           LFICPG="disabled"

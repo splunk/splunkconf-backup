@@ -1165,6 +1165,55 @@ jobs:
           }
 
           # ------------------------------------------------------------
+          # Helper: restore PG before Splunk start via splunkconf-restore-pg.sh
+          # (starts postgres only with pg_ctl, pg_restore dumps, stops postgres).
+          # Credentials come from restored ETC / passwords.conf.
+          # ------------------------------------------------------------
+          restore_pg_backup() {
+            local local_path="$1"
+            local label="$2"
+            local restore_script="${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}/bin/splunkconf-restore-pg.sh"
+
+            if [ -z "$local_path" ] || [ ! -f "$local_path" ]; then
+              echo "  ⚠️   ${label}: no archive provided or file does not exist (${local_path})"
+              return 1
+            fi
+
+            local fname
+            fname=$(basename "$local_path")
+            BACKUPDIR="${SPLUNK_HOME}/var/backups"
+            local archive_in_container="${BACKUPDIR}/${fname}"
+
+            echo ""
+            echo "  📦 Restoring ${label} backup (pre-Splunk start): ${fname}"
+            echo "     Source:  ${local_path}"
+            echo "     Script:  ${restore_script}"
+
+            docker exec --user root splunk mkdir -p "${BACKUPDIR}"
+            docker exec --user root splunk bash -c \
+              "chown -R ${SPLUNK_USER:-splunk}:${SPLUNK_USER:-splunk} '${BACKUPDIR}'"
+            docker cp "${local_path}" "splunk:${archive_in_container}"
+
+            if ! docker exec --user root splunk test -x "${restore_script}"; then
+              docker exec --user root splunk chmod +x "${restore_script}" || true
+            fi
+
+            if docker exec --user ${SPLUNK_USER} splunk bash -c \
+              "'${restore_script}' '${archive_in_container}'"; then
+              echo "  ✅  OK: ${label} backup restored before Splunk start."
+              docker exec --user ${SPLUNK_USER} splunk bash -c \
+                "tail -20 '${SPLUNK_HOME}/var/log/splunk/splunkconf-pg-restore.log' 2>/dev/null" || true
+            else
+              echo "  ❌  ERROR: PG restore script failed for ${label}"
+              docker exec --user ${SPLUNK_USER} splunk bash -c \
+                "tail -50 '${SPLUNK_HOME}/var/log/splunk/splunkconf-pg-restore.log' 2>/dev/null" || true
+              return 1
+            fi
+
+            return 0
+          }
+
+          # ------------------------------------------------------------
           # 1) Restore the latest ETC backup
           # ------------------------------------------------------------
           echo "--- Locating latest ETC backup ---"
@@ -1214,7 +1263,37 @@ jobs:
           fi
 
           # ------------------------------------------------------------
-          # 3) Restore the latest KVDUMP backup (Enterprise only, kvstore enabled)
+          # 3) Restore the latest PG backup from the previous test (if any)
+          #    Runs after ETC/STATE, before Splunk start (Postgres down).
+          # ------------------------------------------------------------
+          echo ""
+          echo "--- Locating latest PG backup ---"
+          LATEST_PG=$(find_latest "backupconfsplunk-*-pg-*.tar.gz")
+          if [ -z "$LATEST_PG" ]; then
+            LATEST_PG=$(find_latest "backupconfsplunk-*-pg.tar.gz")
+          fi
+          if [ -z "$LATEST_PG" ]; then
+            LATEST_PG=$(find_latest "backupconfsplunk-pg-*.tar.gz")
+          fi
+          if [ -z "$LATEST_PG" ]; then
+            LATEST_PG=$(find_latest "backupconfsplunk-*-pg-*.tar.zst")
+          fi
+          if [ -z "$LATEST_PG" ]; then
+            LATEST_PG=$(find_latest "backupconfsplunk-*-pg-*.tar")
+          fi
+          echo "Latest PG backup: ${LATEST_PG:-<none>}"
+
+          if [ -n "$LATEST_PG" ]; then
+            restore_pg_backup "$LATEST_PG" "PG" || {
+              echo "❌  ERROR: Failed to restore PG backup"
+              exit 1
+            }
+          else
+            echo "  No PG backup from previous test — skipping."
+          fi
+
+          # ------------------------------------------------------------
+          # 4) Restore the latest KVDUMP backup (Enterprise only, kvstore enabled)
           #    For kvdump we DO NOT extract: we drop the archive into
           #    ${SPLUNK_HOME}/var/lib/splunk/kvstorebackup/ with the special name
           #    backupconfsplunk-kvdump-toberestored.tar.gz so splunkconf-backup
@@ -1259,7 +1338,7 @@ jobs:
           fi
 
           # ------------------------------------------------------------
-          # 4) Fix ownership across SPLUNK_HOME so Splunk can start cleanly
+          # 5) Fix ownership across SPLUNK_HOME so Splunk can start cleanly
           # ------------------------------------------------------------
           echo ""
           echo "--- Fixing ownership of ${SPLUNK_HOME} ---"
@@ -1269,7 +1348,7 @@ jobs:
             }
 
           # ------------------------------------------------------------
-          # 5) Sanity-check: list a few key restored locations
+          # 6) Sanity-check: list a few key restored locations
           # ------------------------------------------------------------
           echo ""
           echo "--- Post-restore sanity checks ---"
@@ -1289,6 +1368,10 @@ jobs:
             docker exec --user root splunk bash -c \
               "ls -la '${SPLUNK_HOME}/var/lib/splunk/kvstorebackup/' 2>/dev/null" || true
           fi
+          echo ""
+          echo "PG dump files restored (pre-Splunk start)?"
+          docker exec --user root splunk bash -c \
+            "find '${SPLUNK_HOME}/var/run/splunkconf-backup/pg/restore' -name '*.dump' -type f 2>/dev/null | head -20" || true
           echo ""
           echo "Fishbucket present (state restore check)?"
           docker exec --user root splunk bash -c \

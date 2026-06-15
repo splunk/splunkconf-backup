@@ -1,10 +1,8 @@
 ---
 layout: default
-title: Debugging-recovery
----
----
-layout: default
-title: Debugging-recovery
+title: Debugging recovery
+parent: Restoring Backups
+nav_order: 8
 ---
 # Context
 

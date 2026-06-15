@@ -1,10 +1,8 @@
 ---
 layout: default
-title: Using-existing-network-VPC
----
----
-layout: default
-title: Using-existing-network-VPC
+title: Using existing network VPC
+parent: Customizing Terraform
+nav_order: 2
 ---
 # Context
 

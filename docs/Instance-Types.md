@@ -1,10 +1,8 @@
 ---
 layout: default
-title: Instance-Types
----
----
-layout: default
-title: Instance-Types
+title: Instance Types
+parent: Customizing Terraform
+nav_order: 4
 ---
 # Instances add/remove and numbers
 

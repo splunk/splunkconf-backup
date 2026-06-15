@@ -1,10 +1,8 @@
 ---
 layout: default
-title: Network-Topology
----
----
-layout: default
-title: Network-Topology
+title: Network Topology
+parent: Customizing Terraform
+nav_order: 1
 ---
 # Introduction
 

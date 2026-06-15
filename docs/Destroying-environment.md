@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Destroying-environment
----
----
-layout: default
-title: Destroying-environment
+parent: Restoring Backups
+nav_order: 9
 ---
 # Introduction
 

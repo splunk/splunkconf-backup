@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Using-terraform-in-cli-mode
----
----
-layout: default
-title: Using-terraform-in-cli-mode
+parent: Restoring Methods
+nav_order: 2
 ---
 # Introduction 
 

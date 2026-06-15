@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Local-backups
+title: Local backups
 parent: Backups
 nav_order: 1
 ---

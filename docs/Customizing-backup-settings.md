@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Customizing-backup-settings
+title: Customizing backup settings
 parent: Backups
 nav_order: 1.5
 ---

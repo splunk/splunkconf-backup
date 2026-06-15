@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Remote-Mounted-FS
+title: Remote Mounted FS
 parent: Backups
 nav_order: 3
 ---

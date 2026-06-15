@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Known-issues
+title: Known issues
 parent: Backups
 nav_order: 6
 ---

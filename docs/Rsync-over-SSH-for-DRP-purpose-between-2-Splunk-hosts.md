@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Rsync-over-SSH-for-DRP-purpose-between-2-Splunk-hosts
+title: Rsync over SSH for DRP purpose between 2 Splunk hosts
 parent: Backups
 nav_order: 3.7
 ---

@@ -1,6 +1,6 @@
 ---
 layout: default
-title: splunkconf‐backup-cost-optimisation-with-tag-and-frequency
+title:  Cost Optimisation with tags on S3
 parent: Backups
 nav_order: 2.5
 ---

@@ -1,10 +1,8 @@
 ---
 layout: default
 title: Restoring-backups
----
----
-layout: default
-title: Restoring-backups
+nav_order: 3
+has_children: true
 ---
 # Context
 

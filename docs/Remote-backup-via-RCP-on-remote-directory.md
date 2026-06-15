@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Remote-backup-via-RCP-on-remote-directory
+title: Remote backup via RCP on remote directory
 parent: Backups
 nav_order: 3.6
 ---

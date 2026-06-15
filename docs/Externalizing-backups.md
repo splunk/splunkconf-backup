@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Externalizing-backups
+title: Externalizing backups
 parent: Backups
 nav_order: 2
 ---

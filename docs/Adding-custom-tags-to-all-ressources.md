@@ -1,10 +1,8 @@
 ---
 layout: default
-title: Adding-custom-tags-to-all-ressources
----
----
-layout: default
-title: Adding-custom-tags-to-all-ressources
+title: Adding custom tags to all ressources
+parent: Customizing Terraform
+nav_order: 6
 ---
 #Introduction
 

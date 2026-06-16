@@ -1,10 +1,8 @@
 ---
 layout: default
-title: Provisioning
----
----
-layout: default
-title: Provisioning
+title: Provisioning Splunk configurations
+parent: Restoring Backups
+nav_order: 7
 ---
 # Introduction
 

@@ -1,10 +1,8 @@
 ---
 layout: default
-title: Tags-List
----
----
-layout: default
-title: Tags-List
+title: Tags List
+parent: Customizing Terraform
+nav_order: 7
 ---
 # Introduction
 

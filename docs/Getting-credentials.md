@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Getting-credentials
+title: Getting Credentials
 parent: Restoring Backups
 nav_order: 3
 ---

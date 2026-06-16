@@ -1,10 +1,7 @@
 ---
 layout: default
-title: Splunkconf-backup-backups-and-recovery-design
----
----
-layout: default
-title: Splunkconf-backup-backups-and-recovery-design
+title: Design architecture
+nav_order: 1.5
 ---
 splunkconf-backup app design : 
 

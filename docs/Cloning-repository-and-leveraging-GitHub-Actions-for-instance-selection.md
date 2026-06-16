@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Cloning-repository-and-leveraging-GitHub-Actions-for-instance-selection
+title: Cloning repository and leveraging GitHub-Actions for instance selection
 parent: Restoring Backups
 nav_order: 2
 ---

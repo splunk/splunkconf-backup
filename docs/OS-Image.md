@@ -1,10 +1,8 @@
 ---
 layout: default
-title: OS-Image
----
----
-layout: default
-title: OS-Image
+title: OS Image
+parent: Customizing Terraform
+nav_order: 3
 ---
 # OS Image
 

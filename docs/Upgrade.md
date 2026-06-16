@@ -1,10 +1,9 @@
 ---
 layout: default
-title: Upgrade
+title: Upgrade Splunk
+parent:  Updating and Upgrading Terraform
+nav_order: 3
 ---
----
-layout: default
-title: Upgrade
 ---
 # Objective 
 

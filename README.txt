@@ -102,8 +102,6 @@ The usual requirements from Splunk on versions, upgrade requirements, configurat
 
 
 Docs :
-Docs are currently spread over multiple parts in each directories
-They are being moved and organized over https://github.com/splunk/splunkconf-backup/wiki as time goes
-
+docs are available at https://splunk.github.io/splunkconf-backup/
 
 

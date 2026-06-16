@@ -1,10 +1,9 @@
 ---
 layout: default
-title: Plan-and-Apply-Terraform-content
+title: Plan and Apply Terraform content
+parent:  Updating and Upgrading Terraform
+nav_order: 2
 ---
----
-layout: default
-title: Plan-and-Apply-Terraform-content
 ---
 # Introduction
 

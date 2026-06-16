@@ -2,6 +2,7 @@
 layout: default
 title: Backups
 nav_order: 2
+nav_fold: false
 has_children: true
 ---
 # Backups

@@ -1,10 +1,8 @@
 ---
 layout: default
-title: Disconnected-mode
----
----
-layout: default
-title: Disconnected-mode
+title: Disconnected mode
+parent: Customizing Terraform
+nav_order: 5
 ---
 ## Introduction
 

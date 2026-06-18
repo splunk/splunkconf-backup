@@ -9,7 +9,7 @@ In this mode, you have 2 running Linux instances with Splunk deployed
 Only one instance is started from a Splunk point of view
 On the running instance, backups are rsynced to remote hosts backups directories.
 
-![rsync over SSH schema](https://github.com/splunk/splunkconf-backup/blob/main/docs/splunkconf-backup-rsync.png)
+![rsync over SSH schema](https://github.com/splunk/splunkconf-backup/blob/main/docs/images/splunkconf-backup-rsync.png)
 
 # Requirements
 - splunkconf-backup app version 1.6 minimal (1.8+ to get autobackup at start and autorestore)

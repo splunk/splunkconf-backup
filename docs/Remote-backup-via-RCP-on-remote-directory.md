@@ -4,7 +4,7 @@ title: Remote backup via RCP on remote directory
 parent: Backups
 nav_order: 3.6
 ---
-![RCP schema](https://github.com/splunk/splunkconf-backup/blob/main/docs/images/splunkconf-backup-rcp.png)
+![RCP schema](/splunkconf-backup/images/splunkconf-backup-rcp.png)
 
 
 In this mode, local backups are copied via RCP (ie over SSH) to a remote host 

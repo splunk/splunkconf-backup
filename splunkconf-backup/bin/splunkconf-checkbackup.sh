@@ -39,7 +39,7 @@ SPLUNK_HOME=`cd ../../..;pwd`
 # debug -> verify the env that splunk set (python version may affect aws command for example,...)
 #env
 # undetting env to not depend on splunk python version
-# this is because we may call aws command which is in python itself and can break du to this
+# this is because we may call aws command which is in python itself and can break due to this
 unset LD_LIBRARY_PATH
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin
 unset PYTHONHASHSEED
@@ -55,7 +55,7 @@ CURLMAXTIME=60
 
 ##### LOCAL
 
-# Used for checking that backup is more recent than this value, dont forget to add a margin related to backup frequency as the backup time may change slightly even if theorically running at same time
+# Used for checking that backup is more recent than this value, dont forget to add a margin related to backup frequency as the backup time may change slightly even if theoretically running at same time
 BACKUPRECENCY=86500
 
 LOCALBACKUPDIR="${SPLUNK_HOME}/var/backups"

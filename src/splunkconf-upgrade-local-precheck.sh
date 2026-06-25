@@ -62,7 +62,7 @@ function check_cloud() {
       cloud_type=1
     fi
   fi
-  # if detection not yet successfull, try fallback method
+  # if detection not yet successful, try fallback method
   if [[ $cloud_type -eq "0" ]]; then 
     # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
     # authoritative, we could follow Amazon's suggestions for cryptographically

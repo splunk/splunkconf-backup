@@ -6,7 +6,7 @@
 # - allow the os to move unused thing to swap
 # - give flexibility to the os memory management to avoid killing processes too early , especially when there are temporary burs
 # System should not be swapping permanently of course, use Splunk monitoring Console or OS tools to monitor usaget 
-# This should be part of global strategy on ressource management that is multiple things working together  :
+# This should be part of global strategy on resource management that is multiple things working together  :
 # - correctly sized instance
 # - WLM
 # - user profiles
@@ -135,7 +135,7 @@ if ($AVAIL2<=0) {
 
 print "trying to create a swapfile at $PARTITIONFAST/swapfile with size $WANTED14\n";
 if (-e "$PARTITIONFAST/swapfile") {
-  print "swapfile $PARTITIONFAST/swapfile already exist , doing nothing\n";
+  print "swapfile $PARTITIONFAST/swapfile already exists , doing nothing\n";
 } else {
   my $WANTED5=1024*$WANTED14;
   print "Going to create swapfile at $PARTITIONFAST/swapfile with size $WANTED5, adding \"$PARTITIONFAST/swapfile none swap sw 0 0\" to /etc/fstab and activating with swapon -a";

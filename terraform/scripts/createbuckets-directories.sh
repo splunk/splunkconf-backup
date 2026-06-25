@@ -78,7 +78,7 @@ do
   fi
 done
 # splunk.secret is a file generated first time by Splunk . If you provide one, it will be deployed which ease deploying already obfuscated config in a distributed env (it may e less necessary with v9+ that automatically handle different splunk.secret in a indexer  cluster
-# user-seed.conf contains hashed splunk admin password. it avoid to have admin passord in clear format here. If you dont provide one, installation will proceed and either you already had one from backups or yopu can always add this later
+# user-seed.conf contains hashed splunk admin password. it avoid to have admin password in clear format here. If you dont provide one, installation will proceed and either you already had one from backups or you can always add this later
 
 # same for system files
 SOURCE="system"

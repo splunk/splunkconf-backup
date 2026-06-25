@@ -5,7 +5,7 @@ variable "profile" {
 }
 
 # do not use, replaced by region-primary
-# we cant remove easily du to the way TF store things in state
+# we cant remove easily due to the way TF store things in state
 variable "region-master" {
   description = "(legacy, please use region-primary) ) primary AWS region to use (us-east-1,eu-west-3,...)"
   type        = string

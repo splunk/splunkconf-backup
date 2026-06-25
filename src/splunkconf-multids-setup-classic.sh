@@ -46,7 +46,7 @@ splunkdsnb=4
 splunkorg="org"
 # replace with the version you deploy
 splbinary="splunkxxxxxx.tar.gz"
-SPLUNK_HOME="/opt/splunk'
+SPLUNK_HOME="/opt/splunk"
 localinstalldir="${SPLUNK_HOME}/var/install"
 # you can change here (for example to use a custom user and group) but make sure you are still in systemd as the multids rely on it
 SPLUNKINITOPTIONS=""

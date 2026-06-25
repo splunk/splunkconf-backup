@@ -48,7 +48,7 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20200421 improve logging
 # 20201105 add test for default and local conf file to prevent error appearing in logs
 # 20220326 add support for rel and zstd types by relaxing form detection
-# 20220326 change starving condition to fail even if that is probably du to external condition in order to try to be more visible that we have a problem + only log when all the types have been tried 
+# 20220326 change starving condition to fail even if that is probably due to external condition in order to try to be more visible that we have a problem + only log when all the types have been tried 
 # 20220327 improve logging by adding freespace info
 # 20230704 add rcp purge support
 # 20230913 add more debug log for system local conf file
@@ -200,7 +200,7 @@ function fail_log {
 function splunkconf_checkspace {
   CURRENTAVAIL=`df --output=avail -k  ${LOCALBACKUPDIR} | tail -1`
   if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
-    # we dont report the error here in normal case as it will be reported with nore info by the local backup functions
+    # we dont report the error here in normal case as it will be reported with more info by the local backup functions
     debug_log "mode=$MODE, minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} type=localdiskspacecheck reason=insufficientspaceleft action=checkdiskfree result=fail ERROR : Insufficient disk space left , disabling backups ! Please fix "
     ERROR=1
     ERROR_MESS="localdiskspacecheck"

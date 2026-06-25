@@ -16,7 +16,7 @@
 echo "************************** SSH key check "
 
 if [ ! -e "~/.ssh/id_rsa" ]; then
-  echo "no ssh key , creating one for access to basrtion host"
+  echo "no ssh key , creating one for access to bastion host"
   echo -ne '\n' | ssh-keygen -q -t rsa -f ~/.ssh/id_rsa
 else
   echo "ssh key exist"
@@ -50,7 +50,7 @@ cd splunkconf-backup
 
 # 2 options here 
 # either normal modules then use loca-preparation-withmodules.tf
-# either with remotestate (as below) so we can partially destroy without destroying bastion, ssh key declaration (AWS API is limited on this part, which doesnt help terraform knows what to do) and kms (if we want to reusae data in bucket later on)   (file local-preparation-withremotestate.tf)
+# either with remotestate (as below) so we can partially destroy without destroying bastion, ssh key declaration (AWS API is limited on this part, which doesnt help terraform knows what to do) and kms (if we want to reuse data in bucket later on)   (file local-preparation-withremotestate.tf)
 # at the moment , below logic is with remotestate which match files in git
 
 #for i in kms network ssh 

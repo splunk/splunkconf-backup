@@ -54,6 +54,6 @@ if [ -e "$localinstalldir/splunkconf-cloud-recovery.sh" ]; then
   # need to pass upgrade argument,  for the rest we will use contextual data from tags
   . $localinstalldir/splunkconf-cloud-recovery.sh upgrade 
 else
-  echo "splunkconf-cloud-recovery.sh could not be downloaded, please check that it is on s3 install , that iam are set to autorize and tags for splunks3installbucket is set" 
+  echo "splunkconf-cloud-recovery.sh could not be downloaded, please check that it is on s3 install , that iam are set to authorize and tags for splunks3installbucket is set" 
 fi
 echo "end of splunkconf upgrade script"

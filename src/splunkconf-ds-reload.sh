@@ -128,7 +128,7 @@ until [[ "$LOGGEDIN" -eq "1" ]] ; do
      #PORT=`head -1 ${MGTPORT}`
      #SPLUNK_URI="https://127.0.0.1:${PORT}"
      #echo "SPLUNK_URI=${SPLUNK_URI}."
-     # note as we changed commandi path, it will figure outthe port itself
+     # note as we changed command path, it will figure out the port itself
      # we only test with first instance as the password are supposed to be the same on all the instances
      SPLUNK_HOME="${SPLUNK_HOME_ORIG}/splunk_ds1"
      SPLUNK_BIN="${SPLUNK_HOME}/bin/splunk"
@@ -152,7 +152,7 @@ echo_log "OK, logged in"
 
 if [[ -e "${SPLUNKCONF_BACKUP_BIN}" ]]; then 
   if [[ -e "${SPLUNKCONF_PURGEBACKUP_BIN}" ]]; then
-    echo_log "purging old backups to freee up space for new backups"
+    echo_log "purging old backups to free up space for new backups"
     `cd ${SPLUNK_APPS};${SPLUNKCONF_PURGEBACKUP_BIN}`
   else 
     fail_log "ERROR ! Missing ${SPLUNKCONF_PURGEBACKUP_BIN}"
@@ -186,7 +186,7 @@ do
    SPLUNK_BIN="${SPLUNK_HOME}/bin/splunk"
    if [[ -e "${SPLUNK_BIN}" ]]; then
      echo_log "Reloading DS for instance $i, path=${SPLUNK_HOME}"
-     # we need to login just before because du to the time it take we could be in the situation where the token expire !
+     # we need to login just before because due to the time it take we could be in the situation where the token expire !
      ${SPLUNK_HOME}/bin/splunk login -auth $SPLADMIN:$SPLPASS 
      ${SPLUNK_HOME}/bin/splunk reload deploy-server $CLASSES
      echo_log "reload initiated for instance $i, sleeping 30s"

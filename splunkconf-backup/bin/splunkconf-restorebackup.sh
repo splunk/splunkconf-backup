@@ -79,7 +79,7 @@ exec > /tmp/splunkconf-restore-debug.log  2>&1
 # 20251201 rework version detection, update with the one from backup to change the logic to be consistent (help with v10)
 # 20251202 align load settings with backup version
 # 20251215 remove version check for kvdump, assuming always version at minimum 7.1
-# 20251215 add backup dir creation to avoid error and delay du to check disk space not working correctly
+# 20251215 add backup dir creation to avoid error and delay due to check disk space not working correctly
 # 20251215 add timeout for curl command to speed up backup for on prem with firewalls
 # 20251219 add failure log for backup in disk space situation at first start in order to fill dashboard from start with correct info
 # 20260105 update time logging format
@@ -113,7 +113,7 @@ SPLUNK_HOME=`cd ../../..;pwd`
 # debug -> verify the env that splunk set (python version may affect aws command for example,...)
 #env
 # unsetting env to not depend on splunk python version 
-# this is because we may call aws command which is in python itself and can break du to this
+# this is because we may call aws command which is in python itself and can break due to this
 unset LD_LIBRARY_PATH
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin
 unset PYTHONHASHSEED
@@ -399,7 +399,7 @@ if [ ! -d "$LOCALBACKUPDIR" ]; then
     exit 1;
   fi
 else
-  debug_log "OK: backup dir $LOCALBACKUPDIR already exist"
+  debug_log "OK: backup dir $LOCALBACKUPDIR already exists"
 fi
 
 if [ ! -w $LOCALBACKUPDIR ] ; then 

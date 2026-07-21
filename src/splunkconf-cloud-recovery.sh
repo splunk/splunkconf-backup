@@ -287,8 +287,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20240419 import function from backup app and curl variables to allow more common code
 # 20260617 up to 10.4.0
 # 20260701 up to 10.4.1
+# 20260721 apply temp solution for pg password at start
 
-VERSION="20260701a"
+VERSION="20260721a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -2238,6 +2239,11 @@ if [ "$MODE" != "upgrade" ]; then
            echo "attention, no remote backup found for $type (this is expected if you just created the env otherwise you are probably in trouble)" 
        fi
     done   # type
+    if [ -e "${SPLUNK_HOME}/etc/system/local/passwords.conf" ]; then
+      echo "moving passwords.conf for pg (temp solution)"
+      NOWSEC=`date '+%s'`;
+      mv ${SPLUNK_HOME}/etc/system/local/passwords.conf ${SPLUNK_HOME}/etc/system/local/passwords.conf.${NOWSEC}.old
+    fi 
 
     echo "localbackupdir ${localbackupdir}  contains" >> /var/log/splunkconf-cloud-recovery-info.log
     ls -l ${localbackupdir} >> /var/log/splunkconf-cloud-recovery-info.log

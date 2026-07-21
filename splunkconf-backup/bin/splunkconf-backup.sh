@@ -166,8 +166,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20260511 more backup pg stuff
 # 20260511 fix regression with autodisabling remote backup when in rcp or rsync mode 
 # 20260608 replace pg pass file with version that get it from splunk configuration file
+# 20260721 fix lsof pg port detection 
 
-VERSION="20260608a"
+VERSION="20260721a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -972,7 +973,11 @@ function get_pg_api_port() {
         #postgres          8436 splunk    7u  IPv4    34187      0t0  TCP *:5432 (LISTEN)
         debug_log "INFO: Using lsof to detect port" 
         # note starting with 10.2 the process may be called splunk-postgres so we need to add -c 15 to increase length output or it doesnt work
-        port=$(lsof +c 15 -i -P | awk '/postgres/ && /LISTEN/ && $9 ~ /localhost/ && $9 !~ /5432/ {split($9, a, ":"); ports[++count] = a[2]} END {if (count >= 2) print ports[2]}')
+        # for pg with splunk < 10.4 , process name is postgres
+        # for pg with splunk >=10.4 , process name is splunk-postgres
+        # process should run with $SPLUNK_USER user, if there is another postgres process from the system, it should be ignored
+        port=$(lsof +c 15 -i -P | awk '$1 ~ /postgres/ && /LISTEN/ && $9 !~ /:5432$/ {split($9, a, ":"); print a[2]; exit}')
+
     elif command -v ss &>/dev/null; then
         debug_log "INFO: Using ss to detect port" 
         port=$(ss -tlnp | awk '/postgres/ && $4 !~ /:5432$/ {split($4, a, ":"); print a[length(a)]; exit}')

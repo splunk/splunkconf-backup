@@ -20,6 +20,7 @@ s4plunkconf-backup.old
 splunkconf-backup/bin/splunkconf-backup.sh.txt
 splunkconf-backup/bin/splunkconf-purgebackup.sh.tempo
 splunkconf-backup/bin/splunkconf-purgebackup.sh.txt
+src/installes.sh.txt
 
 # keys
 *priv

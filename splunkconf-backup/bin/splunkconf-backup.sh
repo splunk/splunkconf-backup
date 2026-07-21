@@ -2249,8 +2249,11 @@ if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
               debug_log "PostgreSQL API port: $PG_API_PORT"
               PG_AUTH_BASIC=$(echo -n "$PG_ADMIN_USER:$PG_ADMIN_PASS" | base64 -w 0)
 
+              # TEMP FIXME to be removed
+              debug_log "launching export PGPASSWORD=\"$PG_ADMIN_PASS\"; export LD_LIBRARY_PATH=\"${SPLUNK_HOME}/lib\"; ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U ${PG_ADMIN_USER} -p ${PG_SQL_PORT} -tAc \"SELECT datname FROM pg_database WHERE datistemplate = false AND datname <> 'postgres';\" 2>/dev/null "  
               # ----- Enumerate databases dynamically -----
               # We exclude template0/template1 which are not meant to be dumped
+             
               DB_LIST=$(export PGPASSWORD="$PG_ADMIN_PASS"; export LD_LIBRARY_PATH="${SPLUNK_HOME}/lib"; \
                          ${SPLUNK_HOME}/bin/psql -h localhost -d postgres -U ${PG_ADMIN_USER} -p ${PG_SQL_PORT} \
                          -tAc "SELECT datname FROM pg_database WHERE datistemplate = false AND datname <> 'postgres';" 2>/dev/null)

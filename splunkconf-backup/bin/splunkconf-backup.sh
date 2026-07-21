@@ -168,8 +168,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20260608 replace pg pass file with version that get it from splunk configuration file
 # 20260721 fix lsof pg port detection 
 # 20260721 update check_cloud to log in debug
+# 20260721 add variable and disable backup sidecar by default to not create conflict with pg backup
 
-VERSION="20260721b"
+VERSION="20260721c"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -362,10 +363,20 @@ fi
 # state files and dir
 #MODINPUTPATH="${SPLUNK_DB}/modinputs"
 #SCHEDULERSTATEPATH="${SPLUNK_HOME}/var/run/splunk/scheduler"
-if [ "${TARMODE}" = "abs" ]; then
-    STATELIST="${SPLUNK_DB}/modinputs ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy ${SPLUNK_HOME}/var/splunk_assist ${SPLUNK_HOME}/var/run/splunk/confsnapshot/ ${SPLUNK_HOME}/var/packages/data"
+BACHUPSTATEPACKAGES=0
+if [ ${BACHUPSTATEPACKAGES} = "0" ]; then  
+  if [ "${TARMODE}" = "abs" ]; then
+    STATELIST="${SPLUNK_DB}/modinputs ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy ${SPLUNK_HOME}/var/splunk_assist ${SPLUNK_HOME}/var/run/splunk/confsnapshot/"
+  else
+    STATELIST="${SPLUNK_DB_REL}/modinputs ./var/run/splunk/scheduler ./var/run/splunk/cluster/remote-bundle ${SPLUNK_DB_REL}/persistentstorage ${SPLUNK_DB_REL}/fishbucket ./var/run/splunk/deploy ./var/splunk_assist ./var/run/splunk/confsnapshot/"
+  fi
 else
+  # we backup with the sidecar
+  if [ "${TARMODE}" = "abs" ]; then
+    STATELIST="${SPLUNK_DB}/modinputs ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy ${SPLUNK_HOME}/var/splunk_assist ${SPLUNK_HOME}/var/run/splunk/confsnapshot/ ${SPLUNK_HOME}/var/packages/data"
+  else
     STATELIST="${SPLUNK_DB_REL}/modinputs ./var/run/splunk/scheduler ./var/run/splunk/cluster/remote-bundle ${SPLUNK_DB_REL}/persistentstorage ${SPLUNK_DB_REL}/fishbucket ./var/run/splunk/deploy ./var/splunk_assist ./var/run/splunk/confsnapshot/ ./var/packages/data"
+  fi
 fi
 
 # configuration for scripts backups

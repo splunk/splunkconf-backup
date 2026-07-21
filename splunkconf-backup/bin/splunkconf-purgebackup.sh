@@ -69,8 +69,9 @@ exec > /tmp/splunkconf-purgebackup-debug.log  2>&1
 # 20260419 rework check_cloud and add azure deection
 # 20260527 add localmaxsize_minimum so we can change the value for automated testing purpose
 # 20260528 more localmaxsize_minimum safeguard and initialization
+# 20260721 update check_cloud to log in debug
 
-VERSION="20260528a"
+VERSION="20260721a"
 
 ###### BEGIN default parameters
 # dont change here, use the configuration file to override them
@@ -251,9 +252,9 @@ function check_cloud() {
     fi
 
     if [ ${#missing_deps[@]} -gt 0 ]; then
-        echo "WARNING: check_cloud requires missing commands: ${missing_deps[*]}" >&2
-        echo "WARNING: Install missing dependencies for reliable cloud detection." >&2
-        echo "WARNING: Falling back to filesystem-only checks." >&2
+        debug_log "WARNING: check_cloud requires missing commands: ${missing_deps[*]}" >&2
+        debug_log "WARNING: Install missing dependencies for reliable cloud detection." >&2
+        debug_log "WARNING: Falling back to filesystem-only checks." >&2
     fi
 
     # ------------------------------------------------------------------
@@ -267,12 +268,12 @@ function check_cloud() {
             2>/dev/null)
 
         if [ $? -eq 0 ] && [ -n "$gcp_response" ]; then
-            echo "GCP instance detected via condition 1"
+            debug_log "GCP instance detected via condition 1"
             cloud_type=2
             return 0
         fi
     else
-        echo "WARNING: Skipping GCP IMDS check (curl missing)" >&2
+        debug_log "WARNING: Skipping GCP IMDS check (curl missing)" >&2
     fi
 
     # ------------------------------------------------------------------
@@ -282,7 +283,7 @@ function check_cloud() {
         local uuid_prefix
         uuid_prefix=$(head -c 3 /sys/hypervisor/uuid 2>/dev/null)
         if [[ "${uuid_prefix,,}" == "ec2" ]]; then
-            echo "AWS instance detected via condition 2 (hypervisor uuid)"
+            debug_log "AWS instance detected via condition 2 (hypervisor uuid)"
             cloud_type=1
             return 0
         fi
@@ -296,7 +297,7 @@ function check_cloud() {
         product_uuid_prefix=$(head -c 3 \
             /sys/devices/virtual/dmi/id/product_uuid 2>/dev/null)
         if [[ "${product_uuid_prefix,,}" == "ec2" ]]; then
-            echo "AWS instance detected via condition 3 (DMI product_uuid)"
+            debug_log "AWS instance detected via condition 3 (DMI product_uuid)"
             cloud_type=1
             return 0
         fi
@@ -320,13 +321,13 @@ function check_cloud() {
                 2>/dev/null)
 
             if echo "$az_check" | grep -q "availabilityZone"; then
-                echo "AWS instance detected via condition 4 (IMDSv2)"
+                debug_log "AWS instance detected via condition 4 (IMDSv2)"
                 cloud_type=1
                 return 0
             fi
         fi
     else
-        echo "WARNING: Skipping AWS IMDSv2 check (curl missing)" >&2
+        debug_log "WARNING: Skipping AWS IMDSv2 check (curl missing)" >&2
     fi
 
     # ------------------------------------------------------------------
@@ -335,7 +336,7 @@ function check_cloud() {
     local dmi_file="/sys/class/dmi/id/sys_vendor"
     if [ -f "$dmi_file" ]; then
         if grep -qi "microsoft" "$dmi_file" 2>/dev/null; then
-            echo "Azure instance detected via condition 5 (DMI sys_vendor)"
+            debug_log "Azure instance detected via condition 5 (DMI sys_vendor)"
             cloud_type=3
             return 0
         fi
@@ -352,18 +353,18 @@ function check_cloud() {
             2>/dev/null)
 
         if echo "$azure_response" | grep -q "azEnvironment"; then
-            echo "Azure instance detected via condition 6 (IMDS)"
+            debug_log "Azure instance detected via condition 6 (IMDS)"
             cloud_type=3
             return 0
         fi
     else
-        echo "WARNING: Skipping Azure IMDS check (curl missing)" >&2
+        debug_log "WARNING: Skipping Azure IMDS check (curl missing)" >&2
     fi
 
     # ------------------------------------------------------------------
     # No cloud detected
     # ------------------------------------------------------------------
-    echo "No cloud environment detected — assuming on-premises"
+    debug_log "No cloud environment detected — assuming on-premises"
     cloud_type=0
     return 0
 }

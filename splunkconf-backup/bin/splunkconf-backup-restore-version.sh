@@ -28,7 +28,8 @@
 # 20260722 add date command version detection and fallback for date command on macos
 # 20260722 fix PREFIX variable expansion in S3 queries; use unique backup basenames
 # 20260722 show latest backup info; skip rollback when latest already older than target
-VERSION="20260722d"
+# 20260722 preserve original backup date in object metadata on restore; idempotent re-run via ETag/effective date
+VERSION="20260722e"
 
 # TODO autodetect from bucket name if s3, azure or gcp then auto adapt requirement and commands
 
@@ -112,6 +113,10 @@ format_epoch_date() {
   fi
 }
 
+aws_date_to_epoch() {
+  echo "$1" | jq -R 'gsub("\\+00:00$"; "Z") | fromdateiso8601'
+}
+
 DATE_EPOCH=$(parse_date_to_epoch "$DATE_INPUT")
 if [ -z "$DATE_EPOCH" ]; then
   echo "Error: Invalid date format '$DATE_INPUT'. Use YYYY-MM-DD or relative like -3d."
@@ -141,20 +146,36 @@ for backup_type in $backup_types; do
   versions_json=$(aws s3api list-object-versions --bucket "$BUCKET" --prefix "$backup_key" --query "Versions[?Key=='${backup_key}']" --output json)
 
   latest_version=$(echo "$versions_json" | jq -r '
-    sort_by(.LastModified) | last // empty
+    map(select(.IsLatest == true)) | first // empty
   ')
 
   if [ -z "$latest_version" ] || [ "$latest_version" = "null" ]; then
-    echo "  No versions found for $backup_type, skipping."
+    echo "  No current backup for $backup_type (object deleted or missing), skipping."
     continue
   fi
 
   latest_version_id=$(echo "$latest_version" | jq -r '.VersionId')
   latest_modified=$(echo "$latest_version" | jq -r '.LastModified')
-  echo "  Latest backup: VersionId: $latest_version_id, Date: $latest_modified"
 
-  latest_epoch=$(echo "$latest_modified" | jq -R 'gsub("\\+00:00$"; "Z") | fromdateiso8601')
-  if [ "$latest_epoch" -lt "$DATE_EPOCH" ]; then
+  latest_head=$(aws s3api head-object --bucket "$BUCKET" --key "$backup_key" --version-id "$latest_version_id")
+  backup_date=$(echo "$latest_head" | jq -r '.Metadata["splunkconf-backup-date"] // empty')
+  if [ "$backup_date" = "null" ]; then
+    backup_date=""
+  fi
+
+  if [ -n "$backup_date" ] && [ "$backup_date" != "$latest_modified" ]; then
+    echo "  Latest backup: VersionId: $latest_version_id, Backup date: $backup_date, S3 LastModified: $latest_modified"
+  else
+    echo "  Latest backup: VersionId: $latest_version_id, Date: $latest_modified"
+  fi
+
+  if [ -n "$backup_date" ]; then
+    effective_date="$backup_date"
+  else
+    effective_date="$latest_modified"
+  fi
+  effective_epoch=$(aws_date_to_epoch "$effective_date")
+  if [ "$effective_epoch" -lt "$DATE_EPOCH" ]; then
     echo "  Latest is already older than restore target ($(format_epoch_date "$DATE_EPOCH")), no action needed."
     continue
   fi
@@ -176,12 +197,24 @@ for backup_type in $backup_types; do
   version_id=$(echo "$selected_version" | jq -r '.VersionId')
   last_modified=$(echo "$selected_version" | jq -r '.LastModified')
 
+  latest_etag=$(echo "$latest_version" | jq -r '.ETag')
+  candidate_etag=$(echo "$selected_version" | jq -r '.ETag')
+  if [ "$latest_etag" = "$candidate_etag" ]; then
+    echo "  Latest already matches restore candidate (same content), no action needed."
+    continue
+  fi
+
   echo "  Restore candidate (newest before target): VersionId: $version_id, Date: $last_modified"
   read -p "  Do you want to copy this version as the latest? (y/n): " confirm
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
     # Copy the selected version to the same key (overwrite current latest)
     echo "  Copying version $version_id of $key to latest..."
-    aws s3api copy-object --bucket "$BUCKET" --copy-source "$BUCKET/$key?versionId=$version_id" --key "$key"
+    aws s3api copy-object \
+      --bucket "$BUCKET" \
+      --copy-source "$BUCKET/$key?versionId=$version_id" \
+      --key "$key" \
+      --metadata-directive REPLACE \
+      --metadata "splunkconf-backup-date=${last_modified},splunkconf-restored-from-version=${version_id}"
     if [ $? -eq 0 ]; then
       echo "  Copy successful."
     else

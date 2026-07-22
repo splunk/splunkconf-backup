@@ -32,7 +32,8 @@
 # 20260722 report delete date and last available version when backup object was deleted
 # 20260722 add download (d) and quit (q) choices to restore prompt
 # 20260722 add backup date stamp to downloaded filename
-VERSION="20260722h"
+# 20260722 fix extra quotes in download filename from jq strftime output
+VERSION="20260722i"
 
 # TODO autodetect from bucket name if s3, azure or gcp then auto adapt requirement and commands
 
@@ -127,7 +128,7 @@ download_filename_for_version() {
   local download_stamp
   local local_file
 
-  download_stamp=$(echo "$last_modified" | jq -R 'gsub("\\+00:00$"; "Z") | fromdateiso8601 | strftime("%Y%m%d-%H%M")')
+  download_stamp=$(echo "$last_modified" | jq -rR 'gsub("\\+00:00$"; "Z") | fromdateiso8601 | strftime("%Y%m%d-%H%M")')
 
   if [[ "$backup_type" =~ ^(.+)\.(tar\.gz|tar\.zst)$ ]]; then
     local_file="./${BASH_REMATCH[1]}-${download_stamp}.${BASH_REMATCH[2]}"

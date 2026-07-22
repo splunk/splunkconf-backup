@@ -30,7 +30,9 @@
 # 20260722 show latest backup info; skip rollback when latest already older than target
 # 20260722 preserve original backup date in object metadata on restore; idempotent re-run via ETag/effective date
 # 20260722 report delete date and last available version when backup object was deleted
-VERSION="20260722f"
+# 20260722 add download (d) and quit (q) choices to restore prompt
+# 20260722 add backup date stamp to downloaded filename
+VERSION="20260722h"
 
 # TODO autodetect from bucket name if s3, azure or gcp then auto adapt requirement and commands
 
@@ -44,6 +46,7 @@ if [ "$#" -ne 3 ]; then
   echo "bucket_name: s3 bucket name"
   echo "host: host directory under splunkconf-backup prefix"
   echo "date: date threshold (absolute YYYY-MM-DD or relative like -3d)"
+  echo "At restore prompt: y=copy to S3 latest, n=skip, d=download locally, q=quit"
   exit 1
 fi
 
@@ -116,6 +119,25 @@ format_epoch_date() {
 
 aws_date_to_epoch() {
   echo "$1" | jq -R 'gsub("\\+00:00$"; "Z") | fromdateiso8601'
+}
+
+download_filename_for_version() {
+  local backup_type="$1"
+  local last_modified="$2"
+  local download_stamp
+  local local_file
+
+  download_stamp=$(echo "$last_modified" | jq -R 'gsub("\\+00:00$"; "Z") | fromdateiso8601 | strftime("%Y%m%d-%H%M")')
+
+  if [[ "$backup_type" =~ ^(.+)\.(tar\.gz|tar\.zst)$ ]]; then
+    local_file="./${BASH_REMATCH[1]}-${download_stamp}.${BASH_REMATCH[2]}"
+  elif [[ "$backup_type" == *.* ]]; then
+    local_file="./${backup_type%.*}-${download_stamp}.${backup_type##*.}"
+  else
+    local_file="./${backup_type}-${download_stamp}"
+  fi
+
+  echo "$local_file"
 }
 
 DATE_EPOCH=$(parse_date_to_epoch "$DATE_INPUT")
@@ -228,24 +250,50 @@ for backup_type in $backup_types; do
   fi
 
   echo "  Restore candidate (newest before target): VersionId: $version_id, Date: $last_modified"
-  read -p "  Do you want to copy this version as the latest? (y/n): " confirm
-  if [[ "$confirm" =~ ^[Yy]$ ]]; then
-    # Copy the selected version to the same key (overwrite current latest)
-    echo "  Copying version $version_id of $key to latest..."
-    aws s3api copy-object \
-      --bucket "$BUCKET" \
-      --copy-source "$BUCKET/$key?versionId=$version_id" \
-      --key "$key" \
-      --metadata-directive REPLACE \
-      --metadata "splunkconf-backup-date=${last_modified},splunkconf-restored-from-version=${version_id}"
-    if [ $? -eq 0 ]; then
-      echo "  Copy successful."
-    else
-      echo "  Copy failed. Check permissions."
-    fi
-  else
-    echo "  Skipping copy for $backup_type."
-  fi
+  while true; do
+    read -p "  Copy this version as latest? (y=yes, n=skip, d=download, q=quit): " confirm
+    case "$confirm" in
+      y|Y)
+        echo "  Copying version $version_id of $key to latest..."
+        if aws s3api copy-object \
+          --bucket "$BUCKET" \
+          --copy-source "$BUCKET/$key?versionId=$version_id" \
+          --key "$key" \
+          --metadata-directive REPLACE \
+          --metadata "splunkconf-backup-date=${last_modified},splunkconf-restored-from-version=${version_id}"; then
+          echo "  Copy successful."
+        else
+          echo "  Copy failed. Check permissions."
+        fi
+        break
+        ;;
+      n|N)
+        echo "  Skipping copy for $backup_type."
+        break
+        ;;
+      d|D)
+        local_file=$(download_filename_for_version "$backup_type" "$last_modified")
+        echo "  Downloading version $version_id to $local_file ..."
+        if aws s3api get-object \
+          --bucket "$BUCKET" \
+          --key "$key" \
+          --version-id "$version_id" \
+          "$local_file"; then
+          echo "  Download successful."
+        else
+          echo "  Download failed. Check permissions."
+        fi
+        break
+        ;;
+      q|Q)
+        echo "  Quit requested. Exiting."
+        exit 0
+        ;;
+      *)
+        echo "  Invalid choice. Enter y, n, d, or q."
+        ;;
+    esac
+  done
 done
 
 echo "$0 Script completed."

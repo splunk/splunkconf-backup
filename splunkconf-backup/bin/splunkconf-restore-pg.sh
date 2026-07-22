@@ -4,6 +4,13 @@
 # Does NOT start splunkd — only postgres (pg_ctl) for dump restore, or
 # pgBackRest for offline physical restore when configured.
 
+VERSION="20260717a"
+
+###### BEGIN default parameters 
+# dont change here, use the configuration file to override them
+
+# Note : we can be called either from splunk via a input or via direct call 
+# get script dir
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$DIR/.."
 SPLUNK_HOME="$(cd ../../..; pwd)"
@@ -49,11 +56,6 @@ function load_settings_from_file () {
   done < "$FI"
 }
 
-load_settings_from_file "${SPLUNK_HOME}/etc/apps/splunkconf-backup/default/splunkconf-backup.conf"
-load_settings_from_file "${SPLUNK_HOME}/etc/apps/splunkconf-backup/local/splunkconf-backup.conf"
-if [ -z "${PGBACKREST_CONFIG}" ]; then
-  PGBACKREST_CONFIG="${SPLUNK_HOME}/etc/apps/splunkconf-backup/default/pgbackrest.conf"
-fi
 
 function get_pg_admin_pass () {
   local stanza="credential:postgres:postgres_admin:"
@@ -220,6 +222,17 @@ function restore_pgbackrest () {
   fail_log "action=restorebackup type=local object=pg result=failure method=pgbackrest stanza=${PGBACKREST_STANZA}"
   return 1
 }
+
+# start 
+# load settings from configuration files
+
+load_settings_from_file "${SPLUNK_HOME}/etc/apps/splunkconf-backup/default/splunkconf-backup.conf"
+load_settings_from_file "${SPLUNK_HOME}/etc/apps/splunkconf-backup/local/splunkconf-backup.conf"
+
+if [ -z "${PGBACKREST_CONFIG}" ]; then
+  PGBACKREST_CONFIG="${SPLUNK_HOME}/etc/apps/splunkconf-backup/default/pgbackrest.conf"
+fi
+
 
 PG_STARTED=0
 ARCHIVE_PATH="${1:-}"

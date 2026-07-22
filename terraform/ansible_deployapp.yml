@@ -1,0 +1,13 @@
+---
+- hosts: 127.0.0.1
+  vars:
+    org: org
+    dns_zone_name: eu-north-1.cloud.plouic.com
+  tasks:
+  - name: sync packaged to host
+    command: "/bin/bash ./scripts/syncpackaged.sh sh idx cm mc ds std"
+  - name: reload splunk
+    command: "/bin/bash ./scripts/reloadsplunk.sh sh cm mc ds std"
+  - name: apply bundle cm for idx
+    command: "/bin/bash ./scripts/applybundlecm.sh"
+

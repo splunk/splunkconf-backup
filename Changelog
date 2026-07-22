@@ -1,0 +1,10 @@
+
+
+
+add support for splunk_assist and config tracker backups (state backups).
+add logic to detect and fix inconsistency between splunk assist configuration and state in order to get splunk_assist rebuild its state when needed.
+rework configuration loading. While keeping compatibility with previous versions, you should now create local setting under [settings] stansza. Additionally this also fix a issue with deployer and shc that can add extra spaces. 
+add more tags support for backups to make it easier to have a single app between environments that fetch its config dynamically
+add new auto value for LCOALMAXSIZE that default to LOCALMAXSIZEDEFAULT
+add support to get hostname via env variable for special k8s case and add hostname form checks
+fix small edge case on kvdump backup protection under disk stress situation

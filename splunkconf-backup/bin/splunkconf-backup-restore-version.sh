@@ -26,7 +26,8 @@
 
 # 20260722 initial version
 # 20260722 add date command version detection and fallback for date command on macos
-VERSION="20260722b"
+# 20260722 fix PREFIX variable expansion in S3 queries; use unique backup basenames
+VERSION="20260722c"
 
 # TODO autodetect from bucket name if s3, azure or gcp then auto adapt requirement and commands
 
@@ -122,8 +123,8 @@ echo "Looking for backups in bucket '$BUCKET' under prefix '$PREFIX' older than 
 # We will process each backup type separately
 # Backup types start with backupconfsplunk-
 
-# Get list of backup types present (unique prefixes after splunkconf-backup/$HOST/)
-backup_types=$(aws s3api list-object-versions --bucket "$BUCKET" --prefix "$PREFIX" --query "Versions[?starts_with(Key, '$PREFIXbackupconfsplunk-')].Key" --output text | awk -F/ '{print $NF}' | cut -d'-' -f1,2,3 | sort -u)
+# Get list of backup files present (unique basenames under the host prefix)
+backup_types=$(aws s3api list-object-versions --bucket "$BUCKET" --prefix "$PREFIX" --query "Versions[?starts_with(Key, '${PREFIX}backupconfsplunk-')].Key" --output text | tr '\t' '\n' | awk -F/ '{print $NF}' | sort -u)
 
 if [ -z "$backup_types" ]; then
   echo "No backups found under prefix '$PREFIX'."
@@ -133,21 +134,24 @@ fi
 for backup_type in $backup_types; do
   echo "Processing backup type: $backup_type"
 
-  # List versions of this backup type under the prefix
-  versions_json=$(aws s3api list-object-versions --bucket "$BUCKET" --prefix "$PREFIX$backup_type" --query "Versions[?starts_with(Key, '$PREFIX$backup_type')]" --output json)
+  backup_key="${PREFIX}${backup_type}"
 
-  # Filter versions older than DATE_EPOCH
-  selected_version=$(echo "$versions_json" | jq -r --arg prefix "$PREFIX$backup_type" --argjson date_epoch "$DATE_EPOCH" '
-    map(select(.LastModified | fromdateiso8601 < $date_epoch)) |
+  # List versions of this backup file
+  versions_json=$(aws s3api list-object-versions --bucket "$BUCKET" --prefix "$backup_key" --query "Versions[?Key=='${backup_key}']" --output json)
+
+  # Newest version older than DATE_EPOCH (closest restore point before the threshold)
+  selected_version=$(echo "$versions_json" | jq -r --argjson date_epoch "$DATE_EPOCH" '
+    def aws_epoch: gsub("\\+00:00$"; "Z") | fromdateiso8601;
+    map(select(.LastModified | aws_epoch < $date_epoch)) |
     sort_by(.LastModified) |
-    .[0] // empty
+    last // empty
   ')
 
   if [ -z "$selected_version" ]; then
     echo "  No version older than specified date found for $backup_type. Keeping latest if exists."
 
     # Get latest version
-    latest_version=$(echo "$versions_json" | jq -r --arg prefix "$PREFIX$backup_type" '
+    latest_version=$(echo "$versions_json" | jq -r '
       sort_by(.LastModified) | last // empty
     ')
 

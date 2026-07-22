@@ -25,7 +25,8 @@
 
 
 # 20260722 initial version
-VERSION="20260722a"
+# 20260722 add date command version detection and fallback for date command on macos
+VERSION="20260722b"
 
 # TODO autodetect from bucket name if s3, azure or gcp then auto adapt requirement and commands
 
@@ -73,19 +74,40 @@ if ! aws s3 cp "s3://${BUCKET}/${PREFIX}" "s3://${BUCKET}/${TMP_TEST_KEY}" --rec
   echo "Warning: You may lack write permission to copy objects in bucket '$BUCKET' under prefix '$PREFIX'."
 fi
 
-# Parse date input to epoch seconds
+# Cross-platform date helpers (GNU date on Linux, BSD date on macOS)
+is_gnu_date() {
+  date --version >/dev/null 2>&1
+}
+
 parse_date_to_epoch() {
   local input="$1"
-  local epoch
-  if [[ "$input" =~ ^-?[0-9]+d$ ]]; then
-    # Relative days, e.g. -3d
-    local days="${input%d}"
-    epoch=$(date -d "$days days ago" +%s)
-  else
-    # Absolute date YYYY-MM-DD
-    epoch=$(date -d "$input" +%s 2>/dev/null || echo "")
+  local epoch=""
+
+  if [[ "$input" =~ ^-?([0-9]+)d$ ]]; then
+    local days="${BASH_REMATCH[1]}"
+    if is_gnu_date; then
+      epoch=$(date -d "${days} days ago" +%s)
+    else
+      epoch=$(date -v-"${days}"d +%s)
+    fi
+  elif [[ "$input" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+    if is_gnu_date; then
+      epoch=$(date -d "$input" +%s 2>/dev/null || true)
+    else
+      epoch=$(date -j -f "%Y-%m-%d" "$input" +%s 2>/dev/null || true)
+    fi
   fi
+
   echo "$epoch"
+}
+
+format_epoch_date() {
+  local epoch="$1"
+  if is_gnu_date; then
+    date -d "@${epoch}" '+%Y-%m-%d'
+  else
+    date -r "${epoch}" '+%Y-%m-%d'
+  fi
 }
 
 DATE_EPOCH=$(parse_date_to_epoch "$DATE_INPUT")
@@ -94,7 +116,7 @@ if [ -z "$DATE_EPOCH" ]; then
   exit 1
 fi
 
-echo "Looking for backups in bucket '$BUCKET' under prefix '$PREFIX' older than $(date -d @$DATE_EPOCH '+%Y-%m-%d')."
+echo "Looking for backups in bucket '$BUCKET' under prefix '$PREFIX' older than $(format_epoch_date "$DATE_EPOCH")."
 
 # List all versions of objects starting with backupconfsplunk- under the prefix
 # We will process each backup type separately

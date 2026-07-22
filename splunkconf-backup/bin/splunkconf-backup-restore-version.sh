@@ -27,7 +27,8 @@
 # 20260722 initial version
 # 20260722 add date command version detection and fallback for date command on macos
 # 20260722 fix PREFIX variable expansion in S3 queries; use unique backup basenames
-VERSION="20260722c"
+# 20260722 show latest backup info; skip rollback when latest already older than target
+VERSION="20260722d"
 
 # TODO autodetect from bucket name if s3, azure or gcp then auto adapt requirement and commands
 
@@ -139,6 +140,25 @@ for backup_type in $backup_types; do
   # List versions of this backup file
   versions_json=$(aws s3api list-object-versions --bucket "$BUCKET" --prefix "$backup_key" --query "Versions[?Key=='${backup_key}']" --output json)
 
+  latest_version=$(echo "$versions_json" | jq -r '
+    sort_by(.LastModified) | last // empty
+  ')
+
+  if [ -z "$latest_version" ] || [ "$latest_version" = "null" ]; then
+    echo "  No versions found for $backup_type, skipping."
+    continue
+  fi
+
+  latest_version_id=$(echo "$latest_version" | jq -r '.VersionId')
+  latest_modified=$(echo "$latest_version" | jq -r '.LastModified')
+  echo "  Latest backup: VersionId: $latest_version_id, Date: $latest_modified"
+
+  latest_epoch=$(echo "$latest_modified" | jq -R 'gsub("\\+00:00$"; "Z") | fromdateiso8601')
+  if [ "$latest_epoch" -lt "$DATE_EPOCH" ]; then
+    echo "  Latest is already older than restore target ($(format_epoch_date "$DATE_EPOCH")), no action needed."
+    continue
+  fi
+
   # Newest version older than DATE_EPOCH (closest restore point before the threshold)
   selected_version=$(echo "$versions_json" | jq -r --argjson date_epoch "$DATE_EPOCH" '
     def aws_epoch: gsub("\\+00:00$"; "Z") | fromdateiso8601;
@@ -147,25 +167,8 @@ for backup_type in $backup_types; do
     last // empty
   ')
 
-  if [ -z "$selected_version" ]; then
-    echo "  No version older than specified date found for $backup_type. Keeping latest if exists."
-
-    # Get latest version
-    latest_version=$(echo "$versions_json" | jq -r '
-      sort_by(.LastModified) | last // empty
-    ')
-
-    if [ -z "$latest_version" ]; then
-      echo "  No versions found for $backup_type, skipping."
-      continue
-    fi
-
-    key=$(echo "$latest_version" | jq -r '.Key')
-    version_id=$(echo "$latest_version" | jq -r '.VersionId')
-    last_modified=$(echo "$latest_version" | jq -r '.LastModified')
-
-    echo "  Latest version: $key (VersionId: $version_id, Date: $last_modified)"
-    echo "  No action needed, continuing."
+  if [ -z "$selected_version" ] || [ "$selected_version" = "null" ]; then
+    echo "  No version older than restore target ($(format_epoch_date "$DATE_EPOCH")), no action needed."
     continue
   fi
 
@@ -173,7 +176,7 @@ for backup_type in $backup_types; do
   version_id=$(echo "$selected_version" | jq -r '.VersionId')
   last_modified=$(echo "$selected_version" | jq -r '.LastModified')
 
-  echo "  Found version older than date: $key (VersionId: $version_id, Date: $last_modified)"
+  echo "  Restore candidate (newest before target): VersionId: $version_id, Date: $last_modified"
   read -p "  Do you want to copy this version as the latest? (y/n): " confirm
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
     # Copy the selected version to the same key (overwrite current latest)

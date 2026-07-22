@@ -29,7 +29,8 @@
 # 20260722 fix PREFIX variable expansion in S3 queries; use unique backup basenames
 # 20260722 show latest backup info; skip rollback when latest already older than target
 # 20260722 preserve original backup date in object metadata on restore; idempotent re-run via ETag/effective date
-VERSION="20260722e"
+# 20260722 report delete date and last available version when backup object was deleted
+VERSION="20260722f"
 
 # TODO autodetect from bucket name if s3, azure or gcp then auto adapt requirement and commands
 
@@ -142,15 +143,37 @@ for backup_type in $backup_types; do
 
   backup_key="${PREFIX}${backup_type}"
 
-  # List versions of this backup file
-  versions_json=$(aws s3api list-object-versions --bucket "$BUCKET" --prefix "$backup_key" --query "Versions[?Key=='${backup_key}']" --output json)
+  # List versions and delete markers for this backup file
+  object_versions_json=$(aws s3api list-object-versions --bucket "$BUCKET" --prefix "$backup_key" --output json)
+  versions_json=$(echo "$object_versions_json" | jq --arg key "$backup_key" '[.Versions[]? | select(.Key == $key)]')
 
   latest_version=$(echo "$versions_json" | jq -r '
     map(select(.IsLatest == true)) | first // empty
   ')
 
   if [ -z "$latest_version" ] || [ "$latest_version" = "null" ]; then
-    echo "  No current backup for $backup_type (object deleted or missing), skipping."
+    delete_marker=$(echo "$object_versions_json" | jq -r --arg key "$backup_key" '
+      (.DeleteMarkers // []) | map(select(.Key == $key and .IsLatest == true)) | first // empty
+    ')
+    last_available_version=$(echo "$versions_json" | jq -r 'sort_by(.LastModified) | last // empty')
+
+    if [ -n "$delete_marker" ] && [ "$delete_marker" != "null" ]; then
+      deleted_date=$(echo "$delete_marker" | jq -r '.LastModified')
+      delete_version_id=$(echo "$delete_marker" | jq -r '.VersionId')
+      echo "  No current backup for $backup_type (deleted on $deleted_date, DeleteMarker VersionId: $delete_version_id)."
+    else
+      echo "  No current backup for $backup_type (object missing)."
+    fi
+
+    if [ -n "$last_available_version" ] && [ "$last_available_version" != "null" ]; then
+      last_version_id=$(echo "$last_available_version" | jq -r '.VersionId')
+      last_modified=$(echo "$last_available_version" | jq -r '.LastModified')
+      echo "  Last available version: VersionId: $last_version_id, Date: $last_modified"
+    else
+      echo "  No previous versions found for $backup_type."
+    fi
+
+    echo "  No action possible without a current object, skipping."
     continue
   fi
 

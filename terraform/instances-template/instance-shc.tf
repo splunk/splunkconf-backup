@@ -602,8 +602,6 @@ resource "aws_security_group_rule" "lbsh_from_networks_https" {
 resource "aws_alb_target_group" "shc-users" {
   name_prefix = "shcu-"
   port        = 8000
-  protocol    = "HTTP"
-  #protocol = var.sh_protocol
   vpc_id                        = local.master_vpc_id
   load_balancing_algorithm_type = "round_robin"
   # important : use round robin here, sessions will spread over time better than with a theorical clever algo
@@ -658,14 +656,44 @@ resource "aws_lb" "shc-users" {
 
 resource "aws_alb_listener" "shc-users" {
   load_balancer_arn = aws_lb.shc-users.arn
+  protocol    = "HTTPS"
+  certificate_arn = aws_acm_certificate_validation.acm_certificate_validation_elb_shcusers.certificate_arn
   port              = 8000
-  protocol          = "HTTP"
   #port = 443
   #protocol = "HTTPS"
   default_action {
     target_group_arn = aws_alb_target_group.shc-users.arn
     type             = "forward"
   }
+}
+
+resource "aws_acm_certificate" "acm_certificate_elb_shcusers" {
+  domain_name       = var.dns-zone-name
+  validation_method = "DNS"
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "validation_route53_record_elb_shcusers" {
+  for_each = {
+    for dvo in aws_acm_certificate.acm_certificate_elb_shcusers.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id = module.network.dnszone_id
+}
+
+resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_shcusers" {
+  certificate_arn = aws_acm_certificate.acm_certificate_elb_shcusers.arn
+  validation_record_fqdns = [for record in aws_route53_record.validation_route53_record_elb_shcusers : record.fqdn]
 }
 
 #resource "aws_route53_record" "shc-users" {

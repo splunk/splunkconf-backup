@@ -44,3 +44,4 @@ splunkconf-backup/metadata/
 .terraform.lock.hcl
 .terraform
 
+terraform-gcp/syncbucket.tf.disabled

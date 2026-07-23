@@ -37,7 +37,7 @@ For object store context (AWS/GCP mainly), backup location is usually configured
 
 In both case, backups are organized by instance type/name
 In traditional FS, remote backups name contain the date by default
-In object store context, remote backups are always named the same (which ease recovery) as the object store is versionning. As such, you may get a older backup by selecting show versions in UI (or similar)
+In object store context, remote backups are always named the same (which ease recovery) as the object store is versionning. As such, you may get a older backup by selecting show versions in UI (or similar), or use the [Restoring S3 backup versions](./Restoring-S3-backup-versions.md) utility (`splunkconf-backup-restore-version.sh`) to find and promote or download a version prior to a given date.
 
 # Viewing backup content
 

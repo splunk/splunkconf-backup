@@ -57,7 +57,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20191018 correct exit codes to have ES checks happy, change version test to less depend on external command, change manageport detection that dont work on all env, reduce tar kvstore loop try as we have kvdump
 # 20200304 add logic for more generic /etc/instance-tags for non aws case + more logging improvements and move lots of logging to debug levea, fix statelist var in log message
 # 20200309 disable old tar kvstore when doing kvdump, more logging improvements
-# 20200314 add restore lock check to avoid launching a backup while a restore is still running (big kvdump for example) (may be theorically possible but add load to kvstore and not really make sense) 
+# 20200314 add restore lock check to avoid launching a backup while a restore is still running (big kvdump for example) (may be theoretically possible but add load to kvstore and not really make sense) 
 # 20200318 add ability to pass parameter for specific backup only in order to do more fine grained scheduling
 # 20200502 change disk space check to not exit immediately in order to report more info for backup that are missing (to be used for reporting logic)
 # 20200502 make code more modular, improve logging for full etc case, add disabled apps dir to targeted etc, set umask explicitely, change check for kvstore remote copy  
@@ -154,7 +154,7 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20251216 more curl timeout
 # 20251217 propage script autodisable status so remote copy status is always aligned
 # 20251218 improve remote copy and disabled modes to prevent useless retries which add unecessary logging
-# 20251219 propagate error from local to remote to avoid logging disabled when it is a failure du to local (like disk space issue)
+# 20251219 propagate error from local to remote to avoid logging disabled when it is a failure due to local (like disk space issue)
 # 20260105 update time logging format
 # 20260324 add more debug logging for remotebackup
 # 20260324 update condition fro unconfigured s3
@@ -185,7 +185,7 @@ SPLUNK_HOME=`cd ../../..;pwd`
 # debug -> verify the env that splunk set (python version may affect aws command for example,...)
 #env
 # unsetting env to not depend on splunk python version 
-# this is because we may call aws command which is in python itself and can break du to this
+# this is because we may call aws command which is in python itself and can break due to this
 unset LD_LIBRARY_PATH
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin
 unset PYTHONHASHSEED
@@ -205,7 +205,7 @@ CURLMAXTIME=60
 
 # we always do relative backup but if ever you want the old way, change mode below to abs
 # recovery part support both mode 
-# du to recent tar behavior related to exclusion it is better to use rel mode
+# due to recent tar behavior related to exclusion it is better to use rel mode
 TARMODE="rel"
 # this is the form that gets added in name if the backup was made relative to splunk home
 # otherwise no extension
@@ -422,7 +422,7 @@ function splunkconf_purgebackup {
 function splunkconf_checkspace { 
   CURRENTAVAIL=`df --output=avail -k  ${LOCALBACKUPDIR} | tail -1`
   if [[ ${MINFREESPACE} -gt ${CURRENTAVAIL} ]]; then
-    # we dont report the error here in normal case as it will be reported with nore info by the local backup functions
+    # we dont report the error here in normal case as it will be reported with more info by the local backup functions
     debug_log "action=checkdiskfree mode=$MODE, minfreespace=${MINFREESPACE}, currentavailable=${CURRENTAVAIL} type=localdiskspacecheck reason=insufficientspaceleft result=fail ERROR : Insufficient disk space left , disabling backups ! Please fix "
     ERROR=1
     ERROR_MESS="localdiskspacecheck"
@@ -459,7 +459,7 @@ function check_cloud() {
       cloud_type=1
     fi
   fi
-  # if detection not yet successfull, try fallback method
+  # if detection not yet successful, try fallback method
   if [[ $cloud_type -eq "0" ]]; then
     # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
     # authoritative, we could follow Amazon's suggestions for cryptographically
@@ -710,7 +710,7 @@ function do_remote_copy() {
         break
       else
         # not nornal, we still log a failure even if not the last attempt
-        # note this can fail du to timeout if qos or lack of ressources on s3 or server
+        # note this can fail due to timeout if qos or lack of ressources on s3 or server
         fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} err=$RES  ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY"
       fi
     fi
@@ -1396,7 +1396,7 @@ if [ ! -d "$LOCALBACKUPDIR" ]; then
     exit 1;
   fi
 else
-  debug_log "OK: backup dir $LOCALBACKUPDIR already exist"
+  debug_log "OK: backup dir $LOCALBACKUPDIR already exists"
 fi
 
 if [ ! -w $LOCALBACKUPDIR ] ; then 

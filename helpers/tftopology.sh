@@ -81,7 +81,7 @@ for i in instance-*.tf; do
   echo "i=$i   ."
   t=instances-template/${i}
   if [ -e $t ]; then 
-    echo "ERROR $t already exist, unable to move file $i, that is unexpected, both files should not be present at same time"
+    echo "ERROR $t already exists, unable to move file $i, that is unexpected, both files should not be present at same time"
     status=1
     #exit 1
   else
@@ -113,7 +113,7 @@ if [[ $MODE -eq "2" ]]; then
     t=instances-template/$i
     if [ -e "$t" ]; then
       if [ -e "$i" ]; then
-        echo "ERROR $i already exist, unable to move file $t, that is unexpected, both files should not be present at same time"
+        echo "ERROR $i already exists, unable to move file $t, that is unexpected, both files should not be present at same time"
         status=1
         #exit 1
       else
@@ -149,7 +149,7 @@ elif [[ $MODE -eq "1" ]]; then
     t=instances-template/$i
     if [ -e "$t" ]; then
       if [ -e "$i" ]; then
-        echo "ERROR $i already exist, unable to move file $t, that is unexpected, both files should not be present at same time"
+        echo "ERROR $i already exists, unable to move file $t, that is unexpected, both files should not be present at same time"
         status=1
         #exit 1
       else

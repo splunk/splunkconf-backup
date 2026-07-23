@@ -19,14 +19,14 @@
 # Matthieu Araman, Splunk
 
 # This script test cgroup version and will reconfigure it in v1 compatibility mode if v2 is used
-# This need to be done only for Splunk versions not supporting cgroupv2 (as when cgroupv2 will be supported , it will allow WLM to leverage cgroupv2 only functionalities) 
-# This need a reboot to be taken into account 
+# This needs to be done only for Splunk versions not supporting cgroupv2 (as when cgroupv2 will be supported , it will allow WLM to leverage cgroupv2 only functionalities) 
+# This needs a reboot to be taken into account 
 
 # script return code
 # 0 = all good
 # 1 = need reboot
 
-# 20240316 extract cgroup logic fron splunkconf-cloud-recovery. sh in a specific script to make it easier to use outside recovery
+# 20240316 extract cgroup logic from splunkconf-cloud-recovery. sh in a specific script to make it easier to use outside recovery
 # 20240805 version to force cgroup to v2 when possible
 
 cgroup_status () {

@@ -29,7 +29,7 @@
 # 20200412 add version check to autoadapt to the version and keep one single script for all versions, add prompt to continue installation and try to run all conditions even when failure to have the admin build faster the list of all things to fix, move some messages to debug log level 
 # 20200416 add sha256 for ES 6.1.1 and make it default
 # 20200508 add sha256 for ES6.2, use more relaxed regex for final check as the log sligthly changed with latest versions
-# 20200629 fix shc test for ES content update, add ESINSTALLERNFORCENOTA and remove TA options fron essinstall for 6.2. change default to 6.2
+# 20200629 fix shc test for ES content update, add ESINSTALLERNFORCENOTA and remove TA options from essinstall for 6.2. change default to 6.2
 # 20201103 add version var + fix typo in message
 # 20201123 add sha for es6.4
 # 20201215 update sha for 6.4 as the build was updated 
@@ -319,7 +319,7 @@ fi
 # folder will always contain README
 if [[ $(/usr/bin/find ${SPLUNK_HOME}/etc/shcluster/apps |wc -l) >2 ]]; then
    SHC=1
-   echo "looks like we may be running on a SHC deployer, shc install mode prefered for ES5.3+ "
+   echo "looks like we may be running on a SHC deployer, shc install mode preferred for ES5.3+ "
 else
    SHC=0
    echo "deployer not detected. Using default sh mode"

@@ -47,7 +47,7 @@ KEY=$3
 FI="mykey-${REGION}.priv"
 
 if [ -e "$FI" ]; then
-  echo "$FI already exist , wont attempt to overwrite it !!!! Please remove with care if you really want to update"
+  echo "$FI already exists , wont attempt to overwrite it !!!! Please remove with care if you really want to update"
   echo " result would have been :"
   aws secretsmanager  get-secret-value --secret-id $KEY --query "SecretString" --output text --region $REGION
   echo "SSM"

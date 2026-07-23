@@ -118,7 +118,7 @@ aws s3 cp $remoteappsdir/$ESAPP  $localappsinstalldir --quiet
 if [ -e "$localappsinstalldir/$ESAPP" ]; then
   echo "OK: ES install file $ESAPP present at $remoteappsdir and downloaded to $localappsinstalldir for installes.sh later use"
 else
-  echo "KO: ES install file $ESAPP is NOT present in s3 install at $remoteappsdir: Please upload correct ES app version to s3 install or update this script is you want to use a different version"
+  echo "KO: ES install file $ESAPP is NOT present in s3 install at $remoteappsdir: Please upload correct ES app version to s3 install or update this script if you want to use a different version"
   ((FAIL++))
 fi
 

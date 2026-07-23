@@ -432,7 +432,7 @@ if (-e "/bin/su") {
 
 # if we are installing first time, we expect that admin has created user-seed.conf
 # see https://docs.splunk.com/Documentation/Splunk/latest/Admin/User-seedconf
-# if this is not the first time, then we have a already existing passwd file
+# if this is not the first time, then we have an already existing passwd file
 # if neither are there, we won't have a admin password set !
 # for uf, that could be a good thing but for central component, we should probably ask for the admin to correct before running the installation
 
@@ -472,7 +472,7 @@ if ($splunkrole =~/ds|deployment/ ) {
     # moving to reuse default content then creating symlink
     `mv $SPLDEPLAPPSDIR $SPLDEPLAPPSDIR_ORIG;ln -s $SPLDEPLAPPSDIR_ORIG $SPLDEPLAPPSDIR`;
   }
-  # adding links fron deployment apps to etc apps on DS to increase app consistency (still need a manual restart of DS in case the config change)
+  # adding links from deployment apps to etc apps on DS to increase app consistency (still need a manual restart of DS in case the config change)
   my @etcapps= split(',',$dsetcapps);
   foreach my $val (@etcapps) {
     print "looking at etc apps for $val\n";
@@ -545,7 +545,7 @@ EOF
   # serverclass deployment app link
   # auto link for serverclass app (need to be named app_serverclass and contain local/serverclass.conf)
   if ( -e "$SPLUNK_HOME_ORIG/etc/deployment-apps/app_serverclass/local/serverclass.conf" ) {
-    print "app app_serverclass already exist\n";
+    print "app app_serverclass already exists\n";
   } else {
     print "creating app_serverclass,  make sure to sync it in git repo if git used\n";
     `mkdir -p $SPLUNK_HOME_ORIG/etc/deployment-apps/app_serverclass/local`;
@@ -616,7 +616,7 @@ if (-d $INITIALSPLAPPSDIR) {
 
 # if splunkforwarder then it is normal to not create a admin account to reduce attack surface
 if (-e $SPLPASSWDFILE) {
-  print "OK: splunk pwd file exist (from backup or because upgrade)-> Existing passord, all good, no need to fetch user seed or generate one\n";
+  print "OK: splunk pwd file exist (from backup or because upgrade)-> Existing password, all good, no need to fetch user seed or generate one\n";
 } elsif (-e $SPLUSERSEED) {
   print "OK: no existing password yet but splunk user seed file provided, will use this user seed file\n";
 } elsif (($SPLUNK_SUBSYS eq "splunkforwarder") || ($splunkrole =~/uf/ )) {
@@ -810,7 +810,7 @@ if ($USESPLINDEX) {
        `/bin/chown -R $USERSPLUNK. $SPLUNK_INDEXES`;
 }
 
-# give file back to splunk just in case  (see also releases notes SPL-89640, this is required during upgrade du to a rpm ressetting a dir as root))
+# give file back to splunk just in case  (see also releases notes SPL-89640, this is required during upgrade due to a rpm resetting a dir as root))
 
 #  chown sometimes fail and return non 0 code making the script die
 # if you are sure that it works, uncomment the die part (add a ; at the end)
@@ -923,7 +923,7 @@ SERVICENAME=\${COMM[2]}
 
 /bin/logger -p authpriv.info  "polkit_splunk called pid=\$1. systemctlaction=\$ACTION, servicename=\$SERVICENAME"
 
-# status action is not usually needed, it should be already autorized
+# status action is not usually needed, it should be already authorized
 if [[ "\$ACTION" == "start" ]] || 
    [[ "\$ACTION" == "stop"  ]] || 
    [[ "\$ACTION" == "status"  ]] || 

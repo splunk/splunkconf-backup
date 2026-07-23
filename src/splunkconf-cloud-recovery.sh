@@ -119,7 +119,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20210627 add splunkconnectedmode tag + initial detection logic
 # 20210627 add splunkosupdatemode tag
 # 20210627 add rpm for 8.2.1 (no change to default)
-# 20210707 fix regression in splunkconf-backup du to splunkbase packaging change
+# 20210707 fix regression in splunkconf-backup due to splunkbase packaging change
 # 20210707 add splunkcloudmode support to ease deploying collection layer to splunkcloud or test instance that index to splunkcloud
 # 20210719 up default to 8.1.5 
 # 20210902 add splunkinstancesnb tag support (multids only)
@@ -319,7 +319,7 @@ function check_cloud() {
       cloud_type=1
     fi
   fi
-  # if detection not yet successfull, try fallback method
+  # if detection not yet successful, try fallback method
   if [[ $cloud_type -eq "0" ]]; then 
     # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
     # authoritative, we could follow Amazon's suggestions for cryptographically
@@ -492,7 +492,7 @@ setup_disk () {
     MKOPTIONS=" -m 0 -T largefile4 -E lazy_itable_init"
     # for ephemeral , we can add sparse_super with no drawback"
     #MKOPTIONSEPHEMERAL="-O sparse_super -m 0 -T largefile4 -E lazy_itable_init"
-    # largefile4 may create too few inodes , check with df -i  ,switching to huge which create nore inodes
+    # largefile4 may create too few inodes , check with df -i  ,switching to huge which create more inodes
     MKOPTIONSEPHEMERAL="-O sparse_super -m 0 -T huge -E lazy_itable_init"
     if [[ "$splunkenableunifiedpartition" == "true" ]]; then
       echo "Using unified partition mode"
@@ -1451,7 +1451,7 @@ else
   sizeuser=${#splunkuser} 
   sizemin=5
   if (( sizeuser < sizemin )); then
-    # this may be the case on GCP du to thwe way we get tag, the var exist but is empty like
+    # this may be the case on GCP due to the way we get tag, the var exist but is empty like
     echo "splunk user length too short or empty tag, bad input or extra characters, ignoring tag value and assuming user is splunk"
     usersplunk="splunk"
     splunkuser="splunk"
@@ -1764,7 +1764,7 @@ else
         echo "ERROR : GPG Check failed after multiple tries, splunk rpm file may be corrupted, please check and relaunch\n"
         exit 1
       else
-        echo "ERROR : GPG Check failed, may be temporary du to rpm lock, will retry (COUNT=$COUNT)"
+        echo "ERROR : GPG Check failed, may be temporary due to rpm lock, will retry (COUNT=$COUNT)"
         sleep 5
         # retry import key just in case this is the issue
         rpm --import /root/splunk-gpg-key.pub
@@ -2180,7 +2180,7 @@ if [ "$MODE" != "upgrade" ]; then
     site="site${sitenum}"
     echo "Indexer detected setting site for availability zone $AZONE (letter=$ZONELETTER,sitenum=$sitenum, site=$site) " >> /var/log/splunkconf-cloud-recovery-info.log
     # removing any conflicting app that could define site
-    # giving back files to splunk user (this is required here as if the permissions are incorrect from tar file du to packaging issues, the delete from splunk below will fail here)
+    # giving back files to splunk user (this is required here as if the permissions are incorrect from tar file due to packaging issues, the delete from splunk below will fail here)
     chown -R ${usersplunk}. $SPLUNK_HOME
     FORME="*site*base"
     # find app that match forn and deleting the app folder
@@ -2450,7 +2450,7 @@ else
         echo "ERROR : rpm fail after multiple tries, please investigate and relaunch, exiting\n"
         exit 1
       else
-        echo "ERROR : rpm command failed, may be temporary du to rpm lock, will retry (COUNT=$COUNT)"
+        echo "ERROR : rpm command failed, may be temporary due to rpm lock, will retry (COUNT=$COUNT)"
         sleep 5 
       fi
     fi
@@ -2482,7 +2482,7 @@ if ! [[ "${instancename}" =~ ^(auto|indexer|idx|idx1|idx2|idx3|uf|ix-site1|ix-si
     else
      echo "no previous splunkconf-backup app deployed, no need to clean up before deploying app"
     fi
-    # Note : old versions used relative path, new version without du to splunkbase packaging requirement
+    # Note : old versions used relative path, new version without due to splunkbase packaging requirement
     tar -C "${SPLUNK_HOME}/etc/apps" -xzf ${localinstalldir}/splunkconf-backup.tar.gz 
     # removing old version for upgrade case 
     if [ -e "/etc/crond.d/splunkbackup.cron" ]; then
@@ -2643,7 +2643,7 @@ if [ "$MODE" != "upgrade" ]; then
   # this is restored by backup scripts (initial one) but only present if the admin decided it is necessary (ie for example to update dns for some instances)
   # if needed this is calling other scripts
   if [ -e ${localrootscriptdir}/aws-postinstall.sh ]; then
-    echo "lauching aws-postinstall in ${localrootscriptdir}/aws-postinstall.sh" >> /var/log/splunkconf-cloud-recovery-info.log
+    echo "launching aws-postinstall in ${localrootscriptdir}/aws-postinstall.sh" >> /var/log/splunkconf-cloud-recovery-info.log
     chown root. ${localrootscriptdir}/aws-postinstall.sh
     chmod u+x ${localrootscriptdir}/aws-postinstall.sh
     ${localrootscriptdir}/aws-postinstall.sh
@@ -2718,7 +2718,7 @@ fi
 if [ $splunkconnectedmode == 1 ]; then
   pip install boto3
 else 
-  echo "INFO: boto3 deployment via pip disabled du to splunkconnectedmode=$splunkconnectedmode"
+  echo "INFO: boto3 deployment via pip disabled due to splunkconnectedmode=$splunkconnectedmode"
 fi
 # only on worker
 if [[ $splunkenableworker == 1 ]]; then
@@ -2780,7 +2780,7 @@ if [[ $splunkenableworker == 1 ]]; then
   if [ $splunkconnectedmode == 1 ]; then
     pip install ansible
   else 
-    echo "not deploying ansible du to splunkconnectedmode setting ($splunkconnectedmode), make sure you have deployed it yourself or change setting"
+    echo "not deploying ansible due to splunkconnectedmode setting ($splunkconnectedmode), make sure you have deployed it yourself or change setting"
   fi
   echo "building inventory file with ansible"
   su - ${usersplunk} -c "cd scripts/splunk-ansible-develop;ansible-playbook splunk_ansible_inventory_create.yml -i 127.0.0.1," 
@@ -2794,7 +2794,7 @@ if [[ $splunkenableworker == 1 ]]; then
   #su - ${usersplunk} -c "cd actions-runner;./config.sh --url https://${apprepo} --token ${patrunner} ;nohup ./run.sh &"
 fi
 
-# redo tag replacement as btool may not work before splunkconf-init du to splunk not yet initialized 
+# redo tag replacement as btool may not work before splunkconf-init due to splunk not yet initialized 
 tag_replacement
 
 if [ -z ${splunkpostextrasyncdir+x} ]; then 

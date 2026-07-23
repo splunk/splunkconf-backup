@@ -2239,11 +2239,12 @@ if [ "$MODE" != "upgrade" ]; then
            echo "attention, no remote backup found for $type (this is expected if you just created the env otherwise you are probably in trouble)" 
        fi
     done   # type
-    if [ -e "${SPLUNK_HOME}/etc/system/local/passwords.conf" ]; then
-      echo "moving passwords.conf for pg (temp solution)"
-      NOWSEC=`date '+%s'`;
-      mv ${SPLUNK_HOME}/etc/system/local/passwords.conf ${SPLUNK_HOME}/etc/system/local/passwords.conf.${NOWSEC}.old
-    fi 
+    # disable workaround
+    #if [ -e "${SPLUNK_HOME}/etc/system/local/passwords.conf" ]; then
+    #  echo "moving passwords.conf for pg (temp solution)"
+    #  NOWSEC=`date '+%s'`;
+    #  mv ${SPLUNK_HOME}/etc/system/local/passwords.conf ${SPLUNK_HOME}/etc/system/local/passwords.conf.${NOWSEC}.old
+    #fi 
 
     echo "localbackupdir ${localbackupdir}  contains" >> /var/log/splunkconf-cloud-recovery-info.log
     ls -l ${localbackupdir} >> /var/log/splunkconf-cloud-recovery-info.log

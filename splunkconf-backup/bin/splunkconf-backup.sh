@@ -169,8 +169,9 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20260721 fix lsof pg port detection 
 # 20260721 update check_cloud to log in debug
 # 20260721 add variable and disable backup sidecar by default to not create conflict with pg backup
+# 20260723 enable state sidecar by default and disable pg by default until ready
 
-VERSION="20260721c"
+VERSION="20260723a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -363,7 +364,9 @@ fi
 # state files and dir
 #MODINPUTPATH="${SPLUNK_DB}/modinputs"
 #SCHEDULERSTATEPATH="${SPLUNK_HOME}/var/run/splunk/scheduler"
-BACHUPSTATEPACKAGES=0
+# 1 = we do in state
+# 0 = we disable
+BACHUPSTATEPACKAGES=1
 if [ ${BACHUPSTATEPACKAGES} = "0" ]; then  
   if [ "${TARMODE}" = "abs" ]; then
     STATELIST="${SPLUNK_DB}/modinputs ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy ${SPLUNK_HOME}/var/splunk_assist ${SPLUNK_HOME}/var/run/splunk/confsnapshot/"
@@ -2123,7 +2126,9 @@ LFICPG="disabled"
 OBJECT="pg"
 MESS1=""
 debug_log "before pg test reached. MODE=${MODE}."
-if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
+# disabled with mode 0 until ready
+if [[ "$MODE" == "pg" ]]; then
+#if [[ "$MODE" == "0" ]] || [[ "$MODE" == "pg" ]]; then
   debug_log "after pg test reached, MODE=$MODE "
   # PG
   FIC="disabled"

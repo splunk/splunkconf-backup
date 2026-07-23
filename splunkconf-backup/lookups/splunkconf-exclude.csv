@@ -73,7 +73,7 @@
 ./etc/apps/splunk_rapid_diag/appserver
 ./etc/apps/splunk_rapid_diag/SampleTasks
 ./etc/apps/splunk_rapid_diag/static
-./etc/apps/splunk-visual-exporter/
+./etc/apps/splunk-visual-exporter
 ./etc/apps/splunk_pipeline_builders/appserver
 ./etc/apps/splunk_pipeline_builders/binaries/
 ./etc/apps/splunk_app_for_splunk_o11y_cloud/libs

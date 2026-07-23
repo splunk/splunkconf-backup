@@ -7,4 +7,4 @@ layout: default
 title: README
 ---
 
-You probably want to go there https://github.com/splunk/splunkconf-backup/wiki
+You probably want to go there ifor docs https://splunk.github.io/splunkconf-backup/

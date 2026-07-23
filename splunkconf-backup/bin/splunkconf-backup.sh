@@ -158,9 +158,20 @@ exec > /tmp/splunkconf-backup-debug.log  2>&1
 # 20260105 update time logging format
 # 20260324 add more debug logging for remotebackup
 # 20260324 update condition fro unconfigured s3
+# 20260326 add test entry in kvstore collection so it can be used for testing 
+# 20260330 add check for postgres
+# 20260403 use different location for pgpass on splunk 10.0
+# 20260404 add backup pg code block + fix multiple typos
+# 20260419 rework check_cloud and add azure deection
+# 20260511 more backup pg stuff
 # 20260511 fix regression with autodisabling remote backup when in rcp or rsync mode 
+# 20260608 replace pg pass file with version that get it from splunk configuration file
+# 20260721 fix lsof pg port detection 
+# 20260721 update check_cloud to log in debug
+# 20260721 add variable and disable backup sidecar by default to not create conflict with pg backup
+# 20260723 enable state sidecar by default and disable pg by default until ready
 
-VERSION="20260511b"
+VERSION="20260723a"
 
 ###### BEGIN default parameters 
 # dont change here, use the configuration file to override them
@@ -313,7 +324,6 @@ BACKUPSTATE=1
 # set to backup scripts
 BACKUPSCRIPTS=1
 
-
 # KVSTORE Backup options
 
 # how much we wait at start checking if kvstore is ready (because splunkd may not have finished starting kvstore)
@@ -346,10 +356,22 @@ fi
 # state files and dir
 #MODINPUTPATH="${SPLUNK_DB}/modinputs"
 #SCHEDULERSTATEPATH="${SPLUNK_HOME}/var/run/splunk/scheduler"
-if [ "${TARMODE}" = "abs" ]; then
-    STATELIST="${SPLUNK_DB}/modinputs ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy ${SPLUNK_HOME}/var/splunk_assist ${SPLUNK_HOME}/var/run/splunk/confsnapshot/ ${SPLUNK_HOME}/var/packages/data"
+# 1 = we do in state
+# 0 = we disable
+BACHUPSTATEPACKAGES=1
+if [ ${BACHUPSTATEPACKAGES} = "0" ]; then  
+  if [ "${TARMODE}" = "abs" ]; then
+    STATELIST="${SPLUNK_DB}/modinputs ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy ${SPLUNK_HOME}/var/splunk_assist ${SPLUNK_HOME}/var/run/splunk/confsnapshot/"
+  else
+    STATELIST="${SPLUNK_DB_REL}/modinputs ./var/run/splunk/scheduler ./var/run/splunk/cluster/remote-bundle ${SPLUNK_DB_REL}/persistentstorage ${SPLUNK_DB_REL}/fishbucket ./var/run/splunk/deploy ./var/splunk_assist ./var/run/splunk/confsnapshot/"
+  fi
 else
+  # we backup with the sidecar
+  if [ "${TARMODE}" = "abs" ]; then
+    STATELIST="${SPLUNK_DB}/modinputs ${SPLUNK_HOME}/var/run/splunk/scheduler ${SPLUNK_HOME}/var/run/splunk/cluster/remote-bundle ${SPLUNK_DB}/persistentstorage ${SPLUNK_DB}/fishbucket ${SPLUNK_HOME}/var/run/splunk/deploy ${SPLUNK_HOME}/var/splunk_assist ${SPLUNK_HOME}/var/run/splunk/confsnapshot/ ${SPLUNK_HOME}/var/packages/data"
+  else
     STATELIST="${SPLUNK_DB_REL}/modinputs ./var/run/splunk/scheduler ./var/run/splunk/cluster/remote-bundle ${SPLUNK_DB_REL}/persistentstorage ${SPLUNK_DB_REL}/fishbucket ./var/run/splunk/deploy ./var/splunk_assist ./var/run/splunk/confsnapshot/ ./var/packages/data"
+  fi
 fi
 
 # configuration for scripts backups
@@ -434,49 +456,145 @@ function splunkconf_checkspace {
   fi
 }
 
-METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
+# ------------------------------------------------------------------------------
+# check_cloud: tries to autodetect when running in a cloud environment.
+# Sets global variable cloud_type:
+#   0 = unknown / on-prem
+#   1 = AWS
+#   2 = GCP
+#   3 = Azure
+# Returns 0 on success (detection ran), 1 on unexpected error.
+# Requires: curl (optional but recommended)
+# ------------------------------------------------------------------------------
+
 function check_cloud() {
-  cloud_type=0
-  response=$(curl -fs -m 5 --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" ${METADATA_URL})
-  if [ $? -eq 0 ]; then
-    debug_log 'GCP instance detected'
-    cloud_type=2
-  # old aws hypervisor
-  elif [ -f /sys/hypervisor/uuid ]; then
-    if [ `head -c 3 /sys/hypervisor/uuid` == "ec2" ]; then
-      debug_log 'AWS instance detected'
-      cloud_type=1
+    cloud_type=0
+
+    # ------------------------------------------------------------------
+    # Preflight: check required dependencies
+    # ------------------------------------------------------------------
+    local missing_deps=()
+
+    if ! command -v curl &>/dev/null; then
+        missing_deps+=("curl")
     fi
-  fi
-  # newer aws hypervisor (test require root)
-  if [ -r /sys/devices/virtual/dmi/id/product_uuid ]; then
-    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "EC2" ]; then
-      debug_log 'AWS instance detected'
-      cloud_type=1
+
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        debug_log "WARNING: check_cloud requires missing commands: ${missing_deps[*]}" >&2
+        debug_log "WARNING: Install missing dependencies for reliable cloud detection." >&2
+        debug_log "WARNING: Falling back to filesystem-only checks." >&2
     fi
-    if [ `head -c 3 /sys/devices/virtual/dmi/id/product_uuid` == "ec2" ]; then
-      debug_log 'AWS instance detected'
-      cloud_type=1
+
+    # ------------------------------------------------------------------
+    # Condition 1: GCP — via metadata server
+    # ------------------------------------------------------------------
+    if command -v curl &>/dev/null; then
+        local gcp_response
+        gcp_response=$(curl -fs --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
+            -H "Metadata-Flavor: Google" \
+            "http://metadata.google.internal/computeMetadata/v1/instance/zone" \
+            2>/dev/null)
+
+        if [ $? -eq 0 ] && [ -n "$gcp_response" ]; then
+            debug_log "GCP instance detected via condition 1"
+            cloud_type=2
+            return 0
+        fi
+    else
+        debug_log "WARNING: Skipping GCP IMDS check (curl missing)" >&2
     fi
-  fi
-  # if detection not yet successful, try fallback method
-  if [[ $cloud_type -eq "0" ]]; then
-    # Fallback check of http://169.254.169.254/. If we wanted to be REALLY
-    # authoritative, we could follow Amazon's suggestions for cryptographically
-    # verifying their signature, see here:
-    #    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
-    # but this is almost certainly overkill for this purpose (and the above
-    # checks of "EC2" prefixes have a higher false positive potential, anyway).
-    #  imdsv2 support : TOKEN should exist if inside AWS even if not enforced
-    TOKEN=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
-    if [ -z ${TOKEN+x} ]; then
-      # TOKEN NOT SET , NOT inside AWS
-      cloud_type=0
-    elif $(curl --silent -m 5 --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document | grep -q availabilityZone) ; then
-      debug_log 'AWS instance detected'
-      cloud_type=1
+
+    # ------------------------------------------------------------------
+    # Condition 2: AWS — old hypervisor UUID (no curl needed)
+    # ------------------------------------------------------------------
+    if [ -f /sys/hypervisor/uuid ]; then
+        local uuid_prefix
+        uuid_prefix=$(head -c 3 /sys/hypervisor/uuid 2>/dev/null)
+        if [[ "${uuid_prefix,,}" == "ec2" ]]; then
+            debug_log "AWS instance detected via condition 2 (hypervisor uuid)"
+            cloud_type=1
+            return 0
+        fi
     fi
-  fi
+
+    # ------------------------------------------------------------------
+    # Condition 3: AWS — newer hypervisor DMI product_uuid (no curl needed)
+    # ------------------------------------------------------------------
+    if [ -r /sys/devices/virtual/dmi/id/product_uuid ]; then
+        local product_uuid_prefix
+        product_uuid_prefix=$(head -c 3 \
+            /sys/devices/virtual/dmi/id/product_uuid 2>/dev/null)
+        if [[ "${product_uuid_prefix,,}" == "ec2" ]]; then
+            debug_log "AWS instance detected via condition 3 (DMI product_uuid)"
+            cloud_type=1
+            return 0
+        fi
+    fi
+
+    # ------------------------------------------------------------------
+    # Condition 4: AWS — IMDSv2 (requires curl)
+    # ------------------------------------------------------------------
+    if command -v curl &>/dev/null; then
+        local token
+        token=$(curl --silent --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
+            -X PUT "http://169.254.169.254/latest/api/token" \
+            -H "X-aws-ec2-metadata-token-ttl-seconds: 3600" \
+            2>/dev/null)
+
+        if [ -n "$token" ]; then
+            local az_check
+            az_check=$(curl --silent --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
+                -H "X-aws-ec2-metadata-token: $token" \
+                "http://169.254.169.254/latest/dynamic/instance-identity/document" \
+                2>/dev/null)
+
+            if echo "$az_check" | grep -q "availabilityZone"; then
+                debug_log "AWS instance detected via condition 4 (IMDSv2)"
+                cloud_type=1
+                return 0
+            fi
+        fi
+    else
+        debug_log "WARNING: Skipping AWS IMDSv2 check (curl missing)" >&2
+    fi
+
+    # ------------------------------------------------------------------
+    # Condition 5: Azure — DMI sys_vendor (no curl needed)
+    # ------------------------------------------------------------------
+    local dmi_file="/sys/class/dmi/id/sys_vendor"
+    if [ -f "$dmi_file" ]; then
+        if grep -qi "microsoft" "$dmi_file" 2>/dev/null; then
+            debug_log "Azure instance detected via condition 5 (DMI sys_vendor)"
+            cloud_type=3
+            return 0
+        fi
+    fi
+
+    # ------------------------------------------------------------------
+    # Condition 6: Azure — IMDS endpoint (requires curl)
+    # ------------------------------------------------------------------
+    if command -v curl &>/dev/null; then
+        local azure_response
+        azure_response=$(curl -s -f --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME \
+            -H "Metadata: true" \
+            "http://169.254.169.254/metadata/instance?api-version=2021-02-01" \
+            2>/dev/null)
+
+        if echo "$azure_response" | grep -q "azEnvironment"; then
+            debug_log "Azure instance detected via condition 6 (IMDS)"
+            cloud_type=3
+            return 0
+        fi
+    else
+        debug_log "WARNING: Skipping Azure IMDS check (curl missing)" >&2
+    fi
+
+    # ------------------------------------------------------------------
+    # No cloud detected
+    # ------------------------------------------------------------------
+    debug_log "No cloud environment detected — assuming on-premises"
+    cloud_type=0
+    return 0
 }
 
 # at start we check what compression we can use
@@ -671,7 +789,7 @@ function do_remote_copy() {
         else 
           debug_log "autorestore via rsync disabled by config"
         fi
-      elif [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
+      elif [ "${AWSCOPYMODE}" = "1" ]; then
         debug_log "doing remote copy with ${CPCMD} ${LFIC} ${CPCMD2} ${SRFIC} ${OPTION}"
         # Attention , we do tags at the same time so if iam are incorrectly set the whole put is going to fail
         # This is why we default now to do it in 2 steps
@@ -688,7 +806,7 @@ function do_remote_copy() {
       if [ $RES -eq 0 ]; then
         result="success"
         echo_log "action=backup type=${TYPE} object=${OBJECT} result=success src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} ${S3ENDPOINTLOGMESSAGE}  ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY" 
-        if [[ "cloud_type" -eq 1 ]]; then
+        if [[ "$cloud_type" -eq 1 ]]; then
           # AWS
           if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ] && [ "${REMOTETECHNO}" = "2" ]; then
             debug_log "setting tag via aws ${S3ENDPOINTOPTION}s3api put-object-tagging --bucket ${s3backupbucket} --key ${SRFIC} --tagging ${S3TAGS} "
@@ -823,7 +941,7 @@ function check_assist () {
 
 
       else
-        debug_log "assist.conf check, inconsistency=$INCONSISTENTi (fine), FI1=$FI1, FI2=$FI2";
+        debug_log "assist.conf check, inconsistency=$INCONSISTENT (fine), FI1=$FI1";
 
       fi
 
@@ -880,7 +998,7 @@ case $MODE in
   *) fail_log "argument $MODE is NOT a valid value, please fix"; exit 1;;
 esac
 case $MODE in
-  "0"|"kvauto"|"kvdump"i|"init") 
+  "0"|"kvauto"|"kvdump"|"init") 
       debug_log "MODE=$MODE reading sessionkey via env or stdin"
       # important : this need passauth correctly set or the script could block !
       # This is avoiding to hardcode password or token in the app
@@ -904,7 +1022,7 @@ if [ "${MODE}" == "init" ]; then
   debug_log "running in init mode, setting up lock to prevent concurrent backup at init"
   MODE="0"
   INIT=1
-  `touch ${SPLUNK_HOME}/var/run/splunkconf-init.lock`
+  touch ${SPLUNK_HOME}/var/run/splunkconf-init.lock
 fi
 debug_log "splunkconf-backup running with MODE=${MODE} and INIT=${INIT}"
 
@@ -988,7 +1106,16 @@ fi
 
 
 check_cloud
-debug_log "cloud_type=$cloud_type"
+
+debug_log "check_cloud result: cloud_type=$cloud_type"
+
+case "$cloud_type" in
+    0) debug_log "Environment: on-premises or unknown" ;;
+    1) debug_log "Environment: AWS" ;;
+    2) debug_log "Environment: GCP" ;;
+    3) debug_log "Environment: Azure" ;;
+esac
+
 
 check_compress
 
@@ -1012,7 +1139,7 @@ fi
 
 INSTANCEFILE="${SPLUNK_HOME}/var/run/splunk/instance-tags"
 if [ $CHECK -ne 0 ]; then
-  if [[ "cloud_type" -eq 1 ]]; then
+  if [[ "$cloud_type" -eq 1 ]]; then
     # aws
     # setting up token (IMDSv2)
     TOKEN=`curl --silent --show-error --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 900"`
@@ -1030,36 +1157,97 @@ if [ $CHECK -ne 0 ]; then
       debug_log "splunk prefixed tags not found, reverting to full tag inclusion (file=$INSTANCEFILE)" 
       aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/' | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/' > $INSTANCEFILE
     fi
-  fi
-elif [[ "cloud_type" -eq 2 ]]; then
-  # GCP
-  splunkinstanceType=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
-  if [ -z ${splunkinstanceType+x} ]; then
-    debug_log "GCP : Missing splunkinstanceType in instance metadata"
-  else
-    # > to overwrite any old file here (upgrade case)
-    echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
-  fi
-  splunks3installbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
-  if [ -z ${splunks3installbucket+x} ]; then
-    debug_log "GCP : Missing splunks3installbucket in instance metadata"
-  else
-    echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
-  fi
-  splunks3backupbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
-  if [ -z ${splunks3backupbucket+x} ]; then
-    debug_log "GCP : Missing splunks3backupbucket in instance metadata"
-  else 
-    echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
-  fi
-  splunks3databucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
-  if [ -z ${splunks3databucket+x} ]; then
-    debug_log "GCP : Missing splunks3databucket in instance metadata"
-  else 
-    echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
-  fi
-  splunks3endpointurl=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3endpointurl`
-  
+  elif [[ "$cloud_type" -eq 2 ]]; then
+    # GCP
+    splunkinstanceType=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
+    if [ -z ${splunkinstanceType+x} ]; then
+      debug_log "GCP : Missing splunkinstanceType in instance metadata"
+    else
+      # > to overwrite any old file here (upgrade case)
+      echo -e "splunkinstanceType=${splunkinstanceType}\n" > $INSTANCEFILE
+    fi
+    splunks3installbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3installbucket`
+    if [ -z ${splunks3installbucket+x} ]; then
+      debug_log "GCP : Missing splunks3installbucket in instance metadata"
+    else
+      echo -e "splunks3installbucket=${splunks3installbucket}\n" >> $INSTANCEFILE
+    fi
+    splunks3backupbucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3backupbucket`
+    if [ -z ${splunks3backupbucket+x} ]; then
+      debug_log "GCP : Missing splunks3backupbucket in instance metadata"
+    else 
+      echo -e "splunks3backupbucket=${splunks3backupbucket}\n" >> $INSTANCEFILE
+    fi
+    splunks3databucket=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3databucket`
+    if [ -z ${splunks3databucket+x} ]; then
+      debug_log "GCP : Missing splunks3databucket in instance metadata"
+    else 
+      echo -e "splunks3databucket=${splunks3databucket}\n" >> $INSTANCEFILE
+    fi
+    splunks3endpointurl=`curl --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunks3endpointurl`
+  elif [[ "$cloud_type" -eq 3 ]]; then
+    # ------------------------------------------------------------------
+    # Azure
+    # Fetch VM tags from IMDS tagsList endpoint
+    # Tags are returned as JSON array: [{"name":"key","value":"val"},...]
+    # We parse with grep+sed to avoid jq dependency
+    # ------------------------------------------------------------------
+    ## Raw IMDS response:
+    #[{"name":"splunkinstanceType","value":"indexer"},
+    # {"name":"splunks3installbucket","value":"my-bucket"},
+    # {"name":"environment","value":"prod"}]
+    #
+    ## After parsing:
+    #splunkinstanceType="indexer"
+    #splunks3installbucket="my-bucket"
+    #environment="prod"
+    #
+    ## After splunk prefix filter:
+    #splunkinstanceType="indexer"
+    #splunks3installbucket="my-bucket"
+    debug_log "Azure: fetching VM tags from IMDS"
+
+    local azure_tags_response
+    azure_tags_response=$(curl --silent --show-error \
+        --connect-timeout $CURLCONNECTTIMEOUT \
+        --max-time $CURLMAXTIME \
+        -H "Metadata: true" \
+        "http://169.254.169.254/metadata/instance/compute/tagsList?api-version=2021-02-01" \
+        2>/dev/null)
+
+    if [ -z "$azure_tags_response" ]; then
+        warn_log "Azure: empty response from IMDS tagsList endpoint"
+    else
+        debug_log "Azure: IMDS tagsList response received, parsing tags"
+
+        # Parse JSON tagsList array into key="value" format
+        # Input:  [{"name":"splunkinstanceType","value":"indexer"},...]
+        # Output: splunkinstanceType="indexer"
+        local all_tags
+        all_tags=$(echo "$azure_tags_response" \
+            | grep -oP '"name"\s*:\s*"\K[^"]+(?="[^"]*"value")' \
+            | paste - <(echo "$azure_tags_response" \
+                | grep -oP '"value"\s*:\s*"\K[^"]*(?=")') \
+            | awk '{print $1"=\""$2"\""}')
+
+        # Filter splunk-prefixed tags
+        local splunk_tags
+        splunk_tags=$(echo "$all_tags" | grep -E "^splunk")
+
+        if [ -n "$splunk_tags" ]; then
+            debug_log "Azure: filtered tags with splunk prefix (file=$INSTANCEFILE)"
+            echo "$splunk_tags" > $INSTANCEFILE
+        else
+            debug_log "Azure: no splunk prefixed tags found, tags are not configured for Splunk"
+        fi
+
+        if [ -s "$INSTANCEFILE" ]; then
+            debug_log "Azure: tags successfully written to $INSTANCEFILE"
+        else
+            warn_log "Azure: no tags written "
+        fi
+    fi
+  fi # cloud_type
 else
   warn_log "aws cloud tag detection disabled (missing commands)"
 fi
@@ -1218,7 +1406,7 @@ if [ -z ${splunks3backupbucket+x} ]; then
     elif  [ "${REMOTEOBJECTSTOREBUCKET}" != "auto" ]; then 
       # REMOTEOBJECTSTOREBUCKET is set lets use this
        s3backupbucket=$REMOTEOBJECTSTOREBUCKET
-      if [[ "cloud_type" -eq 2 ]]; then
+      if [[ "$cloud_type" -eq 2 ]]; then
         # GCP
         debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
         # we already have the scheme in var for gcp
@@ -1240,7 +1428,7 @@ if [ -z ${splunks3backupbucket+x} ]; then
       debug_log "remote techno=3 and running in cloud , not using tags"
     elif (( REMOTETECHNO == 4 )); then 
       debug_log "remote techno=4 and running in cloud , not using tags"
-    elif [[ "cloud_type" -eq 2 ]]; then
+    elif [[ "$cloud_type" -eq 2 ]]; then
       # GCP
       debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=false";
       # we already have the scheme in var for gcp
@@ -1262,7 +1450,7 @@ else
       debug_log "remote techno=3 and running in cloud , not using tags"
   elif (( REMOTETECHNO == 4 )); then 
       debug_log "remote techno=4 , not using tags"
-  elif [[ "cloud_type" -eq 2 ]]; then
+  elif [[ "$cloud_type" -eq 2 ]]; then
     # GCP
     debug_log "name=splunks3backupbucket src=instancetags result=set value='$s3backupbucket' splunkprefix=true";
       # we already have the scheme in var for gcp
@@ -1407,13 +1595,29 @@ if [ ! -w $LOCALBACKUPDIR ] ; then
 fi
 
 
+###### Common : prepare variables common to multiple backup types
+isforwarder=`${SPLUNK_HOME}/bin/splunk version | tail -1 | grep -i forwarder`
+# we do a tail to get the last line as sometimes there can be warning on first lines so the version is always last line
+version=`${SPLUNK_HOME}/bin/splunk version | tail -1 | cut -d ' ' -f 2`;
+if [[ $version =~ ^([^.]+\.[^.]+)\. ]]; then
+   ver=${BASH_REMATCH[1]}
+   vermajor=$(printf "%.0f" "$ver")
+   debug_log "splunkversion=$ver vermajor=$ver"
+else
+   fail_log "splunkversion : unable to parse string $version"
+   # in order to force kvdump when version detection fail as we are probably in a compatible version
+   vermajor=10
+fi
+
+
 ############# START HERE DO DO THE BACKUPS   ####################3
 TYPE="local"
 
-# etc
+########## LOCAL  etc  #####################
 etc_done=0
 LFICETC="disabled";
 OBJECT="etc"
+MESS1=""
 if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then 
   cd /
   # building name depending on options
@@ -1485,15 +1689,17 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "etc" ]; then
 # if mode explicit etc or all
 fi
 
+#################### LOCAL scripts   ############################
 scripts_done=0
 LFICSCRIPT="disabled";
 OBJECT="scripts"
+MESS1=""
 if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then 
   FIC="disabled"
   #debug_log "start to backup scripts"; 
   if [ ${LOCALTYPE} -eq 2 ]; then
     FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
-    ESS1="backuptype=scriptstargetedinstanceoverwrite ";
+    MESS1="backuptype=scriptstargetedinstanceoverwrite ";
   elif [ ${LOCALTYPE} -eq 3 ]; then
     FIC="${LOCALBACKUPDIR}/backupconfsplunk-${extmode}scripts.tar.${EXTENSION}";
     MESS1="backuptype=scriptstargetednoinstanceoverwrite  ";
@@ -1523,7 +1729,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
         LIS=`ls ${backuptardir}/$i|wc -l`
         if (( $LIS > 0 )); then 
           debug_log "fileverif : $i exist and not empty"
-          FILELIST2="${STATELIST2} $i"
+          FILELIST2="${FILELIST2} $i"
         else
           debug_log "fileverif : $i exist and  empty, not adding it"
         fi
@@ -1531,7 +1737,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
         debug_log "fileverif : $i NOT exist"
      fi
     done
-    debug_log "FILELIST=${STATELIST} FILELIST2=${FILELIST2}"
+    debug_log "FILELIST=${FILELIST} FILELIST2=${FILELIST2}"
     if [ ! -z "${FILELIST2}" ]; then
 
       #tar -zcf ${FIC}  ${FILELIST} && echo_log "action=backup type=$TYPE object=${OBJECT} result=success dest=$FIC ${MESS1} " || warn_log "action=backup type=$TYPE object=${OBJECT} result=failure dest=$FIC reason="tar" ${MESS1}  please investigate"
@@ -1551,33 +1757,22 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "scripts" ]; then
   # if mode explicit scripts or all
 fi
 
-
+################    LOCAL KVSTORE/KVDUMP  ###################################
 kvstore_done=0
 LFICKVSTORE="disabled"
 kvdump_done=0
 LFICKVDUMP="disabled"
 #OBJECT="kvstore"
 OBJECT="kvdump"
+MESS1=""
 if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || [ "$MODE" == "kvauto" ]; then 
   debug_log "object=kvstore  action=start"
   FIC="disabled"
-  isforwarder=`${SPLUNK_HOME}/bin/splunk version | tail -1 | grep -i forwarder`;
   if [ -z ${isforwarder+x} ] || [[ "${isforwarder}" =~ "orwarder" ]];  then
     echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=ufdisabled"; 
   elif [ -z ${BACKUPKV+x} ] || [ $BACKUPKV -eq 0 ]; then
     echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=disabledbyconfiguration"; 
   else
-    # we do a tail to get the last line as sometimes there can be warning on first lines so the version is always last line
-    version=`${SPLUNK_HOME}/bin/splunk version | tail -1 | cut -d ' ' -f 2`;
-    if [[ $version =~ ^([^.]+\.[^.]+)\. ]]; then
-      ver=${BASH_REMATCH[1]}
-      vermajor=$(printf "%.0f" "$ver")
-      debug_log "splunkversion=$ver vermajor=$ver"
-    else
-      fail_log "splunkversion : unable to parse string $version"
-      # in order to force kvdump when version detection fail as we are probably in a compatible version
-      vermajor=10
-    fi
     # integer here
     minimalversion=7
     kvbackupmode=taronline
@@ -1586,7 +1781,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
     splunkconf_purgebackup;
     splunkconf_checkspace;
     if [[ $btoolkvstore =~ "true" ]] || [[ $btoolkvstore =~ "1" ]]; then
-      echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=kvstoredisabledonsplunkbyconfig";
+      echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled reason=disabledbyconfigurationatsplunklevel";
     elif [ -z ${BACKUPKV+x} ] || [ $BACKUPKV -eq 0 ]; then
       # we echo here to have it appear in logs as it will allow to identify disabled versus missing case
       echo_log "action=backup type=$TYPE object=${OBJECT} result=disabled dest=$FIC reason=disabled ${MESS1}"
@@ -1658,6 +1853,16 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
 	warn_log "COUNTER=$COUNTER  (max=${COUNTERMAX}) $MESSVER $MESS1 type=$TYPE object=$kvbackupmode result=failure dest=${LFICKVDUMP} durationms=${DURATION} size=${FILESIZE}  ATTENTION : we didnt get ready status ! Please investigate or tune up KVSTOREREADYINIT to wait more"
       else
         debug_log "OK: KVSTORE REady state before launching backup"
+        # collections.conf content
+        #[splunkconf-backup-status]
+        #field.status = string
+        #field.date = time
+        #field.version = string
+        echo_log "INFO: adding test entry in splunkconf-backup-status collection"
+        RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/servicesNS/nobody/splunkconf-backup//storage/collections/data/splunkconf-backup-status  --header "Authorization: Splunk ${sessionkey}" \
+             -H 'Content-Type: application/json' \
+             -d '{"status": "OK", "date": 1234, "version": "1.11.1"}' `
+        debug_log "adding entry in collection RES=$RES"
       fi
       # here we try to start backup anyway but if the status was not ready , something is probably wrong
       START=$(($(date +%s%N)));
@@ -1790,17 +1995,18 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
   # if mode explicit kvxxx or all
 fi
 
-
+################### LOCAL STATE ######################################
 state_done=0
 LFICSTATE="disabled"
 OBJECT="state"
+MESS1=""
 #debug_log "before state test reached. MODE=${MODE}."
 if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
   #debug_log "after state test reached, MODE=$MODE "
   # STATE : scheduler,  MODINPUT,...
   FIC="disabled"
   if [ -z ${BACKUPSTATE+x} ]; then 
-    echo_log "action=backup type=$TYPE object=$OBJECT result=disabled"
+    echo_log "action=backup type=$TYPE object=$OBJECT result=disabled reason=byconfiguration"
   else
     debug_log "start to backup state (modinputs , scheduler states, bundle, fishbuckets,....)";
     if [ ${LOCALTYPE} -eq 2 ]; then
@@ -1857,9 +2063,15 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "state" ]; then
   fi
   # if mode explicit state or all
 fi
+
+
+
+
 debug_log "MODE=$MODE, extmode=${extmode} starting remote part"
 
-###############################    REMOTE    #############################################3
+##########################################################################################
+###############################    REMOTE    #############################################
+##########################################################################################
 
 # remote techno 1 = nas, 2=S3, 3= scp to nas, 4 = rsync
 # remotetype 0=auto, 1=date, 2 = no date, 3= no date, no instance
@@ -1930,12 +2142,12 @@ fi
   if [ ${BACKUPTYPE} -eq 2 ]; then
     # full etc mode
     if [ ${REMOTETYPE} -eq 2 ]; then
-        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk$-{extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
+        FICETC="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
         FICSCRIPT="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
         FICKVSTORE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
         FICKVDUMP="${REMOTEBACKUPDIR}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
         FICSTATE="${REMOTEBACKUPDIR}/backupconfsplunk-${extmode}state-${INSTANCE}.tar.${EXTENSION}";
-        SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk$-{extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
+        SFICETC="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}etc-full-${INSTANCE}.tar.${EXTENSION}";
         SFICSCRIPT="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}scripts-${INSTANCE}.tar.${EXTENSION}";
         SFICKVSTORE="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-${extmode}kvstore-${INSTANCE}.tar.${EXTENSION}";
         SFICKVDUMP="${REMOTEOBJECTSTOREPREFIX}/backupconfsplunk-kvdump-${INSTANCE}.tar.${EXTENSIONKV}";
@@ -2014,12 +2226,11 @@ fi
     CPCMD="cp -p ";
     OPTION="";
   elif [ ${REMOTETECHNO} -eq 2 ]; then
-    # azure, see https://docs.microsoft.com/en-us/cli/azure/storage?view=azure-cli-latest#az-storage-copy
-    if [[ "cloud_type" -eq 2 ]]; then
+    if [[ "$cloud_type" -eq 2 ]]; then
      # gcp
       CPCMD="gsutil -q cp";
       OPTION="";
-    else 
+    elif [[ "$cloud_type" -eq 1 ]]; then
       # aws
       tagname="frequency"
       # - disable padding with 0
@@ -2051,7 +2262,7 @@ fi
         REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSHOURLY}
         debug_log "hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=hourly, S3TAGS=$S3TAGS, REMOTES3STORAGECLASSCURRENT=${REMOTES3STORAGECLASSCURRENT}"
       fi
-      if [ ${AWSCOPYMODE} = "1" ] || [ ${AWSCOPYMODE} = "1" ]; then
+      if [ ${AWSCOPYMODE} = "1" ]; then
         # we use s3api because it allow to set tags at same time which s3 cp doenst suppport at the moment
         CPCMD="aws ${S3ENDPOINTOPTION}s3api put-object --bucket ${s3backupbucket} --body ";
         CPCMD2="--key "
@@ -2066,6 +2277,92 @@ fi
         OPTION=" --quiet --storage-class ${REMOTES3STORAGECLASSCURRENT}";
         #OPTION=" --quiet --storage-class STANDARD_IA";
       fi
+    elif [[ "$cloud_type" -eq 3 ]]; then
+      # ------------------------------------------------------------------
+      # Azure Blob Storage
+      # ref: https://docs.microsoft.com/en-us/cli/azure/storage/blob
+      # Variables expected from config / instance tags:
+      #   azurestorageaccount         : Azure storage account name
+      #   azurecontainer              : Azure blob container name (~ S3 bucket)
+      #   REMOTEAZURESTORAGECLASSHOURLY/DAILY/WEEKLY/MONTHLY : Hot|Cool|Cold|Archive
+      #   AZURECOPYMODE               : 1 = az storage blob upload (with tag support)
+      #                                 0 = az storage blob upload (no tags)
+      #   REMOTEOBJECTSTORETAGS3      : 1 = attach frequency tag to blob
+      # ------------------------------------------------------------------
+      tagname="frequency"
+      # disable padding with 0
+      hournumber=$(date +"%-H")
+      # day of week (1..7); 1 is Monday
+      weekdaynumber=$(date +"%-u")
+      dayofmonthnumber=$(date +"%-d")
+      debug_log "Azure: hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber"
+
+      # Determine backup frequency tier — same schedule logic as AWS
+      if (( "${dayofmonthnumber}" == 1 )) && (( "${hournumber}" == 4 )); then
+        # first day of month at 4
+        AZURETAGS="${tagname}=monthly"
+        REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSMONTHLY}
+        debug_log "Azure: hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=monthly, AZURETAGS=$AZURETAGS, REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSCURRENT}"
+
+      elif (( "${weekdaynumber}" == 1 )) && (( "${hournumber}" == 5 )); then
+        # monday at 5
+        AZURETAGS="${tagname}=weekly"
+        REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSWEEKLY}
+        debug_log "Azure: hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=weekly, AZURETAGS=$AZURETAGS, REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSCURRENT}"
+
+      elif (( "${hournumber}" == 6 )); then
+        # every day at 6
+        AZURETAGS="${tagname}=daily"
+        REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSDAILY}
+        debug_log "Azure: hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=daily, AZURETAGS=$AZURETAGS, REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSCURRENT}"
+
+      else
+        AZURETAGS="${tagname}=hourly"
+        REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSHOURLY}
+        debug_log "Azure: hournumber=$hournumber, weekdaynumber=$weekdaynumber, dayofmonthnumber=$dayofmonthnumber, TAG=hourly, AZURETAGS=$AZURETAGS, REMOTEAZURESTORAGECLASSCURRENT=${REMOTEAZURESTORAGECLASSCURRENT}"
+      fi
+
+      # Validate required Azure variables
+      if [ -z "${azurestorageaccount+x}" ] || [ -z "$azurestorageaccount" ]; then
+        warn_log "Azure: azurestorageaccount is not set — upload will likely fail"
+      fi
+      if [ -z "${azurecontainer+x}" ] || [ -z "$azurecontainer" ]; then
+        warn_log "Azure: azurecontainer is not set — upload will likely fail"
+      fi
+
+      if [ "${AZURECOPYMODE}" = "1" ]; then
+        # az storage blob upload with tier and optional blob tags
+        # Note: --tags uses "key=value" space-separated format
+        # equivalent of AWS s3api put-object mode
+        CPCMD="az storage blob upload \
+            --account-name ${azurestorageaccount} \
+            --container-name ${azurecontainer} \
+            --tier ${REMOTEAZURESTORAGECLASSCURRENT} \
+            --only-show-errors \
+            --file "
+        CPCMD2="--name "
+        if [ "${REMOTEOBJECTSTORETAGS3}" = "1" ]; then
+          OPTION=" --tags ${AZURETAGS}"
+        else
+          OPTION=""
+        fi
+        debug_log "Azure: AZURECOPYMODE=1 (blob upload with tier=${REMOTEAZURESTORAGECLASSCURRENT}, tags=${AZURETAGS})"
+
+      else
+        # az storage blob upload without tagging
+        # equivalent of AWS s3 cp mode
+        CPCMD="az storage blob upload \
+            --account-name ${azurestorageaccount} \
+            --container-name ${azurecontainer} \
+            --tier ${REMOTEAZURESTORAGECLASSCURRENT} \
+            --only-show-errors \
+            --file "
+        CPCMD2="--name "
+        OPTION=""
+        debug_log "Azure: AZURECOPYMODE=0 (blob upload without tags, tier=${REMOTEAZURESTORAGECLASSCURRENT})"
+      fi
+    else 
+      warn_log "ATTENTION : unimplemented value cloud_type=${cloud_type}"
     fi
 # --storage-class STANDARD_IA reduce cost for infrequent access objects such as backups while not decreasing availability/redundancy
   elif [ ${REMOTETECHNO} -eq 3 ]; then
@@ -2161,7 +2458,7 @@ fi
 
 if [ "$INIT" == "1" ]; then
   echo_log "INIT mode , removing lock file so other backup process may run"
-  `rm ${SPLUNK_HOME}/var/run/splunkconf-init.lock`
+  rm ${SPLUNK_HOME}/var/run/splunkconf-init.lock
 fi
 
 debug_log "MODE=$MODE, end of splunkconf_backup script"

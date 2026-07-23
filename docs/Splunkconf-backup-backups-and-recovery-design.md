@@ -18,7 +18,7 @@ splunkconf-backup app design :
 * monitoring console checks to warm on failures (error and disk starvation issues) and allow integration with alerting systems via alert_action framework (things may/will break...)
 * dashboard to give consolidated view in a distributed env 
 
-![backup lifecycle](https://github.com/splunk/splunkconf-backup/blob/main/docs/backup-lifecycle.png)
+![backup lifecycle](/splunkconf-backup/images/backup-lifecycle.png)
 
 As a side effect of theses design decision, backups were not stored in a git repo because even if that would allow leveraging some nice feature of git, that would also increase risk of backups completely failing, notably du to disk size increase and cleanup challenges  
 
@@ -38,8 +38,8 @@ Note : objective is not to backup any indexed data , please leverage object stor
 
 the idea is to combine backups with cloud mechanisms to restore to the last recovery point and leverage DNS API so other components can still find the component(s) 
 
-![recovery cloud ASG principle](https://github.com/splunk/splunkconf-backup/blob/main/docs/recovery-cloud-asg-principle.png)
+![recovery cloud ASG principle](/splunkconf-backup/images/recovery-cloud-asg-principle.png)
 
-![Single instance ASG example ASG events with DNS updates](https://github.com/splunk/splunkconf-backup/blob/main/docs/singleinstance-asg.png)
+![Single instance ASG example ASG events with DNS updates](/splunkconf-backup/images/singleinstance-asg.png)
 
-![Multi instance ASG example ASG events with DNS updates](https://github.com/splunk/splunkconf-backup/blob/main/docs/multiinstance-asg.png)
+![Multi instance ASG example ASG events with DNS updates](/splunkconf-backup/images/multiinstance-asg.png)

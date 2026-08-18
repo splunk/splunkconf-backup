@@ -288,8 +288,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20260617 up to 10.4.0
 # 20260701 up to 10.4.1
 # 20260721 apply temp solution for pg password at start
+# 20260818 up to 10.4.2
 
-VERSION="20260721a"
+VERSION="20260818a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1774,8 +1775,8 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
-splversion="10.4.1"
-splhash="5a009d941268"
+splversion="10.4.2"
+splhash="33c3bf42cd73"
 splversionhash=${splversion}-${splhash}""
 # this is spl arch, arch will be the one from os
 splarch="x86_64"

@@ -289,8 +289,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20260701 up to 10.4.1
 # 20260721 apply temp solution for pg password at start
 # 20260818 up to 10.4.2
+# 20260818 add stripe logic/opti to setup disk 
 
-VERSION="20260818a"
+VERSION="20260818b"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -713,9 +714,12 @@ setup_disk () {
       #pvdisplay
       OSDEVICE=$INSTANCELIST
       echo "OSDEVICE=${OSDEVICE}" >> /var/log/splunkconf-cloud-recovery-info.log
+      # number of PV found
+      PVCOUNT=0
       for e in ${OSDEVICE}; do
         echo "creating physical volume $e" >> /var/log/splunkconf-cloud-recovery-info.log
         pvcreate $e >> /var/log/splunkconf-cloud-recovery-info.log
+        ((PVCOUNT=PVCOUNT+1))
         # extend or create vg
         echo "adding $e to vgsplunkephemeral${DEVNUM}" >> /var/log/splunkconf-cloud-recovery-info.log
         vgextend vgsplunkephemeral${DEVNUM} $e || vgcreate vgsplunkephemeral${DEVNUM} $e >> /var/log/splunkconf-cloud-recovery-info.log
@@ -724,7 +728,11 @@ setup_disk () {
       done
       echo "LIST=$LIST" >> /var/log/splunkconf-cloud-recovery-info.log
       #vgcreate vgephemeral1 $LIST
-      lvcreate --name lvsplunkephemeral${DEVNUM} -l100%FREE vgsplunkephemeral${DEVNUM} >> /var/log/splunkconf-cloud-recovery-info.log
+      # we use stripe option to optimize performance, see explnation at https://usamaaijaz.hashnode.dev/complete-beginner-to-pro-guide-lvm-linear-vs-lvm-striping?utm_source=hashnode&utm_medium=feed
+      # number of stripe is equal to number of PVs
+      # -i$(PVCOUNT} -I256 
+      # we use 256KB here to help nvme controller under load , especially when downloading from s3, we will have big files to write
+      lvcreate --name lvsplunkephemeral${DEVNUM} -l100%FREE -i${PVCOUNT} -I256 vgsplunkephemeral${DEVNUM} >> /var/log/splunkconf-cloud-recovery-info.log
       pvdisplay >> /var/log/splunkconf-cloud-recovery-info.log
       vgdisplay >> /var/log/splunkconf-cloud-recovery-info.log
       lvdisplay >> /var/log/splunkconf-cloud-recovery-info.log

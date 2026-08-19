@@ -30,6 +30,26 @@
                     "kms:EncryptionContext:aws:logs:arn": "arn:aws:logs:${region}:${account_id}:*"
                 }
             }
+        },
+        {
+            "Sid": "Allow Secrets Manager",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "secretsmanager.amazonaws.com"
+            },
+            "Action": [
+                "kms:Encrypt",
+                "kms:Decrypt",
+                "kms:ReEncrypt*",
+                "kms:GenerateDataKey*",
+                "kms:Describe*"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "ArnLike": {
+                    "kms:EncryptionContext:SecretARN": "arn:aws:secretsmanager:${region}:${account_id}:secret:*"
+                }
+            }
         }
     ]
 }

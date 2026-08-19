@@ -44,6 +44,18 @@
               "ssm:GetParameter"
             ],
             "Resource": "${ssmkeyrunner}"
-        }%{ endif }
+        }%{ endif }%{ if kmsarn != "" ~},
+        {
+            "Sid": "AllowSplunkKmsForSecrets",
+            "Effect": "Allow",
+            "Action": [
+                "kms:Encrypt",
+                "kms:Decrypt",
+                "kms:ReEncrypt*",
+                "kms:GenerateDataKey*",
+                "kms:DescribeKey"
+            ],
+            "Resource": "${kmsarn}"
+        }%{ endif ~}
     ]
 }

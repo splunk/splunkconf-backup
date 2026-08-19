@@ -87,6 +87,7 @@ resource "aws_iam_policy" "pol-splunk-writesecret" {
   "policy-aws/pol-splunk-writesecret.json.tpl",
   {
    secret          = aws_secretsmanager_secret.splunk_admin.id,
+    kmsarn          = coalesce(local.splunkkmsarn, ""),
     profile         = var.profile,
     splunktargetenv = var.splunktargetenv
   }

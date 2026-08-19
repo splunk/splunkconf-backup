@@ -26,6 +26,7 @@ resource "aws_key_pair" "splunk_ssh_key" {
 
 resource "aws_secretsmanager_secret" "splunk_ssh_key" {
   name_prefix = "splunk_ssh_key"
+  kms_key_id  = var.splunkkmsarn
 }
 
 resource "aws_secretsmanager_secret_version" "splunk_ssh_key" {

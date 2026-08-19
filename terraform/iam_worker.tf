@@ -21,6 +21,7 @@ resource "aws_iam_policy" "pol-splunk-ec2worker-secret" {
    secret          = aws_secretsmanager_secret.splunk_admin.arn
     secret2         = module.ssh.splunk_ssh_key_arn
     ssmkey          = module.ssh.splunk_ssh_key_ssm_arn
+    kmsarn          = coalesce(local.splunkkmsarn, "")
     enableprovision = ( var.enableprovision ? "1" : "0" )
     ssmkeyrunner    = ( var.enableprovision ? aws_ssm_parameter.splunkpatjinjarunner[0].arn : "notset" )
     #ssmkeyrunner    = aws_ssm_parameter.splunkpatjinjarunner.arn

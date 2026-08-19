@@ -30,6 +30,7 @@ resource "aws_secretsmanager_secret" "splunk_admin" {
   #count    = var.generateuserseed ? 1 : 0
   name_prefix = "splunk_admin_pwd"
   description = " Splunk admin password"
+  kms_key_id  = local.splunkkmsarn
 }
 
 resource "aws_secretsmanager_secret_version" "splunk_admin" {
@@ -53,6 +54,7 @@ resource "random_password" "splunkpass4symmkeyidx" {
 resource "aws_secretsmanager_secret" "splunk_pass4symmkeyidx" {
   name_prefix = "splunk_pass4symmkeyidx"
   description = " Splunk pass4symmkey for idx clustering communication"
+  kms_key_id  = local.splunkkmsarn
 }
 
 resource "aws_secretsmanager_secret_version" "splunk_pass4symmkeyidx" {
@@ -77,6 +79,7 @@ resource "random_password" "splunkpass4symmkeyidxdiscovery" {
 resource "aws_secretsmanager_secret" "splunk_pass4symmkeyidxdiscovery" {
   name_prefix = "splunk_pass4symmkeyidxdiscovery"
   description = " Splunk pass4symmkey for idx discovery protocol"
+  kms_key_id  = local.splunkkmsarn
 }
 
 resource "aws_secretsmanager_secret_version" "splunk_pass4symmkeyidxdiscovery" {
@@ -101,6 +104,7 @@ resource "random_password" "splunkpass4symmkeyshc" {
 resource "aws_secretsmanager_secret" "splunk_pass4symmkeyshc" {
   name_prefix = "splunk_pass4symmkeyshc"
   description = " Splunk pass4symmkey for shc communication"
+  kms_key_id  = local.splunkkmsarn
 }
 
 resource "aws_secretsmanager_secret_version" "splunk_pass4symmkeyshc" {

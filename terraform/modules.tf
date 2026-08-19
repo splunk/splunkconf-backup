@@ -41,6 +41,7 @@ module "network" {
 module "ssh" {
   source        = "./modules/ssh"
   ssh_algorithm = var.ssh_algorithm
+  splunkkmsarn  = local.splunkkmsarn
   providers = {
     aws = aws.region-primary
   }

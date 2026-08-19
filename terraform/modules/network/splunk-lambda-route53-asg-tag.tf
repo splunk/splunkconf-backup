@@ -93,6 +93,8 @@ locals {
 }
 
 
+# CloudWatch Logs provide sufficient observability; X-Ray tracing intentionally not enabled.
+# nosemgrep: tools.semgrep.rules.splunk_custom.terraform.aws.security.aws-lambda-x-ray-tracing-not-active
 resource "aws_lambda_function" "lambda_update-route53-tag" {
   count    = var.enable_lambda_route53 ? 1 : 0
   #provider         = aws.region-primary

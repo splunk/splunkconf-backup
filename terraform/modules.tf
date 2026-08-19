@@ -27,6 +27,7 @@ module "network" {
   dns-zone-name-top            = var.dns-zone-name-top
   ns_ttl                       = var.ns_ttl
   enable_lambda_route53        = var.enable_lambda_route53
+  splunkkmsarn                 = local.splunkkmsarn
   # easier to use for route53
   region = var.region-primary
 
@@ -56,10 +57,11 @@ output "splunk_ssh_key_ssm_arn" {
 }
 
 module "kms" {
-  source = "./modules/kms"
-  enable_key_rotation   = var.enable_key_rotation
+  source                  = "./modules/kms"
+  enable_key_rotation     = var.enable_key_rotation
   deletion_window_in_days = var.deletion_window_in_days
   rotation_period_in_days = var.rotation_period_in_days
+  splunkencryption        = var.splunkencryption
   providers = {
     aws = aws.region-primary
   }

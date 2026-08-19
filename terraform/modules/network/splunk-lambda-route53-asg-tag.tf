@@ -14,8 +14,8 @@ resource "aws_iam_role" "role-splunk-lambda-route53-asg-tag" {
 
 resource "aws_iam_instance_profile" "role-splunk-lambda-route53-asg-tag_profile" {
   #provider = aws.region-primary
-  name_prefix     = "role-splunk-lambda-route53-asg-tag_profile"
-  role     = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
+  name_prefix = "role-splunk-lambda-route53-asg-tag_profile"
+  role        = aws_iam_role.role-splunk-lambda-route53-asg-tag.name
 }
 
 #resource "aws_iam_policy_attachment" "lambda-route53-asg-tag-attach-splunk-splunkconf-backup" {
@@ -78,25 +78,25 @@ data "archive_file" "zip_lambda_asg_updateroute53_tag" {
 # this is to create different name 
 
 resource "time_static" "lambda" {
-} 
+}
 
 
 locals {
-#    current_timestamp  = timestamp()
-#    ti        = formatdate("YYYY-MM-DD-hh:mm:ss", local.current_timestamp)
-#  function_name="aws_lambda_autoscale_route53_tags${time_static.lambda.rfc3339}"
-#  handler="lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.lambda_handler"
-#  output_path = "lambda/lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.zip"
-  function_name="aws_lambda_autoscale_route53_tags"
-  handler="lambda_asg_updateroute53_tag.lambda_handler"
-  output_path = "lambda/lambda_asg_updateroute53_tag.zip"
+  #    current_timestamp  = timestamp()
+  #    ti        = formatdate("YYYY-MM-DD-hh:mm:ss", local.current_timestamp)
+  #  function_name="aws_lambda_autoscale_route53_tags${time_static.lambda.rfc3339}"
+  #  handler="lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.lambda_handler"
+  #  output_path = "lambda/lambda_asg_updateroute53_tag${time_static.lambda.rfc3339}.zip"
+  function_name = "aws_lambda_autoscale_route53_tags"
+  handler       = "lambda_asg_updateroute53_tag.lambda_handler"
+  output_path   = "lambda/lambda_asg_updateroute53_tag.zip"
 }
 
 
 # CloudWatch Logs provide sufficient observability; X-Ray tracing intentionally not enabled.
 # nosemgrep: tools.semgrep.rules.splunk_custom.terraform.aws.security.aws-lambda-x-ray-tracing-not-active
 resource "aws_lambda_function" "lambda_update-route53-tag" {
-  count    = var.enable_lambda_route53 ? 1 : 0
+  count = var.enable_lambda_route53 ? 1 : 0
   #provider         = aws.region-primary
   filename         = data.archive_file.zip_lambda_asg_updateroute53_tag.output_path
   source_code_hash = data.archive_file.zip_lambda_asg_updateroute53_tag.output_base64sha256
@@ -107,20 +107,21 @@ resource "aws_lambda_function" "lambda_update-route53-tag" {
   runtime = "python3.13"
   # arch independant, arm is currently a bit cheaper
   architectures = ["arm64"]
-  timeout = 60
+  timeout       = 60
   # we need dns zone to be available before 
   depends_on = [aws_route53_zone.dnszone]
 }
 
 resource "aws_cloudwatch_log_group" "splunkconf_asg_logging" {
   #provider          = aws.region-primary
-  name_prefix              = "/aws/lambda/lambda_update-route53-tag"
+  name_prefix       = "/aws/lambda/lambda_update-route53-tag"
   retention_in_days = 14
+  kms_key_id        = var.splunkkmsarn
 }
 
 resource "aws_iam_policy" "lambda_logging" {
   #provider    = aws.region-primary
-  name_prefix        = "lambda_logging"
+  name_prefix = "lambda_logging"
   path        = "/"
   description = "IAM policy for logging from a lambda"
 
@@ -149,7 +150,7 @@ EOF
 
 resource "aws_cloudwatch_event_rule" "asg" {
   #provider    = aws.region-primary
-  name_prefix        = "capture-aws-asg"
+  name_prefix = "capture-aws-asg"
   description = "Capture each AWS ASG events in order to launch lambda asg route53 tag"
 
   event_pattern = <<EOF
@@ -171,7 +172,7 @@ EOF
 }
 
 resource "aws_cloudwatch_event_target" "lambda_route53asg" {
-  count    = var.enable_lambda_route53 ? 1 : 0
+  count = var.enable_lambda_route53 ? 1 : 0
   #provider  = aws.region-primary
   rule      = aws_cloudwatch_event_rule.asg.name
   target_id = "SendTolambdaroute53asg"
@@ -179,7 +180,7 @@ resource "aws_cloudwatch_event_target" "lambda_route53asg" {
 }
 
 resource "aws_lambda_alias" "route53asg_alias" {
-  count    = var.enable_lambda_route53 ? 1 : 0
+  count = var.enable_lambda_route53 ? 1 : 0
   #provider         = aws.region-primary
   name             = "route53asg"
   description      = "lambda route53 asg alias"
@@ -189,7 +190,7 @@ resource "aws_lambda_alias" "route53asg_alias" {
 
 
 resource "aws_lambda_permission" "allow_cloudwatch_route53asg" {
-  count    = var.enable_lambda_route53 ? 1 : 0
+  count = var.enable_lambda_route53 ? 1 : 0
   #provider      = aws.region-primary
   statement_id  = "AllowExecutionFromCloudWatchroute53asg"
   action        = "lambda:InvokeFunction"
@@ -201,7 +202,7 @@ resource "aws_lambda_permission" "allow_cloudwatch_route53asg" {
 
 # this is used to not destroy lambda immediately after asg as we need some time for eventbridge event to fire the lambda that will remove dsn entries in route53
 resource "time_sleep" "wait_asglambda_destroy" {
-  count    = var.enable_lambda_route53 ? 1 : 0
+  count = var.enable_lambda_route53 ? 1 : 0
   # timer for lambda is currently 60s
   # high value for test only
   destroy_duration = "1m"

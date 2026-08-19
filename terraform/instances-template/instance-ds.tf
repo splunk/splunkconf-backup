@@ -711,6 +711,7 @@ resource "aws_wafv2_web_acl" "lbds" {
 resource "aws_cloudwatch_log_group" "lbds" {
   name_prefix       = "aws-waf-logs-lbds"
   retention_in_days = 30
+  kms_key_id        = local.splunkkmsarn
 }
 
 resource "aws_wafv2_web_acl_logging_configuration" "lbds" {

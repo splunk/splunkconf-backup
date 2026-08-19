@@ -10,3 +10,10 @@ variable "splunktargetenv" {
   default     = "test"
 }
 
+variable "splunkkmsarn" {
+  description = "Pass-through of local.splunkkmsarn from root (null when encryption disabled)"
+  type        = string
+  default     = null
+  nullable    = true
+}
+

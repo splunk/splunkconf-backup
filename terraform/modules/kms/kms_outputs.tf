@@ -2,12 +2,12 @@
 
 output "splunkkmsarn" {
   description = "Splunk KMS ARN"
-  value = aws_kms_key.splunkkms.arn
+  value       = var.splunkencryption ? aws_kms_key.splunkkms.arn : null
 }
 
 output "splunkkmsid" {
   description = "Splunk KMS id"
-  value = aws_kms_key.splunkkms.id
+  value       = var.splunkencryption ? aws_kms_key.splunkkms.id : null
 }
 
 

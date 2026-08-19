@@ -1,15 +1,21 @@
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
 # nosemgrep
 resource "aws_kms_key" "splunkkms" {
   #provider                = aws.region-primary
-  description             = "Splunk KMS key"
+  description = "Splunk KMS key"
   # key rotation true by default
-  enable_key_rotation   = var.enable_key_rotation 
+  enable_key_rotation     = var.enable_key_rotation
   deletion_window_in_days = var.deletion_window_in_days
   rotation_period_in_days = var.rotation_period_in_days
 
   # key_usage = "ENCRYPT_DECRYPT"
   # customer_master_key_spec = SYMMETRIC_DEFAULT
-  # policy    
+  policy = templatefile("${path.module}/../../policy-aws/kms-splunk-key-policy.json.tpl", {
+    account_id = data.aws_caller_identity.current.account_id
+    region     = data.aws_region.current.name
+  })
   is_enabled   = true
   multi_region = false
   # in order to avoid that terraform destroy remove it (clean it manually if you need , use terraform inport if ever needed later (interesting for testing as AWS charge for each key creation)

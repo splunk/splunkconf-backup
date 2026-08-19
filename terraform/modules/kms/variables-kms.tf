@@ -1,17 +1,22 @@
 # for kms
 
 variable "deletion_window_in_days" {
-  type        = number
-  default     = 30
+  type    = number
+  default = 30
 }
 
 variable "rotation_period_in_days" {
-  type        = number
-  default     = 365
+  type    = number
+  default = 365
 }
 
 variable "enable_key_rotation" {
+  type    = bool
+  default = "true"
+}
+
+variable "splunkencryption" {
   type        = bool
-  default     = "true"
+  description = "When false, KMS outputs are null (key still exists)"
 }
 

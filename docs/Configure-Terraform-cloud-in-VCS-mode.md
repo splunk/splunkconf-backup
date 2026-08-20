@@ -6,7 +6,7 @@ nav_order: 1
 ---
 # Objective 
 
-Connect terraform cloud to cloned repository via VCS mode , customize variable and environnement variables in order to make apply run succesfully
+Connect terraform cloud to cloned repository via VCS mode, customize variable and environment variables in order to make apply run successfully
 
 ## Preparation
 

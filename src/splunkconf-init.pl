@@ -28,7 +28,7 @@
 # it is also lots of checks to make sure we are handling erros conditions, know issues with permissions and order of command to type to not break Splunk
 #
 # why not move this to ansible ?
-# you can prepare all the files and call this script from ansible (already done it sucessfully) but I prefer to have the script not ansible dependent as it ease unit testing and works in more environments  
+# you can prepare all the files and call this script from ansible (already done it successfully) but I prefer to have the script not ansible dependent as it ease unit testing and works in more environments  
 #
 # run as root
 # This script initialize Splunk 

@@ -30,7 +30,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # - creating the splunk user (unless existing)
 # - setting up the os partitions for splunk
 # - downloading and setting up tuning for Splunk (ulimits, THP, TCP/IP and kernel + systemd / policykit integration for running splunk in systemd mode) 
-# - downloading and restoring conf backups (for kvdump, copying the file that will be autonatically restored inside splunk by splunkconf-backup)
+# - downloading and restoring conf backups (for kvdump, copying the file that will be automatically restored inside splunk by splunkconf-backup)
 # - downloading and install splunk via rpm
 # - setting up Splunk service (accept license, enable boot start, upgrade if necessary)
 # - rebooting at the end as this is needed if we are in install mode and just updated the system
@@ -73,7 +73,7 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20200927 add logic to detect RH6 versus RH7+ and apply different tuning system dymamically (by having both packages on S3 with fallback mechanism to not break previous package name   
 # 20200927 fix splunk prefix tag detection, add splunktargetbinary tag usage
 # 20200929 add tuned service start for AWS2 case
-# 20201006 deploy splunkconfbackup from s3 (needed for upgrade case) and remove old cron version if present to prevent double run + update autonatically master_uri to splunk-cm.awsdnszone 
+# 20201006 deploy splunkconfbackup from s3 (needed for upgrade case) and remove old cron version if present to prevent double run + update automatically master_uri to splunk-cm.awsdnszone 
 # 20201007 various fixes + add --no-prompt when calling splunkconf-init
 # 20201009 optimize restore detection logging 
 # 20201010 add splunksecrets deployment via pip, add more cases and safeguards for splunkconf-backup deployment in a existing env
@@ -983,7 +983,7 @@ exec >> /var/log/splunkconf-cloud-recovery-secondboot.log 2>&1
 VERSION=$VERSION
 
 echo "running splunkconf-secondboot.sh"
-echo "renaming log to avoid loosing them"
+echo "renaming log to avoid losing them"
 mv /var/log/splunkconf-cloud-recovery-debug.log.1 /var/log/splunkconf-cloud-recovery-debug.log.2
 mv /var/log/splunkconf-cloud-recovery-info.log.1 /var/log/splunkconf-cloud-recovery-info.log.2
 mv /var/log/splunkconf-cloud-recovery-debug.log /var/log/splunkconf-cloud-recovery-debug.log.1
@@ -1841,7 +1841,7 @@ elif [ ! -f "${localinstalldir}/${splbinary}"  ]; then
     exit 1
   fi
 else
-  echo "succesfully downloaded splbinary ${splbinary} from ${remoteinstalldir}/${splbinary}"
+  echo "successfully downloaded splbinary ${splbinary} from ${remoteinstalldir}/${splbinary}"
 fi
 
 echo "importing GPG key"

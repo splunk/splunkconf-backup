@@ -1,6 +1,6 @@
 
 
-#    ***** GLOBAL AMI defintions ******
+#    ***** GLOBAL AMI definitions ******
 
 # This is used by a ami image variable that is then referenced in templates
 

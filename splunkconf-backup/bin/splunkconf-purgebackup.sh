@@ -122,7 +122,7 @@ LOCALBACKUPSTATERETENTIONDAYS=7
 LOCALBACKUPPGRETENTIONDAYS=7
 
 # ATTENTION : you need to free enough space or as the backup are now concurrent, one could eat the space and prevent the other one to run
-# in all case, it is important to verify that backups are effectively running succesfully
+# in all case, it is important to verify that backups are effectively running successfully
 # can be a number or value
 LOCALMAXSIZE=8100000000 
 #5G
@@ -424,11 +424,11 @@ SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
 
 # include VARs
 APPDIR=`pwd`
-debug_log "app=splunkconf-purgebackup result=running SPLUNK_HOME=$SPLUNK_HOME splunkconfappdir=${APPDIR} loading splukconf-backup.conf file"
+debug_log "app=splunkconf-purgebackup result=running SPLUNK_HOME=$SPLUNK_HOME splunkconfappdir=${APPDIR} loading splunkconf-backup.conf file"
 if [[ -f "./default/splunkconf-backup.conf" ]]; then
 #  . ./default/splunkconf-backup.conf
   load_settings_from_file ./default/splunkconf-backup.conf
-  debug_log "INFO: splunkconf-backup.conf default succesfully included"
+  debug_log "INFO: splunkconf-backup.conf default successfully included"
 else
   debug_log "INFO: splunkconf-backup.conf default  not found or not readable. Using defaults from script "
 fi
@@ -436,14 +436,14 @@ fi
 if [[ -f "./local/splunkconf-backup.conf" ]]; then
   #. ./local/splunkconf-backup.conf
   load_settings_from_file ./local/splunkconf-backup.conf
-  debug_log "INFO: splunkconf-backup.conf local succesfully included"
+  debug_log "INFO: splunkconf-backup.conf local successfully included"
 else
   debug_log "INFO: splunkconf-backup.conf local not present, using only default"
 fi
 # take over over default and local
 if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
   load_settings_from_file ${SPLUNK_HOME}/system/local/splunkconf-backup.conf
-  #. ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "INFO: splunkconf-backup.conf system local succesfully included") 
+  #. ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "INFO: splunkconf-backup.conf system local successfully included") 
 else
   debug_log "INFO: splunkconf-backup.conf in system/local not present, no need to include it"
 fi

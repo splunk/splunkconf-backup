@@ -191,7 +191,7 @@ debug_log "app=splunkconf-checkbackup result=running SPLUNK_HOME=$SPLUNK_HOME sp
 if [[ -f "./default/splunkconf-backup.conf" ]]; then
 #  . ./default/splunkconf-backup.conf
   load_settings_from_file ./default/splunkconf-backup.conf
-  debug_log "INFO: splunkconf-backup.conf default succesfully included"
+  debug_log "INFO: splunkconf-backup.conf default successfully included"
 else
   debug_log "INFO: splunkconf-backup.conf default  not found or not readable. Using defaults from script "
 fi
@@ -199,14 +199,14 @@ fi
 if [[ -f "./local/splunkconf-backup.conf" ]]; then
   #. ./local/splunkconf-backup.conf
   load_settings_from_file ./local/splunkconf-backup.conf
-  debug_log "INFO: splunkconf-backup.conf local succesfully included"
+  debug_log "INFO: splunkconf-backup.conf local successfully included"
 else
   debug_log "INFO: splunkconf-backup.conf local not present, using only default"
 fi
 # take over over default and local
 if [[ -f "${SPLUNK_HOME}/system/local/splunkconf-backup.conf" ]]; then
   load_settings_from_file ${SPLUNK_HOME}/system/local/splunkconf-backup.conf
-  #. ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "INFO: splunkconf-backup.conf system local succesfully included") 
+  #. ${SPLUNK_HOME}/system/local/splunkconf-backup.conf && (echo_log "INFO: splunkconf-backup.conf system local successfully included") 
 else
   debug_log "INFO: splunkconf-backup.conf in system/local not present, no need to include it"
 fi

@@ -619,7 +619,7 @@ echo_log "ES installed and setup run. Please check for errors in $SPLUNK_HOME/va
 # 2020-06-08 20:12:46,424+0000 INFO pid=29627 tid=MainThread file=essinstall.py:do_install:265 | Initialization complete, please restart Splunk
 if tail -5 "$SPLUNK_HOME/var/log/splunk/essinstaller2.log" | grep -q " STAGE COMPLETE: \"finalize\"";  then
   echo_log "OK: STAGE complete finalize FOUND in $SPLUNK_HOME/var/log/splunk/essinstaller2.log. That is a good sign the install/upgrade went fine" 
-  echo_log "ES Setup completed succesfully"
+  echo_log "ES Setup completed successfully"
   echo_log "Please login to web interface and verify that no errors are present"
   echo_log "This script has just done the initial ES setup, please continue with the rest of the ES installation guide steps as needed"
   echo_log "in particular, don't forget to : install/upgrade TA (forSH/, configure indexes for ES in org_all_indexes or org_es_indexes via CM for the version of ES used, tune the SH with appropriate scheduling and tuning for ES, tune indexers , ...."

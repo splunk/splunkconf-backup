@@ -11,7 +11,7 @@ However, most people will already have existing VPC with networks already create
 This page is describing how to set variables in order to reuse existing network
 Please read [ Network-Topology ](./ Network-Topology .md) as a prerequisite to this page
 
-# Disabling auto creation of network ressources
+# Disabling auto creation of network resources
 
 As a remind, you are supposed to have 3 public networks and 3 private networks (one par AZ in a region/VPC) to maximize resiliency and minimize instance loss in case of AZ failure. 
 Even when internal connectivity depend on specific AZ(s) , it may still be a good idea for the above reason and also because AZ name are logical per account by AWS design so in a multi account mode , AZa in 2 different accounts may not be the same.

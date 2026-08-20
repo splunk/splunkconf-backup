@@ -596,7 +596,7 @@ jobs:
       # -------------------------------------------------------
       # Step 11: Download (copy) the generated tar files
       # -------------------------------------------------------
-      # FIXME : add downlaod of kvdump in a different directory
+      # FIXME : add download of kvdump in a different directory
       - name: Download generated backup files from container
         run: |
           echo "=== Downloading backup files from Splunk container ==="

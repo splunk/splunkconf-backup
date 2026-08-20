@@ -11,7 +11,7 @@ There are 2 parts in recovery :
 2. At first Splunk start, splunkconf-backup app will detect recovery mode and initiate a kvdump recovery if needed 
 
 Note that instructions for first part only apply if you leverage included recovery scripts inside iaas context. 
-You may junp directly to last part if applicable
+You may jump directly to last part if applicable
 
 ## Instance Recovery
 
@@ -42,7 +42,7 @@ Every big steps is prefixed with * to ease reading log files by identifying step
 If the recovery breaks on update or finding Splunk software to download , you may have to follow instructions related to working in disconnected mode. 
 
 Other possible errors may be :
-- disk space too short -> increase to reasonnable disk space
+- disk space too short -> increase to reasonable disk space
 - instance spec much too low -> trying to recover on a single shared vcpu with CPU credit may be challenging, please make sure you enough resources 
 - OS image not currently supported by recovery -> change image to a supported one (ie rpm based)
 - cloud provider not properly detected -> this could happen for newer image/kernel -> make sure you use latest recovery or report bug so support can be updated. 

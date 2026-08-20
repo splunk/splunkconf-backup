@@ -836,7 +836,7 @@ function do_remote_copy() {
         break
       else
         # not nornal, we still log a failure even if not the last attempt
-        # note this can fail due to timeout if qos or lack of ressources on s3 or server
+        # note this can fail due to timeout if qos or lack of resources on s3 or server
         fail_log "action=backup type=${TYPE} object=${OBJECT} result=failure src=${LFIC} dest=${RFIC} durationms=${DURATION} size=${FILESIZE} err=$RES  ATTEMPT=$ATTEMPT MAXTRY=$REMOTECOPYRETRY"
       fi
     fi
@@ -1915,7 +1915,7 @@ if [ "$MODE" == "0" ] || [ "$MODE" == "kvdump" ] || [ "$MODE" == "kvstore" ] || 
         #field.date = time
         #field.version = string
         echo_log "INFO: adding test entry in splunkconf-backup-status collection"
-        RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/servicesNS/nobody/splunkconf-backup//storage/collections/data/splunkconf-backup-status  --header "Authorization: Splunk ${sessionkey}" \
+        RES=`curl --silent -k  --connect-timeout $CURLCONNECTTIMEOUT --max-time $CURLMAXTIME https://${MGMTURL}/servicesNS/nobody/splunkconf-backup/storage/collections/data/splunkconf-backup-status  --header "Authorization: Splunk ${sessionkey}" \
              -H 'Content-Type: application/json' \
              -d '{"status": "OK", "date": 1234, "version": "1.11.1"}' `
         debug_log "adding entry in collection RES=$RES"
@@ -2467,7 +2467,7 @@ fi
   if [ ${REMOTETECHNO} -eq 1 ]; then 
   # nas
     if [ ! -d "$REMOTEBACKUPDIR" ]; then
-      mkdir ${REMOTEBACKUPDIR} && echo_log "creation of instance dir on remote storage succesfull (${REMOTEBACKUPDIR})" || ( fail_log "creation of instance dir on remote storage FAILED ! (${REMOTEBACKUPDIR})";exit 1;)
+      mkdir ${REMOTEBACKUPDIR} && echo_log "creation of instance dir on remote storage successful (${REMOTEBACKUPDIR})" || ( fail_log "creation of instance dir on remote storage FAILED ! (${REMOTEBACKUPDIR})";exit 1;)
     else 
       debug_log "REMOTEBACKUPDIR ${REMOTEBACKUPDIR} exist" 
     fi

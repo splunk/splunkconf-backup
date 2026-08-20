@@ -32,9 +32,9 @@ You will need at least :
 * choose VCS mode then github 
 * you will be redirected to github in another tab in order to install Terraform Cloud app inside your github
 Note you may restrict the github app to just the cloned repo or use All repositories
-* clic install , select cloned repo when necesary
+* click install , select cloned repo when necessary
 * go back to terraform cloud, you should see repo in the proposed list (or the previous step didnt worked correctly)
-* select it and clic create workspace
+* select it and click create workspace
 
 Do NOT run a plan now, we need to set variables before
 
@@ -58,8 +58,8 @@ configure at least the following variables (look into variables*tf files for the
 * dns-zone-name sub zone that will be created by TF and used by route53 
 you may want to customize instance size, number when applicable and various acl here
 
-then go in workspace general settings and set Terraform Working Directory to terraform (or terraform will complain it doesn see any tf files)
-Save settings then clic on Start a new run
+then go in workspace general settings and set Terraform Working Directory to terraform (or terraform will complain it doesn't see any tf files)
+Save settings then click on Start a new run
 Verify plan 
 if it looks ok then apply it
 

@@ -302,11 +302,11 @@ if [ ${CHECKLEVEL} -ne 7 ]; then
   echo_log "INFO: (web.conf in [settings]) max_upload_size=${maxuploadsize} "
   # workaroud the fact that btool wont return a value for that param when not custonize (if the defautlt were to be changed, the test will have to be changed)
   if [ -z ${maxuploadsize} ]; then
-    fail_log "max_upload_size is unchanged from default which is too low for ES installation to be succesfull. Please fix in org_all_search_base/local/web.conf under settings stanza (or the appropriate app for ES SH custom settings in your env and relaunch installes script"
+    fail_log "max_upload_size is unchanged from default which is too low for ES installation to be successful. Please fix in org_all_search_base/local/web.conf under settings stanza (or the appropriate app for ES SH custom settings in your env and relaunch installes script"
     ((FAIL++))
     #exit 1
   elif [ ${maxuploadsize} -lt 2048 ]; then
-    fail_log "max_upload_size is set but under the required value of 2048. ES app installation require this to be succesfull. Please fix in org_all_search_base/local/web.conf under settings stanza (or the appropriate app for ES SH custom settings in your env and relaunch installes script"
+    fail_log "max_upload_size is set but under the required value of 2048. ES app installation require this to be successful. Please fix in org_all_search_base/local/web.conf under settings stanza (or the appropriate app for ES SH custom settings in your env and relaunch installes script"
     ((FAIL++))
     #exit 1
   else

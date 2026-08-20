@@ -618,10 +618,10 @@ get_packages () {
       systemctl disable log4j-cve-2021-44228-hotpatch
     fi
     # we deploy SSM after the previous yum as some ssm action may immediately run after and try to do a rpm which would lock rpm and create conflict
-    if [[ "cloud_type" -eq 1 ]]; then
+    if [[ "$cloud_type" -eq 1 ]]; then
       # AWS
       # FIXME : test if service already deployed 
-      if [ 'grep PLATFORM_ID /etc/os-release | grep platform:el9' ]; then
+      if grep -q 'PLATFORM_ID="platform:el9"' /etc/os-release; then
         echo "RH9/Centos9 like, forcing AWS SSM install in connected mode"
         # see https://docs.aws.amazon.com/systems-manager/latest/userguide/agent-install-centos-stream.html
         # could be replaced by region specific to avoid dependency on global s3
@@ -647,7 +647,7 @@ setup_disk () {
     fi
 
     # let try to find if we have ephemeral storage
-    if [[ "cloud_type" -eq 2 ]]; then
+    if [[ "$cloud_type" -eq 2 ]]; then
       # gcp
       INSTANCELIST=`nvme list | grep "nvme_card" | cut -f 1 -d" "`
     else
@@ -1129,7 +1129,7 @@ splunksecretsdeploymentenable=0
 
 INSTANCEFILE="/etc/instance-tags"
 
-if [[ "cloud_type" -eq 1 ]]; then
+if [[ "$cloud_type" -eq 1 ]]; then
   # aws
   # we get most var dynamically from ec2 tags associated to instance
 
@@ -1151,7 +1151,7 @@ if [[ "cloud_type" -eq 1 ]]; then
     echo "splunk prefixed tags not found, reverting to full tag inclusion" >> /var/log/splunkconf-cloud-recovery-info.log
     aws ec2 describe-tags --region $REGION --filter "Name=resource-id,Values=$INSTANCE_ID" --output=text |sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]*=[[:space:]]*/=/' | sed -r 's/TAGS\t(.*)\t.*\t.*\t(.*)/\1="\2"/'  > $INSTANCEFILE
   fi
-elif [[ "cloud_type" -eq 2 ]]; then
+elif [[ "$cloud_type" -eq 2 ]]; then
   # GCP
   splunkinstanceType=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/attributes/splunkinstanceType`
   if [ -z ${splunkinstanceType+x} ]; then
@@ -1681,7 +1681,7 @@ fi
 useradd --home-dir ${SPLUNK_HOME} --comment "Splunk Server" ${splunkuser} --shell /bin/bash 
 
 if (( splunkrsyncmode == 1 )); then
-  if [[ "cloud_type" -eq 1 ]]; then
+  if [[ "$cloud_type" -eq 1 ]]; then
     # aws
     echo "rsync over ssh mode, trying to setup keys"
     mkdir -p ${SPLUNK_HOME}/.ssh
@@ -2309,7 +2309,7 @@ if [ "$MODE" != "upgrade" ]; then
     else 
       echo "using splunkorg=${splunkorg} from instance tags" >> /var/log/splunkconf-cloud-recovery-info.log
     fi
-    if [[ "cloud_type" -eq 2 ]]; then
+    if [[ "$cloud_type" -eq 2 ]]; then
       # gcp
       AZONE=`curl --silent --show-error -H "Metadata-Flavor: Google" -fs http://metadata/computeMetadata/v1/instance/zone`
     else # 1= AWS    

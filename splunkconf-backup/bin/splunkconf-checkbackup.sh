@@ -187,7 +187,7 @@ SPLUNK_DB="${SPLUNK_HOME}/var/lib/splunk"
 
 # include VARs
 APPDIR=`pwd`
-debug_log "app=splunkconf-purgebackup result=running SPLUNK_HOME=$SPLUNK_HOME splunkconfappdir=${APPDIR} loading splukconf-backup.conf file"
+debug_log "app=splunkconf-checkbackup result=running SPLUNK_HOME=$SPLUNK_HOME splunkconfappdir=${APPDIR} loading splunkconf-backup.conf file"
 if [[ -f "./default/splunkconf-backup.conf" ]]; then
 #  . ./default/splunkconf-backup.conf
   load_settings_from_file ./default/splunkconf-backup.conf

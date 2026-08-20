@@ -43,7 +43,7 @@ systemctl enable --now ipvsadm
 # clear
 ipvsadm -C
 
-# nornal port 8089
+# normal port 8089
 VIPPORT=8089
 
 # get my ip

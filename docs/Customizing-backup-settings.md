@@ -12,7 +12,7 @@ Your local changes will take over default configuration
 
 App can be distributed via Deployment Server as it is DS compatible. 
 
-Please note this is also possible to overwrite a setting by creating _splunkconf-backup.conf_ file in system/local directory but this is not considered a good practise in general
+Please note this is also possible to overwrite a setting by creating _splunkconf-backup.conf_ file in system/local directory but this is not considered a good practice in general
 
 # Format specificity (version < 1.9)
 

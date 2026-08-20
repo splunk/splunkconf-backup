@@ -20,8 +20,8 @@ resource "tls_private_key" "splunk_ssh_key" {
 
 resource "aws_key_pair" "splunk_ssh_key" {
   #provider   = aws.region-primary
-  key_name_prefix   = "splunk_ssh_key"
-  public_key = tls_private_key.splunk_ssh_key.public_key_openssh
+  key_name_prefix = "splunk_ssh_key"
+  public_key      = tls_private_key.splunk_ssh_key.public_key_openssh
 }
 
 resource "aws_secretsmanager_secret" "splunk_ssh_key" {
@@ -43,8 +43,8 @@ resource "aws_ssm_parameter" "splunk_ssh_key" {
   value       = tls_private_key.splunk_ssh_key.private_key_openssh
   overwrite   = true
 
-#  tags = {
-#    environment = var.splunktargetenv
-#  }
+  #  tags = {
+  #    environment = var.splunktargetenv
+  #  }
 }
 

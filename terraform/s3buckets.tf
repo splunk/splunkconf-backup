@@ -108,8 +108,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle" {
       prefix = "splunkconf-backup/"
     }
     noncurrent_version_expiration {
-      newer_noncurrent_versions = var.backup-min-versions 
-      noncurrent_days = var.backup-retention-days
+      newer_noncurrent_versions = var.backup-min-versions
+      noncurrent_days           = var.backup-retention-days
     }
     abort_incomplete_multipart_upload {
       days_after_initiation = 1
@@ -124,12 +124,12 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle" {
     filter {
       and {
         prefix = "splunkconf-backup/"
-        tags = { frequency = "hourly" }
+        tags   = { frequency = "hourly" }
       }
     }
     noncurrent_version_expiration {
-      newer_noncurrent_versions = var.backup-min-versions-hourly 
-      noncurrent_days = var.backup-retention-days-hourly
+      newer_noncurrent_versions = var.backup-min-versions-hourly
+      noncurrent_days           = var.backup-retention-days-hourly
     }
     status = "Enabled"
   }
@@ -138,12 +138,12 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle" {
     filter {
       and {
         prefix = "splunkconf-backup/"
-        tags = { frequency = "daily" }
+        tags   = { frequency = "daily" }
       }
     }
     noncurrent_version_expiration {
-      newer_noncurrent_versions = var.backup-min-versions-daily 
-      noncurrent_days = var.backup-retention-days-daily
+      newer_noncurrent_versions = var.backup-min-versions-daily
+      noncurrent_days           = var.backup-retention-days-daily
     }
     status = "Enabled"
   }
@@ -152,12 +152,12 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle" {
     filter {
       and {
         prefix = "splunkconf-backup/"
-        tags = { frequency = "weekly" }
+        tags   = { frequency = "weekly" }
       }
     }
     noncurrent_version_expiration {
-      newer_noncurrent_versions = var.backup-min-versions-weekly 
-      noncurrent_days = var.backup-retention-days-weekly
+      newer_noncurrent_versions = var.backup-min-versions-weekly
+      noncurrent_days           = var.backup-retention-days-weekly
     }
     status = "Enabled"
   }
@@ -166,12 +166,12 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_backup_lifecycle" {
     filter {
       and {
         prefix = "splunkconf-backup/"
-        tags = { frequency = "monthly" }
+        tags   = { frequency = "monthly" }
       }
     }
     noncurrent_version_expiration {
-      newer_noncurrent_versions = var.backup-min-versions-monthly 
-      noncurrent_days = var.backup-retention-days-monthly
+      newer_noncurrent_versions = var.backup-min-versions-monthly
+      noncurrent_days           = var.backup-retention-days-monthly
     }
     status = "Enabled"
   }
@@ -281,7 +281,7 @@ data "aws_iam_policy_document" "s3_bucket_lb_write" {
     actions = [
       "s3:PutObject"
     ]
-    effect = "Allow"
+    effect    = "Allow"
     resources = ["${aws_s3_bucket.s3_data.arn}/log/*"]
     principals {
       identifiers = ["delivery.logs.amazonaws.com"]
@@ -294,7 +294,7 @@ data "aws_iam_policy_document" "s3_bucket_lb_write" {
     actions = [
       "s3:GetBucketAcl"
     ]
-    effect = "Allow"
+    effect    = "Allow"
     resources = ["${aws_s3_bucket.s3_data.arn}"]
     principals {
       identifiers = ["delivery.logs.amazonaws.com"]
@@ -349,8 +349,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "s3_ia_lifecycle" {
 }
 
 locals {
-  s3_install_s3uri="s3://${aws_s3_bucket.s3_install.bucket}"
-  s3_install_bucket=aws_s3_bucket.s3_install.bucket
+  s3_install_s3uri  = "s3://${aws_s3_bucket.s3_install.bucket}"
+  s3_install_bucket = aws_s3_bucket.s3_install.bucket
 }
 
 output "s3_install_arn" {
@@ -379,7 +379,7 @@ output "s3_ia_arn" {
 }
 
 output "s3_data_lb_write_policy" {
-  value = data.aws_iam_policy_document.s3_bucket_lb_write.json
+  value       = data.aws_iam_policy_document.s3_bucket_lb_write.json
   description = "policy to allow ELB service to write to s3 bucket"
 }
 

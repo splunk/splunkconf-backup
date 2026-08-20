@@ -14,26 +14,26 @@ locals {
   instance-type-sh      = (local.env == "min" ? var.instance-type-sh-min : var.instance-type-sh-default)
   instance-type-bastion = var.instance-type-bastion
   # allow to easily disable instance while still configuring the rest (can be useful for testing)
-  ds-nb                 = (var.ds-enable ? 1 : 0)
-  mc-nb                 = (var.mc-enable ? 1 : 0)
-  sh-nb                 = (var.sh-enable ? 1 : 0)
-  cm-nb                 = (var.cm-enable ? 1 : 0)
+  ds-nb = (var.ds-enable ? 1 : 0)
+  mc-nb = (var.mc-enable ? 1 : 0)
+  sh-nb = (var.sh-enable ? 1 : 0)
+  cm-nb = (var.cm-enable ? 1 : 0)
   # short name
   ds = (var.use_elb_ds == true ? var.lbds : var.ds)
   # long names
-  mc-dns-name           = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
-  worker-dns-name       = "${local.dns-prefix}${var.worker}.${var.dns-zone-name}"
-  sh-dns-name           = "${local.dns-prefix}${var.sh}.${var.dns-zone-name}"
-  idx-dns-name          = "${local.dns-prefix}${var.idx}.${var.dns-zone-name}"
-  cm-dns-name           = "${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
-  ds-dns-name           = "${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
-  std-dns-name          = "${local.dns-prefix}${var.std}.${var.dns-zone-name}"
-  hf-dns-name           = "${local.dns-prefix}${var.hf}.${var.dns-zone-name}"
-  hfa-dns-name           = "${local.dns-prefix}${var.hf}a.${var.dns-zone-name}"
-  hfb-dns-name           = "${local.dns-prefix}${var.hf}b.${var.dns-zone-name}"
-  lm-dns-name           = "${local.dns-prefix}${var.lm}.${var.dns-zone-name}"
-  iuf-dns-name           = "${local.dns-prefix}${var.iuf}.${var.dns-zone-name}"
-  ihf-dns-name           = "${local.dns-prefix}${var.ihf}.${var.dns-zone-name}"
+  mc-dns-name     = "${local.dns-prefix}${var.mc}.${var.dns-zone-name}"
+  worker-dns-name = "${local.dns-prefix}${var.worker}.${var.dns-zone-name}"
+  sh-dns-name     = "${local.dns-prefix}${var.sh}.${var.dns-zone-name}"
+  idx-dns-name    = "${local.dns-prefix}${var.idx}.${var.dns-zone-name}"
+  cm-dns-name     = "${local.dns-prefix}${var.cm}.${var.dns-zone-name}"
+  ds-dns-name     = "${local.dns-prefix}${var.ds}.${var.dns-zone-name}"
+  std-dns-name    = "${local.dns-prefix}${var.std}.${var.dns-zone-name}"
+  hf-dns-name     = "${local.dns-prefix}${var.hf}.${var.dns-zone-name}"
+  hfa-dns-name    = "${local.dns-prefix}${var.hf}a.${var.dns-zone-name}"
+  hfb-dns-name    = "${local.dns-prefix}${var.hf}b.${var.dns-zone-name}"
+  lm-dns-name     = "${local.dns-prefix}${var.lm}.${var.dns-zone-name}"
+  iuf-dns-name    = "${local.dns-prefix}${var.iuf}.${var.dns-zone-name}"
+  ihf-dns-name    = "${local.dns-prefix}${var.ihf}.${var.dns-zone-name}"
 
 }
 

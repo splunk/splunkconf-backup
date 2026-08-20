@@ -289,8 +289,8 @@ resource "aws_launch_template" "splunk-ds" {
       splunkbackupdebug     = var.splunkbackupdebug
       # this is needed for multi ds only
       # we only deploy by tar in that case
-      splunktargetbinary = var.splunktar
-      splunkdsnb         = var.dsnb
+      splunktargetbinary     = var.splunktar
+      splunkdsnb             = var.dsnb
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand
     }

@@ -151,7 +151,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-iuf" {
     propagate_at_launch = false
   }
   tag {
-    key                 = "splunkdnsnames"
+    key = "splunkdnsnames"
     # use iufnames here instead of iuf so we can publish multiple entries (as iuf is a single name)
     value               = var.iufnames
     propagate_at_launch = false
@@ -176,7 +176,7 @@ resource "aws_launch_template" "splunk-iuf" {
     ebs {
       volume_size = var.disk-size-iuf
       volume_type = "gp3"
-      encrypted= local.splunkencryption
+      encrypted   = local.splunkencryption
       # fixme : add iam for this
       #kms_key_id = local.splunkkmsarn
     }
@@ -205,16 +205,16 @@ resource "aws_launch_template" "splunk-iuf" {
       splunkorg             = var.splunkorg
       splunktargetenv       = var.splunktargetenv
       # special UF
-      splunkmode          = "uf"
-      splunktargetbinary  = var.splunktargetbinaryuf
-      splunktargetcm      = var.cm
-      splunktargetlm      = var.lm
-      splunktargetds      = local.ds
-      splunkcloudmode     = var.splunkcloudmode
-      splunkosupdatemode  = var.splunkosupdatemode
-      splunkconnectedmode = var.splunkconnectedmode
-      splunkacceptlicense = var.splunkacceptlicense
-      splunkbackupdebug     = var.splunkbackupdebug
+      splunkmode             = "uf"
+      splunktargetbinary     = var.splunktargetbinaryuf
+      splunktargetcm         = var.cm
+      splunktargetlm         = var.lm
+      splunktargetds         = local.ds
+      splunkcloudmode        = var.splunkcloudmode
+      splunkosupdatemode     = var.splunkosupdatemode
+      splunkconnectedmode    = var.splunkconnectedmode
+      splunkacceptlicense    = var.splunkacceptlicense
+      splunkbackupdebug      = var.splunkbackupdebug
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand
     }

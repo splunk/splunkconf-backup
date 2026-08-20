@@ -412,11 +412,11 @@ resource "aws_launch_template" "splunk-idx" {
       splunkosupdatemode           = var.splunkosupdatemode
       splunkconnectedmode          = var.splunkconnectedmode
       splunkacceptlicense          = var.splunkacceptlicense
-      splunkbackupdebug     = var.splunkbackupdebug
+      splunkbackupdebug            = var.splunkbackupdebug
       splunkenableunifiedpartition = var.splunkenableunifiedpartition
       splunksmartstoresitenumber   = var.splunksmartstoresitenumber
-      splunkpostextrasyncdir = var.splunkpostextrasyncdir
-      splunkpostextracommand = var.splunkpostextracommand
+      splunkpostextrasyncdir       = var.splunkpostextrasyncdir
+      splunkpostextracommand       = var.splunkpostextracommand
     }
   }
   metadata_options {
@@ -518,11 +518,11 @@ resource "aws_alb_target_group" "idxhec-ack" {
 resource "aws_lb" "idxhec-noack" {
   count = var.use_elb ? 1 : 0
   #count = var.enable-idx-hecelb ? 1: 0
-  name               = "idxhec-noack"
-  load_balancer_type = "application"
+  name                       = "idxhec-noack"
+  load_balancer_type         = "application"
   drop_invalid_header_fields = true
-  security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhecidx.id]
-  subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
+  security_groups            = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhecidx.id]
+  subnets                    = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   # Tracks HTTP Requests
   access_logs {
     bucket  = aws_s3_bucket.s3_data.bucket
@@ -545,11 +545,11 @@ resource "aws_lb" "idxhec-noack" {
 resource "aws_lb" "idxhec-ack" {
   count = var.use_elb_ack ? 1 : 0
   #count = var.enable-idx-hecelb ? 1: 0
-  name               = "idxhec-ack"
-  load_balancer_type = "application"
+  name                       = "idxhec-ack"
+  load_balancer_type         = "application"
   drop_invalid_header_fields = true
-  security_groups    = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhecidx.id]
-  subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
+  security_groups            = [aws_security_group.splunk-lb-hecidx-outbound.id, aws_security_group.splunk-lbhecidx.id]
+  subnets                    = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   # Tracks HTTP Requests
   access_logs {
     bucket  = aws_s3_bucket.s3_data.bucket
@@ -587,8 +587,8 @@ resource "aws_alb_listener" "idxhec-ack" {
   load_balancer_arn = aws_lb.idxhec-ack[0].arn
   port              = 8088
   # change here for HTTPS
-  protocol = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
+  protocol        = "HTTPS"
+  ssl_policy      = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
   certificate_arn = aws_acm_certificate.acm_certificate_elb_hec.arn
   default_action {
     target_group_arn = aws_alb_target_group.idxhec-ack.arn
@@ -639,12 +639,12 @@ resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hec" {
 }
 
 output "idx-elb-ihfhec-noack-dns-name" {
-  value = one(aws_lb.idxhec-noack[*].dns_name)
+  value       = one(aws_lb.idxhec-noack[*].dns_name)
   description = "idx ELB HEC no ack dns name"
-} 
-  
+}
+
 output "idx-elb-ihfhec-ack-dns-name" {
-  value = one(aws_lb.idxhec-ack[*].dns_name)
+  value       = one(aws_lb.idxhec-ack[*].dns_name)
   description = "idx ELB HEC ack dns name"
 }
 

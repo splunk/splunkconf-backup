@@ -20,7 +20,7 @@ resource "aws_iam_instance_profile" "role-splunk-ihf_profile" {
 }
 
 resource "aws_iam_role_policy_attachment" "ihf-attach-splunk-splunkconf-backup" {
-  role = aws_iam_role.role-splunk-ihf.name
+  role       = aws_iam_role.role-splunk-ihf.name
   policy_arn = aws_iam_policy.pol-splunk-splunkconf-backup.arn
   provider   = aws.region-primary
 }
@@ -181,7 +181,7 @@ resource "aws_autoscaling_group" "autoscaling-splunk-ihf" {
     propagate_at_launch = false
   }
   tag {
-    key                 = "splunkdnsnames"
+    key = "splunkdnsnames"
     # use ihfnames here instead of ihf so we can publish multiple entries (as ihf is a single name)
     value               = var.ihfnames
     propagate_at_launch = false
@@ -208,7 +208,7 @@ resource "aws_launch_template" "splunk-ihf" {
     ebs {
       volume_size = var.disk-size-hf
       volume_type = "gp3"
-      encrypted= local.splunkencryption
+      encrypted   = local.splunkencryption
       # fixme : add iam for this
       #kms_key_id = local.splunkkmsarn
     }
@@ -226,28 +226,28 @@ resource "aws_launch_template" "splunk-ihf" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name                  = var.ihf
-      splunkinstanceType    = var.ihf
-      splunks3backupbucket  = aws_s3_bucket.s3_backup.id
-      splunks3installbucket = aws_s3_bucket.s3_install.id
-      splunks3databucket    = aws_s3_bucket.s3_data.id
-      splunkdnszone         = var.dns-zone-name
-      splunkdnsmode         = "lambda"
-      splunkorg             = var.splunkorg
-      splunktargetenv       = var.splunktargetenv
-      splunktargetbinary    = var.splunktargetbinary
-      splunktargetcm        = var.cm
-      splunktargetlm        = var.lm
-      splunktargetds        = var.ds
-      splunkcloudmode       = var.splunkcloudmode
-      splunkosupdatemode    = var.splunkosupdatemode
-      splunkconnectedmode   = var.splunkconnectedmode
-      splunkacceptlicense   = var.splunkacceptlicense
-      splunkbackupdebug     = var.splunkbackupdebug
-      splunkpwdinit         = var.splunkpwdinit
-      splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
-      splunkhostmodeos      = "ami"
-      splunkhostmode        = "prefix"
+      Name                   = var.ihf
+      splunkinstanceType     = var.ihf
+      splunks3backupbucket   = aws_s3_bucket.s3_backup.id
+      splunks3installbucket  = aws_s3_bucket.s3_install.id
+      splunks3databucket     = aws_s3_bucket.s3_data.id
+      splunkdnszone          = var.dns-zone-name
+      splunkdnsmode          = "lambda"
+      splunkorg              = var.splunkorg
+      splunktargetenv        = var.splunktargetenv
+      splunktargetbinary     = var.splunktargetbinary
+      splunktargetcm         = var.cm
+      splunktargetlm         = var.lm
+      splunktargetds         = var.ds
+      splunkcloudmode        = var.splunkcloudmode
+      splunkosupdatemode     = var.splunkosupdatemode
+      splunkconnectedmode    = var.splunkconnectedmode
+      splunkacceptlicense    = var.splunkacceptlicense
+      splunkbackupdebug      = var.splunkbackupdebug
+      splunkpwdinit          = var.splunkpwdinit
+      splunkpwdarn           = aws_secretsmanager_secret.splunk_admin.id
+      splunkhostmodeos       = "ami"
+      splunkhostmode         = "prefix"
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand
     }
@@ -263,7 +263,7 @@ resource "aws_launch_template" "splunk-ihf" {
 # OUTBOUND
 
 # LB
-  
+
 resource "aws_security_group" "splunk-lb-hecihf-outbound" {
   name_prefix = "splunk-lb-hecihf-outbound"
   description = "Outbound Security group for ELB HEC to IHF"
@@ -271,8 +271,8 @@ resource "aws_security_group" "splunk-lb-hecihf-outbound" {
   tags = {
     Name = "splunk"
   }
-} 
-  
+}
+
 resource "aws_security_group_rule" "lb_outbound_hecihf" {
   security_group_id        = aws_security_group.splunk-lb-hecihf-outbound.id
   type                     = "egress"
@@ -376,10 +376,10 @@ resource "aws_alb_target_group" "ihfhec-ack" {
 resource "aws_lb" "ihfhec-noack" {
   count = var.use_elb ? 1 : 0
   #count = var.enable-ihf-hecelb ? 1: 0
-  name               = "ihfhec-noack"
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.splunk-lb-hecihf-outbound.id, aws_security_group.splunk-lbhecihf.id]
-  subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
+  name                       = "ihfhec-noack"
+  load_balancer_type         = "application"
+  security_groups            = [aws_security_group.splunk-lb-hecihf-outbound.id, aws_security_group.splunk-lbhecihf.id]
+  subnets                    = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   drop_invalid_header_fields = true
   # Tracks HTTP Requests
   access_logs {
@@ -404,10 +404,10 @@ resource "aws_lb" "ihfhec-noack" {
 resource "aws_lb" "ihfhec-ack" {
   count = var.use_elb_ack ? 1 : 0
   #count = var.enable-ihf-hecelb ? 1: 0
-  name               = "ihfhec-ack"
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.splunk-lb-hecihf-outbound.id, aws_security_group.splunk-lbhecihf.id]
-  subnets            = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
+  name                       = "ihfhec-ack"
+  load_balancer_type         = "application"
+  security_groups            = [aws_security_group.splunk-lb-hecihf-outbound.id, aws_security_group.splunk-lbhecihf.id]
+  subnets                    = (local.use-elb-private == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   drop_invalid_header_fields = true
   # Tracks HTTP Requests
   access_logs {
@@ -448,7 +448,7 @@ resource "aws_alb_listener" "ihfhec-ack" {
   load_balancer_arn = aws_lb.ihfhec-ack[0].arn
   port              = 8088
   # change here for HTTPS
-  protocol = "HTTPS"
+  protocol        = "HTTPS"
   certificate_arn = aws_acm_certificate_validation.acm_certificate_validation_elb_hecihf.certificate_arn
   default_action {
     target_group_arn = aws_alb_target_group.ihfhec-ack.arn
@@ -496,12 +496,12 @@ resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_hecihf
 }
 
 output "ihf-elb-ihfhec-noack-dns-name" {
-  value = one(aws_lb.ihfhec-noack[*].dns_name)
+  value       = one(aws_lb.ihfhec-noack[*].dns_name)
   description = "ihf ELB HEC no ack dns name"
 }
 
 output "ihf-elb-ihfhec-ack-dns-name" {
-  value = one(aws_lb.ihfhec-ack[*].dns_name)
+  value       = one(aws_lb.ihfhec-ack[*].dns_name)
   description = "ihf ELB HEC ack dns name"
 }
 
@@ -513,5 +513,5 @@ output "ihf-dns-name" {
 output "ihf-dns-name-ext" {
   value       = "${local.dns-prefix}${var.ihf}-ext.${var.dns-zone-name}"
   description = "ihf dns name (pub ip) (if exist)"
-} 
+}
 

@@ -6,7 +6,7 @@ resource "google_compute_instance_template" "splunk-hf" {
   machine_type   = "n2-standard-2"
   can_ip_forward = false
 
-  tags = ["splunk","splunk-webui","splunk-restapi"]
+  tags = ["splunk", "splunk-webui", "splunk-restapi"]
 
   disk {
     # use the latest image at instance creation (reduce time to yum update)
@@ -65,7 +65,7 @@ resource "google_compute_region_instance_group_manager" "splunk-hf" {
   region                    = var.region
   distribution_policy_zones = var.zoneslist
 
-#  distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
+  #  distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
 
   version {
     instance_template = google_compute_instance_template.splunk-hf.id

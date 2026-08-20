@@ -9,9 +9,9 @@
 
 # Configure the GitHub Provider
 provider "github" {
- token = var.ghtoken # or `GITHUB_TOKEN
- owner = var.ghowner
- read_delay_ms = 1000
+  token         = var.ghtoken # or `GITHUB_TOKEN
+  owner         = var.ghowner
+  read_delay_ms = 1000
 }
 
 # Add a user to the organization

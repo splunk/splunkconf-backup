@@ -14,8 +14,8 @@ resource "tls_private_key" "splunk_ssh_key_rsync" {
 
 resource "aws_key_pair" "splunk_ssh_key_rsync" {
   #provider   = aws.region-primary
-  key_name_prefix   = "splunk_ssh_key_rsync"
-  public_key = tls_private_key.splunk_ssh_key_rsync.public_key_openssh
+  key_name_prefix = "splunk_ssh_key_rsync"
+  public_key      = tls_private_key.splunk_ssh_key_rsync.public_key_openssh
 }
 
 resource "aws_ssm_parameter" "splunk_ssh_key_rsync_priv" {
@@ -49,10 +49,10 @@ resource "aws_iam_policy" "pol-splunk-ec2-rsyncssm" {
   #name_prefix = local.name-prefix-pol-splunk-ec2
   description = "This policy include policy for Splunk EC2 HF  instance in rsync mode to access needed SSM in AWS SSM"
   provider    = aws.region-primary
-  policy      = templatefile("policy-aws/pol-splunk-ec2-rsyncssm.json.tpl",{
-    ssmkey1          = aws_ssm_parameter.splunk_ssh_key_rsync_priv.arn
-    ssmkey2          = aws_ssm_parameter.splunk_ssh_key_rsync_pub.arn
-  }
+  policy = templatefile("policy-aws/pol-splunk-ec2-rsyncssm.json.tpl", {
+    ssmkey1 = aws_ssm_parameter.splunk_ssh_key_rsync_priv.arn
+    ssmkey2 = aws_ssm_parameter.splunk_ssh_key_rsync_pub.arn
+    }
   )
 }
 
@@ -242,7 +242,7 @@ resource "aws_security_group_rule" "hf_from_hf_ssh" {
   protocol          = "tcp"
   self              = true
   description       = "allow HF to connect to other HF via ssh port for rsync over SSH"
-} 
+}
 
 resource "aws_autoscaling_group" "autoscaling-splunk-hfa" {
   provider = aws.region-primary
@@ -360,30 +360,30 @@ resource "aws_launch_template" "splunk-hfa" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name                  = "${var.hf}a"
-      splunkinstanceType    = var.hf
-      splunks3backupbucket  = aws_s3_bucket.s3_backup.id
-      splunks3installbucket = aws_s3_bucket.s3_install.id
-      splunks3databucket    = aws_s3_bucket.s3_data.id
-      splunkdnszone         = var.dns-zone-name
-      splunkdnsmode         = "lambda"
-      splunkorg             = var.splunkorg
-      splunktargetenv       = var.splunktargetenv
-      splunktargetbinary    = var.splunktargetbinary
-      splunktargetcm        = var.cm
-      splunktargetlm        = var.lm
-      splunktargetds        = var.ds
-      splunkcloudmode       = var.splunkcloudmode
-      splunkosupdatemode    = var.splunkosupdatemode
-      splunkconnectedmode   = var.splunkconnectedmode
-      splunkacceptlicense   = var.splunkacceptlicense
-      splunkbackupdebug     = var.splunkbackupdebug
-      splunkpwdinit         = var.splunkpwdinit
-      splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
-      splunkrsyncmode       = 1
-      splunkrsynclist       = "hfa hfb"
-      splunkrsyncdnsshort   = "hfa"
-      splunkrsynchost       = "${local.dns-prefix}${var.hf}b.${var.dns-zone-name}"
+      Name                   = "${var.hf}a"
+      splunkinstanceType     = var.hf
+      splunks3backupbucket   = aws_s3_bucket.s3_backup.id
+      splunks3installbucket  = aws_s3_bucket.s3_install.id
+      splunks3databucket     = aws_s3_bucket.s3_data.id
+      splunkdnszone          = var.dns-zone-name
+      splunkdnsmode          = "lambda"
+      splunkorg              = var.splunkorg
+      splunktargetenv        = var.splunktargetenv
+      splunktargetbinary     = var.splunktargetbinary
+      splunktargetcm         = var.cm
+      splunktargetlm         = var.lm
+      splunktargetds         = var.ds
+      splunkcloudmode        = var.splunkcloudmode
+      splunkosupdatemode     = var.splunkosupdatemode
+      splunkconnectedmode    = var.splunkconnectedmode
+      splunkacceptlicense    = var.splunkacceptlicense
+      splunkbackupdebug      = var.splunkbackupdebug
+      splunkpwdinit          = var.splunkpwdinit
+      splunkpwdarn           = aws_secretsmanager_secret.splunk_admin.id
+      splunkrsyncmode        = 1
+      splunkrsynclist        = "hfa hfb"
+      splunkrsyncdnsshort    = "hfa"
+      splunkrsynchost        = "${local.dns-prefix}${var.hf}b.${var.dns-zone-name}"
       splunkrsyncautorestore = 1
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand
@@ -424,30 +424,30 @@ resource "aws_launch_template" "splunk-hfb" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name                  = "${var.hf}b"
-      splunkinstanceType    = var.hf
-      splunks3backupbucket  = aws_s3_bucket.s3_backup.id
-      splunks3installbucket = aws_s3_bucket.s3_install.id
-      splunks3databucket    = aws_s3_bucket.s3_data.id
-      splunkdnszone         = var.dns-zone-name
-      splunkdnsmode         = "lambda"
-      splunkorg             = var.splunkorg
-      splunktargetenv       = var.splunktargetenv
-      splunktargetbinary    = var.splunktargetbinary
-      splunktargetcm        = var.cm
-      splunktargetlm        = var.lm
-      splunktargetds        = var.ds
-      splunkcloudmode       = var.splunkcloudmode
-      splunkosupdatemode    = var.splunkosupdatemode
-      splunkconnectedmode   = var.splunkconnectedmode
-      splunkacceptlicense   = var.splunkacceptlicense
-      splunkbackupdebug     = var.splunkbackupdebug
-      splunkpwdinit         = var.splunkpwdinit
-      splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
-      splunkrsyncmode       = 1
-      splunkrsynclist       = "hfa hfb"
-      splunkrsyncdnsshort   = "hfb"
-      splunkrsynchost       = "${local.dns-prefix}${var.hf}a.${var.dns-zone-name}"
+      Name                   = "${var.hf}b"
+      splunkinstanceType     = var.hf
+      splunks3backupbucket   = aws_s3_bucket.s3_backup.id
+      splunks3installbucket  = aws_s3_bucket.s3_install.id
+      splunks3databucket     = aws_s3_bucket.s3_data.id
+      splunkdnszone          = var.dns-zone-name
+      splunkdnsmode          = "lambda"
+      splunkorg              = var.splunkorg
+      splunktargetenv        = var.splunktargetenv
+      splunktargetbinary     = var.splunktargetbinary
+      splunktargetcm         = var.cm
+      splunktargetlm         = var.lm
+      splunktargetds         = var.ds
+      splunkcloudmode        = var.splunkcloudmode
+      splunkosupdatemode     = var.splunkosupdatemode
+      splunkconnectedmode    = var.splunkconnectedmode
+      splunkacceptlicense    = var.splunkacceptlicense
+      splunkbackupdebug      = var.splunkbackupdebug
+      splunkpwdinit          = var.splunkpwdinit
+      splunkpwdarn           = aws_secretsmanager_secret.splunk_admin.id
+      splunkrsyncmode        = 1
+      splunkrsynclist        = "hfa hfb"
+      splunkrsyncdnsshort    = "hfb"
+      splunkrsynchost        = "${local.dns-prefix}${var.hf}a.${var.dns-zone-name}"
       splunkrsyncautorestore = 1
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand

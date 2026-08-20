@@ -8,7 +8,7 @@ variable "imdsv2" {
     condition     = can(regex("^(required|optional)", var.imdsv2))
     error_message = "please set imdsv2 to required (default, more secure) or optional (allow v1 or v2)"
   }
-  default     = "required"
+  default = "required"
 }
 
 variable "extra_default_tags" {

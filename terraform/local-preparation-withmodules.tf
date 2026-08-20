@@ -15,7 +15,7 @@ locals {
 
   ssh_key_name = module.ssh.ssh_key_name
 
-  splunkkmsarn = module.kms.splunkkmsarn
-  splunkkmsid = module.kms.splunkkmsid
-  splunkencryption=var.splunkencryption
+  splunkkmsarn     = module.kms.splunkkmsarn
+  splunkkmsid      = module.kms.splunkkmsid
+  splunkencryption = var.splunkencryption
 }

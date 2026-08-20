@@ -1,7 +1,7 @@
 # for module
 
 variable "create_network_module" {
-  type =bool
+  type    = bool
   default = true
 }
 
@@ -78,42 +78,42 @@ variable "nat_gateway_ha" {
 variable "vpc_primary_id_import" {
   description = "existing id imported when reusing a existing network created outside this terraform"
   type        = string
-  default = "null"
+  default     = "null"
 }
 
 variable "cidr_subnet_pub_1_id_import" {
   description = "existing id imported when reusing a existing network created outside this terraform"
   type        = string
-  default = "null"
+  default     = "null"
 }
 
 variable "cidr_subnet_pub_2_id_import" {
   description = "existing id imported when reusing a existing network created outside this terraform"
   type        = string
-  default = "null"
+  default     = "null"
 }
 
 variable "cidr_subnet_pub_3_id_import" {
   description = "existing id imported when reusing a existing network created outside this terraform"
   type        = string
-  default = "null"
+  default     = "null"
 }
 
 variable "cidr_subnet_priv_1_id_import" {
   description = "existing id imported when reusing a existing network created outside this terraform"
   type        = string
-  default = "null"
+  default     = "null"
 }
 
 variable "cidr_subnet_priv_2_id_import" {
   description = "existing id imported when reusing a existing network created outside this terraform"
   type        = string
-  default = "null"
+  default     = "null"
 }
 
 variable "cidr_subnet_priv_3_id_import" {
   description = "existing id imported when reusing a existing network created outside this terraform"
   type        = string
-  default = "null"
+  default     = "null"
 }
 

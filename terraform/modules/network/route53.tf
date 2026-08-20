@@ -4,8 +4,8 @@ resource "aws_route53_zone" "dnszone" {
   provisioner "local-exec" {
     #count = var.enable-ns-glue-aws ? 1 : 0
     command = "sleep 10; ${path.module}/scripts/route53-delegatetop.sh ${aws_route53_zone.dnszone.name} ${aws_route53_zone.dnszone.zone_id} ${var.region} ${var.dns-zone-name-top} ${var.ns_ttl}"
- 
- } 
+
+  }
 }
 
 

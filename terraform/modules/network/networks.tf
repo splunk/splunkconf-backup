@@ -15,7 +15,7 @@ resource "aws_vpc" "vpc_master" {
 resource "aws_internet_gateway" "igw" {
   count = var.create_network_module ? 1 : 0
   #provider = aws.region-primary
-  vpc_id   = aws_vpc.vpc_master[0].id
+  vpc_id = aws_vpc.vpc_master[0].id
 }
 
 
@@ -23,7 +23,7 @@ resource "aws_internet_gateway" "igw" {
 data "aws_availability_zones" "azs" {
   count = var.create_network_module ? 1 : 0
   #provider = aws.region-primary
-  state    = "available"
+  state = "available"
 }
 
 
@@ -59,7 +59,7 @@ resource "aws_subnet" "subnet_pub_3" {
 resource "aws_route_table" "internet_route" {
   count = var.create_network_module ? 1 : 0
   #provider = aws.region-primary
-  vpc_id   = aws_vpc.vpc_master[0].id
+  vpc_id = aws_vpc.vpc_master[0].id
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.igw[0].id
@@ -111,8 +111,8 @@ resource "aws_subnet" "subnet_priv_3" {
 
 
 resource "aws_eip" "nat_gateway" {
-  count = local.use_nat_gateway ? 1 : 0
-  domain= "vpc"
+  count  = local.use_nat_gateway ? 1 : 0
+  domain = "vpc"
 }
 
 resource "aws_nat_gateway" "nat_gateway1" {

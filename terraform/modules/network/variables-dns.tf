@@ -7,15 +7,15 @@ variable "dns-zone-name" {
 }
 
 variable "enable_lambda_route53" {
-  description = "Enable lambda function used to scan autoscaling event received by eventbridge in the region and update route53 zone. Disable if ever you have the same lambda running in the same region (as the function should run independently in each region that you use)" 
+  description = "Enable lambda function used to scan autoscaling event received by eventbridge in the region and update route53 zone. Disable if ever you have the same lambda running in the same region (as the function should run independently in each region that you use)"
   type        = bool
   default     = "true"
 }
 
-variable "enable-ns-glue-aws"{
+variable "enable-ns-glue-aws" {
   description = "true : create NS records in the zone above by calling route53, enable this if top zone is in AWS and you have credentials to update it (require dns-zone-name-top to be configured). False if managed manaually or outside this terraform"
-  type= bool
-  default = "true"
+  type        = bool
+  default     = "true"
 }
 
 # note : because we dont manage the top zone in this TF (so we dont destroy it when we destroy this) , we have to use provisionners which is
@@ -27,8 +27,8 @@ variable "dns-zone-name-top" {
 
 variable "ns_ttl" {
   description = "TTL in second for NS record in top zone . Please use 86400 (1d) min except for testing"
-  type = number
-  default = 300
+  type        = number
+  default     = 300
 }
 
 variable "dns-prefix" {

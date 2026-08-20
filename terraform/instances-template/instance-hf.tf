@@ -232,7 +232,7 @@ resource "aws_launch_template" "splunk-hf" {
     ebs {
       volume_size = var.disk-size-hf
       volume_type = "gp3"
-      encrypted= local.splunkencryption
+      encrypted   = local.splunkencryption
       # fixme : add iam for this
       #kms_key_id = local.splunkkmsarn
     }
@@ -250,26 +250,26 @@ resource "aws_launch_template" "splunk-hf" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name                  = var.hf
-      splunkinstanceType    = var.hf
-      splunks3backupbucket  = aws_s3_bucket.s3_backup.id
-      splunks3installbucket = aws_s3_bucket.s3_install.id
-      splunks3databucket    = aws_s3_bucket.s3_data.id
-      splunkdnszone         = var.dns-zone-name
-      splunkdnsmode         = "lambda"
-      splunkorg             = var.splunkorg
-      splunktargetenv       = var.splunktargetenv
-      splunktargetbinary    = var.splunktargetbinary
-      splunktargetcm        = var.cm
-      splunktargetlm        = var.lm
-      splunktargetds        = var.ds
-      splunkcloudmode       = var.splunkcloudmode
-      splunkosupdatemode    = var.splunkosupdatemode
-      splunkconnectedmode   = var.splunkconnectedmode
-      splunkacceptlicense   = var.splunkacceptlicense
-      splunkbackupdebug     = var.splunkbackupdebug
-      splunkpwdinit         = var.splunkpwdinit
-      splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
+      Name                   = var.hf
+      splunkinstanceType     = var.hf
+      splunks3backupbucket   = aws_s3_bucket.s3_backup.id
+      splunks3installbucket  = aws_s3_bucket.s3_install.id
+      splunks3databucket     = aws_s3_bucket.s3_data.id
+      splunkdnszone          = var.dns-zone-name
+      splunkdnsmode          = "lambda"
+      splunkorg              = var.splunkorg
+      splunktargetenv        = var.splunktargetenv
+      splunktargetbinary     = var.splunktargetbinary
+      splunktargetcm         = var.cm
+      splunktargetlm         = var.lm
+      splunktargetds         = var.ds
+      splunkcloudmode        = var.splunkcloudmode
+      splunkosupdatemode     = var.splunkosupdatemode
+      splunkconnectedmode    = var.splunkconnectedmode
+      splunkacceptlicense    = var.splunkacceptlicense
+      splunkbackupdebug      = var.splunkbackupdebug
+      splunkpwdinit          = var.splunkpwdinit
+      splunkpwdarn           = aws_secretsmanager_secret.splunk_admin.id
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand
     }

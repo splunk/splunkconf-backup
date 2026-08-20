@@ -93,10 +93,10 @@ resource "aws_launch_template" "splunk-worker" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name                = var.worker
-      splunkinstanceType  = var.worker
-      splunkosupdatemode  = var.splunkosupdatemode
-      splunkconnectedmode = var.splunkconnectedmode
+      Name                   = var.worker
+      splunkinstanceType     = var.worker
+      splunkosupdatemode     = var.splunkosupdatemode
+      splunkconnectedmode    = var.splunkconnectedmode
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand
     }

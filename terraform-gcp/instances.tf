@@ -4,7 +4,7 @@ resource "google_compute_instance_template" "splunk-cm" {
   machine_type   = "n2-standard-2"
   can_ip_forward = false
 
-  tags = ["splunk", "splunk-cm","splunk-restapi","splunk-webui"]
+  tags = ["splunk", "splunk-cm", "splunk-restapi", "splunk-webui"]
 
 
   disk {
@@ -38,15 +38,15 @@ resource "google_compute_instance_template" "splunk-cm" {
     disable-legacy-endpoints = "TRUE"
     enable-guest-attributes  = "TRUE"
     sshKeys                  = "${var.ssh_user}:${file(var.ssh_keys)}"
-    splunktargetenv       = var.splunktargetenv
-    splunktargetbinary    = var.splunktargetbinary
-    splunktargetcm        = "${local.dns-prefix}${var.cm}"
-    splunktargetlm        = "${local.dns-prefix}${var.lm}"
-    splunktargetds        = "${local.dns-prefix}${var.ds}"
-    splunkcloudmode       = var.splunkcloudmode
-    splunkosupdatemode    = var.splunkosupdatemode
-    splunkconnectedmode   = var.splunkconnectedmode
-    splunkacceptlicense   = var.splunkacceptlicense
+    splunktargetenv          = var.splunktargetenv
+    splunktargetbinary       = var.splunktargetbinary
+    splunktargetcm           = "${local.dns-prefix}${var.cm}"
+    splunktargetlm           = "${local.dns-prefix}${var.lm}"
+    splunktargetds           = "${local.dns-prefix}${var.ds}"
+    splunkcloudmode          = var.splunkcloudmode
+    splunkosupdatemode       = var.splunkosupdatemode
+    splunkconnectedmode      = var.splunkconnectedmode
+    splunkacceptlicense      = var.splunkacceptlicense
 
   }
 
@@ -119,7 +119,7 @@ resource "google_compute_instance_template" "splunk-idx" {
   machine_type   = "n2-standard-2"
   can_ip_forward = false
 
-  tags = ["splunk","splunk-idx","splunk-restapi","splunk-replication-idx","splunk-hec","splunk-log"]
+  tags = ["splunk", "splunk-idx", "splunk-restapi", "splunk-replication-idx", "splunk-hec", "splunk-log"]
 
 
   disk {
@@ -168,15 +168,15 @@ resource "google_compute_instance_template" "splunk-idx" {
     disable-legacy-endpoints = "TRUE"
     enable-guest-attributes  = "TRUE"
     sshKeys                  = "${var.ssh_user}:${file(var.ssh_keys)}"
-    splunktargetenv       = var.splunktargetenv     
-    splunktargetbinary    = var.splunktargetbinary
-    splunktargetcm        = "${local.dns-prefix}${var.cm}"
-    splunktargetlm        = "${local.dns-prefix}${var.lm}"
-    splunktargetds        = "${local.dns-prefix}${var.ds}"
-    splunkcloudmode       = var.splunkcloudmode
-    splunkosupdatemode    = var.splunkosupdatemode
-    splunkconnectedmode   = var.splunkconnectedmode
-    splunkacceptlicense   = var.splunkacceptlicense
+    splunktargetenv          = var.splunktargetenv
+    splunktargetbinary       = var.splunktargetbinary
+    splunktargetcm           = "${local.dns-prefix}${var.cm}"
+    splunktargetlm           = "${local.dns-prefix}${var.lm}"
+    splunktargetds           = "${local.dns-prefix}${var.ds}"
+    splunkcloudmode          = var.splunkcloudmode
+    splunkosupdatemode       = var.splunkosupdatemode
+    splunkconnectedmode      = var.splunkconnectedmode
+    splunkacceptlicense      = var.splunkacceptlicense
     # IDX special case
     splunkcloudmode              = "3"
     splunkenableunifiedpartition = var.splunkenableunifiedpartition
@@ -202,8 +202,8 @@ resource "google_compute_target_pool" "splunk-idx" {
 }
 
 resource "google_compute_region_instance_group_manager" "splunk-idx" {
-  name                      = "igm-splunk-idx"
-  region                    = var.region
+  name   = "igm-splunk-idx"
+  region = var.region
   #distribution_policy_zones = ["us-central1-a", "us-central1-b", "us-central1-c"]
   distribution_policy_zones = var.zoneslist
 

@@ -1,7 +1,7 @@
-variable use_splunkit_tags {
+variable "use_splunkit_tags" {
   description = "whether to add splunkit tags to the provider definition"
-  type = bool
-  default = true
+  type        = bool
+  default     = true
 }
 
 
@@ -30,7 +30,7 @@ variable "splunkit_data_classification" {
 }
 
 locals {
-  splunkit_tags=var.use_splunkit_tags?tomap({splunkit_environment_type=var.splunkit_environment_type,splunkit_data_classification=var.splunkit_data_classification}):null
+  splunkit_tags = var.use_splunkit_tags ? tomap({ splunkit_environment_type = var.splunkit_environment_type, splunkit_data_classification = var.splunkit_data_classification }) : null
 
 
 }

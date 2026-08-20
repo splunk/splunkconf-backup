@@ -237,14 +237,14 @@ resource "aws_security_group_rule" "ds_from_lbds_8089" {
 #}
 
 resource "aws_autoscaling_group" "autoscaling-splunk-ds" {
-  provider = aws.region-primary
+  provider            = aws.region-primary
   name_prefix         = "asg-splunk-ds-"
   vpc_zone_identifier = (var.associate_public_ip == "true" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   # automatically set to 0 is ds-enabled if set to false 
   # allow to reduce cost when not used (like for tests but still want all the AWS config created) 
-  desired_capacity    = local.ds-nb
-  max_size            = local.ds-nb
-  min_size            = local.ds-nb
+  desired_capacity = local.ds-nb
+  max_size         = local.ds-nb
+  min_size         = local.ds-nb
   mixed_instances_policy {
     launch_template {
       launch_template_specification {
@@ -305,7 +305,7 @@ resource "aws_launch_template" "splunk-ds" {
   network_interfaces {
     device_index                = 0
     associate_public_ip_address = var.associate_public_ip
-    security_groups             = ( var.ds-enableworker ? [aws_security_group.splunk-outbound.id, aws_security_group.splunk-ds.id,aws_security_group.splunk-worker.id] : [aws_security_group.splunk-outbound.id, aws_security_group.splunk-ds.id])
+    security_groups             = (var.ds-enableworker ? [aws_security_group.splunk-outbound.id, aws_security_group.splunk-ds.id, aws_security_group.splunk-worker.id] : [aws_security_group.splunk-outbound.id, aws_security_group.splunk-ds.id])
   }
   tag_specifications {
     resource_type = "instance"
@@ -320,20 +320,20 @@ resource "aws_launch_template" "splunk-ds" {
       splunkorg             = var.splunkorg
       splunktargetenv       = var.splunktargetenv
       # for multids , we need to deploy by tar in that case otherwise we use the value in splunktargetbinary
-      splunktargetbinary    = ( var.dsnb >1 ? var.splunktar : var.splunktargetbinary )
-      splunktargetcm        = "${local.dns-prefix}${var.cm}"
-      splunktargetlm        = "${local.dns-prefix}${var.lm}"
-      splunktargetds        = "${local.dns-prefix}${var.ds}"
-      splunkcloudmode       = var.splunkcloudmode
-      splunkosupdatemode    = var.splunkosupdatemode
-      splunkconnectedmode   = var.splunkconnectedmode
-      splunkacceptlicense   = var.splunkacceptlicense
-      splunkbackupdebug     = var.splunkbackupdebug
+      splunktargetbinary  = (var.dsnb > 1 ? var.splunktar : var.splunktargetbinary)
+      splunktargetcm      = "${local.dns-prefix}${var.cm}"
+      splunktargetlm      = "${local.dns-prefix}${var.lm}"
+      splunktargetds      = "${local.dns-prefix}${var.ds}"
+      splunkcloudmode     = var.splunkcloudmode
+      splunkosupdatemode  = var.splunkosupdatemode
+      splunkconnectedmode = var.splunkconnectedmode
+      splunkacceptlicense = var.splunkacceptlicense
+      splunkbackupdebug   = var.splunkbackupdebug
       # if equal to 1 then disable multids automatically
-      splunkdsnb         = var.dsnb
-      splunkpwdinit         = var.splunkpwdinit
-      splunkpwdarn          = aws_secretsmanager_secret.splunk_admin.id
-      splunkenableworker    = ( var.ds-enableworker ? "1" : "0" )
+      splunkdsnb             = var.dsnb
+      splunkpwdinit          = var.splunkpwdinit
+      splunkpwdarn           = aws_secretsmanager_secret.splunk_admin.id
+      splunkenableworker     = (var.ds-enableworker ? "1" : "0")
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand
     }
@@ -352,7 +352,7 @@ resource "aws_security_group" "splunk-lb-ds-outbound" {
   name_prefix = "splunk-lb-ds-outbound-"
   description = "Outbound Security group for ELB DS"
   vpc_id      = local.master_vpc_id
-  tags = {    
+  tags = {
     Name = "splunk"
   }
 }
@@ -366,9 +366,9 @@ resource "aws_security_group_rule" "lb_outbound_ds" {
   source_security_group_id = aws_security_group.splunk-ds.id
   description              = "allow outbound traffic for REST API port to DS"
 }
-  
+
 resource "aws_security_group" "splunk-lbds" {
-  name_prefix        = "splunk-lbds-"
+  name_prefix = "splunk-lbds-"
   description = "Security group for Splunk LB DS"
   vpc_id      = local.master_vpc_id
   tags = {
@@ -406,28 +406,28 @@ resource "aws_alb_target_group" "ds" {
   slow_start                    = 30
   # FIXME adapt for DS
   health_check {
-    path                = "/" 
+    path                = "/"
     port                = 8089
     protocol            = "HTTPS"
     healthy_threshold   = 3
-    unhealthy_threshold = 2 
+    unhealthy_threshold = 2
     timeout             = 25
     interval            = 30
-  #  # {"text":"HEC is healthy","code":17}
-  #  # return code 200
-    matcher = "200" 
+    #  # {"text":"HEC is healthy","code":17}
+    #  # return code 200
+    matcher = "200"
   }
-} 
+}
 
 
 resource "aws_lb" "ds" {
-  count = var.use_elb_ds ? 1 : 0
-  name_prefix        = "ds"
-  load_balancer_type = "application"
+  count                      = var.use_elb_ds ? 1 : 0
+  name_prefix                = "ds"
+  load_balancer_type         = "application"
   drop_invalid_header_fields = true
-  security_groups    = [aws_security_group.splunk-lb-ds-outbound.id, aws_security_group.splunk-lbds.id]
+  security_groups            = [aws_security_group.splunk-lb-ds-outbound.id, aws_security_group.splunk-lbds.id]
   #subnets            = [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id]
-  subnets            = (local.use-elb-private-ds == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
+  subnets  = (local.use-elb-private-ds == "false" ? [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id] : [local.subnet_priv_1_id, local.subnet_priv_2_id, local.subnet_priv_3_id])
   internal = local.use-elb-private-ds
   # Tracks HTTP Requests
   access_logs {
@@ -466,8 +466,8 @@ resource "aws_alb_listener" "ds" {
   load_balancer_arn = aws_lb.ds[0].arn
   port              = 8089
   # change here for HTTPS
-  protocol = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
+  protocol        = "HTTPS"
+  ssl_policy      = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
   certificate_arn = aws_acm_certificate.acm_certificate_elb_ds.arn
 
   #default_action {
@@ -487,24 +487,24 @@ resource "aws_alb_listener" "ds" {
 
 # specific REST API part for DC-DS comm
 resource "aws_alb_listener_rule" "rule_ds" {
- listener_arn = aws_alb_listener.ds[0].arn
- priority     = 60
+  listener_arn = aws_alb_listener.ds[0].arn
+  priority     = 60
 
- action {
-   type             = "forward"
-   target_group_arn = aws_alb_target_group.ds.arn
- }
-
- condition {
-   path_pattern {
-     values = ["/services/broker/connect/*","/services/broker/channel/subscribe/*","/services/broker/phonehome/*","/services/streams/deployment*"]
-   }
- }
- condition {
-   http_request_method {
-     values = ["POST"]
+  action {
+    type             = "forward"
+    target_group_arn = aws_alb_target_group.ds.arn
   }
- }
+
+  condition {
+    path_pattern {
+      values = ["/services/broker/connect/*", "/services/broker/channel/subscribe/*", "/services/broker/phonehome/*", "/services/streams/deployment*"]
+    }
+  }
+  condition {
+    http_request_method {
+      values = ["POST"]
+    }
+  }
 }
 
 resource "aws_acm_certificate" "acm_certificate_elb_ds" {
@@ -526,9 +526,9 @@ resource "aws_route53_record" "validation_route53_record_elb_ds" {
     }
   }
   allow_overwrite = true
-  name            = each.value.name 
+  name            = each.value.name
   records         = [each.value.record]
-  ttl             = 60  
+  ttl             = 60
   type            = each.value.type
   #name    = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_name
   #type    = aws_acm_certificate.acm_certificate_elb_hec.domain_validation_options.0.resource_record_type
@@ -543,8 +543,8 @@ resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_ds" {
   #aws_route53_record.validation_route53_record_elb_hec.*.fqdn,
   #]
   validation_record_fqdns = [for record in aws_route53_record.validation_route53_record_elb_ds : record.fqdn]
-} 
- 
+}
+
 # WAF additional protection
 
 resource "aws_wafv2_web_acl" "lbds" {
@@ -562,7 +562,7 @@ resource "aws_wafv2_web_acl" "lbds" {
     sampled_requests_enabled   = true
   }
 
- rule {
+  rule {
     name     = "AWS-AWSManagedRulesCommonRuleSet"
     priority = 0
     override_action {
@@ -744,13 +744,13 @@ resource "aws_wafv2_web_acl_association" "lbds" {
 
 
 output "ds-elb-dns-name" {
-  value = one(aws_lb.ds[*].dns_name)
+  value       = one(aws_lb.ds[*].dns_name)
   description = "DS ELB dns name"
 }
 
 
 output "ds-name-to-reach" {
-  value = local.ds
+  value       = local.ds
   description = "ds short name either direct or via lb is enabled"
 }
 

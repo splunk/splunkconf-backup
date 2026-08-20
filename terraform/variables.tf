@@ -14,8 +14,8 @@ variable "splunkacceptlicense" {
 
 variable "splunkbackupdebug" {
   description = "0= disable debug logging (can also be enabled by conf file) , 1 = enable debug log for splunkconf-backup app in splunkconf-backup.log"
-  type = number
-  default = 0
+  type        = number
+  default     = 0
 }
 
 variable "splunkcloudmode" {
@@ -174,14 +174,14 @@ variable "instance-type-iuf-default" {
 
 variable "iuf" {
   description = "iuf single name"
-  type    = string
-  default = "iuf"
+  type        = string
+  default     = "iuf"
 }
 
 variable "iufnames" {
   description = "iuf dns name(s)"
-  type    = string
-  default = "iuf iuf1 iuf2 iuf3 iuf4 iuf5 if if1 if2 if3 if4 if5"
+  type        = string
+  default     = "iuf iuf1 iuf2 iuf3 iuf4 iuf5 if if1 if2 if3 if4 if5"
 }
 
 variable "disk-size-iuf" {
@@ -220,14 +220,14 @@ variable "instance-type-ihf-default" {
 
 variable "ihf" {
   description = "ihf single name"
-  type    = string
-  default = "ihf"
+  type        = string
+  default     = "ihf"
 }
 
 variable "ihfnames" {
   description = "ihf dns name(s)"
-  type    = string
-  default = "ihf ihf1 ihf2 ihf3 ihf4 ihf5"
+  type        = string
+  default     = "ihf ihf1 ihf2 ihf3 ihf4 ihf5"
 }
 
 variable "disk-size-ihf" {
@@ -320,8 +320,8 @@ variable "splunktar" {
 
 variable "dsnb" {
   description = "if more than 1 then enable support for multids (ie multiple instances ds behind LVS in one instance"
-  type    = number
-  default = 1
+  type        = number
+  default     = 1
 }
 
 variable "use_elb_ds" {
@@ -475,102 +475,102 @@ variable "associate_public_ip" {
 }
 
 variable "backup-retention-days" {
-  description= "Number of days before removing old backups from S3 (only for versions)"
-  type    = number
-  default = 31
+  description = "Number of days before removing old backups from S3 (only for versions)"
+  type        = number
+  default     = 31
   validation {
     condition     = var.backup-retention-days >= 31
     error_message = "backup-retention-days need to be at least 31 days (to match S3-IA pricing structure)"
   }
 }
 
-variable backup-min-versions {
+variable "backup-min-versions" {
   description = "Minimum number of non current versions backup to keep"
-  type = number
-  default = 10
-  validation {    
+  type        = number
+  default     = 10
+  validation {
     condition     = var.backup-min-versions >= 1
     error_message = "backup-min-versions need to be at least 1"
   }
 }
 
 variable "backup-retention-days-hourly" {
-  description= "Number of days before removing old backups from S3 tagged with frequency=hourly (only for versions)"
-  type    = number
-  default = 1
-  validation {    
-    condition     = var.backup-retention-days-hourly >= 1
+  description = "Number of days before removing old backups from S3 tagged with frequency=hourly (only for versions)"
+  type        = number
+  default     = 1
+  validation {
+    condition = var.backup-retention-days-hourly >= 1
     #condition     = var.backup-retention-days-hourly >= 31
     error_message = "backup-retention-days-hourly need to be at least 1 days (to match S3-IA pricing structure)"
     #error_message = "backup-retention-days-hourly need to be at least 31 days (to match S3-IA pricing structure)"
   }
 }
 
-variable backup-min-versions-hourly {
+variable "backup-min-versions-hourly" {
   description = "Minimum number of non current versions backup tagged with frequency=hourly to keep"
-  type = number
-  default = 10
-  validation {    
+  type        = number
+  default     = 10
+  validation {
     condition     = var.backup-min-versions-hourly >= 1
     error_message = "backup-min-versions-hourly need to be at least 1"
   }
 }
 
 variable "backup-retention-days-daily" {
-  description= "Number of days before removing old backups from S3 tagged with frequency=daily (only for versions)"
-  type    = number
-  default = 60
-  validation {    
+  description = "Number of days before removing old backups from S3 tagged with frequency=daily (only for versions)"
+  type        = number
+  default     = 60
+  validation {
     condition     = var.backup-retention-days-daily >= 31
     error_message = "backup-retention-days-daily need to be at least 31 days (to match S3-IA pricing structure)"
   }
 }
 
-variable backup-min-versions-daily {
+variable "backup-min-versions-daily" {
   description = "Minimum number of non current versions backup tagged with frequency=daily to keep"
-  type = number
-  default = 10
-  validation {    
+  type        = number
+  default     = 10
+  validation {
     condition     = var.backup-min-versions-daily >= 1
     error_message = "backup-min-versions-daily need to be at least 1"
   }
 }
 
 variable "backup-retention-days-weekly" {
-  description= "Number of days before removing old backups from S3 tagged with frequency=weekly (only for versions)"
-  type    = number
-  default = 120 
+  description = "Number of days before removing old backups from S3 tagged with frequency=weekly (only for versions)"
+  type        = number
+  default     = 120
   validation {
     condition     = var.backup-retention-days-weekly >= 31
     error_message = "backup-retention-days-weekly need to be at least 31 days (to match S3-IA pricing structure)"
   }
 }
 
-variable backup-min-versions-weekly {
+variable "backup-min-versions-weekly" {
   description = "Minimum number of non current versions backup tagged with frequency=weekly to keep"
-  type = number
-  default = 10
-  validation {    
+  type        = number
+  default     = 10
+  validation {
     condition     = var.backup-min-versions-weekly >= 1
     error_message = "backup-min-versions-weekly need to be at least 1"
   }
 }
 
 variable "backup-retention-days-monthly" {
-  description= "Number of days before removing old backups from S3 tagged with frequency=monthly (only for versions)"
-  type    = number
-  default = 365 
+  description = "Number of days before removing old backups from S3 tagged with frequency=monthly (only for versions)"
+  type        = number
+  default     = 365
   validation {
     condition     = var.backup-retention-days-monthly >= 31
     error_message = "backup-retention-days-monthly need to be at least 31 days (to match S3-IA pricing structure)"
   }
 }
 
-variable backup-min-versions-monthly {
+variable "backup-min-versions-monthly" {
   description = "Minimum number of non current versions backup tagged with frequency=monthly to keep"
-  type = number
-  default = 10
-  validation {    
+  type        = number
+  default     = 10
+  validation {
     condition     = var.backup-min-versions-monthly >= 1
     error_message = "backup-min-versions-monthly need to be at least 1"
   }
@@ -579,8 +579,8 @@ variable backup-min-versions-monthly {
 # note : this is passed along to base-apps-jinja to build the splunk config that match the setting
 variable "deleteddata-retention" {
   description = "number of days to keep data after it is deleted by Splunk (set to 0 for immediate removal or if enabling versioning at splunk level)"
-  type    = number
-  default = 7
+  type        = number
+  default     = 7
   validation {
     condition     = var.deleteddata-retention >= 0
     error_message = "deleteddata-retention need to be positive number (in days)"
@@ -717,25 +717,25 @@ variable "splunkpwdinit" {
   default     = "yes"
 }
 
-variable "base-apps-jinja-dir" { 
+variable "base-apps-jinja-dir" {
   type        = string
   description = "base-apps-jinja-dir"
   default     = "actions-runner/_work/apptest1"
 }
 
-variable "base-apps-target-dir" { 
+variable "base-apps-target-dir" {
   type        = string
-  description = "base-apps-target-dir" 
+  description = "base-apps-target-dir"
   default     = "actions-runner/_work/apptest2"
 }
 
-variable "splunkpostextrasyncdir" { 
+variable "splunkpostextrasyncdir" {
   type        = string
-  description = "extra folder (objects) to sync locally at post install time to be able to deploy additipnal stuff" 
+  description = "extra folder (objects) to sync locally at post install time to be able to deploy additipnal stuff"
   default     = ""
 }
 
-variable "splunkpostextracommand" { 
+variable "splunkpostextracommand" {
   type        = string
   description = "extra command to run at post install time that has been downloaded as part of splunkpostextrasyncdir"
   default     = ""

@@ -227,17 +227,17 @@ resource "aws_launch_template" "splunk-ihf" {
       splunkorg             = var.splunkorg
       splunktargetenv       = var.splunktargetenv
       # special UF
-      splunktargetbinary  = var.splunktargetbinary
-      splunktargetcm      = var.cm
-      splunktargetlm      = var.lm
-      splunktargetds      = var.ds
-      splunkcloudmode     = var.splunkcloudmode
-      splunkosupdatemode  = var.splunkosupdatemode
-      splunkconnectedmode = var.splunkconnectedmode
-      splunkacceptlicense = var.splunkacceptlicense
-      splunkbackupdebug   = var.splunkbackupdebug
-      splunkpwdinit       = var.splunkpwdinit
-      splunkpwdarn        = aws_secretsmanager_secret.splunk_admin.id
+      splunktargetbinary     = var.splunktargetbinary
+      splunktargetcm         = var.cm
+      splunktargetlm         = var.lm
+      splunktargetds         = var.ds
+      splunkcloudmode        = var.splunkcloudmode
+      splunkosupdatemode     = var.splunkosupdatemode
+      splunkconnectedmode    = var.splunkconnectedmode
+      splunkacceptlicense    = var.splunkacceptlicense
+      splunkbackupdebug      = var.splunkbackupdebug
+      splunkpwdinit          = var.splunkpwdinit
+      splunkpwdarn           = aws_secretsmanager_secret.splunk_admin.id
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand
     }

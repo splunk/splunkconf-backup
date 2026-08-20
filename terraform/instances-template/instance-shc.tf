@@ -316,24 +316,24 @@ resource "aws_launch_template" "splunk-sh1" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name                  = "${var.sh}1"
-      splunkinstanceType    = "${var.sh}1"
-      splunks3backupbucket  = aws_s3_bucket.s3_backup.id
-      splunks3installbucket = aws_s3_bucket.s3_install.id
-      splunks3databucket    = aws_s3_bucket.s3_data.id
-      splunkdnszone         = var.dns-zone-name
-      splunkdnsmode         = "lambda"
-      splunkorg             = var.splunkorg
-      splunktargetenv       = var.splunktargetenv
-      splunktargetbinary    = var.splunktargetbinary
-      splunktargetcm        = var.cm
-      splunktargetlm        = var.lm
-      splunktargetds        = var.ds
-      splunkcloudmode       = var.splunkcloudmode
-      splunkosupdatemode    = var.splunkosupdatemode
-      splunkconnectedmode   = var.splunkconnectedmode
-      splunkacceptlicense   = var.splunkacceptlicense
-      splunkbackupdebug     = var.splunkbackupdebug
+      Name                   = "${var.sh}1"
+      splunkinstanceType     = "${var.sh}1"
+      splunks3backupbucket   = aws_s3_bucket.s3_backup.id
+      splunks3installbucket  = aws_s3_bucket.s3_install.id
+      splunks3databucket     = aws_s3_bucket.s3_data.id
+      splunkdnszone          = var.dns-zone-name
+      splunkdnsmode          = "lambda"
+      splunkorg              = var.splunkorg
+      splunktargetenv        = var.splunktargetenv
+      splunktargetbinary     = var.splunktargetbinary
+      splunktargetcm         = var.cm
+      splunktargetlm         = var.lm
+      splunktargetds         = var.ds
+      splunkcloudmode        = var.splunkcloudmode
+      splunkosupdatemode     = var.splunkosupdatemode
+      splunkconnectedmode    = var.splunkconnectedmode
+      splunkacceptlicense    = var.splunkacceptlicense
+      splunkbackupdebug      = var.splunkbackupdebug
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand
     }
@@ -416,24 +416,24 @@ resource "aws_launch_template" "splunk-sh2" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name                  = "${var.sh}2"
-      splunkinstanceType    = "${var.sh}2"
-      splunks3backupbucket  = aws_s3_bucket.s3_backup.id
-      splunks3installbucket = aws_s3_bucket.s3_install.id
-      splunks3databucket    = aws_s3_bucket.s3_data.id
-      splunkdnszone         = var.dns-zone-name
-      splunkdnsmode         = "lambda"
-      splunkorg             = var.splunkorg
-      splunktargetenv       = var.splunktargetenv
-      splunktargetbinary    = var.splunktargetbinary
-      splunktargetcm        = var.cm
-      splunktargetlm        = var.lm
-      splunktargetds        = var.ds
-      splunkcloudmode       = var.splunkcloudmode
-      splunkosupdatemode    = var.splunkosupdatemode
-      splunkconnectedmode   = var.splunkconnectedmode
-      splunkacceptlicense   = var.splunkacceptlicense
-      splunkbackupdebug     = var.splunkbackupdebug
+      Name                   = "${var.sh}2"
+      splunkinstanceType     = "${var.sh}2"
+      splunks3backupbucket   = aws_s3_bucket.s3_backup.id
+      splunks3installbucket  = aws_s3_bucket.s3_install.id
+      splunks3databucket     = aws_s3_bucket.s3_data.id
+      splunkdnszone          = var.dns-zone-name
+      splunkdnsmode          = "lambda"
+      splunkorg              = var.splunkorg
+      splunktargetenv        = var.splunktargetenv
+      splunktargetbinary     = var.splunktargetbinary
+      splunktargetcm         = var.cm
+      splunktargetlm         = var.lm
+      splunktargetds         = var.ds
+      splunkcloudmode        = var.splunkcloudmode
+      splunkosupdatemode     = var.splunkosupdatemode
+      splunkconnectedmode    = var.splunkconnectedmode
+      splunkacceptlicense    = var.splunkacceptlicense
+      splunkbackupdebug      = var.splunkbackupdebug
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand
     }
@@ -518,24 +518,24 @@ resource "aws_launch_template" "splunk-sh3" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name                  = "${var.sh}3"
-      splunkinstanceType    = "${var.sh}3"
-      splunks3backupbucket  = aws_s3_bucket.s3_backup.id
-      splunks3installbucket = aws_s3_bucket.s3_install.id
-      splunks3databucket    = aws_s3_bucket.s3_data.id
-      splunkdnszone         = var.dns-zone-name
-      splunkdnsmode         = "lambda"
-      splunkorg             = var.splunkorg
-      splunktargetenv       = var.splunktargetenv
-      splunktargetbinary    = var.splunktargetbinary
-      splunktargetcm        = var.cm
-      splunktargetlm        = var.lm
-      splunktargetds        = var.ds
-      splunkcloudmode       = var.splunkcloudmode
-      splunkosupdatemode    = var.splunkosupdatemode
-      splunkconnectedmode   = var.splunkconnectedmode
-      splunkacceptlicense   = var.splunkacceptlicense
-      splunkbackupdebug     = var.splunkbackupdebug
+      Name                   = "${var.sh}3"
+      splunkinstanceType     = "${var.sh}3"
+      splunks3backupbucket   = aws_s3_bucket.s3_backup.id
+      splunks3installbucket  = aws_s3_bucket.s3_install.id
+      splunks3databucket     = aws_s3_bucket.s3_data.id
+      splunkdnszone          = var.dns-zone-name
+      splunkdnsmode          = "lambda"
+      splunkorg              = var.splunkorg
+      splunktargetenv        = var.splunktargetenv
+      splunktargetbinary     = var.splunktargetbinary
+      splunktargetcm         = var.cm
+      splunktargetlm         = var.lm
+      splunktargetds         = var.ds
+      splunkcloudmode        = var.splunkcloudmode
+      splunkosupdatemode     = var.splunkosupdatemode
+      splunkconnectedmode    = var.splunkconnectedmode
+      splunkacceptlicense    = var.splunkacceptlicense
+      splunkbackupdebug      = var.splunkbackupdebug
       splunkpostextrasyncdir = var.splunkpostextrasyncdir
       splunkpostextracommand = var.splunkpostextracommand
     }
@@ -600,8 +600,8 @@ resource "aws_security_group_rule" "lbsh_from_networks_https" {
 }
 
 resource "aws_alb_target_group" "shc-users" {
-  name_prefix = "shcu-"
-  port        = 8000
+  name_prefix                   = "shcu-"
+  port                          = 8000
   vpc_id                        = local.master_vpc_id
   load_balancing_algorithm_type = "round_robin"
   # important : use round robin here, sessions will spread over time better than with a theorical clever algo
@@ -628,11 +628,11 @@ resource "aws_alb_target_group" "shc-users" {
 }
 
 resource "aws_lb" "shc-users" {
-  name               = "shc-users"
-  load_balancer_type = "application"
+  name                       = "shc-users"
+  load_balancer_type         = "application"
   drop_invalid_header_fields = true
-  security_groups    = [aws_security_group.splunk-lb-shc-outbound.id, aws_security_group.splunk-lbsh.id]
-  subnets            = [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id]
+  security_groups            = [aws_security_group.splunk-lb-shc-outbound.id, aws_security_group.splunk-lbsh.id]
+  subnets                    = [local.subnet_pub_1_id, local.subnet_pub_2_id, local.subnet_pub_3_id]
   tags = {
     Type = "Splunk"
   }
@@ -656,8 +656,8 @@ resource "aws_lb" "shc-users" {
 
 resource "aws_alb_listener" "shc-users" {
   load_balancer_arn = aws_lb.shc-users.arn
-  protocol    = "HTTPS"
-  certificate_arn = aws_acm_certificate_validation.acm_certificate_validation_elb_shcusers.certificate_arn
+  protocol          = "HTTPS"
+  certificate_arn   = aws_acm_certificate_validation.acm_certificate_validation_elb_shcusers.certificate_arn
   port              = 8000
   #port = 443
   #protocol = "HTTPS"
@@ -688,11 +688,11 @@ resource "aws_route53_record" "validation_route53_record_elb_shcusers" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id = module.network.dnszone_id
+  zone_id         = module.network.dnszone_id
 }
 
 resource "aws_acm_certificate_validation" "acm_certificate_validation_elb_shcusers" {
-  certificate_arn = aws_acm_certificate.acm_certificate_elb_shcusers.arn
+  certificate_arn         = aws_acm_certificate.acm_certificate_elb_shcusers.arn
   validation_record_fqdns = [for record in aws_route53_record.validation_route53_record_elb_shcusers : record.fqdn]
 }
 

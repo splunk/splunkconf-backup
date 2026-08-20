@@ -173,7 +173,7 @@ jobs:
               -e SPLUNK_START_ARGS="--accept-license" \
               -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
               -e TZ="Europe/Paris" \
-              -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
+              -v "$(pwd)/apppackage/${{ env.APP_NAME }}:${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}/" \
               -v "$(pwd)/apppackage/testapp:${SPLUNK_HOME}/etc/apps/testapp/" \
               -v "$(pwd)/apppackage/disable_kvstore:${SPLUNK_HOME}/etc/apps/disable_kvstore/" \
               "${DOCKER_IMAGE}"
@@ -189,7 +189,7 @@ jobs:
               -e SPLUNK_START_ARGS="--accept-license" \
               -e SPLUNK_PASSWORD="${{ env.SPLUNK_PASSWORD }}" \
               -e TZ="Europe/Paris" \
-              -v "$(pwd)/apppackage/splunkconf-backup:${SPLUNK_HOME}/etc/apps/splunkconf-backup/" \
+              -v "$(pwd)/apppackage/${{ env.APP_NAME }}:${SPLUNK_HOME}/etc/apps/${{ env.APP_NAME }}/" \
               -v "$(pwd)/apppackage/testapp:${SPLUNK_HOME}/etc/apps/testapp/" \
               "${DOCKER_IMAGE}"
           fi

@@ -144,10 +144,10 @@ get_packages () {
 
     yum install --setopt=skip_missing_names_on_install=True  ${PACKAGELIST}  -y
     if [ $(grep -ic PLATFORM_ID=\"platform:al2023\" /etc/os-release) -eq 1 ]; then
-      echo "distribution whithout log4j hotfix, no need to try disabling it"
+      echo "distribution without log4j hotfix, no need to try disabling it"
     else
       # disable as scan in permanence and not needed for splunk
-      echo "trying to disable log4j hotfix, as perf hirt and not needed for splunk"
+      echo "trying to disable log4j hotfix, as perf hit and not needed for splunk"
       systemctl stop log4j-cve-2021-44228-hotpatch
       systemctl disable log4j-cve-2021-44228-hotpatch
     fi

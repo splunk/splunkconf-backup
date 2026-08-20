@@ -4,8 +4,8 @@ exec > /tmp/splunkconf-checkbackup-debug.log  2>&1
 # Matthieu Araman, Splunk
 
 
-# This script check backup existency
-# it may be called via rest api from MC healtcheck or other usage
+# This script checks backup existence
+# it may be called via rest api from MC healthcheck or other usage
 
 # 20200305 initial version 
 # 20201105 add python3 protection with AWS1 support and test for conf file inclusion to improve logging

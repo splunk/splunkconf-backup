@@ -89,7 +89,7 @@ variable "fs_s3_principals" {
 }
 
 variable "enable-al2023" {
-  description = "Whether to use al2023 instead of AWS2 AMI (if nit in custom mode)"
+  description = "Whether to use al2023 instead of AWS2 AMI (if not in custom mode)"
   type        = bool
   default     = "true"
 }

@@ -12,10 +12,10 @@ Connect terraform cloud to cloned repository via VCS mode, customize variable an
 
 You will need at least : 
 * github account 
-* associated cloned github repository configured vith topology variable 
+* associated cloned github repository configured with topology variable 
 * terraform cloud account (free account is enough to start with, you may need /want a different one for access to other enterprise features)
 * access to AWS account 
-* AWS_ACCESS_KEY and secret created into this account with appropriate permissions needed for terraform to create ressources 
+* AWS_ACCESS_KEY and secret created into this account with appropriate permissions needed for terraform to create resources 
 * choice of AWS primary region (AWS secondary region if you want to sync backups to a secondary)
 * acl list (ip networks and/or ip) to authorize for admin access (ie at least your ip, use 0.0.0.0/0 for open access)
 * existing public zone name that belong to you
@@ -63,4 +63,4 @@ Save settings then clic on Start a new run
 Verify plan 
 if it looks ok then apply it
 
-then go in AWS console and verify the associated ressources were created (iam, sg, asg, instance templates, ...)
+then go in AWS console and verify the associated resources were created (iam, sg, asg, instance templates, ...)

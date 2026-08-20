@@ -15,7 +15,7 @@ env_level = os.environ.get("LOG_LEVEL")
 log_level = logging.INFO if not env_level else env_level
 logger.setLevel(log_level)
 
-version="2022040303"
+version="2024112205"
 
 # dont set this too low or the entry could be invalid before being used at all ...
 ttl = 300
@@ -121,7 +121,8 @@ def get_asg_private_ips(asg_client,ec2_client,asg_name):
             for reservation in ec2_client.describe_instances(InstanceIds = instance_ids)['Reservations']:
                 for instance in reservation['Instances']:
                     if instance['State']['Name'] == 'running':
-                        servers.append({'Value': instance['PrivateIpAddress']})
+                        if 'PrivateIpAddress' in instance:
+                            servers.append({'Value': instance['PrivateIpAddress']})
             return servers
 
 def get_asg_public_ips(asg_client,ec2_client,asg_name):
@@ -135,7 +136,8 @@ def get_asg_public_ips(asg_client,ec2_client,asg_name):
             for reservation in ec2_client.describe_instances(InstanceIds = instance_ids)['Reservations']:
                 for instance in reservation['Instances']:
                     if instance['State']['Name'] == 'running':
-                        servers.append({'Value': instance['PublicIpAddress']})
+                        if 'PublicIpAddress' in instance:
+                            servers.append({'Value': instance['PublicIpAddress']})
             return servers
 
 def get_asg_dns_tags(asg_client,asg_name,region):
@@ -143,6 +145,8 @@ def get_asg_dns_tags(asg_client,asg_name,region):
     for tag in r['Tags']:
         k=tag['Key']
         v=tag['Value']
+        # strip to remove extra spaces around values
+        v=v.strip()
         print (f"key={k},Value={v}")
         if k == 'splunkdnszone':
             zone=v

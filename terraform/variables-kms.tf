@@ -12,6 +12,6 @@ variable "rotation_period_in_days" {
 
 variable "enable_key_rotation" {
   type    = bool
-  default = "true"
+  default = true
 }
 

@@ -34,7 +34,7 @@ variable "splunkconnectedmode" {
 variable "splunkencryption" {
   description = "use encryption at rest"
   type        = bool
-  default     = "true"
+  default     = true
 }
 
 variable "instance-type-indexer-min" {
@@ -62,7 +62,7 @@ variable "disk-size-idx-b" {
 variable "splunkenableunifiedpartition" {
   description = "for instance with ephemeral disk whether to directly use this partition under SPLUNK_HOME (otherwise /data/vol1 is used) (default = false)"
   type        = bool
-  default     = "false"
+  default     = false
 }
 
 

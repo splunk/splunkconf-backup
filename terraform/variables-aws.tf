@@ -38,7 +38,7 @@ variable "idxasg_cooldown" {
 variable "objectlock-backup" {
   description = "Whether to enable object lock feature for S3 backup bucket (need to be choosen at bucket creation time) "
   type        = bool
-  default     = "true"
+  default     = true
 }
 
 variable "objectlock-backup-days" {
@@ -58,19 +58,19 @@ variable "objectlock-backup-mode" {
 variable "enable-s3-normal-replication-backup" {
   description = "Whether to replicate s3 backup from primary to secondary region (you may want to disable if failed over and secondary is more fresh)"
   type        = bool
-  default     = "false"
+  default     = false
 }
 
 variable "enable-s3-reverse-replication-backup" {
   description = "Whether to replicate s3 backup from secondary region to primary (make sure you understand what it means if you set this, bad things could happen otherwise !)"
   type        = bool
-  default     = "false"
+  default     = false
 }
 
 variable "enable-fss3-policy" {
   description = "Whether to enable fs s3 policy which will require principal variable to be configured correctly (default : false) "
   type        = bool
-  default     = "false"
+  default     = false
 }
 
 #variable "fs_s3_principal" {
@@ -91,13 +91,13 @@ variable "fs_s3_principals" {
 variable "enable-al2023" {
   description = "Whether to use al2023 instead of AWS2 AMI (if not in custom mode)"
   type        = bool
-  default     = "true"
+  default     = true
 }
 
 variable "enable-customami" {
   description = "Whether to use custom ami (will take over the default one usage) (you need to set a correct ssmamicustompath in that case)"
   type        = bool
-  default     = "false"
+  default     = false
 }
 
 variable "ssmamicustompath" {

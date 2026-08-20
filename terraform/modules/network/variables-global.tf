@@ -5,7 +5,7 @@ variable "profile" {
 }
 
 variable "splunktargetenv" {
-  description = "environnement (min,dev,prod,...) Some other default depend on theses"
+  description = "environment (min,dev,prod,...) Some other defaults depend on these"
   type        = string
   default     = "test"
 }

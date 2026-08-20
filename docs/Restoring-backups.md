@@ -12,7 +12,7 @@ you can restore backups in multiple situations :
 * full restoration
   * instance loss (hardware or software issue)
   * rollback to a previous situation 
-  * reuse backups in another environnement (like to simulate a upgrade in a test env)
+  * reuse backups in another environment (like to simulate a upgrade in a test env)
 * partial restoration
   * recover a lookup that was overwritten by accident 
   * recover any knowledge object like a dashboard without having to recover the full env

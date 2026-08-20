@@ -20,14 +20,14 @@ DISCLAIMER
 
 use this content at your own risk 
 make sure your understand, evaluate and test things
-expect possible customization effort to adapt terraforms to your cloud environnement
+expect possible customization effort to adapt terraforms to your cloud environment
  
 
 This git repo contains :
 
 - splunkconf-backup app
 this app contains backup and purge scripts that by default do configuration, state and kvdump backups locally
-In a cloud environnement properly configured (as in the terraforms), the app will fetch metadata from cloud and automatically push backup to remote object store so it can be used in case the instance has to be restored
+In a cloud environment properly configured (as in the terraforms), the app will fetch metadata from cloud and automatically push backup to remote object store so it can be used in case the instance has to be restored
 this app is usually deployed on the non indexers components (as recreating a indexer doesnt need a backup)
 You should plan some disk space appropriate for storing the last backups, extra copy + some space left to not block Splunk
 Should the space be reduced for any reason, the app will always try not to purge the latest backup of each type and will wait for space to be recovered to produce newer backups

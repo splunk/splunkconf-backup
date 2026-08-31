@@ -69,8 +69,9 @@
 # 20250825 small workding updates
 # 20251008 update to 8.2.3
 # 20260220 update 8.4.0
+# 20260831 update to 8.6.1
 
-VERSION="20260220a"
+VERSION="20260831a"
 
 SCRIPTNAME="installes"
 
@@ -172,7 +173,8 @@ fi
 #ESAPP="splunk-enterprise-security_810.spl";
 #ESAPP="splunk-enterprise-security_811.spl";
 #ESAPP="splunk-enterprise-security_823.spl";
-ESAPP="splunk-enterprise-security_840.spl";
+#ESAPP="splunk-enterprise-security_840.spl";
+ESAPP="splunk-enterprise-security_861.spl";
 
 
 # SHA256 checksum (splunk-enterprise-security_500.spl) b2a5e4f8297554f4e1818f749386480cfce148e87be8920df939a4282223222c
@@ -205,10 +207,11 @@ ESAPP="splunk-enterprise-security_840.spl";
 # sha256 -c 8c8e4151535d1d53e8c6f9fc50d6779b26a85924acc93cde85c494945dc39c5c 'splunk-enterprise-security_811.spl
 # sha256 -c 572489a9be71a422a274d1c8bced56ef63bff263334bab29c4a8a55f30c0b5d0 'splunk-enterprise-security_823.spl'
 # sha256 -c 58c165fc74d72117c3bf0ca9607c651243bc02f253dc32339b1cd9871a1d11de 'splunk-enterprise-security_840.spl'
+# sha256 -c f3458507ee18da771bffdbd1fc1c6cb0e4b91d0f669e773a3c1d1534edd1fe6d 'splunk-enterprise-security_861.spl'
 
 # SHA256 checksum (splunk-es-content-update_3240.tgz) 49aca3ab3bb1291f988459708e9a589aacc5b64caed493831a00546c36181ea6
 
-EXPECTEDSHA="58c165fc74d72117c3bf0ca9607c651243bc02f253dc32339b1cd9871a1d11de"
+EXPECTEDSHA="f3458507ee18da771bffdbd1fc1c6cb0e4b91d0f669e773a3c1d1534edd1fe6d"
 
 
 CONTENTUPDATE=`LANG=C;find ${INSTALLAPPDIR}  -name  "splunk-es-content-update_*.tgz" | sort | tail -1`

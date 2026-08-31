@@ -31,10 +31,11 @@
 # 20250511 up 8.1.0
 # 20250825 up to 8.1.1
 # 20251008 up to 8.2.3
+# 20260831 up to 8.6.1
 
-VERSION="20251008a"
+VERSION="20260831a"
 
-ESAPP="splunk-enterprise-security_823.spl"
+ESAPP="splunk-enterprise-security_861.spl"
 ESCU="splunk-es-content-update_4330.tgz"
 
 echo "This script $0 download/update ES files from S3 in order to prepare for ES installation/upgrade. It will try to update installes.sh script and download ES version and content update."

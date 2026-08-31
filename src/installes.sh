@@ -533,7 +533,7 @@ EOT
     tar -C"/tmp" -zcf $A Splunk_TA_ueba
     ls -l $A
   else
-    echo "disabing workaround for spl output reload issue" 
+    echo "disabling workaround for spl output reload issue" 
   fi
 
   # ${SPLUNK_HOME}/bin/splunk install app ${ESAPPFULL} -update true -auth admin:${PASSWORD}

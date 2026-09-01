@@ -21,7 +21,7 @@ use associate_public_ip variable to control this setting
 when you use private network, nat gateway will be needed (unless you are routing to another vpc that provide such feature)
 As AWS charge per hour for a nat gateway, this become a big cost in a test env.
 As such , the default only start one nat gateway.
-Alternatively, the bastion host (if used) can be used as a nat instance (which is even cheaper for testing) with a additional routing configuration (that is not yet automated so that is why it doesnt default to this)
+Alternatively, the bastion host (if used) can be used as a nat instance (which is even cheaper for testing). Set `use_nat_gateway = false`, add `bastion` to your topology, and the private default route (`0.0.0.0/0`) is created and updated automatically via a Lambda triggered by bastion ASG launch/terminate events. Set `enable_lambda_bastion_route = false` to disable this automation.
 In a production setup, it is obviously required to have a nat gateway per AZ in AWS VPC (as recommended by AWS)
 
 

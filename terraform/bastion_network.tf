@@ -1,20 +1,12 @@
 # if we manage routing then either one of these routes need to be created
 # if it is managed outside then none of these config need to be created
 
+# Default route 0.0.0.0/0 via bastion ENI is managed at runtime by splunk-lambda-bastion-route.tf
+# when use_nat_gateway = false and enable_lambda_bastion_route = true.
 resource "aws_route_table" "private_route_instancegw" {
   count    = local.use_instance_gateway ? 1 : 0
   provider = aws.region-primary
   vpc_id   = local.master_vpc_id
-  route {
-    cidr_block = "0.0.0.0/0"
-    # workaround for bastion in asg
-    # as the bastion is in a asg group, the eni doesnt exist yet
-    # also there is current way to attach a any as part of a asg at the moment
-    # heavy workaround would be to start a lambda and add/remove the route table dynamically
-    # until this, please edit here to give the eni of the bastion that does nat instance
-    # this is for test env only as a prod env would use a nat gateway (price per hour make it not compelling for just testing)
-    network_interface_id = "eni-024549cb31a489975"
-  }
   tags = {
     Name = "Private-Region-RT"
   }

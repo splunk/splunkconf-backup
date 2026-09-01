@@ -54,6 +54,12 @@ variable "use_nat_gateway" {
   default     = true
 }
 
+variable "enable_lambda_bastion_route" {
+  description = "when use_nat_gateway is false, automatically create/update/delete the private default route via bastion ENI using a Lambda triggered by ASG events"
+  type        = bool
+  default     = true
+}
+
 # not yet implemented in networks.tf
 variable "nat_gateway_ha" {
   description = "for a prod env, you probably want a nat gateway in each AZ so set this to true otherwise false. Only set this to true if use_nat_gateway is also true"

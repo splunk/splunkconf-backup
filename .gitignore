@@ -46,6 +46,7 @@ splunkconf-backup/metadata/
 
 # Terraform Lambda build artifacts
 terraform/modules/network/lambda/*.zip
+terraform/lambda/*.zip
 **/__pycache__/
 
 terraform-gcp/syncbucket.tf.disabled

@@ -47,11 +47,21 @@ nft add table ip nat
 nft flush table ip nat
 nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
 
-# c. Add the Masquerade rule for eth0
-nft add rule ip nat postrouting oifname "eth0" masquerade
+# c Dynamically find the primary network interface (e.g., eth0 or ens5)
+# This looks for the interface used by the default gateway
+PRIMARY_IFACE=\$(ip -o -4 route show to default | awk '{print \$5}')
+
+if [ -z "\$PRIMARY_IFACE" ]; then
+    echo "Error: Could not detect primary network interface."
+    exit 1
+fi
+
+echo "Detected primary interface: \$PRIMARY_IFACE"
+# d. Add the Masquerade rule for eth0
+nft add rule ip nat postrouting oifname "\$PRIMARY_IFACE" masquerade
 
 # Alternative with specific source CIDR (commented out)
-# nft add rule ip nat postrouting ip saddr 10.0.0.0/16 oifname "eth0" masquerade
+# nft add rule ip nat postrouting ip saddr 10.0.0.0/16 oifname "\$PRIMARY_IFACE" masquerade
 EOF
 
 chmod u+x $A

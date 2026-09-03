@@ -23,15 +23,31 @@ aws ec2 modify-instance-attribute --no-source-dest-check --instance-id $INSTANCE
 
 A="/var/lib/cloud/scripts/per-boot/natinstance.sh"
 cat <<EOF > $A
-echo "setting network option for nat instance"
+#!/bin/bash
+echo "Setting network options for NAT instance (nftables)"
+
+# Enable IP Forwarding
 sysctl -w net.ipv4.ip_forward=1
-/sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-# alternative with source
-#/sbin/iptables -t nat  -A POSTROUTING -s 10.0.0.0/16 -o eth0 -j MASQUERADE
+
+# Ensure nftables is used
+# 1. Create a table named 'nat'
+nft add table ip nat
+
+# 2. Create a postrouting chain (hooked to the postrouting system)
+# We use 'flush' here so that if the script runs again, we don't get duplicate rules
+nft flush table ip nat
+nft add chain ip nat postrouting { type nat hook postrouting priority 100 \; }
+
+# 3. Add the Masquerade rule for eth0
+nft add rule ip nat postrouting oifname "eth0" masquerade
+
+# Alternative with specific source CIDR (commented out)
+# nft add rule ip nat postrouting ip saddr 10.0.0.0/16 oifname "eth0" masquerade
 EOF
 
 chmod u+x $A
 
+# Execute it immediately
 $A
 
 echo "end of user data script"

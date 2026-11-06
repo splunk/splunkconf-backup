@@ -290,8 +290,9 @@ exec >> /var/log/splunkconf-cloud-recovery-debug.log 2>&1
 # 20260721 apply temp solution for pg password at start
 # 20260818 up to 10.4.2
 # 20260818 add stripe logic/opti to setup disk 
+# 20261101 up to 10.6.1.1
 
-VERSION="20260818b"
+VERSION="20261106a"
 
 # dont break script on error as we rely on tests for this
 set +e
@@ -1783,8 +1784,9 @@ fi # if not upgrade
 echo "#************************************** SPLUNK SOFTWARE BINARY INSTALLATION ************************"
 # Splunk installation
 # note : if you update here, that could update Splunk version at reinstanciation (redeploy backup while upgrading to this version), make sure you know what you do !
-splversion="10.4.2"
-splhash="33c3bf42cd73"
+# note prior to 10.6 splversion is x.y.z from 10.6 included, this is x.y.z.v (x,y,z,v are numbers)
+splversion="10.6.1.1"
+splhash="b2ae2962645c"
 splversionhash=${splversion}-${splhash}""
 # this is spl arch, arch will be the one from os
 splarch="x86_64"
